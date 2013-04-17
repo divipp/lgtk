@@ -1,8 +1,8 @@
-{-# LANGUAGE RankNTypes #-}
 import Control.Monad
 import Control.Monad.Trans
-import Prelude hiding ((.), id)
 
+import Data.MLens (mapMLens)
+import Data.MLens.Ref (fileRef)
 import GUI.MLens.Gtk
 
 import GUI.MLens.Gtk.Demos.Tri
@@ -11,7 +11,7 @@ import GUI.MLens.Gtk.Demos.TEditor
 
 
 {- |
-We use @unsafeRunI@ only because we read from an write to a file.
+We use @unsafeRunI@ only because we read from and write to a file.
 It is considered unsafe usage, because the system do not guarantee that only this
 program acesses the files at runtime.
 -}

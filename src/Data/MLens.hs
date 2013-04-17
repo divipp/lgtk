@@ -97,6 +97,7 @@ fromLens (MLens f) = MLens $ \x -> do
 toLens :: (forall m . Monad m => MLens m a b) -> Lens a b
 toLens k = k
 
+-- | Impure (but effect-free) lens constuctor
 lens :: Monad m => (a -> b) -> (b -> a -> a) -> MLens m a b
 lens get set = MLens $ \a -> return (get a, return . flip set a)
 

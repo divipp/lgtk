@@ -2,23 +2,55 @@
 {-# LANGUAGE RankNTypes #-}
 -- | The main LGtk interface, ideally users should import only this module.
 module GUI.MLens.Gtk
-    ( module Control.Category
-    , module Data.MLens
-    , module Data.MLens.Ref
-    , module Control.MLens.ExtRef
-    , module GUI.MLens.Gtk.Interface
+    ( -- * Lenses and references
+      -- ** Data types
+      MLens
+    , Lens
+    , Ref
 
-    -- * Running (rendering) and interface description
-    , runI
-    , unsafeRunI
+    -- ** Lens operations
+    , getL, setL, modL
 
-    -- * Composed
+    -- ** Lens transformations
+    , fromLens, toLens
+    , (.)
+    , (***)
+    , joinML, joinLens
+    , memoMLens
+
+    -- ** Pure lenses
+    , id
+    , unitLens
+    , fstLens, sndLens
+    , maybeLens
+    , listLens
+    , ithLens
+
+    -- ** Impure lenses
+    , lens
+    , forkLens
+    , justLens
+    , showLens
+
+    -- ** Reference operations
+    , readRef, writeRef, modRef
+    , NewRef (..)
+    , ExtRef (..)
+    , undoTr
+
+    -- * GUI combinators
+    , I (..)
+    , ListLayout (..)
     , vcat, hcat
     , smartButton
 
+    -- * Running GUI descriptions
+    , runI
+    , unsafeRunI
+
     -- * Auxiliary functions
-    , mapI
     , toFree
+    , memoRead, memoWrite
     ) where
 
 import Control.Category
@@ -45,11 +77,11 @@ smartButton s f k =
     Button s $ toFree $ readRef k >>= \x -> f x >>= \y -> 
         if y == x then return Nothing else return $ Just ((readRef k >>= f) >>= writeRef k)
 
--- | Run (render) and interface description
+-- | Run an interface description
 runI :: (forall m . (Functor m, ExtRef m) => I m) -> IO ()
 runI e = runExt_ mapI e >>= Gtk.runI
 
--- | Run (render) and interface description
+-- | Run an interface description
 --
 -- Unsafe only if you do nasty things in the @IO@ monad, like forking threads
 unsafeRunI :: (forall i . I (Ext i IO)) -> IO ()

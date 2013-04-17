@@ -3,13 +3,14 @@ version:            0.2
 category:           GUI
 synopsis:           lens-based GUI with Gtk backend
 description:
-    Try the demo executable lgtkdemo and read the source.
+    The main interface of LGtk is "GUI.MLens.Gtk".
     .
-    See also <http://people.inf.elte.hu/divip/LGtk.html>
+    See also <http://people.inf.elte.hu/divip/LGtk/index.html>
 stability:          alpha
 license:            BSD3
 license-file:       LICENSE
 author:             Péter Diviánszky
+homepage:           http://people.inf.elte.hu/divip/LGtk/index.html
 maintainer:         divipp@gmail.com
 cabal-version:      >= 1.8
 build-type:         Simple
