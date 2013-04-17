@@ -1,5 +1,5 @@
 name:               lgtk
-version:            0.2
+version:            0.3
 category:           GUI
 synopsis:           lens-based GUI with Gtk backend
 description:
