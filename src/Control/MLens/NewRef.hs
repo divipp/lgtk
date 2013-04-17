@@ -18,9 +18,15 @@ import Prelude -- hiding ((.), id)
 import Data.MLens
 import Data.MLens.Ref
 
+{- |
+Laws for @NewRef@:
+
+ *  Any reference created by @newRef@ should satisfy the reference laws given in "Data.MLens.Ref".
+-}
 class (Monad m) => NewRef m where
     newRef :: a -> m (Ref m a)
 
+-- | Note that this instance does not fulfil the @NewRef@ laws in a multi-threaded environment.
 instance NewRef IO where
     newRef x = do
         r <- newIORef x

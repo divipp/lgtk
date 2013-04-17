@@ -62,7 +62,7 @@ or reasoning about code with impure lenses.
 
 The following law is a minimum, but some lenses (which do logging) do not fulfil this:
 
- *  @getL@ has no side effect, i.e. @(getL k a >> return ())@  can be replaced by  @(return ())@
+ *  get-no-effect: @(getL k a >> return ())@ === @(return ())@
 
 TODO: List laws, document which laws hold for each lenses.
 -}
@@ -75,6 +75,16 @@ Side-effect free lenses.
 The following representations would be also good for @(Lens a b)@:
 
  *  @forall m . Monad m => MLens m a b@
+
+Laws for pure monadic lenses:
+
+ *  set-get: @(setL l b a >>= getL l)@ === @(setL l b a >> return b)
+
+ *  get-set: @(getL l a >>= \b -> setL l b a)@  ===  @(return a)@
+
+ *  set-set: @(setL l b a >>= setL l b')@ ===  @(setL l b' a)@
+
+For example, @fstLens@ and @(fstLens . fstLens)@ fulfil these laws.
 -}
 type Lens a b
     = MLens Identity a b

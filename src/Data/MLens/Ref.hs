@@ -6,7 +6,7 @@ module Data.MLens.Ref
     -- * Reference operations
     , readRef, writeRef, modRef
 
-    -- * Some @IO@ referenceses
+    -- * Some impure @IO@ referenceses
     , fileRef, fileRef_
     , logConsoleLens
 
@@ -33,10 +33,18 @@ then
 
 Reference laws for pure references:
 
- *  @(readRef r)@ has no side effect.
- *  @(readRef r >>= writeRef r)@ has no side effect.
- *  @(writeRef r a >> readRef r)@ returns @a@.
- *  @(writeRef r a >> writeRef r a)@ has the same effect as @(writeRef r a)@.
+ *  @(readRef r)@ has no side effect
+
+ *  @(readRef r >>= writeRef r)@ === @(return ())@
+
+ *  @(writeRef r a >> readRef r)@ === @(return a)@
+
+ *  @(writeRef r a >> writeRef r a')@ === @(writeRef r a')@
+
+ *  Reference laws need not be preserved by composition, but they should be preserved if a
+    pure lens is composed from the left.
+
+These first four laws are equivalent to the get-no-effect, set-get, get-set and set-set laws for monadic lenses.
 -}
 type Ref m a = MLens m () a
 
