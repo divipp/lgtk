@@ -1,0 +1,75 @@
+name:               lgtk
+version:            0.1.0.2
+category:           GUI
+synopsis:           lens-based GUI with Gtk backend
+description:
+    Try the demo executable lgtkdemo and read the source.
+    .
+    See also <http://people.inf.elte.hu/divip/LGtk.html>
+stability:          alpha
+license:            BSD3
+license-file:       LICENSE
+author:             Péter Diviánszky
+maintainer:         divipp@gmail.com
+cabal-version:      >= 1.8
+build-type:         Simple
+
+
+library
+
+  hs-source-dirs:
+                    src
+  build-depends:
+                    base < 5
+                  , containers
+                  , directory
+
+                  , mtl
+                  , control-monad-free
+                  -- Control.Category.Product is used only
+                  , data-lens
+
+                  , gtk
+  exposed-modules:
+                    Data.MLens
+                    Data.MLens.Ref
+
+                    Control.MLens.NewRef
+                    Control.MLens.ExtRef
+                    Control.MLens.ExtRef.Pure
+                    Control.MLens.ExtRef.Pure.Test
+
+                    GUI.MLens.Gtk.Interface
+                    GUI.MLens.Gtk.IO
+                    GUI.MLens.Gtk
+                    GUI.MLens.Gtk.ADTEditor
+
+                    GUI.MLens.Gtk.Demos.Tri
+                    GUI.MLens.Gtk.Demos.IntListEditor
+                    GUI.MLens.Gtk.Demos.TEditor
+  ghc-options: 
+                    -Wall 
+                    -fno-warn-incomplete-patterns 
+                    -fno-warn-name-shadowing 
+                    -fno-warn-missing-signatures 
+                    -fno-warn-orphans
+                    -fno-warn-type-defaults
+
+executable lgtkdemo
+
+  build-depends:
+                    base < 5
+                  , mtl
+                  , lgtk
+  main-is:
+                    Main.hs
+  hs-source-dirs:
+                    main
+  ghc-options: 
+                    -Wall 
+                    -fno-warn-incomplete-patterns 
+                    -fno-warn-name-shadowing 
+                    -fno-warn-missing-signatures 
+                    -fno-warn-orphans
+                    -fno-warn-type-defaults
+
