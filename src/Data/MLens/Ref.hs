@@ -1,7 +1,9 @@
 {-# LANGUAGE RankNTypes #-}
 module Data.MLens.Ref
-    ( -- * Data type for reference lenses
-      Ref
+    ( Unit
+
+    -- * Data type for reference lenses
+    , Ref
 
     -- * Reference operations
     , readRef, writeRef, modRef
@@ -21,6 +23,13 @@ import Prelude hiding ((.), id)
 
 import Data.MLens
 
+{- | 
+The abstract data type @Unit@ is isomorphic to @()@,
+but by making it abstract we can prevent using references
+on the left hand side of lens composition.
+-}
+data Unit = Unit deriving (Eq, Show)
+
 {- |
 Note that references lenses can be composed with lenses.
 For example, if
@@ -33,7 +42,7 @@ then
 
 Reference laws for pure references:
 
- *  @(readRef r)@ has no side effect
+ *  @(readRef r >> return ())@ === @(return ())@
 
  *  @(readRef r >>= writeRef r)@ === @(return ())@
 
@@ -41,21 +50,18 @@ Reference laws for pure references:
 
  *  @(writeRef r a >> writeRef r a')@ === @(writeRef r a')@
 
- *  Reference laws need not be preserved by composition, but they should be preserved if a
-    pure lens is composed from the left.
-
-These first four laws are equivalent to the get-no-effect, set-get, get-set and set-set laws for monadic lenses.
+These laws are equivalent to the get-no-effect, set-get, get-set and set-set laws for monadic lenses.
 -}
-type Ref m a = MLens m () a
+type Ref m a = MLens m Unit a
 
-readRef :: Monad m => MLens m () a -> m a
-readRef k = getL k ()
+readRef :: Monad m => MLens m Unit a -> m a
+readRef k = getL k Unit
 
 writeRef :: Monad m => Ref m a -> a -> m ()
-writeRef r a = setL r a ()
+writeRef r a = setL r a Unit >> return ()
 
 modRef :: Monad m => Ref m a -> (a -> a) -> m ()
-k `modRef` f = modL k f ()
+k `modRef` f = modL k f Unit >> return ()
 
 -- | Using @fileRef@ is safe if the file is not used concurrently.
 fileRef :: FilePath -> IO (Ref IO String)
@@ -63,13 +69,16 @@ fileRef f = liftM (justLens "" .) $ fileRef_ f
 
 -- | Note that if you write @Nothing@, the file is deleted.
 fileRef_ :: FilePath -> IO (Ref IO (Maybe String))
-fileRef_ f = return $ MLens $ \() -> do
+fileRef_ f = return $ MLens $ \Unit -> do
     b <- doesFileExist f
     if b then do
             xs <- readFile f
             length xs `seq` return (Just xs, wr)
          else return (Nothing, wr)
- where wr = maybe (doesFileExist f >>= \b -> when b (removeFile f)) (writeFile f)
+ where
+    wr mb = do
+        maybe (doesFileExist f >>= \b -> when b (removeFile f)) (writeFile f) mb
+        return Unit
 
 logMLens :: Monad m => (a -> m ()) -> (a -> m ()) -> MLens m a a
 logMLens getLog setLog = MLens $ \a -> getLog a >> return (a, \b -> setLog b >> return b)

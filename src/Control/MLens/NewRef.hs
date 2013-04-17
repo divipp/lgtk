@@ -30,9 +30,9 @@ class (Monad m) => NewRef m where
 instance NewRef IO where
     newRef x = do
         r <- newIORef x
-        return $ MLens $ \() -> do
+        return $ MLens $ \unit -> do
             x <- readIORef r
-            return (x, writeIORef r)
+            return (x, \y -> writeIORef r y >> return unit)
 
 instance (NewRef m, Monoid w) => NewRef (WriterT w m) where
     newRef = liftM (mapMLens lift) . lift . newRef
