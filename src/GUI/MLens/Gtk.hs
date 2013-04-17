@@ -3,40 +3,7 @@
 -- | The main LGtk interface, ideally users should import only this module.
 module GUI.MLens.Gtk
     ( -- * Lenses and references
-      -- ** Data types
-      MLens
-    , Lens
-    , Ref
-
-    -- ** Lens operations
-    , getL, setL, modL
-
-    -- ** Lens transformations
-    , fromLens, toLens
-    , (.)
-    , (***)
-    , joinML, joinLens
-    , memoMLens
-
-    -- ** Pure lenses
-    , id
-    , unitLens
-    , fstLens, sndLens
-    , maybeLens
-    , listLens
-    , ithLens
-
-    -- ** Impure lenses
-    , lens
-    , forkLens
-    , justLens
-    , showLens
-
-    -- ** Reference operations
-    , readRef, writeRef, modRef
-    , NewRef (..)
-    , ExtRef (..)
-    , undoTr
+      module Control.MLens
 
     -- * GUI combinators
     , I (..)
@@ -50,18 +17,14 @@ module GUI.MLens.Gtk
 
     -- * Auxiliary functions
     , toFree
-    , memoRead, memoWrite
     ) where
 
 import Control.Category
 import Control.Monad.Free
 import Prelude hiding ((.), id)
 
-import Data.MLens
-import Data.MLens.Ref
-import Control.MLens.ExtRef
+import Control.MLens
 import GUI.MLens.Gtk.Interface
-import Control.MLens.ExtRef.Pure
 import qualified GUI.MLens.Gtk.IO as Gtk
 
 vcat :: [I m] -> I m

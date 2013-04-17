@@ -39,6 +39,7 @@ library
                     Control.MLens.ExtRef.Test
                     Control.MLens.ExtRef.Pure
                     Control.MLens.ExtRef.Pure.Test
+                    Control.MLens
 
                     GUI.MLens.Gtk.Interface
                     GUI.MLens.Gtk.IO

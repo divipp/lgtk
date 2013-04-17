@@ -1,7 +1,6 @@
 import Control.Monad
 import Control.Monad.Trans
 
-import Data.MLens (mapMLens)
 import Data.MLens.Ref (fileRef)
 import GUI.MLens.Gtk
 
