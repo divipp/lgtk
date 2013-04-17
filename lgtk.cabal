@@ -26,8 +26,6 @@ library
 
                   , mtl
                   , control-monad-free
-                  -- Control.Category.Product is used only
-                  , data-lens
 
                   , gtk
   exposed-modules:

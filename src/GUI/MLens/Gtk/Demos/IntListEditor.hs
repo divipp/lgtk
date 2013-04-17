@@ -4,6 +4,7 @@ module GUI.MLens.Gtk.Demos.IntListEditor where
 import GUI.MLens.Gtk
 
 import Control.Monad
+import qualified Control.Arrow as Arrow
 import Data.List
 import Data.Function (on)
 import Prelude hiding ((.), id)
@@ -62,7 +63,7 @@ intListEditor state settings = Action $ do
         , Button (return "Copy") $ return $ Just $ modRef list (\xs -> take (i+1) xs ++ drop i xs) ]
 
     extendList r n xs = take n $ (reverse . drop 1 . reverse) xs ++
-        (uncurry zip . ((if r then enumFrom else repeat) *** repeat)) (head $ reverse xs ++ [def])
+        (uncurry zip . ((if r then enumFrom else repeat) Arrow.*** repeat)) (head $ reverse xs ++ [def])
 
     def = (0, True)
     maxi = 15

@@ -3,7 +3,6 @@
 
 module GUI.MLens.Gtk -- --> GUI.MLens.Gtk.Interface
     ( module Control.Category
-    , module Control.Category.Product
     , module Data.MLens
     , module Data.MLens.Ref
     , module Control.MLens.ExtRef
@@ -19,7 +18,6 @@ module GUI.MLens.Gtk -- --> GUI.MLens.Gtk.Interface
     ) where
 
 import Control.Category
-import Control.Category.Product
 import Control.Monad.Free
 import Prelude hiding ((.), id)
 

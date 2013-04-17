@@ -14,6 +14,7 @@ module Data.MLens
     , getL, setL, modL
 
     -- * Lens transformations
+    , (***)
     , mapMLens
     , joinML, joinLens
 
@@ -35,7 +36,7 @@ module Data.MLens
 
 import Data.Monoid
 import Control.Category
-import Control.Category.Product
+import qualified Control.Arrow as Arrow
 import Control.Monad
 import Control.Monad.Identity
 import Data.Maybe
@@ -107,14 +108,23 @@ instance Monad m => Category (MLens m) where
         (g1, s1) <- r1 g2
         return (g1, s1 >=> s2)
 
-instance Monad m => Tensor (MLens m) where
-    MLens r1 *** MLens r2 = MLens $ \(a1, a2) -> do
+-- | Tensor product
+--
+-- could be defined as
+--
+-- @instance Monad m => Tensor (MLens m)@
+--
+-- @Tensor@ is defined in "Control.Category.Product" in the data-lens package.
+(***) :: Monad m => MLens m a b -> MLens m c d -> MLens m (a, c) (b, d)
+MLens r1 *** MLens r2 = MLens $ \(a1, a2) -> do
         (g1, s1) <- r1 a1
         (g2, s2) <- r2 a2
         return
             ( (g1, g2)
-            , uncurry (liftM2 (,)) . (s1 *** s2)
+            , uncurry (liftM2 (,)) . (s1 Arrow.*** s2)
             )
+
+infixr 3 ***
 
 mapMLens :: (Monad m, Monad n) => Morph m n -> MLens m a b -> MLens n a b
 mapMLens f (MLens r) = MLens $ \a -> do

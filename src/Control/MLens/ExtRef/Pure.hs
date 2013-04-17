@@ -12,7 +12,7 @@ module Control.MLens.ExtRef.Pure
 
 import Control.Monad.State
 import Control.Category
-import Control.Category.Product
+import qualified Control.Arrow as Arrow
 import Data.Sequence
 import Data.Foldable (toList)
 import Prelude hiding ((.), id, splitAt, length)
@@ -59,7 +59,7 @@ extend_ rk kr a0 x0
 
     ST x ||> c = ST (x |> c)
 
-    limit (ST x) (ST y) = ST *** toList $ splitAt (length x) y
+    limit (ST x) (ST y) = ST Arrow.*** toList $ splitAt (length x) y
 
 
 
