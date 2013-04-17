@@ -41,7 +41,6 @@ library
                     Control.MLens.ExtRef.Pure.Test
                     Control.MLens
 
-                    GUI.MLens.Gtk.Interface
                     GUI.MLens.Gtk
                     GUI.MLens.Gtk.ADTEditor
 
@@ -50,6 +49,7 @@ library
                     GUI.MLens.Gtk.Demos.TEditor
   other-modules:
                     GUI.MLens.Gtk.IO
+                    GUI.MLens.Gtk.Interface
   ghc-options: 
                     -Wall 
                     -fno-warn-incomplete-patterns 
