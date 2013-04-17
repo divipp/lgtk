@@ -1,12 +1,16 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE RankNTypes #-}
-
-module GUI.MLens.Gtk -- --> GUI.MLens.Gtk.Interface
+-- | The main LGtk interface, ideally users should import only this module.
+module GUI.MLens.Gtk
     ( module Control.Category
     , module Data.MLens
     , module Data.MLens.Ref
     , module Control.MLens.ExtRef
     , module GUI.MLens.Gtk.Interface
+
+    -- * Running (rendering) and interface description
+    , runI
+    , unsafeRunI
 
     -- * Composed
     , vcat, hcat
@@ -25,6 +29,8 @@ import Data.MLens
 import Data.MLens.Ref
 import Control.MLens.ExtRef
 import GUI.MLens.Gtk.Interface
+import Control.MLens.ExtRef.Pure
+import qualified GUI.MLens.Gtk.IO as Gtk
 
 vcat :: [I m] -> I m
 vcat = List Vertical
@@ -38,6 +44,16 @@ smartButton
 smartButton s f k =
     Button s $ toFree $ readRef k >>= \x -> f x >>= \y -> 
         if y == x then return Nothing else return $ Just ((readRef k >>= f) >>= writeRef k)
+
+-- | Run (render) and interface description
+runI :: (forall m . (Functor m, ExtRef m) => I m) -> IO ()
+runI e = runExt_ mapI e >>= Gtk.runI
+
+-- | Run (render) and interface description
+--
+-- Unsafe only if you do nasty things in the @IO@ monad, like forking threads
+unsafeRunI :: (forall i . I (Ext i IO)) -> IO ()
+unsafeRunI e = runExt_ mapI e >>= Gtk.runI
 
 
 mapI :: (Monad m, Functor m, Monad n, Functor n) => Morph n m -> Morph m n -> I m -> I n
