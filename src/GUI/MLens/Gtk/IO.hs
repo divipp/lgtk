@@ -14,6 +14,7 @@ import Graphics.UI.Gtk
 
 import Data.MLens.Ref
 import Control.MLens.NewRef
+import Control.MLens.NewRef.Unsafe ()
 import GUI.MLens.Gtk.Interface
 
 ------------------

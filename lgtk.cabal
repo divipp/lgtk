@@ -34,6 +34,7 @@ library
                     Data.MLens.Ref
 
                     Control.MLens.NewRef
+                    Control.MLens.NewRef.Unsafe
                     Control.MLens.ExtRef
                     Control.MLens.ExtRef.Test
                     Control.MLens.ExtRef.Pure

@@ -10,10 +10,8 @@ module Control.MLens.NewRef
     , memoRead, memoWrite
     ) where
 
-import Data.IORef
 import Control.Monad
 import Control.Monad.Writer
-import Prelude -- hiding ((.), id)
 
 import Data.MLens
 import Data.MLens.Ref
@@ -25,14 +23,6 @@ Laws for @NewRef@:
 -}
 class (Monad m) => NewRef m where
     newRef :: a -> m (Ref m a)
-
--- | Note that this instance does not fulfil the @NewRef@ laws in a multi-threaded environment.
-instance NewRef IO where
-    newRef x = do
-        r <- newIORef x
-        return $ MLens $ \unit -> do
-            x <- readIORef r
-            return (x, \y -> writeIORef r y >> return unit)
 
 instance (NewRef m, Monoid w) => NewRef (WriterT w m) where
     newRef = liftM (mapMLens lift) . lift . newRef
