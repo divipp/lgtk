@@ -12,7 +12,8 @@ module Control.MLens.NewRef
 
 import Data.IORef
 import Control.Monad
-import Prelude hiding ((.), id)
+import Control.Monad.Writer
+import Prelude -- hiding ((.), id)
 
 import Data.MLens
 import Data.MLens.Ref
@@ -27,6 +28,8 @@ instance NewRef IO where
             x <- readIORef r
             return (x, writeIORef r)
 
+instance (NewRef m, Monoid w) => NewRef (WriterT w m) where
+    newRef = liftM (mapMLens lift) . lift . newRef
 
 -- | Memoise pure lenses
 memoMLens :: (NewRef m, Eq a, Eq b) => MLens m a b -> m (MLens m a b)

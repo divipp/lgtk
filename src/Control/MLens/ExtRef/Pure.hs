@@ -11,6 +11,7 @@ module Control.MLens.ExtRef.Pure
     ) where
 
 import Control.Monad.State
+import Control.Monad.Writer
 import Control.Category
 import qualified Control.Arrow as Arrow
 import Data.Sequence
@@ -64,7 +65,7 @@ extend_ rk kr a0 x0
 
 
 newtype Ext i m a = Ext { unExt :: StateT (ST m) m a }
-    deriving (Functor, Monad)
+    deriving (Functor, Monad, MonadWriter w)
 
 instance MonadTrans (Ext i) where
     lift = Ext . lift
