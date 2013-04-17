@@ -78,7 +78,7 @@ The following representations would be also good for @(Lens a b)@:
 
 Laws for pure monadic lenses:
 
- *  set-get: @(setL l b a >>= getL l)@ === @(setL l b a >> return b)
+ *  set-get: @(setL l b a >>= getL l)@ === @(setL l b a >> return b)@
 
  *  get-set: @(getL l a >>= \b -> setL l b a)@  ===  @(return a)@
 
