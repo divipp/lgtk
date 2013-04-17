@@ -25,8 +25,8 @@ import Data.MLens
 
 {- | 
 The abstract data type @Unit@ is isomorphic to @()@,
-but by making it abstract we can prevent using references
-on the left hand side of lens composition.
+but by making it abstract we can prevent using the same reference
+on both sides of lens composition, which would have surprising effects.
 -}
 data Unit = Unit deriving (Eq, Show)
 
@@ -54,7 +54,7 @@ These laws are equivalent to the get-no-effect, set-get, get-set and set-set law
 -}
 type Ref m a = MLens m Unit a
 
-readRef :: Monad m => MLens m Unit a -> m a
+readRef :: Monad m => Ref m a -> m a
 readRef k = getL k Unit
 
 writeRef :: Monad m => Ref m a -> a -> m ()
