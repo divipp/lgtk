@@ -42,13 +42,14 @@ library
                     Control.MLens
 
                     GUI.MLens.Gtk.Interface
-                    GUI.MLens.Gtk.IO
                     GUI.MLens.Gtk
                     GUI.MLens.Gtk.ADTEditor
 
                     GUI.MLens.Gtk.Demos.Tri
                     GUI.MLens.Gtk.Demos.IntListEditor
                     GUI.MLens.Gtk.Demos.TEditor
+  other-modules:
+                    GUI.MLens.Gtk.IO
   ghc-options: 
                     -Wall 
                     -fno-warn-incomplete-patterns 
