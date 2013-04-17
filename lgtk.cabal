@@ -6,7 +6,7 @@ description:
     The main interface of LGtk is "GUI.MLens.Gtk".
     .
     See also <http://people.inf.elte.hu/divip/LGtk/index.html>
-stability:          alpha
+stability:          experimental
 license:            BSD3
 license-file:       LICENSE
 author:             Péter Diviánszky
