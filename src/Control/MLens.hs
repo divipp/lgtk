@@ -1,5 +1,4 @@
--- {-# LANGUAGE ExistentialQuantification #-}
--- {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 -- | The main monadic lens interface, ideally users should import only this module.
 module Control.MLens
     ( -- * Data types
@@ -49,14 +48,26 @@ module Control.MLens
 
     -- * Auxiliary definitions
     , Morph
+
+    -- ** Consistency tests
+    , testExt
     ) where
 
 import Control.Category
+import Control.Monad.Writer
 import Prelude hiding ((.), id)
 
 import Data.MLens
 import Data.MLens.Ref
 import Control.MLens.ExtRef
+import Control.MLens.ExtRef.Test
 import Control.MLens.ExtRef.Pure
+
+newtype ExtTest i a = ExtTest { unExtTest :: Ext i (Writer [String]) a }
+    deriving (Monad, MonadWriter [String], NewRef, ExtRef)
+
+-- | Consistency tests for @Ext@.
+testExt :: [String]
+testExt = mkTests (\t -> execWriter $ runExt $ unExtTest t)
 
 
