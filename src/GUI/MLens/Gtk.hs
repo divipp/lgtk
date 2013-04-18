@@ -8,12 +8,14 @@ module GUI.MLens.Gtk
     -- * GUI combinators
     , I (..)
     , ListLayout (..)
-    , vcat, hcat
-    , smartButton
 
     -- * Running GUI descriptions
     , runI
     , unsafeRunI
+
+    -- * Derived constructs
+    , vcat, hcat
+    , smartButton
 
     -- * Auxiliary functions
     , toFree

@@ -155,10 +155,10 @@ unitLens :: Monad m => MLens m a ()
 unitLens = lens (const ()) (const id)
 
 fstLens :: Monad m => MLens m (a,b) a
-fstLens = MLens $ \(a,b) -> return (a, \a' -> return (a', b))
+fstLens = lens fst $ \a (_,b) -> (a,b)
 
 sndLens :: Monad m => MLens m (a,b) b
-sndLens = MLens $ \(a,b) -> return (b, \b' -> return (a, b'))
+sndLens = lens snd $ \b (a,_) -> (a,b)
 
 maybeLens :: Monad m => MLens m (Bool, a) (Maybe a)
 maybeLens = lens (\(b,a) -> if b then Just a else Nothing)
@@ -176,8 +176,7 @@ ithLens :: Monad m => Int -> MLens m [a] a
 ithLens i = lens (!!i) $ \x xs -> take i xs ++ x : drop (i+1) xs
 
 forkLens :: (Monoid a, Monad m) => MLens m a (a, a)
-forkLens = MLens $ \a ->
-    return ((a, a), \(a1, a2) -> return $ a1 `mappend` a2)
+forkLens = lens (\a -> (a, a)) $ \(a1, a2) _ -> a1 `mappend` a2
 
 justLens :: Monad m => a -> MLens m (Maybe a) a
 justLens a = lens (maybe a id) (const . Just)

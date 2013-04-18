@@ -9,6 +9,7 @@ module Control.MLens
 
     -- * Lens operations
     , getL, setL, modL
+    , readRef, writeRef, modRef
 
     -- * Lens transformations
     , fromLens, toLens
@@ -18,7 +19,14 @@ module Control.MLens
     , joinML, joinLens
     , memoMLens
 
-    -- * Pure lenses
+    -- * Lens creation
+    , lens
+    , NewRef (..)
+    , ExtRef (..)
+    , Ext, runExt, runExt_
+
+    -- * Derived constructs
+    -- ** Pure lenses, built with @lens@
     , id
     , unitLens
     , fstLens, sndLens
@@ -26,17 +34,12 @@ module Control.MLens
     , listLens
     , ithLens
 
-    -- * Impure lenses
-    , lens
+    -- ** Impure lenses, built with @lens@
     , forkLens
     , justLens
     , showLens
 
-    -- * Reference operations
-    , readRef, writeRef, modRef
-    , NewRef (..)
-    , ExtRef (..)
-    , Ext, runExt, runExt_
+    -- ** Other derived construts
     , undoTr
 
     -- * Auxiliary definitions
