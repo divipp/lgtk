@@ -31,16 +31,7 @@ on both sides of lens composition, which would have surprising effects.
 data Unit = Unit deriving (Eq, Show)
 
 {- |
-Note that references lenses can be composed with lenses.
-For example, if
-
-@r :: Ref m (a,b)@
-
-then
-
-@fstLens . r :: Ref m a@
-
-Reference laws for pure references:
+Laws for pure references:
 
  *  @(readRef r >> return ())@ === @(return ())@
 
@@ -51,6 +42,15 @@ Reference laws for pure references:
  *  @(writeRef r a >> writeRef r a')@ === @(writeRef r a')@
 
 These laws are equivalent to the get-no-effect, set-get, get-set and set-set laws for monadic lenses.
+
+Reference lenses can be composed with lenses.
+For example, if
+
+@r :: Ref m (a,b)@
+
+then
+
+@fstLens . r :: Ref m a@
 -}
 type Ref m a = MLens m Unit a
 
