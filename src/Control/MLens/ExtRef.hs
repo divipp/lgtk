@@ -17,27 +17,25 @@ import Data.MLens
 import Data.MLens.Ref
 
 {- |
-Suppose that @k@ is a pure lens, and
-
-@s <- extRef r k a0@.
+Suppose that @r@ is a pure reference and @k@ is a pure lens.
 
 The following laws should hold:
 
- *  @s@ is a pure reference.
+ *  @(extRef r k a0 >>= readRef)@ === @(readRef r >>= setL k a0)@
 
- *  @(k . s)@ behaves exactly as @r@.
+ *  @(extRef r k a0 >> readRef r)@ === @(readRef r)@
 
- *  The initial value of @s@ is the result of @(readRef r >>= setL k a0)@.
+Given @s <- extRef r k a0@, the following laws should hold:
 
-Moreover, @(extRef r k a0)@ should not change the value of @r@.
+ *  @s@ is a pure reference
 
-The following two operations should be identical:
+ *  @(k . s)@ === @r@
 
-@newRew x@
+Law for @newRef@ when @extRef@ is defined:
 
-@extRef unitLens unitLens x@
+ *  @(newRew x)@ === @(extRef unitLens unitLens x)@
 
-For examples, see "Control.MLens.ExtRef.Pure.Test".
+For basic usage examples, look into the source of "Control.MLens.ExtRef.Pure.Test".
 -}
 class NewRef m => ExtRef m where
     extRef :: Ref m b -> MLens m a b -> a -> m (Ref m a)
