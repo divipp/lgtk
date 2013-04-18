@@ -16,7 +16,7 @@ module Control.MLens
     , mapMLens
     , (.)
     , (***)
-    , joinML, joinLens
+    , joinML
     , memoMLens
 
     -- * Lens creation
@@ -40,6 +40,7 @@ module Control.MLens
     , showLens
 
     -- ** Other derived construts
+    , joinLens
     , undoTr
 
     -- * Auxiliary definitions
