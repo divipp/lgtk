@@ -46,16 +46,15 @@ import Prelude hiding ((.), id)
 {-|
 Monadic lenses.
 
-The following representations would be also good for @(MLens m a b)@:
+Laws for pure monadic lenses:
 
- *  @a -> m (Store b (m a))@
+ *  set-get: @(setL l b a >>= getL l)@ === @(setL l b a >> return b)@
 
- *  @forall f . Functor f => (b -> m (f (m b))) -> a -> m (f (m a))@
+ *  get-set: @(getL l a >>= \b -> setL l b a)@  ===  @(return a)@
 
- *  @(a -> m b, b -> a -> m a)@
+ *  set-set: @(setL l b a >>= setL l b')@ ===  @(setL l b' a)@
 
-The last representation has no efficient composition operation
-(the set operation on composition of n lenses use O(n * n) get operations with the last representation).
+For example, @fstLens@ and @(fstLens . fstLens)@ fulfil these laws.
 
 Using lenses which do not fulfil the lens laws are safe,
 but one should take extra care when doing program transformations
@@ -66,6 +65,17 @@ The following law is a minimum, but some lenses (which do logging) do not fulfil
  *  get-no-effect: @(getL k a >> return ())@ === @(return ())@
 
 TODO: List laws, document which laws hold for each lenses.
+
+The following representations would be also good for @(MLens m a b)@:
+
+ *  @a -> m (Store b (m a))@
+
+ *  @forall f . Functor f => (b -> m (f (m b))) -> a -> m (f (m a))@
+
+ *  @(a -> m b, b -> a -> m a)@
+
+The last representation has no efficient composition operation
+(the set operation on composition of n lenses use O(n * n) get operations with the last representation).
 -}
 newtype MLens m a b
     = MLens (a -> m (b, b -> m a))
@@ -76,16 +86,6 @@ Side-effect free lenses.
 The following representations would be also good for @(Lens a b)@:
 
  *  @forall m . Monad m => MLens m a b@
-
-Laws for pure monadic lenses:
-
- *  set-get: @(setL l b a >>= getL l)@ === @(setL l b a >> return b)@
-
- *  get-set: @(getL l a >>= \b -> setL l b a)@  ===  @(return a)@
-
- *  set-set: @(setL l b a >>= setL l b')@ ===  @(setL l b' a)@
-
-For example, @fstLens@ and @(fstLens . fstLens)@ fulfil these laws.
 -}
 type Lens a b
     = MLens Identity a b

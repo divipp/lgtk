@@ -3,7 +3,6 @@
 module Control.MLens
     ( -- * Data types
       MLens
-    , Lens
     , Ref
 
     -- * Lens operations
@@ -38,9 +37,10 @@ module Control.MLens
     , showLens
 
     -- ** Other derived construts
-    , lens
+    , Lens
     , fromLens
     , toLens
+    , lens
     , joinLens
     , undoTr
     , memoRead
