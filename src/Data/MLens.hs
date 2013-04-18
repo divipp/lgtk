@@ -107,14 +107,14 @@ lens :: Monad m => (a -> b) -> (b -> a -> a) -> MLens m a b
 lens get set = lensStore $ \a -> (get a, flip set a)
 
 getL :: Monad m => MLens m a b -> a -> m b
-getL (MLens f) a = f a >>= return . fst
+getL k a = runMLens k a >>= return . fst
 
 setL :: Monad m => MLens m a b -> b -> a -> m a
-setL (MLens f) b a = f a >>= ($ b) . snd
+setL k b a = runMLens k a >>= ($ b) . snd
 
 modL :: Monad m => MLens m b a -> (a -> a) -> b -> m b
-modL (MLens g) f b = do
-    (x, h) <- g b
+modL k f b = do
+    (x, h) <- runMLens k b
     h (f x)
 
 instance Monad m => Category (MLens m) where
@@ -148,9 +148,7 @@ mapMLens f (MLens r) = MLens $ \a -> do
     return (x, f . s)
 
 joinML :: Monad m => (a -> m (MLens m a b)) -> MLens m a b
-joinML r = MLens $ \x -> do
-    MLens q <- r x
-    q x
+joinML r = MLens $ \x -> r x >>= ($ x) . runMLens
 
 -- | It would be possible to define a @Monad@ instance for @(MLens m a)@ too, but monad laws would not hold.
 joinLens :: Monad m => MLens m a (MLens m a b) -> MLens m a b
