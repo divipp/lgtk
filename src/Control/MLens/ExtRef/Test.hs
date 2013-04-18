@@ -52,7 +52,10 @@ mkTests runTest
      ++ extRefTest
      ++ joinTest
      ++ joinTest2
+     ++ chainTest
      ++ undoTest
+     ++ undoTest2
+     ++ undoTest3
   where
 
     newRefTest = runTest $ do
@@ -116,12 +119,87 @@ mkTests runTest
         writeRef rr r2
         joinLens rr ==> 5
 
+    chainTest = runTest $ do
+        r <- newRef $ Just $ Just 3
+        q <- extRef r maybeLens (False, Nothing)
+        s <- extRef (sndLens . q) maybeLens (False, 0)
+        r ==> Just (Just 3)
+        q ==> (True, Just 3)
+        s ==> (True, 3)
+        writeRef (fstLens . s) False
+        r ==> Just Nothing
+        q ==> (True, Nothing)
+        s ==> (False, 3)
+        writeRef (fstLens . q) False
+        r ==> Nothing
+        q ==> (False, Nothing)
+        s ==> (False, 3)
+        writeRef (fstLens . s) True
+        r ==> Nothing
+        q ==> (False, Just 3)
+        s ==> (True, 3)
+        writeRef (fstLens . q) True
+        r ==> Just (Just 3)
+        q ==> (True, Just 3)
+        s ==> (True, 3)
+
     undoTest = runTest $ do
         r <- newRef 3
         q <- extRef r (lens head (:)) []
         writeRef r 4
         q ==> [4, 3]
 
+    undoTest2 = runTest $ do
+        r <- newRef 3
+        q <- extRef r (lens head (:)) []
+        q ==> [3]
 
+    undoTest3 = runTest $ do
+        r <- newRef 3
+        (undo, redo) <- undoTr (==) r
+        r ==> 3
+        redo === False
+        undo === False
+        writeRef r 4
+        r ==> 4
+        redo === False
+        undo === True
+        writeRef r 5
+        r ==> 5
+        redo === False
+        undo === True
+        push undo
+        r ==> 4
+        redo === True
+        undo === True
+        push undo
+        r ==> 3
+        redo === True
+        undo === False
+        push redo
+        r ==> 4
+        redo === True
+        undo === True
+        writeRef r 6
+        r ==> 6
+        redo === False
+        undo === True
 
+    push m = m >>= \x ->
+        maybe (return ()) id x
+    m === t = m >>= \x ->
+        maybe False (const True) x ==? t
+    m ===> b = m >>= \x -> x ==? b
 
+{-
+undoTr' r = do
+    ku <- extRef r undoLens []
+    return $ liftM (fmap (writeRef ku) . undo) $ readRef ku
+  where
+    undoLens = lens head set where
+        set x (x' : xs) | x == x' = (x: xs)
+        set x xs = (x : xs)
+
+    undo (x: xs@(_:_)) = Just (xs)
+    undo _ = Nothing
+-}

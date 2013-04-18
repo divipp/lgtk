@@ -20,7 +20,7 @@ module Control.MLens
     , lensStore
     , NewRef (..)
     , ExtRef (..)
-    , Ext, runExt, runExt_
+    , Pure.Ext, Pure.runExt, Pure.runExt_
 
     -- * Derived constructs
     -- ** Lens operations
@@ -54,7 +54,8 @@ module Control.MLens
     , Morph
 
     -- ** Consistency tests
-    , testExt
+    , testExtPure
+    , testExtIORef
     ) where
 
 import Control.Category
@@ -65,13 +66,21 @@ import Data.MLens
 import Data.MLens.Ref
 import Control.MLens.ExtRef
 import Control.MLens.ExtRef.Test
-import Control.MLens.ExtRef.Pure
+import qualified Control.MLens.ExtRef.Pure as Pure
+import qualified Control.MLens.ExtRef.IORef as IORef
 
-newtype ExtTest i a = ExtTest { unExtTest :: Ext i (Writer [String]) a }
+newtype ExtTestPure i a = ExtTestPure { runExtTestPure :: Pure.Ext i (Writer [String]) a }
     deriving (Monad, MonadWriter [String], NewRef, ExtRef)
 
--- | Consistency tests for @Ext@, should give an empty list of errors.
-testExt :: [String]
-testExt = mkTests (\t -> execWriter $ runExt $ unExtTest t)
+-- | Consistency tests for the pure implementation of @Ext@, should give an empty list of errors.
+testExtPure :: [String]
+testExtPure = mkTests $ \t -> execWriter $ Pure.runExt $ runExtTestPure t
+
+newtype ExtTestIORef i a = ExtTestIORef { runExtTestIORef :: IORef.Ext i (Writer [String]) a }
+    deriving (Monad, MonadWriter [String], NewRef, ExtRef)
+
+-- | Consistency tests for the @IORef@-based implementation of @Ext@, should give an empty list of errors.
+testExtIORef :: [String]
+testExtIORef = mkTests $ \t -> execWriter $ IORef.runExt $ runExtTestIORef t
 
 
