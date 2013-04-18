@@ -1,9 +1,9 @@
 name:               lgtk
-version:            0.3.2
+version:            0.4
 category:           GUI
-synopsis:           lens-based GUI with Gtk backend
+synopsis:           lens-based API for Gtk
 description:
-    The main interface of LGtk is "GUI.MLens.Gtk".
+    The main interface module of LGtk is "GUI.MLens.Gtk".
     .
     See also <http://people.inf.elte.hu/divip/LGtk/index.html>
 stability:          experimental
