@@ -1,7 +1,7 @@
 import Control.Monad
 import Control.Monad.Trans
 
-import Data.MLens.Ref (fileRef)
+import Control.MLens.Unsafe (fileRef)
 import GUI.MLens.Gtk
 
 import GUI.MLens.Gtk.Demos.Tri

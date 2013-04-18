@@ -7,7 +7,7 @@ module GUI.MLens.Gtk.Interface
 
 import Control.Monad.Free
 
-import Data.MLens.Ref
+import Control.MLens
 
 -- | Interface description parametrized by a monad
 data I m

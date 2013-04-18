@@ -13,7 +13,7 @@ import Prelude hiding ((.), id)
 import Graphics.UI.Gtk
 
 import Control.MLens
-import Control.MLens.NewRef.Unsafe ()
+import Control.MLens.Unsafe ()
 import GUI.MLens.Gtk.Interface
 
 ------------------

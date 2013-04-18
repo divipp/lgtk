@@ -30,14 +30,8 @@ library
 
                   , gtk
   exposed-modules:
-                    Data.MLens
-                    Data.MLens.Ref
-
-                    Control.MLens.NewRef
-                    Control.MLens.NewRef.Unsafe
-                    Control.MLens.ExtRef
-                    Control.MLens.ExtRef.Pure
                     Control.MLens
+                    Control.MLens.Unsafe
 
                     GUI.MLens.Gtk
                     GUI.MLens.Gtk.ADTEditor
@@ -46,6 +40,13 @@ library
                     GUI.MLens.Gtk.Demos.IntListEditor
                     GUI.MLens.Gtk.Demos.TEditor
   other-modules:
+                    Data.MLens
+                    Data.MLens.Ref
+
+                    Control.MLens.NewRef
+                    Control.MLens.NewRef.Unsafe
+                    Control.MLens.ExtRef
+                    Control.MLens.ExtRef.Pure
                     Control.MLens.ExtRef.Test
 
                     GUI.MLens.Gtk.IO
