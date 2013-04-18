@@ -1,7 +1,7 @@
 {-# LANGUAGE RankNTypes #-}
 module Data.MLens
     ( -- * Monadic lenses data type
-      MLens (MLens)
+      MLens (..)
 
     -- * Side-effect free lenses
     , Lens
@@ -67,7 +67,7 @@ The following law is a minimum, but some lenses (which do logging) do not fulfil
 TODO: List laws, document which laws hold for each lenses.
 -}
 newtype MLens m a b
-    = MLens (a -> m (b, b -> m a))
+    = MLens { runMLens :: a -> m (b, b -> m a) }
 {-
 The following representations would be also good for @(MLens m a b)@:
 

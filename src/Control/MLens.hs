@@ -16,7 +16,10 @@ module Control.MLens
     , joinML
     , memoMLens
 
-    -- * Lens creation
+    -- * Lens destruction
+    , runMLens
+
+    -- * Lens construction
     , lensStore
     , NewRef (..)
     , ExtRef (..)
