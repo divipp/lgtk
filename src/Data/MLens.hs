@@ -8,6 +8,7 @@ module Data.MLens
     , fromLens, toLens
 
     -- * Lens construction
+    , lensStore
     , lens
 
     -- * Lens operations
@@ -90,16 +91,19 @@ type Lens a b
     = MLens Identity a b
 
 fromLens :: Monad m => Lens a b -> MLens m a b
-fromLens (MLens f) = MLens $ \x -> do
-    let (a, b) = runIdentity $ f x
-    return (a, \y -> return $ runIdentity $ b y)
+fromLens = mapMLens (return . runIdentity)
 
 toLens :: (forall m . Monad m => MLens m a b) -> Lens a b
 toLens k = k
 
 -- | Impure (but effect-free) lens constuctor
+lensStore :: Monad m => (a -> (b, b -> a)) -> MLens m a b
+lensStore f = MLens $ return . g . f where
+    g (b, ba) = (b, return . ba)
+
+-- | Impure (but effect-free) lens constuctor, built on @lensStore@.
 lens :: Monad m => (a -> b) -> (b -> a -> a) -> MLens m a b
-lens get set = MLens $ \a -> return (get a, return . flip set a)
+lens get set = lensStore $ \a -> (get a, flip set a)
 
 getL :: Monad m => MLens m a b -> a -> m b
 getL (MLens f) a = f a >>= return . fst

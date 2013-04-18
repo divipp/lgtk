@@ -12,7 +12,6 @@ module Control.MLens
     , readRef, writeRef, modRef
 
     -- * Lens transformations
-    , fromLens, toLens
     , mapMLens
     , (.)
     , (***)
@@ -20,13 +19,13 @@ module Control.MLens
     , memoMLens
 
     -- * Lens creation
-    , lens
+    , lensStore
     , NewRef (..)
     , ExtRef (..)
     , Ext, runExt, runExt_
 
     -- * Derived constructs
-    -- ** Pure lenses, built with @lens@
+    -- ** Pure lenses, built with @lensStore@
     , id
     , unitLens
     , fstLens, sndLens
@@ -34,19 +33,22 @@ module Control.MLens
     , listLens
     , ithLens
 
-    -- ** Impure lenses, built with @lens@
+    -- ** Impure lenses, built with @lensStore@
     , forkLens
     , justLens
     , showLens
 
     -- ** Other derived construts
+    , lens
+    , fromLens
+    , toLens
     , joinLens
     , undoTr
+    , memoRead
+    , memoWrite
 
     -- * Auxiliary definitions
     , Morph
-    , memoRead
-    , memoWrite
     ) where
 
 import Control.Category
