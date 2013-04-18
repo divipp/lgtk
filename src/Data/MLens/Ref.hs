@@ -6,6 +6,7 @@ module Data.MLens.Ref
     , Ref
 
     -- * Reference operations
+    , runRef
     , readRef, writeRef, modRef
 
     -- * Some impure @IO@ referenceses
@@ -54,14 +55,18 @@ then
 -}
 type Ref m a = MLens m Unit a
 
+runRef :: Monad m => Ref m a -> m (a, a -> m ())
+runRef r = liftM f $ runMLens r Unit where
+    f (a, m) = (a, \a -> m a >> return ())
+
 readRef :: Monad m => Ref m a -> m a
-readRef k = getL k Unit
+readRef = liftM fst . runRef
 
 writeRef :: Monad m => Ref m a -> a -> m ()
-writeRef r a = setL r a Unit >> return ()
+writeRef r a = runRef r >>= ($ a) . snd
 
 modRef :: Monad m => Ref m a -> (a -> a) -> m ()
-k `modRef` f = modL k f Unit >> return ()
+k `modRef` f = runRef k >>= \(a, m) -> m $ f a
 
 -- | Using @fileRef@ is safe if the file is not used concurrently.
 fileRef :: FilePath -> IO (Ref IO String)
@@ -69,16 +74,16 @@ fileRef f = liftM (justLens "" .) $ fileRef_ f
 
 -- | Note that if you write @Nothing@, the file is deleted.
 fileRef_ :: FilePath -> IO (Ref IO (Maybe String))
-fileRef_ f = return $ MLens $ \Unit -> do
+fileRef_ f = return $ MLens $ \unit -> do
     b <- doesFileExist f
     if b then do
             xs <- readFile f
-            length xs `seq` return (Just xs, wr)
-         else return (Nothing, wr)
+            length xs `seq` return (Just xs, wr unit)
+         else return (Nothing, wr unit)
  where
-    wr mb = do
+    wr unit mb = do
         maybe (doesFileExist f >>= \b -> when b (removeFile f)) (writeFile f) mb
-        return Unit
+        return unit
 
 logMLens :: Monad m => (a -> m ()) -> (a -> m ()) -> MLens m a a
 logMLens getLog setLog = MLens $ \a -> getLog a >> return (a, \b -> setLog b >> return b)

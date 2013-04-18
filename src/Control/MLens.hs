@@ -18,6 +18,7 @@ module Control.MLens
 
     -- * Lens destruction
     , runMLens
+    , runRef
 
     -- * Lens construction
     , lensStore
