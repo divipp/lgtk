@@ -66,7 +66,7 @@ import Control.MLens.ExtRef.Pure
 newtype ExtTest i a = ExtTest { unExtTest :: Ext i (Writer [String]) a }
     deriving (Monad, MonadWriter [String], NewRef, ExtRef)
 
--- | Consistency tests for @Ext@.
+-- | Consistency tests for @Ext@, should give an empty list of errors.
 testExt :: [String]
 testExt = mkTests (\t -> execWriter $ runExt $ unExtTest t)
 

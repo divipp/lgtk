@@ -65,7 +65,10 @@ The following law is a minimum, but some lenses (which do logging) do not fulfil
  *  get-no-effect: @(getL k a >> return ())@ === @(return ())@
 
 TODO: List laws, document which laws hold for each lenses.
-
+-}
+newtype MLens m a b
+    = MLens (a -> m (b, b -> m a))
+{-
 The following representations would be also good for @(MLens m a b)@:
 
  *  @a -> m (Store b (m a))@
@@ -77,8 +80,6 @@ The following representations would be also good for @(MLens m a b)@:
 The last representation has no efficient composition operation
 (the set operation on composition of n lenses use O(n * n) get operations with the last representation).
 -}
-newtype MLens m a b
-    = MLens (a -> m (b, b -> m a))
 
 {-|
 Side-effect free lenses.
