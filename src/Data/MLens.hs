@@ -102,7 +102,7 @@ lensStore :: Monad m => (a -> (b, b -> a)) -> MLens m a b
 lensStore f = MLens $ return . g . f where
     g (b, ba) = (b, return . ba)
 
--- | Impure (but effect-free) lens constuctor, built on @lensStore@.
+-- | Impure (but effect-free) lens constuctor, defined with @lensStore@.
 lens :: Monad m => (a -> b) -> (b -> a -> a) -> MLens m a b
 lens get set = lensStore $ \a -> (get a, flip set a)
 

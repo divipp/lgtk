@@ -5,10 +5,6 @@ module Control.MLens
       MLens
     , Ref
 
-    -- * Lens operations
-    , getL, setL, modL
-    , readRef, writeRef, modRef
-
     -- * Lens transformations
     , mapMLens
     , (.)
@@ -27,7 +23,11 @@ module Control.MLens
     , Ext, runExt, runExt_
 
     -- * Derived constructs
-    -- ** Pure lenses, built with @lensStore@
+    -- ** Lens operations
+    , getL, setL, modL
+    , readRef, writeRef, modRef
+
+    -- ** Pure lenses, defined with @lensStore@
     , id
     , unitLens
     , fstLens, sndLens
@@ -35,7 +35,7 @@ module Control.MLens
     , listLens
     , ithLens
 
-    -- ** Impure lenses, built with @lensStore@
+    -- ** Impure lenses, defined with @lensStore@
     , forkLens
     , justLens
     , showLens
