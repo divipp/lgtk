@@ -55,7 +55,7 @@ For example, if
 
 then
 
-@fstLens . r :: Ref m a@
+@fstLens % r :: Ref m a@
 -}
 newtype Ref m a = Ref { unRef :: MLens m Unit a }
 
