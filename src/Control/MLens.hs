@@ -11,11 +11,11 @@ module Control.MLens
     -- * Ref transformations
     , M.mapRef
     , (%)
-    , M.joinRef
+    , joinRef
     , M.memoRef
 
     -- * Ref destruction
-    , M.runRef
+    , runRef
 
     -- * Ref construction
     , M.unitRef
@@ -28,7 +28,7 @@ module Control.MLens
     , Pure.runExt_
 
     -- * Derived constructs
-    , M.readRef
+    , readRef
     , M.writeRef
     , M.modRef
     , M.undoTr
@@ -65,7 +65,16 @@ import Control.MLens.ExtRef.Test
 import qualified Control.MLens.ExtRef.Pure as Pure
 import qualified Control.MLens.ExtRef.IORef as IORef
 
-newtype R m a = R { runR :: m a }
+newtype R m a = R { runR :: m a } deriving (Monad)
+
+joinRef :: Monad m => R m (Ref m a) -> Ref m a
+joinRef (R x) = M.joinRef x
+
+runRef :: Monad m => Ref m a -> R m (a, a -> m ())
+runRef = R . M.runRef
+
+readRef :: Monad m => Ref m a -> R m a
+readRef = liftM fst . runRef
 
 (%) :: Monad m => L.Lens a b -> Ref m a -> Ref m b
 l % Ref k = Ref $ toMLens l

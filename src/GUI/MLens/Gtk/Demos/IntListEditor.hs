@@ -22,14 +22,14 @@ intListEditor state settings = Action $ do
     range <- extRef settings showLens True
     let safe = lens id (const . take maxi)
         len = liftM (\r -> lens length $ extendList r . min maxi) $ readRef range
-        sel = liftM (filter snd) $ readRef list
+        sel = runR $ liftM (filter snd) $ readRef list
     return $ Notebook
         [ (,) "Editor" $ vcat
             [ hcat
                 [ Entry $ joinRef $ liftM (\k -> showLens . k % list) len
                 , smartButton (return "+1") (modL' len (+1))      list
                 , smartButton (return "-1") (modL' len (+(-1)))   list
-                , smartButton (toFree $ liftM (("DeleteAll " ++) . show) $ len >>= \k -> readRef $ k % list) (modL' len $ const 0) list
+                , smartButton (toFree $ liftM (("DeleteAll " ++) . show) $ runR len >>= \k -> runR $ readRef $ k % list) (modL' len $ const 0) list
                 , Button (return "undo") $ toFree undo
                 , Button (return "redo") $ toFree redo
                 ]
@@ -63,7 +63,7 @@ intListEditor state settings = Action $ do
         , Button (return "Copy") $ return $ Just $ modRef list (\xs -> take (i+1) xs ++ drop i xs) ]
 
     modL' mr f b = do
-        r <- mr
+        r <- runR mr
         modL_ r f b
 
     modL_ r f b = return $ modL r f b
@@ -87,7 +87,7 @@ listEditor def ed = editor 0 where
     q <- extRef r listLens (False, (def, []))
     t1 <- ed i $ fstLens . sndLens % q
     t2 <- editor (i+1) $ sndLens . sndLens % q
-    return $ Cell True (liftM fst (readRef q)) $ \b -> vcat $ if b then [t1, t2] else []
+    return $ Cell True (liftM fst (runR $ readRef q)) $ \b -> vcat $ if b then [t1, t2] else []
 
 
 

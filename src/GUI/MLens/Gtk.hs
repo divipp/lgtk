@@ -39,8 +39,8 @@ smartButton
   :: (Eq a, Monad m, Functor m) =>
      Free m String -> (a -> m a) -> Ref m a -> I m
 smartButton s f k =
-    Button s $ toFree $ readRef k >>= \x -> f x >>= \y -> 
-        if y == x then return Nothing else return $ Just ((readRef k >>= f) >>= writeRef k)
+    Button s $ toFree $ runR (readRef k) >>= \x -> f x >>= \y -> 
+        if y == x then return Nothing else return $ Just ((runR (readRef k) >>= f) >>= writeRef k)
 
 -- | Run an interface description
 runI :: (forall m . (Functor m, ExtRef m) => I m) -> IO ()

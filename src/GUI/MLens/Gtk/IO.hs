@@ -48,18 +48,18 @@ runI i = do
         Entry k -> do
             w <- lift'' entryNew
             _ <- lift $ on w entryActivate $ react $ entryGetText w >>= writeRef k
-            readRef k >>=. entrySetText w
+            readRef' k >>=. entrySetText w
             return' w
         Checkbox k -> do
             w <- lift'' checkButtonNew
             _ <- lift $ on w toggled $ react $ toggleButtonGetActive w >>= writeRef k
-            readRef k >>=. toggleButtonSetActive w
+            readRef' k >>=. toggleButtonSetActive w
             return' w
         Combobox ss k -> do
             w <- lift'' comboBoxNewText
             lift $ flip mapM_ ss $ comboBoxAppendText w
             _ <- lift $ on w changed $ react $ fmap (max 0) (comboBoxGetActive w) >>= writeRef k 
-            readRef k >>=. comboBoxSetActive w
+            readRef' k >>=. comboBoxSetActive w
             return' w
         List o xs -> do
             w <- lift' $ case o of
@@ -83,9 +83,9 @@ runI i = do
             cancelc <- lift $ newRef mempty
             togglec <- lift $ newRef mempty
             showc <- lift $ newRef mempty
-            let cc = (readRef cancelc >>= id) >> writeRef cancelc mempty >> writeRef togglec mempty >> writeRef showc mempty
-            let cc' = readRef togglec >>= id
-            let cc'' = readRef showc >>= id
+            let cc = (readRef' cancelc >>= id) >> writeRef cancelc mempty >> writeRef togglec mempty >> writeRef showc mempty
+            let cc' = readRef' togglec >>= id
+            let cc'' = readRef' showc >>= id
             tell (cc, cc', cc'')
             m >>=. \new -> do
                 cc
@@ -103,14 +103,14 @@ runI i = do
             cancelc <- lift $ newRef mempty
             togglec <- lift $ newRef mempty
             showc <- lift $ newRef mempty
-            let cc = (readRef cancelc >>= id) >> writeRef cancelc mempty >> writeRef togglec mempty >> writeRef showc mempty
-            let cc' = readRef togglec >>= id
-            let cc'' = readRef showc >>= id
+            let cc = (readRef' cancelc >>= id) >> writeRef cancelc mempty >> writeRef togglec mempty >> writeRef showc mempty
+            let cc' = readRef' togglec >>= id
+            let cc'' = readRef' showc >>= id
             tell (cc, cc', cc'')
             m >>=. \new -> do
                 cc'
                 containerForeach w $ widgetHideAll
-                t <- readRef tri
+                t <- readRef' tri
                 case [b | (a,b) <-t, a == new] of
                     [] -> do
                         (x, (c1, c2, c3)) <- runWriterT $ flattenI' $ f new
@@ -137,7 +137,7 @@ runI i = do
         get >>=. install = lift get >>= \x -> do
             v <- lift $ newRef x
             b <- lift $ newRef $ Just $ (,) True $ do
-                x <- readRef v
+                x <- readRef' v
                 x' <- get
                 when (x /= x') $ do
                     writeRef v x'
@@ -149,15 +149,15 @@ runI i = do
 
         react :: IO () -> IO ()
         react a = do
-            b <- readRef rea
+            b <- readRef' rea
             when b $ do
             writeRef rea False
             a
-            xs <- readRef dca
+            xs <- readRef' dca
             writeRef dca ([] :: [Ref IO (Maybe (Bool, IO ()))])
             let ff (Just (b, m)) = when b m >> return True
                 ff Nothing = return False
-            xs' <- filterM ((>>= ff) . readRef) . reverse $ xs
+            xs' <- filterM ((>>= ff) . readRef') . reverse $ xs
             modRef dca (++ reverse xs') 
             writeRef rea True
 
@@ -186,4 +186,5 @@ instance Monoid (IO ()) where
     mempty = return ()
     mappend = (>>)
 
+readRef' = runR . readRef
 
