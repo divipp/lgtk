@@ -1,8 +1,5 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE FlexibleContexts #-}
---{-# LANGUAGE FlexibleInstances #-}
---{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 -- | Tests for the reference implementation of the @ExtRef@ interface.
 module Control.MLens.ExtRef.Test
     ( -- * Test suit generation
