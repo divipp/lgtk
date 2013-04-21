@@ -9,7 +9,8 @@ module Control.MLens
     , mapMLens
     , (.)
     , (***)
-    , joinML
+    , joinLens
+    , joinRef
     , memoMLens
 
     -- * Lens destruction
@@ -26,7 +27,6 @@ module Control.MLens
     -- ** Lens operations
     , getL, setL, modL
     , readRef, writeRef, modRef
-    , joinRef
 
     -- ** Pure lenses, defined with @lensStore@
     , id
@@ -46,7 +46,6 @@ module Control.MLens
     , fromLens
     , toLens
     , lens
-    , joinLens
     , undoTr
     , memoRead
     , memoWrite
