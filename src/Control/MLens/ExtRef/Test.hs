@@ -42,6 +42,9 @@ mkTests runTest
      ++ extRefTest
      ++ joinTest
      ++ joinTest2
+     ++ chainTest0
+     ++ forkTest
+     ++ forkTest2
      ++ chainTest
      ++ undoTest
      ++ undoTest2
@@ -108,6 +111,90 @@ mkTests runTest
         r2 <- newRef 5
         writeRef rr r2
         joinLens rr ==> 5
+
+    chainTest0 = runTest $ do
+        r <- newRef 1
+        q <- extRef r id 0
+        s <- extRef q id 0
+        r ==> 1
+        q ==> 1
+        s ==> 1
+        writeRef r 2
+        r ==> 2
+        q ==> 2
+        s ==> 2
+        writeRef q 3
+        r ==> 3
+        q ==> 3
+        s ==> 3
+        writeRef s 4
+        r ==> 4
+        q ==> 4
+        s ==> 4
+
+    forkTest = runTest $ do
+        r <- newRef 1
+        q <- extRef r id 0
+        s <- extRef r id 0
+        r ==> 1
+        q ==> 1
+        s ==> 1
+        writeRef r 2
+        r ==> 2
+        q ==> 2
+        s ==> 2
+        writeRef q 3
+        r ==> 3
+        q ==> 3
+        s ==> 3
+        writeRef s 4
+        r ==> 4
+        q ==> 4
+        s ==> 4
+
+    forkTest2 = runTest $ do
+        r <- newRef $ Just 1
+        q <- extRef r maybeLens (False, 0)
+        s <- extRef r maybeLens (False, 0)
+        r ==> Just 1
+        q ==> (True, 1)
+        s ==> (True, 1)
+        writeRef r $ Just 2
+        r ==> Just 2
+        q ==> (True, 2)
+        s ==> (True, 2)
+        writeRef r $ Nothing
+        r ==> Nothing
+        q ==> (False, 2)
+        s ==> (False, 2)
+        writeRef (fstLens . q) True
+        r ==> Just 2
+        q ==> (True, 2)
+        s ==> (True, 2)
+        writeRef (sndLens . q) 3
+        r ==> Just 3
+        q ==> (True, 3)
+        s ==> (True, 3)
+        writeRef (fstLens . q) False
+        r ==> Nothing
+        q ==> (False, 3)
+        s ==> (False, 3)
+        writeRef (sndLens . q) 4
+        r ==> Nothing
+        q ==> (False, 4)
+        s ==> (False, 3)
+        writeRef (fstLens . q) True
+        r ==> Just 4
+        q ==> (True, 4)
+        s ==> (True, 4)
+        writeRef q (False, 5)
+        r ==> Nothing
+        q ==> (False, 5)
+        s ==> (False, 4)
+        writeRef (fstLens . s) True
+        r ==> Just 4
+        q ==> (True, 4)
+        s ==> (True, 4)
 
     chainTest = runTest $ do
         r <- newRef $ Just $ Just 3
