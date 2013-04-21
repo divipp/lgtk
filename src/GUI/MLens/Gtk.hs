@@ -37,10 +37,10 @@ hcat = List Horizontal
 
 smartButton
   :: (Eq a, Monad m, Functor m) =>
-     Free m String -> (a -> m a) -> Ref m a -> I m
+     Free (C m) String -> (a -> C m a) -> Ref m a -> I m
 smartButton s f k =
-    Button s $ toFree $ runR (readRef k) >>= \x -> f x >>= \y -> 
-        if y == x then return Nothing else return $ Just ((runR (readRef k) >>= f) >>= writeRef k)
+    Button s $ toFree $ rToC (readRef k) >>= \x -> f x >>= \y -> 
+        if y == x then return Nothing else return $ Just $ runR (readRef k) >>= runC . f >>= writeRef k
 
 -- | Run an interface description
 runI :: (forall m . (Functor m, ExtRef m) => I m) -> IO ()
@@ -54,8 +54,8 @@ unsafeRunI e = runExt_ mapI e >>= Gtk.runI
 
 
 mapI :: (Monad m, Functor m, Monad n, Functor n) => Morph n m -> Morph m n -> I m -> I n
-mapI _g f (Label s)     = Label $ mapFree f s
-mapI _g f (Button s m)  = Button (mapFree f s) (mapFree f $ fmap (fmap f) m)
+mapI _g f (Label s)     = Label $ mapFree (mapC f) s
+mapI _g f (Button s m)  = Button (mapFree (mapC f) s) (mapFree (mapC f) $ fmap (fmap f) m)
 mapI _g f (Entry m)     = Entry $ mapRef f m
 mapI _g f (Checkbox m)  = Checkbox $ mapRef f m
 mapI _g f (Combobox ss m) = Combobox ss $ mapRef f m

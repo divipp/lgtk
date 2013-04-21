@@ -40,8 +40,8 @@ runI i = do
     userr_ rea dca i = case i of
         Button s m -> do
             w <- lift'' buttonNew
-            lift $ evalFree (maybe (return ()) ((\x -> on w buttonActivated x >> return ()) . react))
-                        ((\x -> on w buttonActivated x >> return ()) . react . join . fmap (maybe (return ()) id) . join . fmap (induce id)) m
+            lift $ unFree (maybe (return ()) ((\x -> on w buttonActivated x >> return ()) . react))
+                        ((\x -> on w buttonActivated x >> return ()) . react . join . fmap (maybe (return ()) id) . runC) m
             s >>=.. buttonSetLabel w
             fmap isJust m >>=.. widgetSetSensitive w
             return' w
@@ -131,7 +131,10 @@ runI i = do
 
         infixl 1 >>=.., >>=.
 
-        m >>=.. f = evalFree (lift . f) ((>>=. f) . join . fmap (induce id)) m
+        m >>=.. f = unFree (lift . f) ((>>=. f) . runC) m
+
+        unFree :: (Functor m, Monad m) => (a -> x) -> (m a -> x) -> Free m a -> x
+        unFree r m = evalFree r (m . join . fmap (induce id))
 
         (>>=.) :: (Eq a) => IO a -> (a -> IO ()) -> IOWriterState ()
         get >>=. install = lift get >>= \x -> do

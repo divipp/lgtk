@@ -117,10 +117,10 @@ undoTr
     :: M.ExtRef m =>
        (a -> a -> Bool)     -- ^ equality on state
     -> Ref m a              -- ^ reference of state
-    -> C m ( m (Maybe (m ()))   
-           , m (Maybe (m ()))
+    -> C m ( R m (Maybe (m ()))   
+           , R m (Maybe (m ()))
            )  -- ^ undo and redo actions
-undoTr eq r = C $ M.undoTr eq r
+undoTr eq r = liftM (\(u,r) -> (R u, R r)) $ C $ M.undoTr eq r
 
 newtype ExtTestPure i a = ExtTestPure { runExtTestPure :: Pure.Ext i (Writer [String]) a }
     deriving (Monad, MonadWriter [String], M.NewRef, M.ExtRef)

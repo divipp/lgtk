@@ -11,9 +11,9 @@ import Control.MLens
 
 -- | Interface description parametrized by a monad
 data I m
-    = Label (Free m String)     -- ^ label
-    | Button { label_  :: Free m String
-             , action_ :: Free m (Maybe (m ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
+    = Label (Free (C m) String)     -- ^ label
+    | Button { label_  :: Free (C m) String
+             , action_ :: Free (C m) (Maybe (m ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
              }  -- ^ button
     | Checkbox (Ref m Bool)         -- ^ checkbox
     | Combobox [String] (Ref m Int) -- ^ combo box

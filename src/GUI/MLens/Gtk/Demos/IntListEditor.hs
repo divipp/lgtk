@@ -22,16 +22,16 @@ intListEditor state settings = Action $ do
     range <- extRef settings showLens True
     let safe = lens id (const . take maxi)
         len = liftM (\r -> lens length $ extendList r . min maxi) $ readRef range
-        sel = runR $ liftM (filter snd) $ readRef list
+        sel = rToC $ liftM (filter snd) $ readRef list
     return $ Notebook
         [ (,) "Editor" $ vcat
             [ hcat
                 [ Entry $ joinRef $ liftM (\k -> showLens . k % list) len
                 , smartButton (return "+1") (modL' len (+1))      list
                 , smartButton (return "-1") (modL' len (+(-1)))   list
-                , smartButton (toFree $ liftM (("DeleteAll " ++) . show) $ runR len >>= \k -> runR $ readRef $ k % list) (modL' len $ const 0) list
-                , Button (return "undo") $ toFree undo
-                , Button (return "redo") $ toFree redo
+                , smartButton (toFree $ liftM (("DeleteAll " ++) . show) $ rToC len >>= \k -> rToC $ readRef $ k % list) (modL' len $ const 0) list
+                , Button (return "undo") $ toFree $ rToC undo
+                , Button (return "redo") $ toFree $ rToC redo
                 ]
             , hcat
                 [ sbutton (return "+1")         (map $ mapFst (+1))           list
@@ -63,7 +63,7 @@ intListEditor state settings = Action $ do
         , Button (return "Copy") $ return $ Just $ modRef list (\xs -> take (i+1) xs ++ drop i xs) ]
 
     modL' mr f b = do
-        r <- runR mr
+        r <- rToC mr
         modL_ r f b
 
     modL_ r f b = return $ modL r f b
