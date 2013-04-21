@@ -3,10 +3,6 @@ module Control.MLens.Unsafe
     ( -- * Unsafe references
       fileRef
     , fileRef_
-    , logConsoleLens
-    , logMLens
-    -- * Auxiliary definitions
-    , logFile
     ) where
 
 import Data.MLens.Ref
