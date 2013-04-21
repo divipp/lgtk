@@ -31,7 +31,7 @@ class ADTLens a where
 adtEditor :: (ExtRef m, ADTLens a) => Ref m a -> m (I m)
 adtEditor = liftM Action . memoRead . editor  where
     editor r = do
-        q <- extRef r (fromLens k) (0, ls)
+        q <- extRef r k (0, ls)
         es <- mkEditors ls $ sndLens % q
         return $ hcat
             [ Combobox (map fst ss) $ fstLens % q

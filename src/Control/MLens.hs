@@ -5,27 +5,19 @@ module Control.MLens
     ( module Data.Lens.Common
 
     -- * Data types
-    , MLens
     , Ref
 
-    -- * Lens and Ref transformations
---    , M.mapMLens
+    -- * Ref transformations
     , mapRef
-    , (.)
     , (%)
---    , (M.***)
---    , M.joinLens
     , joinRef
---    , M.memoMLens
     , M.memoRef
 
-    -- * Lens and Ref destruction
---    , M.runMLens
+    -- * Ref destruction
     , runRef
 
-    -- * Lens and Ref construction
+    -- * Ref construction
     , unitRef
---    , M.lensStore
     , M.NewRef
     , M.newRef
     , M.ExtRef
@@ -35,33 +27,23 @@ module Control.MLens
     , Pure.runExt_
 
     -- * Derived constructs
-    -- ** Lens operations
-    , modL
-    , readRef, writeRef, modRef
-
-    -- ** Pure lenses, defined with @lensStore@
-    , id
---    , M.unitLens
---    , M.maybeLens
-    , listLens
---    , M.ithLens
-
-    -- ** Impure lenses, defined with @lensStore@
---    , M.forkLens
---    , M.justLens
-    , showLens
-
-    -- ** Other derived construts
-    , fromLens
-    , toLens
+    , readRef
+    , writeRef
+    , modRef
     , M.undoTr
     , M.memoRead
---    , M.memoWrite
+    , M.memoWrite
 
     -- * Auxiliary definitions
     , M.Morph
 
-    -- ** Consistency tests
+    -- * Auxiliary lens definitions
+    , (.)
+    , id
+    , listLens
+    , showLens
+
+    -- * Consistency tests
     , testExtPure
     , testExtIORef
     ) where
@@ -70,7 +52,7 @@ import Control.Category
 import Control.Monad.Writer
 import Prelude hiding ((.), id)
 import qualified Data.Lens.Common as L
-import Data.Lens.Common hiding (modL)
+import Data.Lens.Common
 import Control.Comonad.Trans.Store
 import Data.Maybe
 
@@ -83,8 +65,6 @@ import qualified Control.MLens.ExtRef.IORef as IORef
 
 newtype ExtTestPure i a = ExtTestPure { runExtTestPure :: Pure.Ext i (Writer [String]) a }
     deriving (Monad, MonadWriter [String], M.NewRef, M.ExtRef)
-
-type MLens (m :: * -> *) = L.Lens
 
 (%) :: Monad m => L.Lens a b -> Ref m a -> Ref m b
 l % Ref k = Ref $ toMLens l
@@ -105,15 +85,8 @@ listLens = L.lens get set where
     set [] (_, x) = (False, x)
     set (l: r) _ = (True, (l, r))
 
-modL :: Monad m => L.Lens b a -> (a -> a) -> b -> m b
-modL k f b = return $ L.modL k f b
-
 extRef :: M.ExtRef m => Ref m b -> L.Lens a b -> a -> m (Ref m a)
 extRef r k a = M.extRef r (toMLens k) a
-
-fromLens, toLens :: L.Lens a b -> L.Lens a b
-fromLens = id
-toLens = id
 
 -- | Consistency tests for the pure implementation of @Ext@, should give an empty list of errors.
 testExtPure :: [String]

@@ -42,7 +42,7 @@ intListEditor state settings = Action $ do
                 , sbutton (return "SelectEven") (map $ \(a,_) -> (a, even a)) list
                 , sbutton (return "InvertSel")  (map $ mapSnd not)            list
                 , sbutton (toFree $ liftM (("DelSel " ++) . show . length) sel) (filter $ not . snd) list
-                , smartButton (return "CopySel") (modL safe $ concatMap $ \(x,b) -> (x,b): [(x,False) | b]) list
+                , smartButton (return "CopySel") (modL_ safe $ concatMap $ \(x,b) -> (x,b): [(x,False) | b]) list
                 , sbutton (return "+1 Sel")     (map $ mapSel (+1))           list
                 , sbutton (return "-1 Sel")     (map $ mapSel (+(-1)))        list
                 ]
@@ -64,7 +64,9 @@ intListEditor state settings = Action $ do
 
     modL' mr f b = do
         r <- mr
-        modL r f b
+        modL_ r f b
+
+    modL_ r f b = return $ modL r f b
 
     extendList r n xs = take n $ (reverse . drop 1 . reverse) xs ++
         (uncurry zip . ((if r then enumFrom else repeat) Arrow.*** repeat)) (head $ reverse xs ++ [def])
