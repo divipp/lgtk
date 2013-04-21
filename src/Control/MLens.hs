@@ -5,19 +5,23 @@ module Control.MLens
       MLens
     , Ref
 
-    -- * Lens transformations
+    -- * Lens and Ref transformations
     , mapMLens
+    , mapRef
     , (.)
+    , (%)
     , (***)
     , joinLens
     , joinRef
     , memoMLens
+    , memoRef
 
-    -- * Lens destruction
+    -- * Lens and Ref destruction
     , runMLens
     , runRef
 
-    -- * Lens construction
+    -- * Lens and Ref construction
+    , unitRef
     , lensStore
     , NewRef (..)
     , ExtRef (..)

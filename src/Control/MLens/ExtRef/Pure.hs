@@ -74,7 +74,7 @@ extRef_ :: Monad m => Ref (Ext i m) x -> MLens (Ext i m) a x -> a -> Ext i m (Re
 extRef_ r1 r2 a0 = Ext $ do
     a1 <- g a0
     (t,z) <- state $ extend_ (runStateT . f) (runStateT . g) a1
-    return $ MLens $ \c -> Ext (gets t) >>= \x -> return
+    return $ Ref $ MLens $ \c -> Ext (gets t) >>= \x -> return
             ( x
             , \a -> Ext $ (StateT $ liftM ((,) ()) . z a) >> return c
             )
@@ -83,7 +83,7 @@ extRef_ r1 r2 a0 = Ext $ do
     g b = unExt $ readRef r1 >>= flip (setL r2) b
 
 instance (Monad m) => NewRef (Ext i m) where
-    newRef = extRef_ unitLens unitLens
+    newRef = extRef_ unitRef unitLens
 
 instance (Monad m) => ExtRef (Ext i m) where
     extRef = extRef_

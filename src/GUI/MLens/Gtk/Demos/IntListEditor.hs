@@ -26,10 +26,10 @@ intListEditor state settings = Action $ do
     return $ Notebook
         [ (,) "Editor" $ vcat
             [ hcat
-                [ Entry $ joinRef $ liftM (\k -> showLens . k . list) len
+                [ Entry $ joinRef $ liftM (\k -> showLens . k % list) len
                 , smartButton (return "+1") (modL' len (+1))      list
                 , smartButton (return "-1") (modL' len (+(-1)))   list
-                , smartButton (toFree $ liftM (("DeleteAll " ++) . show) $ len >>= \k -> readRef $ k . list) (modL' len $ const 0) list
+                , smartButton (toFree $ liftM (("DeleteAll " ++) . show) $ len >>= \k -> readRef $ k % list) (modL' len $ const 0) list
                 , Button (return "undo") $ toFree undo
                 , Button (return "redo") $ toFree redo
                 ]
@@ -57,8 +57,8 @@ intListEditor state settings = Action $ do
  where
     itemEditor list i r = return $ hcat
         [ Label $ return $ show (i+1) ++ "."
-        , Entry $ showLens . fstLens . r
-        , Checkbox $ sndLens . r
+        , Entry $ showLens . fstLens % r
+        , Checkbox $ sndLens % r
         , Button (return "Del")  $ return $ Just $ modRef list (\xs -> take i xs ++ drop (i+1) xs)
         , Button (return "Copy") $ return $ Just $ modRef list (\xs -> take (i+1) xs ++ drop i xs) ]
 
@@ -83,8 +83,8 @@ listEditor :: ExtRef m => a -> (Int -> Ref m a -> m (I m)) -> Ref m [a] -> m (I 
 listEditor def ed = editor 0 where
   editor i r = liftM Action $ memoRead $ do
     q <- extRef r listLens (False, (def, []))
-    t1 <- ed i $ fstLens . sndLens . q
-    t2 <- editor (i+1) $ sndLens . sndLens . q
+    t1 <- ed i $ fstLens . sndLens % q
+    t2 <- editor (i+1) $ sndLens . sndLens % q
     return $ Cell True (liftM fst (readRef q)) $ \b -> vcat $ if b then [t1, t2] else []
 
 

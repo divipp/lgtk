@@ -28,7 +28,7 @@ extRef_ r1 r2 a0 = do
     inner <- readRef r1
     a' <- setL r2 inner a0
     store <- newRef a'
-    return $ MLens $ \unit -> do
+    return $ Ref $ MLens $ \unit -> do
         a <- readRef store
         inner <- readRef r1
         a' <- setL r2 inner a
@@ -56,7 +56,7 @@ unsafeLiftIO m = do
     a `seq` return a
 
 instance Monad m => NewRef (Ext i m) where
-    newRef = liftM (mapMLens unsafeLiftIO) . unsafeLiftIO . newRef
+    newRef = liftM (mapRef unsafeLiftIO) . unsafeLiftIO . newRef
 
 instance Monad m => ExtRef (Ext i m) where
     extRef = extRef_

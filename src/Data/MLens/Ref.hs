@@ -3,9 +3,12 @@ module Data.MLens.Ref
     ( Unit
 
     -- * Data type for reference lenses
-    , Ref
+    , Ref (..)
 
     -- * Reference operations
+    , (%)
+    , mapRef
+    , unitRef
     , runRef
     , readRef, writeRef, modRef
     , joinRef
@@ -54,10 +57,22 @@ then
 
 @fstLens . r :: Ref m a@
 -}
-type Ref m a = MLens m Unit a
+newtype Ref m a = Ref { unRef :: MLens m Unit a }
+
+(%) :: Monad m => MLens m a b -> Ref m a -> Ref m b
+l % Ref k = Ref $ l . k
+
+unitRef :: Monad m => Ref m ()
+unitRef = Ref unitLens
+
+infixr 8 %
+
+mapRef :: (Monad m, Monad n) => Morph m n -> Ref m a -> Ref n a
+mapRef f (Ref r) = Ref $ mapMLens f r
+
 
 runRef :: Monad m => Ref m a -> m (a, a -> m ())
-runRef r = liftM f $ runMLens r Unit where
+runRef (Ref r) = liftM f $ runMLens r Unit where
     f (a, m) = (a, \a -> m a >> return ())
 
 readRef :: Monad m => Ref m a -> m a
@@ -70,15 +85,15 @@ modRef :: Monad m => Ref m a -> (a -> a) -> m ()
 k `modRef` f = runRef k >>= \(a, m) -> m $ f a
 
 joinRef :: Monad m => m (Ref m a) -> Ref m a
-joinRef m = joinML $ const m
+joinRef m = Ref $ joinML $ const $ liftM unRef m
 
 -- | Using @fileRef@ is safe if the file is not used concurrently.
 fileRef :: FilePath -> IO (Ref IO String)
-fileRef f = liftM (justLens "" .) $ fileRef_ f
+fileRef f = liftM (justLens "" %) $ fileRef_ f
 
 -- | Note that if you write @Nothing@, the file is deleted.
 fileRef_ :: FilePath -> IO (Ref IO (Maybe String))
-fileRef_ f = return $ MLens $ \unit -> do
+fileRef_ f = return $ Ref $ MLens $ \unit -> do
     b <- doesFileExist f
     if b then do
             xs <- readFile f

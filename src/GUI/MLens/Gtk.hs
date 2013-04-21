@@ -56,9 +56,9 @@ unsafeRunI e = runExt_ mapI e >>= Gtk.runI
 mapI :: (Monad m, Functor m, Monad n, Functor n) => Morph n m -> Morph m n -> I m -> I n
 mapI _g f (Label s)     = Label $ mapFree f s
 mapI _g f (Button s m)  = Button (mapFree f s) (mapFree f $ fmap (fmap f) m)
-mapI _g f (Entry m)     = Entry $ mapMLens f m
-mapI _g f (Checkbox m)  = Checkbox $ mapMLens f m
-mapI _g f (Combobox ss m) = Combobox ss $ mapMLens f m
+mapI _g f (Entry m)     = Entry $ mapRef f m
+mapI _g f (Checkbox m)  = Checkbox $ mapRef f m
+mapI _g f (Combobox ss m) = Combobox ss $ mapRef f m
 mapI g f (List o is)    = List o $ map (mapI g f) is
 mapI g f (Notebook is)  = Notebook $ map (fmap $ mapI g f) is
 mapI g f (Cell b m k)   = Cell b (f m) $ mapI g f . k

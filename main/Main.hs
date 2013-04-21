@@ -17,8 +17,8 @@ program acesses the files at runtime.
 main :: IO ()
 main = unsafeRunI $ Notebook
     [ (,) "IntListEditor" $ Action $ do
-        state <- lift $ liftM (mapMLens lift) $ join $ liftM memoMLens $ fileRef "intListEditorState.txt"
-        settings <- lift $ liftM (mapMLens lift) $ join $ liftM memoMLens $ fileRef "intListEditorSettings.txt"
+        state <- lift $ liftM (mapRef lift) $ join $ liftM memoRef $ fileRef "intListEditorState.txt"
+        settings <- lift $ liftM (mapRef lift) $ join $ liftM memoRef $ fileRef "intListEditorSettings.txt"
         return $ intListEditor state settings
     , (,) "Tri" tri
     , (,) "T-Editor1" tEditor1

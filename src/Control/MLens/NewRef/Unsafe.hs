@@ -6,13 +6,14 @@ module Control.MLens.NewRef.Unsafe
 import Data.IORef
 
 import Data.MLens
+import Data.MLens.Ref
 import Control.MLens.NewRef
 
 -- | Note that this instance does not fulfil the @NewRef@ laws in a multi-threaded environment.
 instance NewRef IO where
     newRef x = do
         r <- newIORef x
-        return $ MLens $ \unit -> do
+        return $ Ref $ MLens $ \unit -> do
             x <- readIORef r
             return (x, \y -> writeIORef r y >> return unit)
 

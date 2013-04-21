@@ -5,6 +5,7 @@ module Control.MLens.NewRef
 
     -- * Memo operators
     , memoMLens
+    , memoRef
 
     -- * Auxiliary functions
     , memoRead, memoWrite
@@ -25,7 +26,7 @@ class (Monad m) => NewRef m where
     newRef :: a -> m (Ref m a)
 
 instance (NewRef m, Monoid w) => NewRef (WriterT w m) where
-    newRef = liftM (mapMLens lift) . lift . newRef
+    newRef = liftM (mapRef lift) . lift . newRef
 
 -- | Memoise pure lenses
 memoMLens :: (NewRef m, Eq a, Eq b) => MLens m a b -> m (MLens m a b)
@@ -48,6 +49,9 @@ memoMLens (MLens k) = do
                     return a
             )
 
+-- | Memoise pure references
+memoRef :: (NewRef m, Eq a) => Ref m a -> m (Ref m a)
+memoRef (Ref r) = liftM Ref $ memoMLens r
 
 memoRead :: NewRef m => m a -> m (m a)
 memoRead g = liftM ($ ()) $ memoWrite $ const g
