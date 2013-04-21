@@ -16,7 +16,7 @@ data T
         deriving Show
 
 -- | Lens for @T@
-tLens :: Monad m => MLens m (Bool, (T, T)) T
+tLens :: Lens (Bool, (T, T)) T
 tLens = lens get set where
     get (False, _)     = Leaf
     get (True, (l, r)) = Node l r

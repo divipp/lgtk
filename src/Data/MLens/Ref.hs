@@ -62,10 +62,10 @@ newtype Ref m a = Ref { unRef :: MLens m Unit a }
 (%) :: Monad m => MLens m a b -> Ref m a -> Ref m b
 l % Ref k = Ref $ l . k
 
+infixr 8 %
+
 unitRef :: Monad m => Ref m ()
 unitRef = Ref unitLens
-
-infixr 8 %
 
 mapRef :: (Monad m, Monad n) => Morph m n -> Ref m a -> Ref n a
 mapRef f (Ref r) = Ref $ mapMLens f r

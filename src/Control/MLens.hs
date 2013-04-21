@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE KindSignatures #-}
 -- | The main monadic lens interface, ideally users should import only this module.
 module Control.MLens
     ( -- * Data types
@@ -6,56 +7,63 @@ module Control.MLens
     , Ref
 
     -- * Lens and Ref transformations
-    , mapMLens
+--    , M.mapMLens
     , mapRef
     , (.)
     , (%)
-    , (***)
-    , joinLens
+--    , (M.***)
+--    , M.joinLens
     , joinRef
-    , memoMLens
-    , memoRef
+--    , M.memoMLens
+    , M.memoRef
 
     -- * Lens and Ref destruction
-    , runMLens
+--    , M.runMLens
     , runRef
 
     -- * Lens and Ref construction
     , unitRef
-    , lensStore
-    , NewRef (..)
-    , ExtRef (..)
-    , Pure.Ext, Pure.runExt, Pure.runExt_
+--    , M.lensStore
+    , M.NewRef
+    , M.newRef
+    , M.ExtRef
+    , extRef
+    , Pure.Ext
+    , Pure.runExt
+    , Pure.runExt_
 
     -- * Derived constructs
     -- ** Lens operations
-    , getL, setL, modL
+--    , L.getL
+--    , L.setL
+    , modL
     , readRef, writeRef, modRef
 
     -- ** Pure lenses, defined with @lensStore@
     , id
-    , unitLens
-    , fstLens, sndLens
-    , maybeLens
+--    , M.unitLens
+    , L.fstLens
+    , L.sndLens
+--    , M.maybeLens
     , listLens
-    , ithLens
+--    , M.ithLens
 
     -- ** Impure lenses, defined with @lensStore@
-    , forkLens
-    , justLens
+--    , M.forkLens
+--    , M.justLens
     , showLens
 
     -- ** Other derived construts
-    , Lens
+    , L.Lens
     , fromLens
     , toLens
-    , lens
-    , undoTr
-    , memoRead
-    , memoWrite
+    , L.lens
+    , M.undoTr
+    , M.memoRead
+--    , M.memoWrite
 
     -- * Auxiliary definitions
-    , Morph
+    , M.Morph
 
     -- ** Consistency tests
     , testExtPure
@@ -65,23 +73,57 @@ module Control.MLens
 import Control.Category
 import Control.Monad.Writer
 import Prelude hiding ((.), id)
+import qualified Data.Lens.Common as L
+import Control.Comonad.Trans.Store
+import Data.Maybe
 
-import Data.MLens
-import Data.MLens.Ref
-import Control.MLens.ExtRef
+import qualified Data.MLens as M
+import Data.MLens.Ref hiding ((%))
+import qualified Control.MLens.ExtRef as M
 import Control.MLens.ExtRef.Test
 import qualified Control.MLens.ExtRef.Pure as Pure
 import qualified Control.MLens.ExtRef.IORef as IORef
 
 newtype ExtTestPure i a = ExtTestPure { runExtTestPure :: Pure.Ext i (Writer [String]) a }
-    deriving (Monad, MonadWriter [String], NewRef, ExtRef)
+    deriving (Monad, MonadWriter [String], M.NewRef, M.ExtRef)
+
+type MLens (m :: * -> *) = L.Lens
+
+(%) :: Monad m => L.Lens a b -> Ref m a -> Ref m b
+l % Ref k = Ref $ toMLens l
+                . k
+
+infixr 8 %
+
+toMLens :: Monad m => L.Lens a b -> M.MLens m a b
+toMLens l = M.lensStore (\a -> let (fb, b) = runStore $ L.runLens l a in (b, fb))
+
+showLens :: (Show a, Read a) => L.Lens a String
+showLens = L.lens show $ \s def -> maybe def fst $ listToMaybe $ reads s
+
+listLens :: L.Lens (Bool, (a, [a])) [a]
+listLens = L.lens get set where
+    get (False, _) = []
+    get (True, (l, r)) = l: r
+    set [] (_, x) = (False, x)
+    set (l: r) _ = (True, (l, r))
+
+modL :: Monad m => L.Lens b a -> (a -> a) -> b -> m b
+modL k f b = return $ L.modL k f b
+
+extRef :: M.ExtRef m => Ref m b -> L.Lens a b -> a -> m (Ref m a)
+extRef r k a = M.extRef r (toMLens k) a
+
+fromLens, toLens :: L.Lens a b -> L.Lens a b
+fromLens = id
+toLens = id
 
 -- | Consistency tests for the pure implementation of @Ext@, should give an empty list of errors.
 testExtPure :: [String]
 testExtPure = mkTests $ \t -> execWriter $ Pure.runExt $ runExtTestPure t
 
 newtype ExtTestIORef i a = ExtTestIORef { runExtTestIORef :: IORef.Ext i (Writer [String]) a }
-    deriving (Monad, MonadWriter [String], NewRef, ExtRef)
+    deriving (Monad, MonadWriter [String], M.NewRef, M.ExtRef)
 
 -- | Consistency tests for the @IORef@-based implementation of @Ext@, should give an empty list of errors.
 testExtIORef :: [String]
