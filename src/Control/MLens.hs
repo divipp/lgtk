@@ -26,6 +26,7 @@ module Control.MLens
     -- ** Lens operations
     , getL, setL, modL
     , readRef, writeRef, modRef
+    , joinRef
 
     -- ** Pure lenses, defined with @lensStore@
     , id

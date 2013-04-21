@@ -8,6 +8,7 @@ module Data.MLens.Ref
     -- * Reference operations
     , runRef
     , readRef, writeRef, modRef
+    , joinRef
 
     -- * Some impure @IO@ referenceses
     , fileRef, fileRef_
@@ -67,6 +68,9 @@ writeRef r a = runRef r >>= ($ a) . snd
 
 modRef :: Monad m => Ref m a -> (a -> a) -> m ()
 k `modRef` f = runRef k >>= \(a, m) -> m $ f a
+
+joinRef :: Monad m => m (Ref m a) -> Ref m a
+joinRef m = joinML $ const m
 
 -- | Using @fileRef@ is safe if the file is not used concurrently.
 fileRef :: FilePath -> IO (Ref IO String)
