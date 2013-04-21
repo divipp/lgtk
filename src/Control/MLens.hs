@@ -6,18 +6,19 @@ module Control.MLens
 
     -- * Data types
     , Ref
+    , R, runR
 
     -- * Ref transformations
-    , mapRef
+    , M.mapRef
     , (%)
-    , joinRef
+    , M.joinRef
     , M.memoRef
 
     -- * Ref destruction
-    , runRef
+    , M.runRef
 
     -- * Ref construction
-    , unitRef
+    , M.unitRef
     , M.NewRef
     , M.newRef
     , M.ExtRef
@@ -27,9 +28,9 @@ module Control.MLens
     , Pure.runExt_
 
     -- * Derived constructs
-    , readRef
-    , writeRef
-    , modRef
+    , M.readRef
+    , M.writeRef
+    , M.modRef
     , M.undoTr
     , M.memoRead
     , M.memoWrite
@@ -57,14 +58,14 @@ import Control.Comonad.Trans.Store
 import Data.Maybe
 
 import qualified Data.MLens as M
-import Data.MLens.Ref hiding ((%))
+import Data.MLens.Ref (Ref(Ref))
+import qualified Data.MLens.Ref as M
 import qualified Control.MLens.ExtRef as M
 import Control.MLens.ExtRef.Test
 import qualified Control.MLens.ExtRef.Pure as Pure
 import qualified Control.MLens.ExtRef.IORef as IORef
 
-newtype ExtTestPure i a = ExtTestPure { runExtTestPure :: Pure.Ext i (Writer [String]) a }
-    deriving (Monad, MonadWriter [String], M.NewRef, M.ExtRef)
+newtype R m a = R { runR :: m a }
 
 (%) :: Monad m => L.Lens a b -> Ref m a -> Ref m b
 l % Ref k = Ref $ toMLens l
@@ -87,6 +88,9 @@ listLens = L.lens get set where
 
 extRef :: M.ExtRef m => Ref m b -> L.Lens a b -> a -> m (Ref m a)
 extRef r k a = M.extRef r (toMLens k) a
+
+newtype ExtTestPure i a = ExtTestPure { runExtTestPure :: Pure.Ext i (Writer [String]) a }
+    deriving (Monad, MonadWriter [String], M.NewRef, M.ExtRef)
 
 -- | Consistency tests for the pure implementation of @Ext@, should give an empty list of errors.
 testExtPure :: [String]
