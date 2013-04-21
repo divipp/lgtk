@@ -258,20 +258,7 @@ mkTests runTest
         r ==> 6
         redo === False
         undo === True
+      where
+        push m = m >>= \x -> maybe (return ()) id x
+        m === t = m >>= \x -> maybe False (const True) x ==? t
 
-    push m = m >>= \x -> maybe (return ()) id x
-    m === t = m >>= \x -> maybe False (const True) x ==? t
---    m ===> b = m >>= \x -> x ==? b
-
-{-
-undoTr' r = do
-    ku <- extRef r undoLens []
-    return $ liftM (fmap (writeRef ku) . undo) $ readRef ku
-  where
-    undoLens = lens head set where
-        set x (x' : xs) | x == x' = (x: xs)
-        set x xs = (x : xs)
-
-    undo (x: xs@(_:_)) = Just (xs)
-    undo _ = Nothing
--}
