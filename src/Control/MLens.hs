@@ -2,8 +2,10 @@
 {-# LANGUAGE KindSignatures #-}
 -- | The main monadic lens interface, ideally users should import only this module.
 module Control.MLens
-    ( -- * Data types
-      MLens
+    ( module Data.Lens.Common
+
+    -- * Data types
+    , MLens
     , Ref
 
     -- * Lens and Ref transformations
@@ -34,16 +36,12 @@ module Control.MLens
 
     -- * Derived constructs
     -- ** Lens operations
---    , L.getL
---    , L.setL
     , modL
     , readRef, writeRef, modRef
 
     -- ** Pure lenses, defined with @lensStore@
     , id
 --    , M.unitLens
-    , L.fstLens
-    , L.sndLens
 --    , M.maybeLens
     , listLens
 --    , M.ithLens
@@ -54,10 +52,8 @@ module Control.MLens
     , showLens
 
     -- ** Other derived construts
-    , L.Lens
     , fromLens
     , toLens
-    , L.lens
     , M.undoTr
     , M.memoRead
 --    , M.memoWrite
@@ -74,6 +70,7 @@ import Control.Category
 import Control.Monad.Writer
 import Prelude hiding ((.), id)
 import qualified Data.Lens.Common as L
+import Data.Lens.Common hiding (modL)
 import Control.Comonad.Trans.Store
 import Data.Maybe
 
