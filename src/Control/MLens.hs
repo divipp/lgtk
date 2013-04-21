@@ -1,12 +1,15 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE RankNTypes #-}
 -- | The main monadic lens interface, ideally users should import only this module.
 module Control.MLens
     ( module Data.Lens.Common
 
     -- * Data types
     , Ref
-    , R, runR
+    , R, runR, mapR
+    , C, runC, mapC
+    , rToC
 
     -- * Ref transformations
     , M.mapRef
@@ -66,6 +69,17 @@ import qualified Control.MLens.ExtRef.Pure as Pure
 import qualified Control.MLens.ExtRef.IORef as IORef
 
 newtype R m a = R { runR :: m a } deriving (Monad)
+
+mapR :: M.Morph m n -> R m a -> R n a
+mapR f (R x) = R (f x)
+
+newtype C m a = C { runC :: m a } deriving (Monad)
+
+mapC :: M.Morph m n -> C m a -> C n a
+mapC f (C x) = C (f x)
+
+rToC :: R m a -> C m a
+rToC (R m) = C m
 
 joinRef :: Monad m => R m (Ref m a) -> Ref m a
 joinRef (R x) = M.joinRef x
