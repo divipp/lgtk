@@ -21,15 +21,15 @@ intListEditor state settings = Action $ do
     (undo, redo)  <- undoTr ((==) `on` map fst) list
     range <- extRef settings showLens True
     let safe = lens id (const . take maxi)
-        len = joinML $ \_ -> readRef range >>= \r -> return $ lens length $ extendList r . min maxi
+        len = liftM (\r -> lens length $ extendList r . min maxi) $ readRef range
         sel = liftM (filter snd) $ readRef list
     return $ Notebook
         [ (,) "Editor" $ vcat
             [ hcat
-                [ Entry $ showLens . len . list
-                , smartButton (return "+1") (modL len (+1))      list
-                , smartButton (return "-1") (modL len (+(-1)))   list
-                , smartButton (toFree $ liftM (("DeleteAll " ++) . show) $ readRef $ len . list) (modL len $ const 0) list
+                [ Entry $ joinRef $ liftM (\k -> showLens . k . list) len
+                , smartButton (return "+1") (modL' len (+1))      list
+                , smartButton (return "-1") (modL' len (+(-1)))   list
+                , smartButton (toFree $ liftM (("DeleteAll " ++) . show) $ len >>= \k -> readRef $ k . list) (modL' len $ const 0) list
                 , Button (return "undo") $ toFree undo
                 , Button (return "redo") $ toFree redo
                 ]
@@ -61,6 +61,10 @@ intListEditor state settings = Action $ do
         , Checkbox $ sndLens . r
         , Button (return "Del")  $ return $ Just $ modRef list (\xs -> take i xs ++ drop (i+1) xs)
         , Button (return "Copy") $ return $ Just $ modRef list (\xs -> take (i+1) xs ++ drop i xs) ]
+
+    modL' mr f b = do
+        r <- mr
+        modL r f b
 
     extendList r n xs = take n $ (reverse . drop 1 . reverse) xs ++
         (uncurry zip . ((if r then enumFrom else repeat) Arrow.*** repeat)) (head $ reverse xs ++ [def])
