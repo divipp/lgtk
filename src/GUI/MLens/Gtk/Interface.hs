@@ -25,7 +25,7 @@ data I m
             , underlying_value_   :: R m a
             , dynamic_interface_  :: a -> I m
             }     -- ^ dynamic interface
-    | Action (m (I m))              -- ^ do an action before giving the interface
+    | Action (C m (I m))              -- ^ do an action before giving the interface
 
 data ListLayout
     = Horizontal | Vertical

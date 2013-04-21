@@ -15,7 +15,7 @@ module Control.MLens
     , M.mapRef
     , (%)
     , joinRef
-    , M.memoRef
+    , memoRef
 
     -- * Ref destruction
     , runRef
@@ -23,7 +23,7 @@ module Control.MLens
     -- * Ref construction
     , M.unitRef
     , M.NewRef
-    , M.newRef
+    , newRef
     , M.ExtRef
     , extRef
     , Pure.Ext
@@ -34,9 +34,9 @@ module Control.MLens
     , readRef
     , M.writeRef
     , M.modRef
-    , M.undoTr
-    , M.memoRead
-    , M.memoWrite
+    , undoTr
+    , memoRead
+    , memoWrite
 
     -- * Auxiliary definitions
     , M.Morph
@@ -60,6 +60,7 @@ import Data.Lens.Common
 import Control.Comonad.Trans.Store
 import Data.Maybe
 
+import Control.Monad.Restricted
 import qualified Data.MLens as M
 import Data.MLens.Ref (Ref(Ref))
 import qualified Data.MLens.Ref as M
@@ -67,19 +68,6 @@ import qualified Control.MLens.ExtRef as M
 import Control.MLens.ExtRef.Test
 import qualified Control.MLens.ExtRef.Pure as Pure
 import qualified Control.MLens.ExtRef.IORef as IORef
-
-newtype R m a = R { runR :: m a } deriving (Monad)
-
-mapR :: M.Morph m n -> R m a -> R n a
-mapR f (R x) = R (f x)
-
-newtype C m a = C { runC :: m a } deriving (Monad)
-
-mapC :: M.Morph m n -> C m a -> C n a
-mapC f (C x) = C (f x)
-
-rToC :: R m a -> C m a
-rToC (R m) = C m
 
 joinRef :: Monad m => R m (Ref m a) -> Ref m a
 joinRef (R x) = M.joinRef x
@@ -109,8 +97,30 @@ listLens = L.lens get set where
     set [] (_, x) = (False, x)
     set (l: r) _ = (True, (l, r))
 
-extRef :: M.ExtRef m => Ref m b -> L.Lens a b -> a -> m (Ref m a)
-extRef r k a = M.extRef r (toMLens k) a
+newRef :: M.NewRef m => a -> C m (Ref m a)
+newRef = C . M.newRef
+
+extRef :: M.ExtRef m => Ref m b -> L.Lens a b -> a -> C m (Ref m a)
+extRef r k a = C $ M.extRef r (toMLens k) a
+
+memoRef :: (M.NewRef m, Eq a) => Ref m a -> C m (Ref m a)
+memoRef = C . M.memoRef
+
+memoRead :: M.NewRef m => C m a -> C m (C m a)
+memoRead g = liftM ($ ()) $ memoWrite $ const g
+
+memoWrite :: (M.NewRef m, Eq b) => (b -> C m a) -> C m (b -> C m a)
+memoWrite f = liftM (C .) $ C $ M.memoWrite $ runC . f
+
+-- | Undo-redo state transformation
+undoTr
+    :: M.ExtRef m =>
+       (a -> a -> Bool)     -- ^ equality on state
+    -> Ref m a              -- ^ reference of state
+    -> C m ( m (Maybe (m ()))   
+           , m (Maybe (m ()))
+           )  -- ^ undo and redo actions
+undoTr eq r = C $ M.undoTr eq r
 
 newtype ExtTestPure i a = ExtTestPure { runExtTestPure :: Pure.Ext i (Writer [String]) a }
     deriving (Monad, MonadWriter [String], M.NewRef, M.ExtRef)

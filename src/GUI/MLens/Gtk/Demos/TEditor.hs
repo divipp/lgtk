@@ -52,7 +52,7 @@ tEditor2 = Action $ liftM editor $ newRef Leaf  where
             ]
 
 -- | Another @T@ editor with checkboxes, given directly
-tEditor3 :: ExtRef m => Ref m T -> m (I m)
+tEditor3 :: ExtRef m => Ref m T -> C m (I m)
 tEditor3 = liftM Action . memoRead . editor' where
     editor' r = do
         q <- extRef r tLens (False, (Leaf, Leaf))

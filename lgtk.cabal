@@ -45,6 +45,7 @@ library
                     Data.MLens
                     Data.MLens.Ref
 
+                    Control.Monad.Restricted
                     Control.MLens.NewRef
                     Control.MLens.NewRef.Unsafe
                     Control.MLens.ExtRef

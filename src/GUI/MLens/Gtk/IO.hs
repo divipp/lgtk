@@ -27,8 +27,8 @@ type IOWriterState = WriterT WriterState IO
 runI :: I IO -> IO ()
 runI i = do
     _ <- initGUI
-    dca <- newRef []
-    rea <- newRef True
+    dca <- newRef' []
+    rea <- newRef' True
     (c, _) <- runWriterT $ userr_ rea dca i
     window <- windowNew
     set window [ containerBorderWidth := 10, containerChild := c ]
@@ -77,12 +77,12 @@ runI i = do
             s >>=.. labelSetLabel w
             return' w
         Action m -> 
-            lift m >>= flattenI'
+            lift (runC m) >>= flattenI'
         Cell False m f -> do
             w <- lift' $ alignmentNew 0 0 1 1
-            cancelc <- lift $ newRef mempty
-            togglec <- lift $ newRef mempty
-            showc <- lift $ newRef mempty
+            cancelc <- lift $ newRef' mempty
+            togglec <- lift $ newRef' mempty
+            showc <- lift $ newRef' mempty
             let cc = (readRef' cancelc >>= id) >> writeRef cancelc mempty >> writeRef togglec mempty >> writeRef showc mempty
             let cc' = readRef' togglec >>= id
             let cc'' = readRef' showc >>= id
@@ -99,10 +99,10 @@ runI i = do
             return' w
         Cell True m f -> do
             w <- lift' $ hBoxNew False 1
-            tri <- lift $ newRef []
-            cancelc <- lift $ newRef mempty
-            togglec <- lift $ newRef mempty
-            showc <- lift $ newRef mempty
+            tri <- lift $ newRef' []
+            cancelc <- lift $ newRef' mempty
+            togglec <- lift $ newRef' mempty
+            showc <- lift $ newRef' mempty
             let cc = (readRef' cancelc >>= id) >> writeRef cancelc mempty >> writeRef togglec mempty >> writeRef showc mempty
             let cc' = readRef' togglec >>= id
             let cc'' = readRef' showc >>= id
@@ -135,8 +135,8 @@ runI i = do
 
         (>>=.) :: (Eq a) => IO a -> (a -> IO ()) -> IOWriterState ()
         get >>=. install = lift get >>= \x -> do
-            v <- lift $ newRef x
-            b <- lift $ newRef $ Just $ (,) True $ do
+            v <- lift $ newRef' x
+            b <- lift $ newRef' $ Just $ (,) True $ do
                 x <- readRef' v
                 x' <- get
                 when (x /= x') $ do
@@ -187,4 +187,5 @@ instance Monoid (IO ()) where
     mappend = (>>)
 
 readRef' = runR . readRef
+newRef' = runC . newRef
 
