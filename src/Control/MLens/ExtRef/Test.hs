@@ -5,12 +5,8 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 -- | Tests for the reference implementation of the @ExtRef@ interface.
 module Control.MLens.ExtRef.Test
-    ( -- * Basic test environment
-      (==?)
-    , (==>)
-    -- * Test suit generation
-    , mkTests
-    , mkTests'
+    ( -- * Test suit generation
+      mkTests
     ) where
 
 import Control.Monad.Writer
@@ -32,12 +28,6 @@ rv ==? v = when (rv /= v) $ tell . return $ "runTest failed: " ++ show rv ++ " /
 r ==> v = readRef r >>= (==? v)
 
 infix 0 ==>, ==?
-
-newtype F m i a = F { unF :: m a } deriving (Monad, NewRef, ExtRef, MonadWriter w)
-
--- | Simplified test generation
-mkTests' :: (MonadWriter [String] m, ExtRef m) => (m () -> [String]) -> [String]
-mkTests' f = mkTests $ \m -> f $ unF m
 
 {- | 
 @mkTests@ generates a list of error messages which should be emtpy.
@@ -185,11 +175,9 @@ mkTests runTest
         redo === False
         undo === True
 
-    push m = m >>= \x ->
-        maybe (return ()) id x
-    m === t = m >>= \x ->
-        maybe False (const True) x ==? t
-    m ===> b = m >>= \x -> x ==? b
+    push m = m >>= \x -> maybe (return ()) id x
+    m === t = m >>= \x -> maybe False (const True) x ==? t
+--    m ===> b = m >>= \x -> x ==? b
 
 {-
 undoTr' r = do
