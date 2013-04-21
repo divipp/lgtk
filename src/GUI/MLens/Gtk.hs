@@ -61,7 +61,7 @@ mapI _g f (Checkbox m)  = Checkbox $ mapRef f m
 mapI _g f (Combobox ss m) = Combobox ss $ mapRef f m
 mapI g f (List o is)    = List o $ map (mapI g f) is
 mapI g f (Notebook is)  = Notebook $ map (fmap $ mapI g f) is
-mapI g f (Cell b m k)   = Cell b (f m) $ mapI g f . k
+mapI g f (Cell b m k)   = Cell b (mapR f m) $ mapI g f . k
 mapI g f (Action m)     = Action $ f $ liftM (mapI g f) m
 
 

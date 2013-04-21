@@ -22,7 +22,7 @@ data I m
     | Notebook [(String, I m)]      -- ^ tabs
     | forall a . Eq a 
     => Cell { remember_content_   :: Bool       -- ^ remember the content or not? (info for the renderer)
-            , underlying_value_   :: m a
+            , underlying_value_   :: R m a
             , dynamic_interface_  :: a -> I m
             }     -- ^ dynamic interface
     | Action (m (I m))              -- ^ do an action before giving the interface

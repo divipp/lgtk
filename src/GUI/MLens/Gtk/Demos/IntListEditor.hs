@@ -87,7 +87,7 @@ listEditor def ed = editor 0 where
     q <- extRef r listLens (False, (def, []))
     t1 <- ed i $ fstLens . sndLens % q
     t2 <- editor (i+1) $ sndLens . sndLens % q
-    return $ Cell True (liftM fst (runR $ readRef q)) $ \b -> vcat $ if b then [t1, t2] else []
+    return $ Cell True (liftM fst $ readRef q) $ \b -> vcat $ if b then [t1, t2] else []
 
 
 

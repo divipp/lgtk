@@ -87,7 +87,7 @@ runI i = do
             let cc' = readRef' togglec >>= id
             let cc'' = readRef' showc >>= id
             tell (cc, cc', cc'')
-            m >>=. \new -> do
+            runR m >>=. \new -> do
                 cc
                 containerForeach w $ containerRemove w
                 (x, (c1, c2, c3)) <- runWriterT $ flattenI' (f new)
@@ -107,7 +107,7 @@ runI i = do
             let cc' = readRef' togglec >>= id
             let cc'' = readRef' showc >>= id
             tell (cc, cc', cc'')
-            m >>=. \new -> do
+            runR m >>=. \new -> do
                 cc'
                 containerForeach w $ widgetHideAll
                 t <- readRef' tri
