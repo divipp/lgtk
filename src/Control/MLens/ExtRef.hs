@@ -14,6 +14,7 @@ import Prelude hiding ((.), id)
 
 import Control.MLens.NewRef
 import Data.MLens.Ref
+import Control.Monad.Restricted
 
 {- |
 Suppose that @r@ is a pure reference and @k@ is a pure lens.
@@ -37,7 +38,7 @@ Law for @newRef@ when @extRef@ is defined:
 For basic usage examples, look into the source of "Control.MLens.ExtRef.Pure.Test".
 -}
 class NewRef m => ExtRef m where
-    extRef :: Ref m b -> Lens a b -> a -> m (Ref m a)
+    extRef :: Ref m b -> Lens a b -> a -> C m (Ref m a)
 
 
 -- | Undo-redo state transformation
@@ -45,8 +46,8 @@ undoTr
     :: ExtRef m =>
        (a -> a -> Bool)     -- ^ equality on state
     -> Ref m a              -- ^ reference of state
-    -> m ( m (Maybe (m ()))   
-         , m (Maybe (m ()))
+    -> C m ( R m (Maybe (m ()))   
+         , R m (Maybe (m ()))
          )  -- ^ undo and redo actions
 undoTr eq r = do
     ku <- extRef r undoLens ([], [])

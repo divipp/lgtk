@@ -24,9 +24,9 @@ import Control.MLens.NewRef.Unsafe ()
 import Control.Monad.Restricted
 
 
-extRef_ :: NewRef m => Ref m b -> Lens a b -> a -> m (Ref m a)
+extRef_ :: NewRef m => Ref m b -> Lens a b -> a -> C m (Ref m a)
 extRef_ r1 r2 a0 = do
-    inner <- readRef r1
+    inner <- rToC $ readRef r1
     let a' = L.setL r2 inner a0
     store <- newRef a'
     let r = do 
@@ -57,7 +57,7 @@ unsafeLiftIO m = do
     a `seq` return a
 
 instance Monad m => NewRef (Ext i m) where
-    newRef = liftM (mapRef unsafeLiftIO) . unsafeLiftIO . newRef
+    newRef = liftM (mapRef unsafeLiftIO) . mapC unsafeLiftIO . newRef
 
 instance Monad m => ExtRef (Ext i m) where
     extRef = extRef_

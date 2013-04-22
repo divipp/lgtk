@@ -76,10 +76,10 @@ then
 
 @fstLens % r :: Ref m a@
 -}
-data Ref m a = Ref { readRef :: m a, writeRef :: a -> m () }
+data Ref m a = Ref { readRef :: R m a, writeRef :: a -> m () }
 
 mapRef :: (Monad m, Monad n) => Morph m n -> Ref m a -> Ref n a
-mapRef f (Ref r w) = Ref (f r) (f . w)
+mapRef f (Ref r w) = Ref (mapR f r) (f . w)
 
 
 (%) :: Monad m => Lens a b -> Ref m a -> Ref m b
@@ -88,7 +88,7 @@ l % Ref r w = Ref r' w'
     r' = liftM (L.getL l) r
 
     w' b = do
-        a <- r
+        a <- runR r
         w $ L.setL l b a
 
 infixr 8 %
@@ -98,10 +98,10 @@ unitRef :: Monad m => Ref m ()
 unitRef = Ref (return ()) (const $ return ())
 
 modRef :: Monad m => Ref m a -> (a -> a) -> m ()
-k `modRef` f = readRef k >>= writeRef k . f
+k `modRef` f = runR (readRef k) >>= writeRef k . f
 
-joinRef :: Monad m => m (Ref m a) -> Ref m a
-joinRef m = Ref (m >>= readRef) (\a -> m >>= \r -> writeRef r a)
+joinRef :: Monad m => R m (Ref m a) -> Ref m a
+joinRef m = Ref (m >>= readRef) (\a -> runR m >>= \r -> writeRef r a)
 
 
 -- | Using @fileRef@ is safe if the file is not used concurrently.
@@ -112,7 +112,7 @@ fileRef f = liftM (justLens "" %) $ fileRef_ f
 fileRef_ :: FilePath -> IO (Ref IO (Maybe String))
 fileRef_ f = return $ Ref r w
  where
-    r = do
+    r = R $ do
         b <- doesFileExist f
         if b then do
             xs <- readFile f

@@ -71,14 +71,14 @@ newtype Ext i m a = Ext { unExt :: StateT (ST m) m a }
 instance MonadTrans (Ext i) where
     lift = Ext . lift
 
-extRef_ :: Monad m => Ref (Ext i m) x -> Lens a x -> a -> Ext i m (Ref (Ext i m) a)
-extRef_ r1 r2 a0 = Ext $ do
+extRef_ :: Monad m => Ref (Ext i m) x -> Lens a x -> a -> C (Ext i m) (Ref (Ext i m) a)
+extRef_ r1 r2 a0 = C $ Ext $ do
     a1 <- g a0
     (t,z) <- state $ extend_ (runStateT . f) (runStateT . g) a1
-    return $ Ref (Ext (gets t)) $ \a -> Ext $ StateT $ liftM ((,) ()) . z a
+    return $ Ref (R $ Ext (gets t)) $ \a -> Ext $ StateT $ liftM ((,) ()) . z a
    where
     f a = unExt $ writeRef r1 (L.getL r2 a) >> return a
-    g b = unExt $ liftM (flip (L.setL r2) b) $ readRef r1
+    g b = unExt $ runR $ liftM (flip (L.setL r2) b) $ readRef r1
 
 instance (Monad m) => NewRef (Ext i m) where
     newRef = extRef_ unitRef unitLens
@@ -100,9 +100,9 @@ runExt_
     => (forall n . (Monad n, Functor n) => Morph m n -> Morph n m -> c n -> c m)
     -> (forall i . c (Ext i m)) -> m (c m)
 runExt_ mapI int = do
-    vx <- newRef initST
+    vx <- runC $ newRef initST
     let unlift f = do
-            x <- readRef vx
+            x <- runR $ readRef vx
             (b, x) <- runStateT (unExt f) x
             writeRef vx x
             return b

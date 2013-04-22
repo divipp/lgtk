@@ -14,6 +14,7 @@ import Control.Monad
 import Control.Monad.Writer
 
 import Data.MLens.Ref
+import Control.Monad.Restricted
 
 {- |
 Laws for @NewRef@:
@@ -21,22 +22,22 @@ Laws for @NewRef@:
  *  Any reference created by @newRef@ should satisfy the reference laws.
 -}
 class (Monad m) => NewRef m where
-    newRef :: a -> m (Ref m a)
+    newRef :: a -> C m (Ref m a)
 
 instance (NewRef m, Monoid w) => NewRef (WriterT w m) where
-    newRef = liftM (mapRef lift) . lift . newRef
+    newRef = liftM (mapRef lift) . mapC lift . newRef
 
 
 -- | Memoise pure references
-memoRef :: (NewRef m, Eq a) => Ref m a -> m (Ref m a)
+memoRef :: (NewRef m, Eq a) => Ref m a -> C m (Ref m a)
 memoRef r = do
     s <- newRef Nothing
     let re = readRef s >>= \x -> case x of
                 Just b -> return b
                 _ -> readRef r >>= \b -> do
-                    writeRef s $ Just b
+                    R $ writeRef s $ Just b
                     return b
-        w b = readRef s >>= \x -> case x of
+        w b = runR (readRef s) >>= \x -> case x of
                 Just b' | b' == b -> return ()
                 _ -> do
                     writeRef s $ Just b
@@ -44,16 +45,16 @@ memoRef r = do
     return $ Ref re w
 
 
-memoRead :: NewRef m => m a -> m (m a)
+memoRead :: NewRef m => C m a -> C m (C m a)
 memoRead g = liftM ($ ()) $ memoWrite $ const g
 
-memoWrite :: (NewRef m, Eq b) => (b -> m a) -> m (b -> m a)
+memoWrite :: (NewRef m, Eq b) => (b -> C m a) -> C m (b -> C m a)
 memoWrite g = do
     s <- newRef Nothing
-    return $ \b -> readRef s >>= \x -> case x of
+    return $ \b -> rToC (readRef s) >>= \x -> case x of
         Just (b', a) | b' == b -> return a
         _ -> g b >>= \a -> do
-            writeRef s $ Just (b, a)
+            C $ writeRef s $ Just (b, a)
             return a
 
 

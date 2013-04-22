@@ -13,26 +13,28 @@ module Control.MLens
     -- * Ref transformations
     , M.mapRef
     , (M.%)
-    , joinRef
-    , memoRef
+    , M.joinRef
+    , M.memoRef
+
+    -- * Ref operations
+    , M.readRef
+    , M.writeRef
 
     -- * Ref construction
     , M.unitRef
     , M.NewRef
-    , newRef
+    , M.newRef
     , M.ExtRef
-    , extRef
+    , M.extRef
     , Pure.Ext
     , Pure.runExt
     , Pure.runExt_
 
     -- * Derived constructs
-    , readRef
-    , M.writeRef
     , M.modRef
-    , undoTr
-    , memoRead
-    , memoWrite
+    , M.undoTr
+    , M.memoRead
+    , M.memoWrite
 
     -- * Auxiliary definitions
     , Morph
@@ -59,12 +61,6 @@ import qualified Data.MLens.Ref as M
 import qualified Control.MLens.ExtRef as M
 import qualified Control.MLens.ExtRef.Pure as Pure
 
-joinRef :: Monad m => R m (Ref m a) -> Ref m a
-joinRef (R x) = M.joinRef x
-
-readRef :: Monad m => Ref m a -> R m a
-readRef = R . M.readRef
-
 showLens :: (Show a, Read a) => L.Lens a String
 showLens = L.lens show $ \s def -> maybe def fst $ listToMaybe $ reads s
 
@@ -79,30 +75,5 @@ listLens = L.lens get set where
 maybeLens :: Lens (Bool, a) (Maybe a)
 maybeLens = lens (\(b,a) -> if b then Just a else Nothing)
               (\x (_,a) -> maybe (False, a) (\a' -> (True, a')) x)
-
-newRef :: M.NewRef m => a -> C m (Ref m a)
-newRef = C . M.newRef
-
-extRef :: M.ExtRef m => Ref m b -> L.Lens a b -> a -> C m (Ref m a)
-extRef r k a = C $ M.extRef r k a
-
-memoRef :: (M.NewRef m, Eq a) => Ref m a -> C m (Ref m a)
-memoRef = C . M.memoRef
-
-memoRead :: M.NewRef m => C m a -> C m (C m a)
-memoRead g = liftM ($ ()) $ memoWrite $ const g
-
-memoWrite :: (M.NewRef m, Eq b) => (b -> C m a) -> C m (b -> C m a)
-memoWrite f = liftM (C .) $ C $ M.memoWrite $ runC . f
-
--- | Undo-redo state transformation
-undoTr
-    :: M.ExtRef m =>
-       (a -> a -> Bool)     -- ^ equality on state
-    -> Ref m a              -- ^ reference of state
-    -> C m ( R m (Maybe (m ()))   
-           , R m (Maybe (m ()))
-           )  -- ^ undo and redo actions
-undoTr eq r = liftM (\(u,r) -> (R u, R r)) $ C $ M.undoTr eq r
 
 
