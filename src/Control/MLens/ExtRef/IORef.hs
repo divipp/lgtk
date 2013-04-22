@@ -17,10 +17,10 @@ import Prelude hiding ((.), id, splitAt, length)
 
 import System.IO.Unsafe
 
-import Data.MLens
 import Data.MLens.Ref
 import Control.MLens.ExtRef
 import Control.MLens.NewRef.Unsafe ()
+import Control.Monad.Restricted
 
 
 extRef_ :: NewRef m => Ref m b -> MLens m a b -> a -> m (Ref m a)

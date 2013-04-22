@@ -38,7 +38,7 @@ module Control.MLens
     , memoWrite
 
     -- * Auxiliary definitions
-    , M.Morph
+    , Morph
 
     -- * Auxiliary lens definitions
     , (.)
@@ -57,7 +57,6 @@ import Control.Comonad.Trans.Store
 import Data.Maybe
 
 import Control.Monad.Restricted
-import qualified Data.MLens as M
 import Data.MLens.Ref (Ref(Ref))
 import qualified Data.MLens.Ref as M
 import qualified Control.MLens.ExtRef as M

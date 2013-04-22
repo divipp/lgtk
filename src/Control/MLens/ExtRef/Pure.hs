@@ -20,9 +20,9 @@ import Prelude hiding ((.), id, splitAt, length)
 
 import Unsafe.Coerce
 
-import Data.MLens
 import Data.MLens.Ref
 import Control.MLens.ExtRef
+import Control.Monad.Restricted
 
 
 data CC m x = forall a . CC a (a -> x -> m (a, x))

@@ -14,7 +14,6 @@ module Control.MLens.NewRef
 import Control.Monad
 import Control.Monad.Writer
 
-import Data.MLens
 import Data.MLens.Ref
 
 {- |

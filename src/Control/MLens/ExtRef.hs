@@ -13,7 +13,6 @@ import Control.Category
 import Prelude hiding ((.), id)
 
 import Control.MLens.NewRef
-import Data.MLens
 import Data.MLens.Ref
 
 {- |
