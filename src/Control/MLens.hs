@@ -48,15 +48,13 @@ module Control.MLens
     ) where
 
 import Control.Category
-import Control.Monad.Writer
 import Prelude hiding ((.), id)
 import qualified Data.Lens.Common as L
 import Data.Lens.Common
-import Control.Comonad.Trans.Store
 import Data.Maybe
 
 import Control.Monad.Restricted
-import Data.MLens.Ref (Ref(Ref))
+import Data.MLens.Ref
 import qualified Data.MLens.Ref as M
 import qualified Control.MLens.ExtRef as M
 import qualified Control.MLens.ExtRef.Pure as Pure

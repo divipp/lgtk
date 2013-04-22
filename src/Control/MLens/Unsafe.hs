@@ -2,13 +2,9 @@
 module Control.MLens.Unsafe
     ( -- * Unsafe references
       fileRef
---    , fileRef_
     ) where
 
-import Control.Monad.Restricted
-import qualified Data.MLens.Ref as M
+import Data.MLens.Ref
 import Control.MLens.NewRef.Unsafe ()
 
-fileRef :: FilePath -> C IO (M.Ref IO String)
-fileRef = C . M.fileRef
 

@@ -14,12 +14,10 @@ module Data.MLens.Ref
     , fileRef, fileRef_
     ) where
 
-import qualified Control.Arrow as Arrow
 import Control.Monad.Identity
 import Data.Maybe
 import Data.Lens.Common
 import qualified Data.Lens.Common as L
-import Control.Comonad.Trans.Store
 import Control.Category
 import System.Directory
 import Prelude hiding ((.), id)
@@ -77,13 +75,13 @@ joinRef m = Ref (m >>= readRef) (\a -> runR m >>= \r -> writeRef r a)
 
 
 -- | Using @fileRef@ is safe if the file is not used concurrently.
-fileRef :: FilePath -> IO (Ref IO String)
+fileRef :: FilePath -> C IO (Ref IO String)
 fileRef f = liftM (justLens "" %) $ fileRef_ f where
     justLens :: a -> Lens (Maybe a) a
     justLens a = lens (maybe a id) (const . Just)
 
 -- | Note that if you write @Nothing@, the file is deleted.
-fileRef_ :: FilePath -> IO (Ref IO (Maybe String))
+fileRef_ :: FilePath -> C IO (Ref IO (Maybe String))
 fileRef_ f = return $ Ref r w
  where
     r = unsafeR $ do
