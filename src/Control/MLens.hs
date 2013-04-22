@@ -11,30 +11,30 @@ module Control.MLens
     , rToC
 
     -- * Ref transformations
-    , M.mapRef
-    , (M.%)
-    , M.joinRef
-    , M.memoRef
+    , mapRef
+    , (%)
+    , joinRef
+    , memoRef
 
     -- * Ref operations
-    , M.readRef
-    , M.writeRef
+    , readRef
+    , writeRef
 
     -- * Ref construction
-    , M.unitRef
-    , M.NewRef
-    , M.newRef
-    , M.ExtRef
-    , M.extRef
+    , unitRef
+    , NewRef
+    , newRef
+    , ExtRef
+    , extRef
     , Pure.Ext
     , Pure.runExt
     , Pure.runExt_
 
     -- * Derived constructs
-    , M.modRef
-    , M.undoTr
-    , M.memoRead
-    , M.memoWrite
+    , modRef
+    , undoTr
+    , memoRead
+    , memoWrite
 
     -- * Auxiliary definitions
     , Morph
@@ -49,21 +49,19 @@ module Control.MLens
 
 import Control.Category
 import Prelude hiding ((.), id)
-import qualified Data.Lens.Common as L
 import Data.Lens.Common
 import Data.Maybe
 
 import Control.Monad.Restricted
 import Data.MLens.Ref
-import qualified Data.MLens.Ref as M
-import qualified Control.MLens.ExtRef as M
+import Control.MLens.ExtRef
 import qualified Control.MLens.ExtRef.Pure as Pure
 
-showLens :: (Show a, Read a) => L.Lens a String
-showLens = L.lens show $ \s def -> maybe def fst $ listToMaybe $ reads s
+showLens :: (Show a, Read a) => Lens a String
+showLens = lens show $ \s def -> maybe def fst $ listToMaybe $ reads s
 
-listLens :: L.Lens (Bool, (a, [a])) [a]
-listLens = L.lens get set where
+listLens :: Lens (Bool, (a, [a])) [a]
+listLens = lens get set where
     get (False, _) = []
     get (True, (l, r)) = l: r
     set [] (_, x) = (False, x)

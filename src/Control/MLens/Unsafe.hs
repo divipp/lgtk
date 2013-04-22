@@ -2,9 +2,13 @@
 module Control.MLens.Unsafe
     ( -- * Unsafe references
       fileRef
+    , unsafeC
+    , unsafeR
+    , unsafeCToR
     ) where
 
 import Data.MLens.Ref
 import Control.MLens.NewRef.Unsafe ()
+import Control.Monad.Restricted
 
 
