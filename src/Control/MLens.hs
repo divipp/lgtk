@@ -1,4 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE RankNTypes #-}
 -- | The main monadic lens interface, ideally users should import only this module.
@@ -45,11 +44,8 @@ module Control.MLens
     , (.)
     , id
     , listLens
+    , maybeLens
     , showLens
-
-    -- * Consistency tests
-    , testExtPure
-    , testExtIORef
     ) where
 
 import Control.Category
@@ -65,9 +61,7 @@ import qualified Data.MLens as M
 import Data.MLens.Ref (Ref(Ref))
 import qualified Data.MLens.Ref as M
 import qualified Control.MLens.ExtRef as M
-import Control.MLens.ExtRef.Test
 import qualified Control.MLens.ExtRef.Pure as Pure
-import qualified Control.MLens.ExtRef.IORef as IORef
 
 joinRef :: Monad m => R m (Ref m a) -> Ref m a
 joinRef (R x) = M.joinRef x
@@ -97,6 +91,11 @@ listLens = L.lens get set where
     set [] (_, x) = (False, x)
     set (l: r) _ = (True, (l, r))
 
+
+maybeLens :: Lens (Bool, a) (Maybe a)
+maybeLens = lens (\(b,a) -> if b then Just a else Nothing)
+              (\x (_,a) -> maybe (False, a) (\a' -> (True, a')) x)
+
 newRef :: M.NewRef m => a -> C m (Ref m a)
 newRef = C . M.newRef
 
@@ -121,19 +120,5 @@ undoTr
            , R m (Maybe (m ()))
            )  -- ^ undo and redo actions
 undoTr eq r = liftM (\(u,r) -> (R u, R r)) $ C $ M.undoTr eq r
-
-newtype ExtTestPure i a = ExtTestPure { runExtTestPure :: Pure.Ext i (Writer [String]) a }
-    deriving (Monad, MonadWriter [String], M.NewRef, M.ExtRef)
-
--- | Consistency tests for the pure implementation of @Ext@, should give an empty list of errors.
-testExtPure :: [String]
-testExtPure = mkTests $ \t -> execWriter $ Pure.runExt $ runExtTestPure t
-
-newtype ExtTestIORef i a = ExtTestIORef { runExtTestIORef :: IORef.Ext i (Writer [String]) a }
-    deriving (Monad, MonadWriter [String], M.NewRef, M.ExtRef)
-
--- | Consistency tests for the @IORef@-based implementation of @Ext@, should give an empty list of errors.
-testExtIORef :: [String]
-testExtIORef = mkTests $ \t -> execWriter $ IORef.runExt $ runExtTestIORef t
 
 

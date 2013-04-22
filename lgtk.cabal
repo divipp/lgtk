@@ -34,6 +34,7 @@ library
   exposed-modules:
                     Control.MLens
                     Control.MLens.Unsafe
+                    Control.MLens.ExtRef.Test
 
                     GUI.MLens.Gtk
                     GUI.MLens.Gtk.ADTEditor
@@ -51,7 +52,6 @@ library
                     Control.MLens.ExtRef
                     Control.MLens.ExtRef.Pure
                     Control.MLens.ExtRef.IORef
-                    Control.MLens.ExtRef.Test
 
                     GUI.MLens.Gtk.IO
                     GUI.MLens.Gtk.Interface

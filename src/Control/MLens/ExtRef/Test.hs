@@ -1,20 +1,39 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE FlexibleContexts #-}
--- | Tests for the reference implementation of the @ExtRef@ interface.
+-- | Tests for the @ExtRef@ interface.
 module Control.MLens.ExtRef.Test
-    ( -- * Test suit generation
+    ( -- * Tests for the interface
       mkTests
+    -- * Tests for implementations
+    , testExtPure
+    , testExtIORef
     ) where
 
 import Control.Monad.Writer
 import Control.Category
 import Prelude hiding ((.), id)
 
-import Data.MLens
-import Data.MLens.Ref
-import Control.MLens.ExtRef
+import Control.MLens
+import qualified Control.MLens.ExtRef.Pure as Pure
+import qualified Control.MLens.ExtRef.IORef as IORef
 
 -----------------------------------------------------------------
+
+newtype ExtTestPure i a = ExtTestPure { runExtTestPure :: Pure.Ext i (Writer [String]) a }
+    deriving (Monad, MonadWriter [String], NewRef, ExtRef)
+
+-- | Consistency tests for the pure implementation of @Ext@, should give an empty list of errors.
+testExtPure :: [String]
+testExtPure = mkTests $ \t -> execWriter $ Pure.runExt $ runExtTestPure t
+
+newtype ExtTestIORef i a = ExtTestIORef { runExtTestIORef :: IORef.Ext i (Writer [String]) a }
+    deriving (Monad, MonadWriter [String], NewRef, ExtRef)
+
+-- | Consistency tests for the @IORef@-based implementation of @Ext@, should give an empty list of errors.
+testExtIORef :: [String]
+testExtIORef = mkTests $ \t -> execWriter $ IORef.runExt $ runExtTestIORef t
+
 
 -- | Check an equality.
 (==?) :: (Eq a, Show a, MonadWriter [String] m) => a -> a -> m ()
@@ -22,7 +41,7 @@ rv ==? v = when (rv /= v) $ tell . return $ "runTest failed: " ++ show rv ++ " /
 
 -- | Check the current value of a given reference.
 (==>) :: (Eq a, Show a, MonadWriter [String] m) => Ref m a -> a -> m ()
-r ==> v = readRef r >>= (==? v)
+r ==> v = runR (readRef r) >>= (==? v)
 
 infix 0 ==>, ==?
 
@@ -49,18 +68,18 @@ mkTests runTest
   where
 
     newRefTest = runTest $ do
-        r <- newRef 3
+        r <- newRef' 3
         r ==> 3
 
     writeRefTest = runTest $ do
-        r <- newRef 3
+        r <- newRef' 3
         r ==> 3
         writeRef r 4
         r ==> 4
 
     writeRefsTest = runTest $ do
-        r1 <- newRef 3
-        r2 <- newRef 13
+        r1 <- newRef' 3
+        r2 <- newRef' 13
         r1 ==> 3
         r2 ==> 13
         writeRef r1 4
@@ -71,8 +90,8 @@ mkTests runTest
         r2 ==> 0
 
     extRefTest = runTest $ do
-        r <- newRef $ Just 3
-        q <- extRef r maybeLens (False, 0)
+        r <- newRef' $ Just 3
+        q <- extRef' r maybeLens (False, 0)
         let q1 = fstLens % q
             q2 = sndLens % q
         r ==> Just 3
@@ -87,9 +106,9 @@ mkTests runTest
         r ==> Just 1
 
     joinTest = runTest $ do
-        r2 <- newRef 5
-        r1 <- newRef 3
-        rr <- newRef r1
+        r2 <- newRef' 5
+        r1 <- newRef' 3
+        rr <- newRef' r1
         r1 ==> 3
         let r = joinRef' rr
         r ==> 3
@@ -103,16 +122,16 @@ mkTests runTest
         r ==> 14
 
     joinTest2 = runTest $ do
-        r1 <- newRef 3
-        rr <- newRef r1
-        r2 <- newRef 5
+        r1 <- newRef' 3
+        rr <- newRef' r1
+        r2 <- newRef' 5
         writeRef rr r2
         joinRef' rr ==> 5
 
     chainTest0 = runTest $ do
-        r <- newRef 1
-        q <- extRef r id 0
-        s <- extRef q id 0
+        r <- newRef' 1
+        q <- extRef' r id 0
+        s <- extRef' q id 0
         r ==> 1
         q ==> 1
         s ==> 1
@@ -130,9 +149,9 @@ mkTests runTest
         s ==> 4
 
     forkTest = runTest $ do
-        r <- newRef 1
-        q <- extRef r id 0
-        s <- extRef r id 0
+        r <- newRef' 1
+        q <- extRef' r id 0
+        s <- extRef' r id 0
         r ==> 1
         q ==> 1
         s ==> 1
@@ -150,9 +169,9 @@ mkTests runTest
         s ==> 4
 
     forkTest2 = runTest $ do
-        r <- newRef $ Just 1
-        q <- extRef r maybeLens (False, 0)
-        s <- extRef r maybeLens (False, 0)
+        r <- newRef' $ Just 1
+        q <- extRef' r maybeLens (False, 0)
+        s <- extRef' r maybeLens (False, 0)
         r ==> Just 1
         q ==> (True, 1)
         s ==> (True, 1)
@@ -194,9 +213,9 @@ mkTests runTest
         s ==> (True, 4)
 
     chainTest = runTest $ do
-        r <- newRef $ Just $ Just 3
-        q <- extRef r maybeLens (False, Nothing)
-        s <- extRef (sndLens % q) maybeLens (False, 0)
+        r <- newRef' $ Just $ Just 3
+        q <- extRef' r maybeLens (False, Nothing)
+        s <- extRef' (sndLens % q) maybeLens (False, 0)
         r ==> Just (Just 3)
         q ==> (True, Just 3)
         s ==> (True, 3)
@@ -218,19 +237,19 @@ mkTests runTest
         s ==> (True, 3)
 
     undoTest = runTest $ do
-        r <- newRef 3
-        q <- extRef r (lens head (:)) []
+        r <- newRef' 3
+        q <- extRef' r (lens head (:)) []
         writeRef r 4
         q ==> [4, 3]
 
     undoTest2 = runTest $ do
-        r <- newRef 3
-        q <- extRef r (lens head (:)) []
+        r <- newRef' 3
+        q <- extRef' r (lens head (:)) []
         q ==> [3]
 
     undoTest3 = runTest $ do
-        r <- newRef 3
-        (undo, redo) <- undoTr (==) r
+        r <- newRef' 3
+        (undo, redo) <- liftM (\(u,r)->(runR u, runR r)) $ runC $ undoTr (==) r
         r ==> 3
         redo === False
         undo === False
@@ -263,4 +282,7 @@ mkTests runTest
         m === t = m >>= \x -> maybe False (const True) x ==? t
 
     joinRef' r = joinRef $ readRef r
+
+    newRef' r = runC $ newRef r
+    extRef' r k a = runC $ extRef r k a
 
