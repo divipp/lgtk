@@ -3,10 +3,6 @@ module Data.MLens
     ( -- * Monadic lenses data type
       MLens (..)
 
-    -- * Side-effect free lenses
-    , Lens
-    , fromLens, toLens
-
     -- * Lens construction
     , lensStore
     , lens
@@ -17,19 +13,13 @@ module Data.MLens
     -- * Lens transformations
     , (***)
     , mapMLens
-    , joinML, joinLens
+    , joinML
 
     -- * Pure lenses
     , unitLens
-    , fstLens, sndLens
-    , maybeLens
-    , listLens
-    , ithLens
 
     -- * Impure lenses
-    , forkLens
     , justLens
-    , showLens
 
     -- * Auxiliary definitions
     , Morph
@@ -80,22 +70,6 @@ The following representations would be also good for @(MLens m a b)@:
 The last representation has no efficient composition operation
 (the set operation on composition of n lenses use O(n * n) get operations with the last representation).
 -}
-
-{-|
-Side-effect free lenses.
-
-The following representations would be also good for @(Lens a b)@:
-
- *  @forall m . Monad m => MLens m a b@
--}
-type Lens a b
-    = MLens Identity a b
-
-fromLens :: Monad m => Lens a b -> MLens m a b
-fromLens = mapMLens (return . runIdentity)
-
-toLens :: (forall m . Monad m => MLens m a b) -> Lens a b
-toLens k = k
 
 -- | Impure (but effect-free) lens constuctor
 lensStore :: Monad m => (a -> (b, b -> a)) -> MLens m a b
@@ -150,42 +124,11 @@ mapMLens f (MLens r) = MLens $ \a -> do
 joinML :: Monad m => (a -> m (MLens m a b)) -> MLens m a b
 joinML r = MLens $ \x -> r x >>= ($ x) . runMLens
 
--- | It would be possible to define a @Monad@ instance for @(MLens m a)@ too, but monad laws would not hold.
-joinLens :: Monad m => MLens m a (MLens m a b) -> MLens m a b
-joinLens = joinML . getL
-
 unitLens :: Monad m => MLens m a ()
 unitLens = lens (const ()) (const id)
 
-fstLens :: Monad m => MLens m (a,b) a
-fstLens = lens fst $ \a (_,b) -> (a,b)
-
-sndLens :: Monad m => MLens m (a,b) b
-sndLens = lens snd $ \b (a,_) -> (a,b)
-
-maybeLens :: Monad m => MLens m (Bool, a) (Maybe a)
-maybeLens = lens (\(b,a) -> if b then Just a else Nothing)
-              (\x (_,a) -> maybe (False, a) (\a' -> (True, a')) x)
-
-listLens :: Monad m => MLens m (Bool, (a, [a])) [a]
-listLens = lens get set where
-    get (False, _) = []
-    get (True, (l, r)) = l: r
-    set [] (_, x) = (False, x)
-    set (l: r) _ = (True, (l, r))
-
--- | @ithLens@ is pure only with proper preconditions.
-ithLens :: Monad m => Int -> MLens m [a] a
-ithLens i = lens (!!i) $ \x xs -> take i xs ++ x : drop (i+1) xs
-
-forkLens :: (Monoid a, Monad m) => MLens m a (a, a)
-forkLens = lens (\a -> (a, a)) $ \(a1, a2) _ -> a1 `mappend` a2
-
 justLens :: Monad m => a -> MLens m (Maybe a) a
 justLens a = lens (maybe a id) (const . Just)
-
-showLens :: (Monad m, Show a, Read a) => MLens m a String
-showLens = lens show $ \s def -> maybe def fst $ listToMaybe $ reads s
 
 
 type Morph m n = forall a . m a -> n a
