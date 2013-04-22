@@ -24,7 +24,6 @@ library
                     base < 5
                   , containers
                   , directory
-                  , comonad-transformers
 
                   , data-lens
                   , mtl
