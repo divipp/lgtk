@@ -4,7 +4,6 @@ module Control.MLens.NewRef
       NewRef (newRef)
 
     -- * Memo operators
-    , memoMLens
     , memoRef
 
     -- * Auxiliary functions
@@ -27,30 +26,23 @@ class (Monad m) => NewRef m where
 instance (NewRef m, Monoid w) => NewRef (WriterT w m) where
     newRef = liftM (mapRef lift) . lift . newRef
 
--- | Memoise pure lenses
-memoMLens :: (NewRef m, Eq a, Eq b) => MLens m a b -> m (MLens m a b)
-memoMLens (MLens k) = do
-    s <- newRef Nothing
-    return $ MLens $ \a -> readRef s >>= \x -> do
-        (b, bf) <- case x of
-            Just (a', b, bf) | a' == a -> return (b, bf)
-            _ -> k a >>= \(b, bf) -> do
-                writeRef s $ Just (a, b, bf)
-                return (b, bf)
-        return (b
-            , \b -> readRef s >>= \x -> case x of
-                Just (a', b', _) | (a', b') == (a, b) -> return a
-                Just (_, _, bf) -> bf b >>= \a -> do
-                    writeRef s $ Just (a, b, bf)
-                    return a
-                _ -> bf b >>= \a -> do
-                    writeRef s $ Just (a, b, bf)
-                    return a
-            )
 
 -- | Memoise pure references
 memoRef :: (NewRef m, Eq a) => Ref m a -> m (Ref m a)
-memoRef (Ref r) = liftM Ref $ memoMLens r
+memoRef r = do
+    s <- newRef Nothing
+    let re = readRef s >>= \x -> case x of
+                Just b -> return b
+                _ -> readRef r >>= \b -> do
+                    writeRef s $ Just b
+                    return b
+        w b = readRef s >>= \x -> case x of
+                Just b' | b' == b -> return ()
+                _ -> do
+                    writeRef s $ Just b
+                    writeRef r b
+    return $ mkRef re w
+
 
 memoRead :: NewRef m => m a -> m (m a)
 memoRead g = liftM ($ ()) $ memoWrite $ const g

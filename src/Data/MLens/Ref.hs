@@ -10,38 +10,24 @@ module Data.MLens.Ref
     , mapRef
     , unitRef
     , runRef
+    , mkRef
     , readRef, writeRef, modRef
     , joinRef
 
     -- * Some impure @IO@ referenceses
     , fileRef, fileRef_
-    , logConsoleLens
-
-    -- * Auxiliary definitions
-    , logMLens, logFile
 
     -- * Monadic lenses data type
-    , MLens (..)
     , Lens
-    , toMLens
 
     -- * Lens construction
-    , lensStore
     , lens
 
     -- * Lens operations
     , getL, setL, modL
 
-    -- * Lens transformations
-    , (***)
-    , mapMLens
-    , joinML
-
     -- * Pure lenses
     , unitLens
-
-    -- * Impure lenses
-    , justLens
     ) where
 
 import qualified Control.Arrow as Arrow
@@ -211,6 +197,13 @@ mapRef f (Ref r) = Ref $ mapMLens f r
 runRef :: Monad m => Ref m a -> m (a, a -> m ())
 runRef (Ref r) = liftM f $ runMLens r Unit where
     f (a, m) = (a, \a -> m a >> return ())
+
+mkRef :: Monad m => m a -> (a -> m ()) -> Ref m a
+mkRef r w = Ref $ MLens $ \unit -> do
+    a <- r
+    return $ (,) a $ \a -> do
+        w a
+        return unit
 
 readRef :: Monad m => Ref m a -> m a
 readRef = liftM fst . runRef

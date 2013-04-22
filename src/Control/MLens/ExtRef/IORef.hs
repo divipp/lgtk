@@ -29,16 +29,16 @@ extRef_ r1 r2 a0 = do
     inner <- readRef r1
     let a' = L.setL r2 inner a0
     store <- newRef a'
-    return $ Ref $ MLens $ \unit -> do
-        a <- readRef store
-        inner <- readRef r1
-        let a' = L.setL r2 inner a
---        writeRef store a'
-        return $ (,) a' $ \a -> do
+    let r = do 
+            a <- readRef store
+            inner <- readRef r1
+            let a' = L.setL r2 inner a
+            return a'
+        w a = do
             let x = L.getL r2 a
             writeRef r1 x
             writeRef store a
-            return unit
+    return $ mkRef r w
 
 instance ExtRef IO where
     extRef = extRef_

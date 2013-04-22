@@ -12,8 +12,6 @@ import Control.MLens.NewRef
 instance NewRef IO where
     newRef x = do
         r <- newIORef x
-        return $ Ref $ MLens $ \unit -> do
-            x <- readIORef r
-            return (x, \y -> writeIORef r y >> return unit)
+        return $ mkRef (readIORef r) (writeIORef r)
 
 
