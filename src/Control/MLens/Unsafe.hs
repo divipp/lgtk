@@ -2,6 +2,8 @@
 module Control.MLens.Unsafe
     ( -- * Unsafe references
       fileRef
+
+    -- * Unsafe lifting
     , unsafeC
     , unsafeR
     , unsafeCToR
