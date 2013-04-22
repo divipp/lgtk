@@ -12,7 +12,7 @@ module Control.MLens
 
     -- * Ref transformations
     , M.mapRef
-    , (%)
+    , (M.%)
     , joinRef
     , memoRef
 
@@ -71,15 +71,6 @@ runRef = R . M.runRef
 readRef :: Monad m => Ref m a -> R m a
 readRef = liftM fst . runRef
 
-(%) :: Monad m => L.Lens a b -> Ref m a -> Ref m b
-l % Ref k = Ref $ toMLens l
-                . k
-
-infixr 8 %
-
-toMLens :: Monad m => L.Lens a b -> M.MLens m a b
-toMLens l = M.lensStore (\a -> let (fb, b) = runStore $ L.runLens l a in (b, fb))
-
 showLens :: (Show a, Read a) => L.Lens a String
 showLens = L.lens show $ \s def -> maybe def fst $ listToMaybe $ reads s
 
@@ -99,7 +90,7 @@ newRef :: M.NewRef m => a -> C m (Ref m a)
 newRef = C . M.newRef
 
 extRef :: M.ExtRef m => Ref m b -> L.Lens a b -> a -> C m (Ref m a)
-extRef r k a = C $ M.extRef r (toMLens k) a
+extRef r k a = C $ M.extRef r k a
 
 memoRef :: (M.NewRef m, Eq a) => Ref m a -> C m (Ref m a)
 memoRef = C . M.memoRef

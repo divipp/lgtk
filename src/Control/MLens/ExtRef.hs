@@ -37,7 +37,7 @@ Law for @newRef@ when @extRef@ is defined:
 For basic usage examples, look into the source of "Control.MLens.ExtRef.Pure.Test".
 -}
 class NewRef m => ExtRef m where
-    extRef :: Ref m b -> MLens m a b -> a -> m (Ref m a)
+    extRef :: Ref m b -> Lens a b -> a -> m (Ref m a)
 
 
 -- | Undo-redo state transformation

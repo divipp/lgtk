@@ -22,6 +22,8 @@ module Data.MLens.Ref
 
     -- * Monadic lenses data type
     , MLens (..)
+    , Lens
+    , toMLens
 
     -- * Lens construction
     , lensStore
@@ -45,6 +47,8 @@ module Data.MLens.Ref
 import qualified Control.Arrow as Arrow
 import Control.Monad.Identity
 import Data.Maybe
+import Data.Lens.Common hiding (getL, setL, modL)
+import Control.Comonad.Trans.Store
 import Control.Category
 import System.Directory
 import Prelude hiding ((.), id)
@@ -93,11 +97,11 @@ The last representation has no efficient composition operation
 lensStore :: Monad m => (a -> (b, b -> a)) -> MLens m a b
 lensStore f = MLens $ return . g . f where
     g (b, ba) = (b, return . ba)
-
+{-
 -- | Impure (but effect-free) lens constuctor, defined with @lensStore@.
 lens :: Monad m => (a -> b) -> (b -> a -> a) -> MLens m a b
 lens get set = lensStore $ \a -> (get a, flip set a)
-
+-}
 getL :: Monad m => MLens m a b -> a -> m b
 getL k a = runMLens k a >>= return . fst
 
@@ -142,10 +146,10 @@ mapMLens f (MLens r) = MLens $ \a -> do
 joinML :: Monad m => (a -> m (MLens m a b)) -> MLens m a b
 joinML r = MLens $ \x -> r x >>= ($ x) . runMLens
 
-unitLens :: Monad m => MLens m a ()
+unitLens :: Lens a ()
 unitLens = lens (const ()) (const id)
 
-justLens :: Monad m => a -> MLens m (Maybe a) a
+justLens :: a -> Lens (Maybe a) a
 justLens a = lens (maybe a id) (const . Just)
 
 
@@ -182,13 +186,23 @@ then
 -}
 newtype Ref m a = Ref { unRef :: MLens m Unit a }
 
+(%) :: Monad m => Lens a b -> Ref m a -> Ref m b
+l % Ref k = Ref $ toMLens l
+                . k
+
+infixr 8 %
+
+toMLens :: Monad m => Lens a b -> MLens m a b
+toMLens l = lensStore (\a -> let (fb, b) = runStore $ runLens l a in (b, fb))
+
+{-
 (%) :: Monad m => MLens m a b -> Ref m a -> Ref m b
 l % Ref k = Ref $ l . k
 
 infixr 8 %
-
+-}
 unitRef :: Monad m => Ref m ()
-unitRef = Ref unitLens
+unitRef = Ref $ toMLens unitLens
 
 mapRef :: (Monad m, Monad n) => Morph m n -> Ref m a -> Ref n a
 mapRef f (Ref r) = Ref $ mapMLens f r

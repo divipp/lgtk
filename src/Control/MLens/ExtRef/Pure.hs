@@ -15,6 +15,7 @@ import Control.Monad.Writer
 import Control.Category
 import qualified Control.Arrow as Arrow
 import Data.Sequence
+import qualified Data.Lens.Common as L
 import Data.Foldable (toList)
 import Prelude hiding ((.), id, splitAt, length)
 
@@ -70,7 +71,7 @@ newtype Ext i m a = Ext { unExt :: StateT (ST m) m a }
 instance MonadTrans (Ext i) where
     lift = Ext . lift
 
-extRef_ :: Monad m => Ref (Ext i m) x -> MLens (Ext i m) a x -> a -> Ext i m (Ref (Ext i m) a)
+extRef_ :: Monad m => Ref (Ext i m) x -> Lens a x -> a -> Ext i m (Ref (Ext i m) a)
 extRef_ r1 r2 a0 = Ext $ do
     a1 <- g a0
     (t,z) <- state $ extend_ (runStateT . f) (runStateT . g) a1
@@ -79,8 +80,8 @@ extRef_ r1 r2 a0 = Ext $ do
             , \a -> Ext $ (StateT $ liftM ((,) ()) . z a) >> return c
             )
    where
-    f a = unExt $ getL r2 a >>= \x -> writeRef r1 x >> return a
-    g b = unExt $ readRef r1 >>= flip (setL r2) b
+    f a = unExt $ writeRef r1 (L.getL r2 a) >> return a
+    g b = unExt $ liftM (flip (L.setL r2) b) $ readRef r1
 
 instance (Monad m) => NewRef (Ext i m) where
     newRef = extRef_ unitRef unitLens
