@@ -15,7 +15,7 @@ import Control.Monad.Writer
 import Control.Category
 import qualified Control.Arrow as Arrow
 import Data.Sequence
-import qualified Data.Lens.Common as L
+import Data.Lens.Common
 import Data.Foldable (toList)
 import Prelude hiding ((.), id, splitAt, length)
 
@@ -77,11 +77,11 @@ extRef_ r1 r2 a0 = unsafeC $ Ext $ do
     (t,z) <- state $ extend_ (runStateT . f) (runStateT . g) a1
     return $ Ref (unsafeR $ Ext (gets t)) $ \a -> Ext $ StateT $ liftM ((,) ()) . z a
    where
-    f a = unExt $ writeRef r1 (L.getL r2 a) >> return a
-    g b = unExt $ runR $ liftM (flip (L.setL r2) b) $ readRef r1
+    f a = unExt $ writeRef r1 (getL r2 a) >> return a
+    g b = unExt $ runR $ liftM (flip (setL r2) b) $ readRef r1
 
 instance (Monad m) => NewRef (Ext i m) where
-    newRef = extRef_ unitRef unitLens
+    newRef = extRef_ unitRef $ lens (const ()) (const id)
 
 instance (Monad m) => ExtRef (Ext i m) where
     extRef = extRef_

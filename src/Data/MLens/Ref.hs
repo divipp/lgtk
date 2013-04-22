@@ -1,9 +1,7 @@
 {-# LANGUAGE RankNTypes #-}
 module Data.MLens.Ref
-    ( Unit
-
-    -- * Data type for reference lenses
-    , Ref (..)
+    ( -- * Data type for references
+      Ref (..)
 
     -- * Reference operations
     , (%)
@@ -14,24 +12,12 @@ module Data.MLens.Ref
 
     -- * Some impure @IO@ referenceses
     , fileRef, fileRef_
-
-    -- * Monadic lenses data type
-    , Lens
-
-    -- * Lens construction
-    , lens
-
-    -- * Lens operations
---    , getL, setL, modL
-
-    -- * Pure lenses
-    , unitLens
     ) where
 
 import qualified Control.Arrow as Arrow
 import Control.Monad.Identity
 import Data.Maybe
-import Data.Lens.Common hiding (getL, setL, modL)
+import Data.Lens.Common
 import qualified Data.Lens.Common as L
 import Control.Comonad.Trans.Store
 import Control.Category
@@ -39,20 +25,6 @@ import System.Directory
 import Prelude hiding ((.), id)
 
 import Control.Monad.Restricted
-
-unitLens :: Lens a ()
-unitLens = lens (const ()) (const id)
-
-justLens :: a -> Lens (Maybe a) a
-justLens a = lens (maybe a id) (const . Just)
-
-
-{- | 
-The abstract data type @Unit@ is isomorphic to @()@,
-but by making it abstract we can prevent using the same reference
-on both sides of lens composition, which would have surprising effects.
--}
-data Unit = Unit deriving (Eq, Show)
 
 {- |
 Laws for pure references:
@@ -106,7 +78,9 @@ joinRef m = Ref (m >>= readRef) (\a -> runR m >>= \r -> writeRef r a)
 
 -- | Using @fileRef@ is safe if the file is not used concurrently.
 fileRef :: FilePath -> IO (Ref IO String)
-fileRef f = liftM (justLens "" %) $ fileRef_ f
+fileRef f = liftM (justLens "" %) $ fileRef_ f where
+    justLens :: a -> Lens (Maybe a) a
+    justLens a = lens (maybe a id) (const . Just)
 
 -- | Note that if you write @Nothing@, the file is deleted.
 fileRef_ :: FilePath -> IO (Ref IO (Maybe String))

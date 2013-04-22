@@ -13,7 +13,7 @@ module Control.MLens.ExtRef.IORef
 import Control.Monad.State
 import Control.Monad.Writer
 import Control.Category
-import qualified Data.Lens.Common as L
+import Data.Lens.Common
 import Prelude hiding ((.), id, splitAt, length)
 
 import System.IO.Unsafe
@@ -27,15 +27,15 @@ import Control.Monad.Restricted
 extRef_ :: NewRef m => Ref m b -> Lens a b -> a -> C m (Ref m a)
 extRef_ r1 r2 a0 = do
     inner <- rToC $ readRef r1
-    let a' = L.setL r2 inner a0
+    let a' = setL r2 inner a0
     store <- newRef a'
     let r = do 
             a <- readRef store
             inner <- readRef r1
-            let a' = L.setL r2 inner a
+            let a' = setL r2 inner a
             return a'
         w a = do
-            let x = L.getL r2 a
+            let x = getL r2 a
             writeRef r1 x
             writeRef store a
     return $ Ref r w

@@ -10,6 +10,7 @@ module Control.MLens.ExtRef
 --import Data.IORef
 import Control.Monad
 import Control.Category
+import Data.Lens.Common (Lens, lens)
 import Prelude hiding ((.), id)
 
 import Control.MLens.NewRef
