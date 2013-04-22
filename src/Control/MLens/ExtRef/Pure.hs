@@ -72,10 +72,10 @@ instance MonadTrans (Ext i) where
     lift = Ext . lift
 
 extRef_ :: Monad m => Ref (Ext i m) x -> Lens a x -> a -> C (Ext i m) (Ref (Ext i m) a)
-extRef_ r1 r2 a0 = C $ Ext $ do
+extRef_ r1 r2 a0 = unsafeC $ Ext $ do
     a1 <- g a0
     (t,z) <- state $ extend_ (runStateT . f) (runStateT . g) a1
-    return $ Ref (R $ Ext (gets t)) $ \a -> Ext $ StateT $ liftM ((,) ()) . z a
+    return $ Ref (unsafeR $ Ext (gets t)) $ \a -> Ext $ StateT $ liftM ((,) ()) . z a
    where
     f a = unExt $ writeRef r1 (L.getL r2 a) >> return a
     g b = unExt $ runR $ liftM (flip (L.setL r2) b) $ readRef r1

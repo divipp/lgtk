@@ -112,7 +112,7 @@ fileRef f = liftM (justLens "" %) $ fileRef_ f
 fileRef_ :: FilePath -> IO (Ref IO (Maybe String))
 fileRef_ f = return $ Ref r w
  where
-    r = R $ do
+    r = unsafeR $ do
         b <- doesFileExist f
         if b then do
             xs <- readFile f

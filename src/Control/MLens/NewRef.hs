@@ -35,7 +35,7 @@ memoRef r = do
     let re = readRef s >>= \x -> case x of
                 Just b -> return b
                 _ -> readRef r >>= \b -> do
-                    R $ writeRef s $ Just b
+                    unsafeR $ writeRef s $ Just b
                     return b
         w b = runR (readRef s) >>= \x -> case x of
                 Just b' | b' == b -> return ()
@@ -54,7 +54,7 @@ memoWrite g = do
     return $ \b -> rToC (readRef s) >>= \x -> case x of
         Just (b', a) | b' == b -> return a
         _ -> g b >>= \a -> do
-            C $ writeRef s $ Just (b, a)
+            unsafeC $ writeRef s $ Just (b, a)
             return a
 
 

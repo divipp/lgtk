@@ -11,8 +11,8 @@ import Control.Monad.Restricted
 
 -- | Note that this instance does not fulfil the @NewRef@ laws in a multi-threaded environment.
 instance NewRef IO where
-    newRef x = C $ do
+    newRef x = unsafeC $ do
         r <- newIORef x
-        return $ Ref (R $ readIORef r) (writeIORef r)
+        return $ Ref (unsafeR $ readIORef r) (writeIORef r)
 
 
