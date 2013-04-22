@@ -41,7 +41,7 @@ memoRef r = do
                 _ -> do
                     writeRef s $ Just b
                     writeRef r b
-    return $ mkRef re w
+    return $ Ref re w
 
 
 memoRead :: NewRef m => m a -> m (m a)

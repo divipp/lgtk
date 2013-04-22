@@ -16,9 +16,6 @@ module Control.MLens
     , joinRef
     , memoRef
 
-    -- * Ref destruction
-    , runRef
-
     -- * Ref construction
     , M.unitRef
     , M.NewRef
@@ -65,11 +62,8 @@ import qualified Control.MLens.ExtRef.Pure as Pure
 joinRef :: Monad m => R m (Ref m a) -> Ref m a
 joinRef (R x) = M.joinRef x
 
-runRef :: Monad m => Ref m a -> R m (a, a -> m ())
-runRef = R . M.runRef
-
 readRef :: Monad m => Ref m a -> R m a
-readRef = liftM fst . runRef
+readRef = R . M.readRef
 
 showLens :: (Show a, Read a) => L.Lens a String
 showLens = L.lens show $ \s def -> maybe def fst $ listToMaybe $ reads s

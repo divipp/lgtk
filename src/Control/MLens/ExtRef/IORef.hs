@@ -38,7 +38,7 @@ extRef_ r1 r2 a0 = do
             let x = L.getL r2 a
             writeRef r1 x
             writeRef store a
-    return $ mkRef r w
+    return $ Ref r w
 
 instance ExtRef IO where
     extRef = extRef_

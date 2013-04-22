@@ -9,9 +9,7 @@ module Data.MLens.Ref
     , (%)
     , mapRef
     , unitRef
-    , runRef
-    , mkRef
-    , readRef, writeRef, modRef
+    , modRef
     , joinRef
 
     -- * Some impure @IO@ referenceses
@@ -78,44 +76,32 @@ then
 
 @fstLens % r :: Ref m a@
 -}
-data Ref m a = Ref (m a) (a -> m ())
-
-runRef :: Monad m => Ref m a -> m (a, a -> m ())
-runRef (Ref r w) = r >>= \a -> return (a, w)
-
-mkRef :: Monad m => m a -> (a -> m ()) -> Ref m a
-mkRef = Ref
+data Ref m a = Ref { readRef :: m a, writeRef :: a -> m () }
 
 mapRef :: (Monad m, Monad n) => Morph m n -> Ref m a -> Ref n a
-mapRef f r = mkRef (f $ liftM fst $ runRef r) (\b -> f $ join $ liftM (($ b) . snd) $ runRef r)
+mapRef f (Ref r w) = Ref (f r) (f . w)
 
 
 (%) :: Monad m => Lens a b -> Ref m a -> Ref m b
-l % k = mkRef r w
+l % Ref r w = Ref r' w'
  where
-    r = liftM (L.getL l . fst) $ runRef k
+    r' = liftM (L.getL l) r
 
-    w b = do
-        a <- liftM fst $ runRef k
-        join $ liftM (($ L.setL l b a) . snd) $ runRef k
+    w' b = do
+        a <- r
+        w $ L.setL l b a
 
 infixr 8 %
 
 
 unitRef :: Monad m => Ref m ()
-unitRef = mkRef (return ()) (const $ return ())
-
-readRef :: Monad m => Ref m a -> m a
-readRef = liftM fst . runRef
-
-writeRef :: Monad m => Ref m a -> a -> m ()
-writeRef r a = runRef r >>= ($ a) . snd
+unitRef = Ref (return ()) (const $ return ())
 
 modRef :: Monad m => Ref m a -> (a -> a) -> m ()
-k `modRef` f = runRef k >>= \(a, m) -> m $ f a
+k `modRef` f = readRef k >>= writeRef k . f
 
 joinRef :: Monad m => m (Ref m a) -> Ref m a
-joinRef m = mkRef (liftM fst $ m >>= runRef) (\a -> join $ liftM (($ a) . snd) $ m >>= runRef)
+joinRef m = Ref (m >>= readRef) (\a -> m >>= \r -> writeRef r a)
 
 
 -- | Using @fileRef@ is safe if the file is not used concurrently.
@@ -124,7 +110,7 @@ fileRef f = liftM (justLens "" %) $ fileRef_ f
 
 -- | Note that if you write @Nothing@, the file is deleted.
 fileRef_ :: FilePath -> IO (Ref IO (Maybe String))
-fileRef_ f = return $ mkRef r w
+fileRef_ f = return $ Ref r w
  where
     r = do
         b <- doesFileExist f
