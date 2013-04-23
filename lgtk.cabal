@@ -42,9 +42,11 @@ library
                     GUI.MLens.Gtk.Demos.IntListEditor
                     GUI.MLens.Gtk.Demos.TEditor
   other-modules:
+                    Control.Monad.Restricted
+                    Control.Monad.Register
+
                     Data.MLens.Ref
 
-                    Control.Monad.Restricted
                     Control.MLens.NewRef
                     Control.MLens.NewRef.Unsafe
                     Control.MLens.ExtRef

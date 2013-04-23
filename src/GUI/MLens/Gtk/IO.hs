@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE RankNTypes #-}
 module GUI.MLens.Gtk.IO
     ( runI
     ) where
@@ -6,189 +6,94 @@ module GUI.MLens.Gtk.IO
 import Control.Category
 import Control.Monad
 import Control.Monad.Writer
-import Control.Monad.Free
 import Data.Maybe
 import Prelude hiding ((.), id)
 
 import Graphics.UI.Gtk
 
+import Control.Monad.Restricted
+import Control.Monad.Register
 import Control.MLens
 import Control.MLens.Unsafe ()
 import GUI.MLens.Gtk.Interface
 
-------------------
-
--- | (remove action, toggle action, show action)
-type WriterState = (IO (), IO (), IO ())
-
-type IOWriterState = WriterT WriterState IO
-
 -- | Run an @IO@ parametrized interface description with Gtk backend
 runI :: I IO -> IO ()
-runI i = do
-    _ <- initGUI
-    dca <- newRef' []
-    rea <- newRef' True
-    (c, _) <- runWriterT $ userr_ rea dca i
+runI i = do 
+    c <- evalEE_ $ \dca -> do
+        _ <- liftInn $ initGUI
+        rea <- runC $ newRef True
+        userr_ rea dca i
     window <- windowNew
     set window [ containerBorderWidth := 10, containerChild := c ]
     _ <- window `on` deleteEvent $ liftIO (mainQuit) >> return False
     widgetShowAll window
     mainGUI
  where
-    userr_ :: Ref IO Bool -> Ref IO [Ref IO (Maybe (Bool, IO ()))] -> I IO -> IOWriterState Widget
+    userr_ :: Ref IO Bool -> Morph (EE IO) IO -> I IO -> EE IO Widget
     userr_ rea dca i = case i of
         Button s m -> do
-            w <- lift'' buttonNew
-            lift $ unFree (maybe (return ()) ((\x -> on w buttonActivated x >> return ()) . react))
-                        ((\x -> on w buttonActivated x >> return ()) . react . join . fmap (maybe (return ()) id) . runC) m
-            s >>=.. buttonSetLabel w
-            fmap isJust m >>=.. widgetSetSensitive w
+            w <- lift buttonNew
+            addFreeCEffect s $ buttonSetLabel w
+            addFreeCEffect (fmap isJust m) $ widgetSetSensitive w
+            addPushEffect (unFree (maybe (return ()) id) (join . fmap (maybe (return ()) id) . runC) m) $ \x -> on w buttonActivated (dca x) >> return ()
             return' w
         Entry k -> do
-            w <- lift'' entryNew
-            _ <- lift $ on w entryActivate $ react $ entryGetText w >>= writeRef k
-            readRef' k >>=. entrySetText w
+            w <- lift entryNew
+            addRefEffect k $ \re -> do
+                _ <- on w entryActivate $ entryGetText w >>= dca . re
+                return $ entrySetText w
             return' w
         Checkbox k -> do
-            w <- lift'' checkButtonNew
-            _ <- lift $ on w toggled $ react $ toggleButtonGetActive w >>= writeRef k
-            readRef' k >>=. toggleButtonSetActive w
+            w <- lift checkButtonNew
+            addRefEffect k $ \re -> do
+                _ <- on w toggled $ toggleButtonGetActive w >>= dca . re
+                return $ toggleButtonSetActive w
             return' w
         Combobox ss k -> do
-            w <- lift'' comboBoxNewText
+            w <- lift comboBoxNewText
             lift $ flip mapM_ ss $ comboBoxAppendText w
-            _ <- lift $ on w changed $ react $ fmap (max 0) (comboBoxGetActive w) >>= writeRef k 
-            readRef' k >>=. comboBoxSetActive w
+            addRefEffect k $ \re -> do
+                _ <- on w changed $ fmap (max 0) (comboBoxGetActive w) >>= dca . re
+                return $ comboBoxSetActive w
             return' w
         List o xs -> do
-            w <- lift' $ case o of
+            w <- lift $ case o of
                 Vertical -> fmap castToBox $ vBoxNew False 1
                 Horizontal -> fmap castToBox $ hBoxNew False 1
             flip mapM_ xs $ flattenI' >=> containerAdd'' w
             return' w
         Notebook xs -> do
-            w <- lift' notebookNew
+            w <- lift notebookNew
             flip mapM_ xs $ \(s, i) ->
                 flattenI' i >>= lift . flip (notebookAppendPage w) s
             return' w
         Label s -> do
-            w <- lift'' $ labelNew Nothing
-            s >>=.. labelSetLabel w
+            w <- lift $ labelNew Nothing
+            addFreeCEffect s $ labelSetLabel w
             return' w
         Action m -> 
             lift (runC m) >>= flattenI'
-        Cell False m f -> do
-            w <- lift' $ alignmentNew 0 0 1 1
-            cancelc <- lift $ newRef' mempty
-            togglec <- lift $ newRef' mempty
-            showc <- lift $ newRef' mempty
-            let cc = (readRef' cancelc >>= id) >> writeRef cancelc mempty >> writeRef togglec mempty >> writeRef showc mempty
-            let cc' = readRef' togglec >>= id
-            let cc'' = readRef' showc >>= id
-            tell (cc, cc', cc'')
-            runR m >>=. \new -> do
-                cc
+        Cell b m f -> do
+            w <- lift $ alignmentNew 0 0 1 1
+--            w <- lift $ hBoxNew False 1
+            (if b then addMemoICEffect else addICEffect) (IC m $ \b -> unsafeC $ flattenI' $ f b) $ return $ \x -> do
+--                containerForeach w $ widgetHideAll
                 containerForeach w $ containerRemove w
-                (x, (c1, c2, c3)) <- runWriterT $ flattenI' (f new)
-                writeRef cancelc c1
-                writeRef togglec c2
-                writeRef showc c3
                 containerAdd w x
                 widgetShowAll w
-            return' w
-        Cell True m f -> do
-            w <- lift' $ hBoxNew False 1
-            tri <- lift $ newRef' []
-            cancelc <- lift $ newRef' mempty
-            togglec <- lift $ newRef' mempty
-            showc <- lift $ newRef' mempty
-            let cc = (readRef' cancelc >>= id) >> writeRef cancelc mempty >> writeRef togglec mempty >> writeRef showc mempty
-            let cc' = readRef' togglec >>= id
-            let cc'' = readRef' showc >>= id
-            tell (cc, cc', cc'')
-            runR m >>=. \new -> do
-                cc'
-                containerForeach w $ widgetHideAll
-                t <- readRef' tri
-                case [b | (a,b) <-t, a == new] of
-                    [] -> do
-                        (x, (c1, c2, c3)) <- runWriterT $ flattenI' $ f new
-                        modRef cancelc (>> c1)
-                        containerAdd w x
-                        widgetShowAll x
-                        modRef tri ((new, (c2, c3)) :)
-                        writeRef togglec c2
-                        writeRef showc c3
-                    [(c2, c3)] -> do
-                        c2
-                        c3
-                        writeRef togglec c2
-                        writeRef showc c3
             return' w
       where
         flattenI' = userr_ rea dca
 
-        infixl 1 >>=.., >>=.
-
-        m >>=.. f = unFree (lift . f) ((>>=. f) . runC) m
-
-        unFree :: (Functor m, Monad m) => (a -> x) -> (m a -> x) -> Free m a -> x
-        unFree r m = evalFree r (m . join . fmap (induce id))
-
-        (>>=.) :: (Eq a) => IO a -> (a -> IO ()) -> IOWriterState ()
-        get >>=. install = lift get >>= \x -> do
-            v <- lift $ newRef' x
-            b <- lift $ newRef' $ Just $ (,) True $ do
-                x <- readRef' v
-                x' <- get
-                when (x /= x') $ do
-                    writeRef v x'
-                    install x'
-                    return ()
-            lift $ modRef dca (b :)
-            tell (writeRef b Nothing, modRef b $ fmap $ mapFst not, mempty)
-            lift $ install x
-
-        react :: IO () -> IO ()
-        react a = do
-            b <- readRef' rea
-            when b $ do
-            writeRef rea False
-            a
-            xs <- readRef' dca
-            writeRef dca ([] :: [Ref IO (Maybe (Bool, IO ()))])
-            let ff (Just (b, m)) = when b m >> return True
-                ff Nothing = return False
-            xs' <- filterM ((>>= ff) . readRef') . reverse $ xs
-            modRef dca (++ reverse xs') 
-            writeRef rea True
-
-    return' :: GObjectClass x => x -> IOWriterState Widget
+    return' :: GObjectClass x => x -> EE IO Widget
     return' = return . castToWidget
 
-    lift' m = do
-        x <- lift m
-        tell (mempty, mempty, widgetShow (castToWidget x))
-        return x
+    lift = liftInn
 
-    lift'' m = do
-        x <- lift m
-        tell (mempty, mempty, widgetShowAll (castToWidget x))
-        return x
-
-    containerAdd'' w x = do
-        a <- lift' $ alignmentNew 0 0 0 0
-        lift $ containerAdd a x
-        lift $ containerAdd w a
-        lift $ set w [ boxChildPacking a := PackNatural ]
-
-mapFst f (a, b) = (f a, b)
-
-instance Monoid (IO ()) where
-    mempty = return ()
-    mappend = (>>)
-
-readRef' = runR . readRef
-newRef' = runC . newRef
+    containerAdd'' w x = lift $ do
+        a <- alignmentNew 0 0 0 0
+        containerAdd a x
+        containerAdd w a
+        set w [ boxChildPacking a := PackNatural ]
 
