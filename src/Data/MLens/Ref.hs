@@ -93,5 +93,3 @@ fileRef_ f = return $ Ref r w
 
     w = maybe (doesFileExist f >>= \b -> when b (removeFile f)) (writeFile f)
 
-
-

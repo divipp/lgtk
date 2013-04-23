@@ -27,7 +27,7 @@ setXY x s = take 2 $ XY x : filter (\x-> case x of XY _ -> False; _ -> True) s
 -- | The editor
 tri :: (Functor m, ExtRef m) => I m
 tri = Action $ do
-    s <- newRef [X 0, Y 0]
+    s <- liftM liftRef $ newRef [X 0, Y 0]
     return $ vcat
         [ hcat [Entry $ showLens . lens getX setX % s, Label $ return "x"]
         , hcat [Entry $ showLens . lens getY setY % s, Label $ return "y"]

@@ -39,20 +39,20 @@ Law for @newRef@ when @extRef@ is defined:
 For basic usage examples, look into the source of "Control.MLens.ExtRef.Pure.Test".
 -}
 class NewRef m => ExtRef m where
-    extRef :: Ref m b -> Lens a b -> a -> C m (Ref m a)
+    extRef :: IRef m b -> Lens a b -> a -> C m (IRef m a)
 
 
 -- | Undo-redo state transformation
 undoTr
     :: ExtRef m =>
        (a -> a -> Bool)     -- ^ equality on state
-    -> Ref m a              -- ^ reference of state
+    -> IRef m a             -- ^ reference of state
     -> C m ( R m (Maybe (m ()))   
-         , R m (Maybe (m ()))
-         )  -- ^ undo and redo actions
+           , R m (Maybe (m ()))
+           )  -- ^ undo and redo actions
 undoTr eq r = do
     ku <- extRef r undoLens ([], [])
-    let try f = liftM (fmap (writeRef ku) . f) $ readRef ku
+    let try f = liftM (fmap (liftInner . writeRef ku) . f) $ mapR liftInner $ readRef ku
     return (try undo, try redo)
   where
     undoLens = lens get set where

@@ -1,7 +1,10 @@
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Control.MLens.NewRef
     ( -- * Monads with reference creation
-      NewRef (newRef)
+      NewRef (..)
+    , IRef, liftRef
 
     -- * Memo operators
     , memoRef
@@ -21,15 +24,28 @@ Laws for @NewRef@:
 
  *  Any reference created by @newRef@ should satisfy the reference laws.
 -}
-class (Monad m) => NewRef m where
-    newRef :: a -> C m (Ref m a)
+class (Monad m, Monad (Inner m)) => NewRef m where
+    type Inner m :: * -> *
+
+    liftInner :: Morph (Inner m) m
+
+    newRef :: a -> C m (IRef m a)
+
+type IRef m = Ref (Inner m)
+
+liftRef :: NewRef m => IRef m a -> Ref m a
+liftRef = mapRef liftInner
 
 instance (NewRef m, Monoid w) => NewRef (WriterT w m) where
-    newRef = liftM (mapRef lift) . mapC lift . newRef
+    type Inner (WriterT w m) = Inner m
+
+    liftInner = lift . liftInner
+
+    newRef = mapC lift . newRef
 
 
 -- | Memoise pure references
-memoRef :: (NewRef m, Eq a) => Ref m a -> C m (Ref m a)
+memoRef :: (NewRef m, Eq a) => IRef m a -> C m (IRef m a)
 memoRef r = do
     s <- newRef Nothing
     let re = readRef s >>= \x -> case x of
@@ -51,10 +67,10 @@ memoRead g = liftM ($ ()) $ memoWrite $ const g
 memoWrite :: (NewRef m, Eq b) => (b -> C m a) -> C m (b -> C m a)
 memoWrite g = do
     s <- newRef Nothing
-    return $ \b -> rToC (readRef s) >>= \x -> case x of
+    return $ \b -> mapC liftInner (rToC (readRef s)) >>= \x -> case x of
         Just (b', a) | b' == b -> return a
         _ -> g b >>= \a -> do
-            unsafeC $ writeRef s $ Just (b, a)
+            unsafeC $ liftInner $ writeRef s $ Just (b, a)
             return a
 
 

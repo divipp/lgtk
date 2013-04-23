@@ -1,5 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE RankNTypes #-}
 {- |
 IORef-based implementation for the @ExtRef@ interface.
@@ -24,9 +25,9 @@ import Control.MLens.NewRef.Unsafe ()
 import Control.Monad.Restricted
 
 
-extRef_ :: NewRef m => Ref m b -> Lens a b -> a -> C m (Ref m a)
+extRef_ :: NewRef m => IRef m b -> Lens a b -> a -> C m (IRef m a)
 extRef_ r1 r2 a0 = do
-    inner <- rToC $ readRef r1
+    inner <- mapC liftInner $ rToC $ readRef r1
     let a' = setL r2 inner a0
     store <- newRef a'
     let r = do 
@@ -57,6 +58,10 @@ unsafeLiftIO m = do
     a `seq` return a
 
 instance Monad m => NewRef (Ext i m) where
+    type Inner (Ext i m) = Ext i m
+
+    liftInner m = m
+
     newRef = liftM (mapRef unsafeLiftIO) . mapC unsafeLiftIO . newRef
 
 instance Monad m => ExtRef (Ext i m) where

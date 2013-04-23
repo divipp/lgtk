@@ -28,19 +28,19 @@ class ADTLens a where
     adtLens :: ([(String, [Int])], Elems (ADTEls a), Lens (Int, Elems (ADTEls a)) a)
 
 -- | A generic ADT editor
-adtEditor :: (ExtRef m, ADTLens a) => Ref m a -> C m (I m)
+adtEditor :: (ExtRef m, ADTLens a) => IRef m a -> C m (I m)
 adtEditor = liftM Action . memoRead . editor  where
     editor r = do
         q <- extRef r k (0, ls)
         es <- mkEditors ls $ sndLens % q
         return $ hcat
-            [ Combobox (map fst ss) $ fstLens % q
-            , Cell True (liftM fst $ readRef q) $ \i -> vcat [es !! j | j <- snd $ ss !! i]
+            [ Combobox (map fst ss) $ liftRef $ fstLens % q
+            , Cell True (liftM fst $ readRef $ liftRef q) $ \i -> vcat [es !! j | j <- snd $ ss !! i]
             ]
       where
         (ss, ls, k) = adtLens
 
-    mkEditors :: ExtRef m => Elems xs -> Ref m (Elems xs) -> C m [I m]
+    mkEditors :: ExtRef m => Elems xs -> IRef m (Elems xs) -> C m [I m]
     mkEditors ElemsNil _ = return []
     mkEditors (ElemsCons _ xs) r = do
         i <- adtEditor $ lHead % r

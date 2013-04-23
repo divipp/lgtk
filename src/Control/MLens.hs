@@ -24,6 +24,7 @@ module Control.MLens
     , unitRef
     , NewRef
     , newRef
+    , Inner, liftInner, IRef, liftRef
     , ExtRef
     , extRef
     , Pure.Ext

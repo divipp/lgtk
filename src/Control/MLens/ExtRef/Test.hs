@@ -1,6 +1,8 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE UndecidableInstances #-}
 -- | Tests for the @ExtRef@ interface.
 module Control.MLens.ExtRef.Test
     ( -- * Tests for the interface
@@ -21,14 +23,28 @@ import qualified Control.MLens.ExtRef.IORef as IORef
 -----------------------------------------------------------------
 
 newtype ExtTestPure i a = ExtTestPure { runExtTestPure :: Pure.Ext i (Writer [String]) a }
-    deriving (Monad, MonadWriter [String], NewRef, ExtRef)
+    deriving (Monad, MonadWriter [String], ExtRef)
+
+instance NewRef (ExtTestPure i) where
+    type Inner (ExtTestPure i) = Inner (Pure.Ext i (Writer [String]))
+
+    liftInner m = ExtTestPure $ liftInner m
+
+    newRef a = mapC ExtTestPure $ newRef a
 
 -- | Consistency tests for the pure implementation of @Ext@, should give an empty list of errors.
 testExtPure :: [String]
 testExtPure = mkTests $ \t -> execWriter $ Pure.runExt $ runExtTestPure t
 
 newtype ExtTestIORef i a = ExtTestIORef { runExtTestIORef :: IORef.Ext i (Writer [String]) a }
-    deriving (Monad, MonadWriter [String], NewRef, ExtRef)
+    deriving (Monad, MonadWriter [String], ExtRef)
+
+instance NewRef (ExtTestIORef i) where
+    type Inner (ExtTestIORef i) = Inner (IORef.Ext i (Writer [String]))
+
+    liftInner m = ExtTestIORef $ liftInner m
+
+    newRef a = mapC ExtTestIORef $ newRef a
 
 -- | Consistency tests for the @IORef@-based implementation of @Ext@, should give an empty list of errors.
 testExtIORef :: [String]
@@ -40,8 +56,8 @@ testExtIORef = mkTests $ \t -> execWriter $ IORef.runExt $ runExtTestIORef t
 rv ==? v = when (rv /= v) $ tell . return $ "runTest failed: " ++ show rv ++ " /= " ++ show v
 
 -- | Check the current value of a given reference.
-(==>) :: (Eq a, Show a, MonadWriter [String] m) => Ref m a -> a -> m ()
-r ==> v = runR (readRef r) >>= (==? v)
+(==>) :: (Eq a, Show a, MonadWriter [String] m, NewRef m) => IRef m a -> a -> m ()
+r ==> v = liftInner (runR $ readRef r) >>= (==? v)
 
 infix 0 ==>, ==?
 
@@ -74,7 +90,7 @@ mkTests runTest
     writeRefTest = runTest $ do
         r <- newRef' 3
         r ==> 3
-        writeRef r 4
+        writeRef' r 4
         r ==> 4
 
     writeRefsTest = runTest $ do
@@ -82,10 +98,10 @@ mkTests runTest
         r2 <- newRef' 13
         r1 ==> 3
         r2 ==> 13
-        writeRef r1 4
+        writeRef' r1 4
         r1 ==> 4
         r2 ==> 13
-        writeRef r2 0
+        writeRef' r2 0
         r1 ==> 4
         r2 ==> 0
 
@@ -96,13 +112,13 @@ mkTests runTest
             q2 = sndLens % q
         r ==> Just 3
         q ==> (True, 3)
-        writeRef r Nothing
+        writeRef' r Nothing
         r ==> Nothing
         q ==> (False, 3)
         q1 ==> False
-        writeRef q1 True
+        writeRef' q1 True
         r ==> Just 3
-        writeRef q2 1
+        writeRef' q2 1
         r ==> Just 1
 
     joinTest = runTest $ do
@@ -112,20 +128,20 @@ mkTests runTest
         r1 ==> 3
         let r = joinRef' rr
         r ==> 3
-        writeRef r1 4
+        writeRef' r1 4
         r ==> 4
-        writeRef rr r2
+        writeRef' rr r2
         r ==> 5
-        writeRef r1 4
+        writeRef' r1 4
         r ==> 5
-        writeRef r2 14
+        writeRef' r2 14
         r ==> 14
 
     joinTest2 = runTest $ do
         r1 <- newRef' 3
         rr <- newRef' r1
         r2 <- newRef' 5
-        writeRef rr r2
+        writeRef' rr r2
         joinRef' rr ==> 5
 
     chainTest0 = runTest $ do
@@ -135,15 +151,15 @@ mkTests runTest
         r ==> 1
         q ==> 1
         s ==> 1
-        writeRef r 2
+        writeRef' r 2
         r ==> 2
         q ==> 2
         s ==> 2
-        writeRef q 3
+        writeRef' q 3
         r ==> 3
         q ==> 3
         s ==> 3
-        writeRef s 4
+        writeRef' s 4
         r ==> 4
         q ==> 4
         s ==> 4
@@ -155,15 +171,15 @@ mkTests runTest
         r ==> 1
         q ==> 1
         s ==> 1
-        writeRef r 2
+        writeRef' r 2
         r ==> 2
         q ==> 2
         s ==> 2
-        writeRef q 3
+        writeRef' q 3
         r ==> 3
         q ==> 3
         s ==> 3
-        writeRef s 4
+        writeRef' s 4
         r ==> 4
         q ==> 4
         s ==> 4
@@ -175,39 +191,39 @@ mkTests runTest
         r ==> Just 1
         q ==> (True, 1)
         s ==> (True, 1)
-        writeRef r $ Just 2
+        writeRef' r $ Just 2
         r ==> Just 2
         q ==> (True, 2)
         s ==> (True, 2)
-        writeRef r $ Nothing
+        writeRef' r $ Nothing
         r ==> Nothing
         q ==> (False, 2)
         s ==> (False, 2)
-        writeRef (fstLens % q) True
+        writeRef' (fstLens % q) True
         r ==> Just 2
         q ==> (True, 2)
         s ==> (True, 2)
-        writeRef (sndLens % q) 3
+        writeRef' (sndLens % q) 3
         r ==> Just 3
         q ==> (True, 3)
         s ==> (True, 3)
-        writeRef (fstLens % q) False
+        writeRef' (fstLens % q) False
         r ==> Nothing
         q ==> (False, 3)
         s ==> (False, 3)
-        writeRef (sndLens % q) 4
+        writeRef' (sndLens % q) 4
         r ==> Nothing
         q ==> (False, 4)
         s ==> (False, 3)
-        writeRef (fstLens % q) True
+        writeRef' (fstLens % q) True
         r ==> Just 4
         q ==> (True, 4)
         s ==> (True, 4)
-        writeRef q (False, 5)
+        writeRef' q (False, 5)
         r ==> Nothing
         q ==> (False, 5)
         s ==> (False, 4)
-        writeRef (fstLens % s) True
+        writeRef' (fstLens % s) True
         r ==> Just 4
         q ==> (True, 4)
         s ==> (True, 4)
@@ -219,19 +235,19 @@ mkTests runTest
         r ==> Just (Just 3)
         q ==> (True, Just 3)
         s ==> (True, 3)
-        writeRef (fstLens % s) False
+        writeRef' (fstLens % s) False
         r ==> Just Nothing
         q ==> (True, Nothing)
         s ==> (False, 3)
-        writeRef (fstLens % q) False
+        writeRef' (fstLens % q) False
         r ==> Nothing
         q ==> (False, Nothing)
         s ==> (False, 3)
-        writeRef (fstLens % s) True
+        writeRef' (fstLens % s) True
         r ==> Nothing
         q ==> (False, Just 3)
         s ==> (True, 3)
-        writeRef (fstLens % q) True
+        writeRef' (fstLens % q) True
         r ==> Just (Just 3)
         q ==> (True, Just 3)
         s ==> (True, 3)
@@ -239,7 +255,7 @@ mkTests runTest
     undoTest = runTest $ do
         r <- newRef' 3
         q <- extRef' r (lens head (:)) []
-        writeRef r 4
+        writeRef' r 4
         q ==> [4, 3]
 
     undoTest2 = runTest $ do
@@ -253,11 +269,11 @@ mkTests runTest
         r ==> 3
         redo === False
         undo === False
-        writeRef r 4
+        writeRef' r 4
         r ==> 4
         redo === False
         undo === True
-        writeRef r 5
+        writeRef' r 5
         r ==> 5
         redo === False
         undo === True
@@ -273,7 +289,7 @@ mkTests runTest
         r ==> 4
         redo === True
         undo === True
-        writeRef r 6
+        writeRef' r 6
         r ==> 6
         redo === False
         undo === True
@@ -285,4 +301,6 @@ mkTests runTest
 
     newRef' r = runC $ newRef r
     extRef' r k a = runC $ extRef r k a
+
+    writeRef' r a = liftInner $ writeRef r a
 
