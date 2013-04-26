@@ -11,10 +11,13 @@ module Control.MLens.NewRef
 
     -- * Auxiliary functions
     , memoRead, memoWrite
+    , IMorph
     ) where
 
 import Control.Monad
+import Control.Monad.Reader
 import Control.Monad.Writer
+import Control.Monad.State
 
 import Data.MLens.Ref
 import Control.Monad.Restricted
@@ -25,6 +28,7 @@ Laws for @NewRef@:
  *  Any reference created by @newRef@ should satisfy the reference laws.
 -}
 class (Monad m, Monad (Inner m)) => NewRef m where
+
     type Inner m :: * -> *
 
     liftInner :: Morph (Inner m) m
@@ -33,11 +37,30 @@ class (Monad m, Monad (Inner m)) => NewRef m where
 
 type IRef m = Ref (Inner m)
 
+type IMorph m n = forall a . Inner m a -> Inner n a
+
 liftRef :: NewRef m => IRef m a -> Ref m a
 liftRef = mapRef liftInner
 
 instance (NewRef m, Monoid w) => NewRef (WriterT w m) where
+
     type Inner (WriterT w m) = Inner m
+
+    liftInner = lift . liftInner
+
+    newRef = mapC lift . newRef
+
+instance (NewRef m) => NewRef (StateT s m) where
+
+    type Inner (StateT s m) = Inner m
+
+    liftInner = lift . liftInner
+
+    newRef = mapC lift . newRef
+
+instance (NewRef m) => NewRef (ReaderT s m) where
+
+    type Inner (ReaderT s m) = Inner m
 
     liftInner = lift . liftInner
 

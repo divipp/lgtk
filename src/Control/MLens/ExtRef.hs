@@ -7,8 +7,10 @@ module Control.MLens.ExtRef
     , undoTr
     ) where
 
---import Data.IORef
 import Control.Monad
+import Control.Monad.Reader
+import Control.Monad.Writer
+import Control.Monad.State
 import Control.Category
 import Data.Lens.Common (Lens, lens)
 import Prelude hiding ((.), id)
@@ -39,7 +41,20 @@ Law for @newRef@ when @extRef@ is defined:
 For basic usage examples, look into the source of "Control.MLens.ExtRef.Pure.Test".
 -}
 class NewRef m => ExtRef m where
+
     extRef :: IRef m b -> Lens a b -> a -> C m (IRef m a)
+
+instance (ExtRef m, Monoid w) => ExtRef (WriterT w m) where
+
+    extRef x y a = mapC lift $ extRef x y a
+
+instance (ExtRef m) => ExtRef (StateT s m) where
+
+    extRef r k a = mapC lift $ extRef r k a
+
+instance (ExtRef m) => ExtRef (ReaderT s m) where
+
+    extRef r k a = mapC lift $ extRef r k a
 
 
 -- | Undo-redo state transformation
@@ -47,12 +62,12 @@ undoTr
     :: ExtRef m =>
        (a -> a -> Bool)     -- ^ equality on state
     -> IRef m a             -- ^ reference of state
-    -> C m ( R m (Maybe (m ()))   
-           , R m (Maybe (m ()))
+    -> C m ( R (Inner m) (Maybe (Inner m ()))   
+           , R (Inner m) (Maybe (Inner m ()))
            )  -- ^ undo and redo actions
 undoTr eq r = do
     ku <- extRef r undoLens ([], [])
-    let try f = liftM (fmap (liftInner . writeRef ku) . f) $ mapR liftInner $ readRef ku
+    let try f = liftM (fmap (writeRef ku) . f) $ readRef ku
     return (try undo, try redo)
   where
     undoLens = lens get set where

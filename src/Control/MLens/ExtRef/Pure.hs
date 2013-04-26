@@ -9,11 +9,13 @@ Pure reference implementation for the @ExtRef@ interface.
 The implementation uses @unsafeCoerce@ internally, but its effect cannot escape.
 -}
 module Control.MLens.ExtRef.Pure
-    ( Ext, mapExt, IExt, runExt, runExt_
+    ( Ext, IExt, runExt
+    , Ext_, runExt_
     ) where
 
 import Control.Monad.State
 import Control.Monad.Writer
+import Control.Monad.Reader
 import Control.Monad.Identity
 import Control.Category
 import qualified Control.Arrow as Arrow
@@ -51,27 +53,31 @@ extend_
     -> a
     -> ST
     -> ((ST -> a, a -> ST -> ST), ST)
-extend_ rk kr a0 x0
+extend_ rk kr a0 x0@(ST x0_)
     = ((getM, setM), x0 ||> CC a0 kr)
   where
-    getM = unsafeData . head . snd . limit x0
+    getM = unsafeData . head' . snd . limit
 
-    setM a x = case limit x0 x of
+    head' (x:_) = x
+    head' _ = error "IMPOSSIBLE - extend"
+
+    setM a x = case limit x of
         (zs, _ : ys) -> let
             (a', re) = rk a zs
             in foldl (((uncurry (||>)) .) . ap_) (re ||> CC a' kr) ys
 
     ST x ||> c = ST (x |> c)
 
-    limit (ST x) (ST y) = ST Arrow.*** toList $ splitAt (length x) y
-
-
+    limit (ST y) = ST Arrow.*** toList $ splitAt (length x0_) y
 
 newtype Ext i m a = Ext { unExt :: StateT ST m a }
     deriving (Functor, Monad, MonadWriter w)
 
 instance MonadTrans (Ext i) where
     lift = Ext . lift
+
+instance MonadIO m => MonadIO (Ext i m) where
+    liftIO = lift . liftIO
 
 mapExt :: Morph m n => Ext i m a -> Ext i n a
 mapExt f = Ext . mapStateT f . unExt
@@ -101,22 +107,46 @@ instance (Monad m) => ExtRef (Ext i m) where
 runExt :: Monad m => (forall i . Ext i m a) -> m a
 runExt s = evalStateT (unExt s) initST
 
-{- |
-Advanced running of the @(Ext i m)@ monad.
 
-@Functor@ in contexts would not be needed if it were a superclass of @Monad@.
--}
-runExt_
-    :: forall c m . (Functor m, NewRef m)
-    => (forall n . (Monad n, Functor n) => Morph m n -> Morph n m -> c n -> c m)
-    -> (forall i . c (Ext i m)) -> m (c m)
-runExt_ mapI int = do
+newtype Ext_ i m a = Ext_ { unExt_ :: ReaderT (IRef m ST) m a }
+    deriving (Functor, Monad, MonadWriter w)
+
+instance MonadTrans (Ext_ i) where
+    lift = Ext_ . lift
+
+liftInner_ :: NewRef m => IExt i a -> Ext_ i m a
+liftInner_ (Ext m) = Ext_ $ do
+    r <- ask
+    lift $ liftInner $ do
+        s <- runR $ readRef r
+        let (a, s') = runState m s
+        writeRef r s'
+        return a
+
+extRef_' :: NewRef m => Ref (IExt i) x -> Lens a x -> a -> C (Ext_ i m) (Ref (IExt i) a)
+extRef_' r1 r2 a0 = mapC liftInner_ $ extRef_ r1 r2 a0
+
+instance (NewRef m) => NewRef (Ext_ i m) where
+
+    type Inner (Ext_ i m) = IExt i
+
+    liftInner = liftInner_
+
+    newRef = extRef_' unitRef $ lens (const ()) (const id)
+
+instance (NewRef m) => ExtRef (Ext_ i m) where
+
+    extRef = extRef_'
+
+-- | Running of the @(Ext_ i m)@ monad.
+runExt_ :: forall m a . NewRef m => (forall i . Morph (Ext_ i m) m -> Ext_ i m a) -> m a
+runExt_ f = do
     vx <- runC $ newRef initST
-    let unlift :: Morph (Ext i m) m
-        unlift f = do
-            x <- liftInner $ runR $ readRef vx
-            (b, x) <- runStateT (unExt f) x
-            liftInner $ writeRef vx x
-            return b
-    return $ mapI lift unlift int
+    let unlift :: Morph (Ext_ i m) m
+        unlift (Ext_ m) = runReaderT m vx
+    unlift $ f unlift
+
+instance MonadIO m => MonadIO (Ext_ i m) where
+
+    liftIO m = Ext_ $ liftIO m
 

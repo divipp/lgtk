@@ -9,7 +9,7 @@ module Control.MLens.Unsafe
     , unsafeCToR
     ) where
 
-import Data.MLens.Ref
+import Control.Monad.Register
 import Control.MLens.NewRef.Unsafe ()
 import Control.Monad.Restricted
 

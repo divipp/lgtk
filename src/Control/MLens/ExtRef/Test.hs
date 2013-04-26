@@ -9,46 +9,36 @@ module Control.MLens.ExtRef.Test
       mkTests
     -- * Tests for implementations
     , testExtPure
+    , testExtPure2
     , testExtIORef
     ) where
 
 import Control.Monad.Writer
+import Control.Monad.Identity
 import Control.Category
 import Prelude hiding ((.), id)
 
 import Control.MLens
-import qualified Control.MLens.ExtRef.Pure as Pure
+--import qualified Control.MLens.ExtRef.Pure as Pure
 import qualified Control.MLens.ExtRef.IORef as IORef
 
 -----------------------------------------------------------------
 
-newtype ExtTestPure i a = ExtTestPure { runExtTestPure :: Pure.Ext i (Writer [String]) a }
-    deriving (Monad, MonadWriter [String], ExtRef)
-
-instance NewRef (ExtTestPure i) where
-    type Inner (ExtTestPure i) = Inner (Pure.Ext i (Writer [String]))
-
-    liftInner m = ExtTestPure $ liftInner m
-
-    newRef a = mapC ExtTestPure $ newRef a
 
 -- | Consistency tests for the pure implementation of @Ext@, should give an empty list of errors.
 testExtPure :: [String]
-testExtPure = mkTests $ \t -> execWriter $ Pure.runExt $ runExtTestPure t
+testExtPure = mkTests $ \t -> runIdentity $ runExt $ execWriterT t
+    -- WriterT [String] (Pure.IExt i)
 
-newtype ExtTestIORef i a = ExtTestIORef { runExtTestIORef :: IORef.Ext i (Writer [String]) a }
-    deriving (Monad, MonadWriter [String], ExtRef)
-
-instance NewRef (ExtTestIORef i) where
-    type Inner (ExtTestIORef i) = Inner (IORef.Ext i (Writer [String]))
-
-    liftInner m = ExtTestIORef $ liftInner m
-
-    newRef a = mapC ExtTestIORef $ newRef a
+-- | Consistency tests for the pure implementation of @Ext@, should give an empty list of errors.
+testExtPure2 :: [String]
+testExtPure2 = mkTests $ \t -> runIdentity $ runExt $ runExt_ $ \_ -> execWriterT t
+    -- WriterT [String] (Pure.Ext_ i (Pure.IExt j))
 
 -- | Consistency tests for the @IORef@-based implementation of @Ext@, should give an empty list of errors.
 testExtIORef :: [String]
-testExtIORef = mkTests $ \t -> execWriter $ IORef.runExt $ runExtTestIORef t
+testExtIORef = mkTests $ \t -> execWriter $ IORef.runExt t
+    -- IORef.Ext i (Writer [String])
 
 
 -- | Check an equality.
@@ -66,7 +56,7 @@ infix 0 ==>, ==?
 
 Look inside the sources for the tests.
 -}
-mkTests :: ((forall i . (MonadWriter [String] (m i), ExtRef (m i)) => m i ()) -> [String]) -> [String]
+mkTests :: ((forall m . (MonadWriter [String] m, ExtRef m) => m ()) -> [String]) -> [String]
 mkTests runTest
       = newRefTest
      ++ writeRefTest
@@ -294,8 +284,8 @@ mkTests runTest
         redo === False
         undo === True
       where
-        push m = m >>= \x -> maybe (return ()) id x
-        m === t = m >>= \x -> maybe False (const True) x ==? t
+        push m = liftInner m >>= \x -> maybe (return ()) liftInner x
+        m === t = liftInner m >>= \x -> maybe False (const True) x ==? t
 
     joinRef' r = joinRef $ readRef r
 

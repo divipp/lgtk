@@ -44,9 +44,6 @@ extRef_ r1 r2 a0 = do
 instance ExtRef IO where
     extRef = extRef_
 
-instance (Monad m, NewRef m, Monoid w) => ExtRef (WriterT w m) where
-    extRef = extRef_
-
 newtype Ext i m a = Ext { unExt :: m a } deriving (Functor, Monad, MonadWriter w)
 
 instance MonadTrans (Ext i) where

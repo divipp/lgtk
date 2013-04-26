@@ -9,17 +9,12 @@ module Data.MLens.Ref
     , unitRef
     , modRef
     , joinRef
-
-    -- * Some impure @IO@ referenceses
-    , fileRef, fileRef_
     ) where
 
 import Control.Monad.Identity
-import Data.Maybe
 import Data.Lens.Common
 import qualified Data.Lens.Common as L
 import Control.Category
-import System.Directory
 import Prelude hiding ((.), id)
 
 import Control.Monad.Restricted
@@ -48,7 +43,7 @@ then
 -}
 data Ref m a = Ref { readRef :: R m a, writeRef :: a -> m () }
 
-mapRef :: (Monad m, Monad n) => Morph m n -> Ref m a -> Ref n a
+mapRef :: Morph m n -> Ref m a -> Ref n a
 mapRef f (Ref r w) = Ref (mapR f r) (f . w)
 
 
@@ -73,23 +68,4 @@ k `modRef` f = runR (readRef k) >>= writeRef k . f
 joinRef :: Monad m => R m (Ref m a) -> Ref m a
 joinRef m = Ref (m >>= readRef) (\a -> runR m >>= \r -> writeRef r a)
 
-
--- | Using @fileRef@ is safe if the file is not used concurrently.
-fileRef :: FilePath -> C IO (Ref IO String)
-fileRef f = liftM (justLens "" %) $ fileRef_ f where
-    justLens :: a -> Lens (Maybe a) a
-    justLens a = lens (maybe a id) (const . Just)
-
--- | Note that if you write @Nothing@, the file is deleted.
-fileRef_ :: FilePath -> C IO (Ref IO (Maybe String))
-fileRef_ f = return $ Ref r w
- where
-    r = unsafeR $ do
-        b <- doesFileExist f
-        if b then do
-            xs <- readFile f
-            length xs `seq` return (Just xs)
-         else return Nothing
-
-    w = maybe (doesFileExist f >>= \b -> when b (removeFile f)) (writeFile f)
 

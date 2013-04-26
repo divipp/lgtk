@@ -28,7 +28,9 @@ module Control.MLens
     , ExtRef
     , extRef
     , Pure.Ext
+    , Pure.IExt
     , Pure.runExt
+    , Pure.Ext_
     , Pure.runExt_
 
     -- * Derived constructs

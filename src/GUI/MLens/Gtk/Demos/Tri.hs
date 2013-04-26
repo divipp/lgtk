@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {- |
 An editor for integers x, y, z such that x + y = z always hold and
 the last edited value change.
@@ -25,9 +26,9 @@ setY  x s = take 2 $ Y  x : filter (\x-> case x of Y  _ -> False; _ -> True) s
 setXY x s = take 2 $ XY x : filter (\x-> case x of XY _ -> False; _ -> True) s
 
 -- | The editor
-tri :: (Functor m, ExtRef m) => I m
+tri :: (Functor (Inner m), ExtRef m) => I m
 tri = Action $ do
-    s <- liftM liftRef $ newRef [X 0, Y 0]
+    s <- newRef [X 0, Y 0]
     return $ vcat
         [ hcat [Entry $ showLens . lens getX setX % s, Label $ return "x"]
         , hcat [Entry $ showLens . lens getY setY % s, Label $ return "y"]

@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 -- | An integer list editor
 module GUI.MLens.Gtk.Demos.IntListEditor where
 
@@ -12,16 +13,15 @@ import Prelude hiding ((.), id)
 ---------------
 
 intListEditor
-    :: (Functor m, ExtRef m)
+    :: (Functor (Inner m), ExtRef m)
     => Ref (Inner m) String         -- ^ state reference
     -> Ref (Inner m) String         -- ^ settings reference
     -> I m
 intListEditor state settings = Action $ do
-    list_ <- extRef state showLens []
-    (undo, redo)  <- undoTr ((==) `on` map fst) list_
-    range <- liftM (liftRef) $ extRef settings showLens True
-    let list = liftRef list_
-        safe = lens id (const . take maxi)
+    list <- extRef state showLens []
+    (undo, redo)  <- undoTr ((==) `on` map fst) list
+    range <- extRef settings showLens True
+    let safe = lens id (const . take maxi)
         len = liftM (\r -> lens length $ extendList r . min maxi) $ readRef range
         sel = rToC $ liftM (filter snd) $ readRef list
     return $ Notebook
@@ -48,7 +48,7 @@ intListEditor state settings = Action $ do
                 , sbutton (return "-1 Sel")     (map $ mapSel (+(-1)))        list
                 ]
             , Label $ toFree $ liftM (("Sum: " ++) . show . sum . map fst) sel
-            , Action $ listEditor def (itemEditor list) list_
+            , Action $ listEditor def (itemEditor list) list
             ]
         , (,) "Settings" $ hcat
             [ Label $ return "Create range"
@@ -82,13 +82,13 @@ intListEditor state settings = Action $ do
     mapSel f (x, y) = (if y then f x else x, y)
 
 
-listEditor :: ExtRef m => a -> (Int -> Ref m a -> C m (I m)) -> IRef m [a] -> C m (I m)
+listEditor :: ExtRef m => a -> (Int -> IRef m a -> C m (I m)) -> IRef m [a] -> C m (I m)
 listEditor def ed = editor 0 where
   editor i r = liftM Action $ memoRead $ do
     q <- extRef r listLens (False, (def, []))
-    t1 <- ed i $ liftRef $ fstLens . sndLens % q
+    t1 <- ed i $ fstLens . sndLens % q
     t2 <- editor (i+1) $ sndLens . sndLens % q
-    return $ Cell True (mapR liftInner $ liftM fst $ readRef q) $ \b -> vcat $ if b then [t1, t2] else []
+    return $ Cell True (liftM fst $ readRef q) $ \b -> vcat $ if b then [t1, t2] else []
 
 
 

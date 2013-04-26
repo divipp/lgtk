@@ -11,18 +11,18 @@ import Control.MLens
 
 -- | Interface description parametrized by a monad
 data I m
-    = Label (Free (C m) String)     -- ^ label
-    | Button { label_  :: Free (C m) String
-             , action_ :: Free (C m) (Maybe (m ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
+    = Label (Free (C (Inner m)) String)     -- ^ label
+    | Button { label_  :: Free (C (Inner m)) String
+             , action_ :: Free (C (Inner m)) (Maybe (Inner m ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
              }  -- ^ button
-    | Checkbox (Ref m Bool)         -- ^ checkbox
-    | Combobox [String] (Ref m Int) -- ^ combo box
-    | Entry (Ref m String)          -- ^ entry field
+    | Checkbox (IRef m Bool)         -- ^ checkbox
+    | Combobox [String] (IRef m Int) -- ^ combo box
+    | Entry (IRef m String)          -- ^ entry field
     | List ListLayout [I m]         -- ^ group interfaces into row or column
     | Notebook [(String, I m)]      -- ^ tabs
     | forall a . Eq a 
     => Cell { remember_content_   :: Bool       -- ^ remember the content or not? (info for the renderer)
-            , underlying_value_   :: R m a
+            , underlying_value_   :: R (Inner m) a
             , dynamic_interface_  :: a -> I m
             }     -- ^ dynamic interface
     | Action (C m (I m))              -- ^ do an action before giving the interface

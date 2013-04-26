@@ -1,4 +1,7 @@
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module GUI.MLens.Gtk.IO
     ( runI
     ) where
@@ -18,82 +21,87 @@ import Control.MLens.Unsafe ()
 import GUI.MLens.Gtk.Interface
 
 -- | Run an @IO@ parametrized interface description with Gtk backend
-runI :: I IO -> IO ()
-runI i = do 
-    c <- evalEE_ $ \dca -> do
-        _ <- liftInn $ initGUI
-        rea <- runC $ newRef True
-        userr_ rea dca i
-    window <- windowNew
-    set window [ containerBorderWidth := 10, containerChild := c ]
-    _ <- window `on` deleteEvent $ liftIO (mainQuit) >> return False
-    widgetShowAll window
-    mainGUI
+runI
+    :: forall m . (MonadRegister m, MonadIO m, MonadIO (Inn m), Functor (Inner m))
+    => Morph (Inn m) IO
+    -> I m
+    -> m ()
+runI dca i = do
+    _ <- liftIO $ initGUI
+    rea <- runC $ newRef True       -- TODO: use this or delete this
+    c <- userr_ rea i
+    update
+    liftIO $ do
+        window <- windowNew
+        set window [ containerBorderWidth := 10, containerChild := c ]
+        _ <- window `on` deleteEvent $ liftIO (mainQuit) >> return False
+        widgetShowAll window
+        mainGUI
  where
-    userr_ :: Ref IO Bool -> Morph (EE IO) IO -> I IO -> EE IO Widget
-    userr_ rea dca i = case i of
+    userr_ :: IRef m Bool -> I m -> m Widget
+    userr_ rea i = case i of
         Button s m -> do
-            w <- lift buttonNew
-            addFreeCEffect s $ buttonSetLabel w
-            addFreeCEffect (fmap isJust m) $ widgetSetSensitive w
-            addPushEffect (unFree (maybe (return ()) id) (join . fmap (maybe (return ()) id) . runC) m) $ \x -> on w buttonActivated (dca x) >> return ()
+            w <- liftIO buttonNew
+            addFreeCEffect s $ liftIO . buttonSetLabel w
+            addFreeCEffect (fmap isJust m) $ liftIO . widgetSetSensitive w
+            addPushEffect (unFree (maybe (return ()) id) (join . fmap (maybe (return ()) id) . runC) m) $ \x -> liftIO $ on w buttonActivated (dca x) >> return ()
             return' w
         Entry k -> do
-            w <- lift entryNew
+            w <- liftIO entryNew
             addRefEffect k $ \re -> do
-                _ <- on w entryActivate $ entryGetText w >>= dca . re
-                return $ entrySetText w
+                _ <- liftIO $ on w entryActivate $ entryGetText w >>= dca . re
+                return $ liftIO . entrySetText w
             return' w
         Checkbox k -> do
-            w <- lift checkButtonNew
+            w <- liftIO checkButtonNew
             addRefEffect k $ \re -> do
-                _ <- on w toggled $ toggleButtonGetActive w >>= dca . re
-                return $ toggleButtonSetActive w
+                _ <- liftIO $ on w toggled $ toggleButtonGetActive w >>= dca . re
+                return $ liftIO . toggleButtonSetActive w
             return' w
         Combobox ss k -> do
-            w <- lift comboBoxNewText
-            lift $ flip mapM_ ss $ comboBoxAppendText w
+            w <- liftIO comboBoxNewText
+            liftIO $ flip mapM_ ss $ comboBoxAppendText w
             addRefEffect k $ \re -> do
-                _ <- on w changed $ fmap (max 0) (comboBoxGetActive w) >>= dca . re
-                return $ comboBoxSetActive w
+                _ <- liftIO $ on w changed $ fmap (max 0) (comboBoxGetActive w) >>= dca . re
+                return $ liftIO . comboBoxSetActive w
             return' w
         List o xs -> do
-            w <- lift $ case o of
+            w <- liftIO $ case o of
                 Vertical -> fmap castToBox $ vBoxNew False 1
                 Horizontal -> fmap castToBox $ hBoxNew False 1
             flip mapM_ xs $ flattenI' >=> containerAdd'' w
             return' w
         Notebook xs -> do
-            w <- lift notebookNew
+            w <- liftIO notebookNew
             flip mapM_ xs $ \(s, i) ->
-                flattenI' i >>= lift . flip (notebookAppendPage w) s
+                flattenI' i >>= liftIO . flip (notebookAppendPage w) s
             return' w
         Label s -> do
-            w <- lift $ labelNew Nothing
-            addFreeCEffect s $ labelSetLabel w
+            w <- liftIO $ labelNew Nothing
+            addFreeCEffect s $ liftIO . labelSetLabel w
             return' w
         Action m -> 
-            lift (runC m) >>= flattenI'
+            runC m >>= flattenI'
         Cell b m f -> do
-            w <- lift $ alignmentNew 0 0 1 1
+            w <- liftIO $ alignmentNew 0 0 1 1
 --            w <- lift $ hBoxNew False 1
-            (if b then addMemoICEffect else addICEffect) (IC m $ \b -> unsafeC $ flattenI' $ f b) $ return $ \x -> do
+            (if b then addMemoICEffect else addICEffect) (IC m $ \b -> unsafeC $ flattenI' $ f b) $
+              return $ \x -> liftIO $ do
 --                containerForeach w $ widgetHideAll
                 containerForeach w $ containerRemove w
                 containerAdd w x
                 widgetShowAll w
             return' w
       where
-        flattenI' = userr_ rea dca
+        flattenI' = userr_ rea
 
-    return' :: GObjectClass x => x -> EE IO Widget
+    return' :: GObjectClass x => x -> m Widget
     return' = return . castToWidget
 
-    lift = liftInn
-
-    containerAdd'' w x = lift $ do
+    containerAdd'' w x = liftIO $ do
         a <- alignmentNew 0 0 0 0
         containerAdd a x
         containerAdd w a
         set w [ boxChildPacking a := PackNatural ]
+
 

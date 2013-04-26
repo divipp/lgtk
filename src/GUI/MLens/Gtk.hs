@@ -1,5 +1,5 @@
-{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE FlexibleContexts #-}
 -- | The main LGtk interface, ideally users should import only this module.
 module GUI.MLens.Gtk
     ( -- * Lenses and references
@@ -26,6 +26,7 @@ import Control.Monad.Free
 import Prelude hiding ((.), id)
 
 import Control.MLens
+import Control.Monad.Register
 import GUI.MLens.Gtk.Interface
 import qualified GUI.MLens.Gtk.IO as Gtk
 
@@ -36,34 +37,21 @@ hcat :: [I m] -> I m
 hcat = List Horizontal
 
 smartButton
-  :: (Eq a, Monad m, Functor m) =>
-     Free (C m) String -> (a -> C m a) -> Ref m a -> I m
+  :: (Eq a, Monad (Inner m), Functor (Inner m)) =>
+     Free (C (Inner m)) String -> (a -> C (Inner m) a) -> IRef m a -> I m
 smartButton s f k =
     Button s $ toFree $ rToC (readRef k) >>= \x -> f x >>= \y -> 
         if y == x then return Nothing else return $ Just $ runR (readRef k) >>= runC . f >>= writeRef k
 
 -- | Run an interface description
 runI :: (forall m . (Functor m, ExtRef m) => I m) -> IO ()
-runI e = runExt_ mapI e >>= Gtk.runI
+runI e = unsafeRunI e
 
 -- | Run an interface description
 --
 -- Unsafe only if you do nasty things in the @IO@ monad, like forking threads
-unsafeRunI :: (forall i . I (Ext i IO)) -> IO ()
-unsafeRunI e = runExt_ mapI e >>= Gtk.runI
-
-
-mapI :: (Monad m, Functor m, Monad n, Functor n) => Morph n m -> Morph m n -> I m -> I n
-mapI _g f (Label s)     = Label $ mapFree (mapC f) s
-mapI _g f (Button s m)  = Button (mapFree (mapC f) s) (mapFree (mapC f) $ fmap (fmap f) m)
-mapI _g f (Entry m)     = Entry $ mapRef f m
-mapI _g f (Checkbox m)  = Checkbox $ mapRef f m
-mapI _g f (Combobox ss m) = Combobox ss $ mapRef f m
-mapI g f (List o is)    = List o $ map (mapI g f) is
-mapI g f (Notebook is)  = Notebook $ map (fmap $ mapI g f) is
-mapI g f (Cell b m k)   = Cell b (mapR f m) $ mapI g f . k
-mapI g f (Action m)     = Action $ mapC f $ liftM (mapI g f) m
-
+unsafeRunI :: (forall i . I (EE (Ext_ i IO))) -> IO ()
+unsafeRunI e = runExt_ $ \mo -> evalEE $ \_ -> Gtk.runI mo e
 
 toFree :: (Functor m, Monad m) => m a -> Free m a
 toFree = Impure . fmap Pure
