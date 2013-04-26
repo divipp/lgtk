@@ -4,13 +4,14 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE UndecidableInstances #-}
 module Control.Monad.Register
     ( MonadRegister (..)
     , IC (..)
     , addFreeCEffect
     , addRefEffect
     , addPushEffect
-    , fileRef
+    , FileSystem (..)
 
     , EE
     , evalEE
@@ -166,20 +167,24 @@ instance MonadIO m => MonadIO (EE m) where
 unFree :: (Functor m, Monad m) => (a -> x) -> (m a -> x) -> Free m a -> x
 unFree r m = evalFree r (m . join . fmap (induce id))
 
--- | Note that if you write @Nothing@, the file is deleted.
-fileRef :: (MonadRegister m, MonadIO (Inn m), NewRef m) => FilePath -> m (IRef m (Maybe String))
-fileRef f = do
-    ms <- liftInn $ liftIO r
-    ref <- runC $ newRef ms
-    addRefEffect ref $ \_cb -> return $ liftIO . w   -- TODO: use cb
-    return ref
- where
-    r = do
-        b <- doesFileExist f
-        if b then do
-            xs <- readFile f
-            length xs `seq` return (Just xs)
-         else return Nothing
+class NewRef m => FileSystem m where
+    -- | Note that if you write @Nothing@, the file is deleted.
+    fileRef :: FilePath -> C m (IRef m (Maybe String))
 
-    w = maybe (doesFileExist f >>= \b -> when b (removeFile f)) (writeFile f)
+instance (MonadIO m, NewRef m) => FileSystem (EE m) where
+
+    fileRef f = unsafeC $ do
+        ms <- liftInn $ liftIO r
+        ref <- runC $ newRef ms
+        addRefEffect ref $ \_cb -> return $ liftIO . w   -- TODO: use cb
+        return ref
+     where
+        r = do
+            b <- doesFileExist f
+            if b then do
+                xs <- readFile f
+                length xs `seq` return (Just xs)
+             else return Nothing
+
+        w = maybe (doesFileExist f >>= \b -> when b (removeFile f)) (writeFile f)
 

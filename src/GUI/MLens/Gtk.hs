@@ -9,9 +9,11 @@ module GUI.MLens.Gtk
     , I (..)
     , ListLayout (..)
 
+    -- * File system
+    , FileSystem (..)
+
     -- * Running GUI descriptions
     , runI
-    , unsafeRunI
 
     -- * Derived constructs
     , vcat, hcat
@@ -44,14 +46,8 @@ smartButton s f k =
         if y == x then return Nothing else return $ Just $ runR (readRef k) >>= runC . f >>= writeRef k
 
 -- | Run an interface description
-runI :: (forall m . (Functor m, ExtRef m) => I m) -> IO ()
-runI e = unsafeRunI e
-
--- | Run an interface description
---
--- Unsafe only if you do nasty things in the @IO@ monad, like forking threads
-unsafeRunI :: (forall i . I (EE (Ext_ i IO))) -> IO ()
-unsafeRunI e = runExt_ $ \mo -> evalEE $ \_ -> Gtk.runI mo e
+runI :: (forall m . (Functor (Inner m), ExtRef m, FileSystem m) => I m) -> IO ()
+runI e = runExt_ $ \mo -> evalEE $ \_ -> Gtk.runI mo e
 
 toFree :: (Functor m, Monad m) => m a -> Free m a
 toFree = Impure . fmap Pure

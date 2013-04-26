@@ -35,7 +35,7 @@ instance ADTLens T where
         set (Node l r) _ = (1, ElemsCons l (ElemsCons r ElemsNil))
 
 -- | @T@ editor with comboboxes, as an ADTEditor
-tEditor1 :: (Functor m, ExtRef m) => I m
+tEditor1 :: (ExtRef m) => I m
 tEditor1 = Action $ newRef Leaf >>= adtEditor
 
 -- | @T@ editor with checkboxes, given directly
