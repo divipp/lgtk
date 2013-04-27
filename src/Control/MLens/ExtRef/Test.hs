@@ -10,7 +10,7 @@ module Control.MLens.ExtRef.Test
     -- * Tests for implementations
     , testExtPure
     , testExtPure2
-    , testExtIORef
+--    , testExtIORef
     ) where
 
 import Control.Monad.Writer
@@ -20,7 +20,7 @@ import Prelude hiding ((.), id)
 
 import Control.MLens
 import qualified Control.MLens.ExtRef.Pure as Pure
-import qualified Control.MLens.ExtRef.IORef as IORef
+--import qualified Control.MLens.ExtRef.IORef as IORef
 
 -----------------------------------------------------------------
 
@@ -34,12 +34,12 @@ testExtPure = mkTests $ \t -> runIdentity $ Pure.runExt $ execWriterT t
 testExtPure2 :: [String]
 testExtPure2 = mkTests $ \t -> runIdentity $ Pure.runExt $ Pure.runExt_ $ \_ -> execWriterT t
     -- WriterT [String] (Pure.Ext_ i (Pure.IExt j))
-
+{-
 -- | Consistency tests for the @IORef@-based implementation of @Ext@, should give an empty list of errors.
 testExtIORef :: [String]
 testExtIORef = mkTests $ \t -> execWriter $ IORef.runExt t
     -- IORef.Ext i (Writer [String])
-
+-}
 
 -- | Check an equality.
 (==?) :: (Eq a, Show a, MonadWriter [String] m) => a -> a -> m ()

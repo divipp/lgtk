@@ -56,7 +56,6 @@ library
                     Control.MLens.NewRef.Unsafe
                     Control.MLens.ExtRef
                     Control.MLens.ExtRef.Pure
-                    Control.MLens.ExtRef.IORef
 
                     GUI.MLens.Gtk.IO
                     GUI.MLens.Gtk.Interface
