@@ -11,9 +11,14 @@ license:            BSD3
 license-file:       LICENSE
 author:             Péter Diviánszky
 homepage:           http://people.inf.elte.hu/divip/LGtk/index.html
+bug-reports:        http://hub.darcs.net/divip/lgtk/issues
 maintainer:         divipp@gmail.com
 cabal-version:      >= 1.8
 build-type:         Simple
+
+source-repository head
+  type:             darcs
+  location:         http://hub.darcs.net/divip/lgtk
 
 
 library
