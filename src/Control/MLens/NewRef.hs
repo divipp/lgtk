@@ -9,9 +9,6 @@ module Control.MLens.NewRef
     , IRef, modRef
     , IC (..)
 
-    -- * Memo operators
---    , memoRef
-
     -- * Auxiliary functions
     , memoRead, memoWrite
     ) where
@@ -64,24 +61,6 @@ instance (NewRef m) => NewRef (ReaderT s m) where
     liftInner = lift . liftInner
 
     newRef = mapC lift . newRef
-
-{-
--- | Memoise pure references
-memoRef :: (NewRef m, Eq a) => IRef m a -> C m (IRef m a)
-memoRef r = do
-    s <- newRef Nothing
-    let re = readRef s >>= \x -> case x of
-                Just b -> return b
-                _ -> readRef r >>= \b -> do
-                    unsafeR $ writeRef s $ Just b
-                    return b
-        w b = runR (readRef s) >>= \x -> case x of
-                Just b' | b' == b -> return ()
-                _ -> do
-                    writeRef s $ Just b
-                    writeRef r b
-    return $ Ref re w
--}
 
 memoRead :: NewRef m => C m a -> C m (C m a)
 memoRead g = liftM ($ ()) $ memoWrite $ const g

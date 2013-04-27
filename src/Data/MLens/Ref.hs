@@ -19,22 +19,6 @@ import Prelude hiding ((.), id)
 
 import Control.Monad.Restricted
 
-class Monad (RefMonad r) => Reference r where
-
-    type RefMonad r :: * -> *
-
-    readRef  :: r a -> R (RefMonad r) a
-    writeRef :: r a -> a -> RefMonad r ()
-    (%) :: Lens a b -> r a -> r b
-    joinRef :: R (RefMonad r) (r a) -> r a
-    unitRef :: r ()
-
-infixr 8 %
-
-modRef :: Reference r => r a -> (a -> a) -> RefMonad r ()
-k `modRef` f = runR (readRef k) >>= writeRef k . f
-
-
 {- |
 Laws for pure references:
 
@@ -57,6 +41,22 @@ then
 
 @fstLens % r :: Ref m a@
 -}
+class Monad (RefMonad r) => Reference r where
+
+    type RefMonad r :: * -> *
+
+    readRef  :: r a -> R (RefMonad r) a
+    writeRef :: r a -> a -> RefMonad r ()
+    (%) :: Lens a b -> r a -> r b
+    joinRef :: R (RefMonad r) (r a) -> r a
+    unitRef :: r ()
+
+infixr 8 %
+
+modRef :: Reference r => r a -> (a -> a) -> RefMonad r ()
+k `modRef` f = runR (readRef k) >>= writeRef k . f
+
+
 data Ref m a = Ref { readRef_ :: R m a, writeRef_ :: a -> m () }
 
 mapRef :: Morph m n -> Ref m a -> Ref n a
