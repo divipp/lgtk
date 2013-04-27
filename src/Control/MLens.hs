@@ -50,7 +50,6 @@ import Data.Lens.Common
 import Data.Maybe
 
 import Control.Monad.Restricted
-import Data.MLens.Ref
 import Control.MLens.ExtRef
 
 showLens :: (Show a, Read a) => Lens a String

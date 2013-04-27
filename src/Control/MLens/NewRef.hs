@@ -3,8 +3,10 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ExistentialQuantification #-}
 module Control.MLens.NewRef
-    ( -- * Monads with reference creation
-      NewRef (..)
+    ( module Data.MLens.Ref
+
+    -- * Monads with reference creation
+    , NewRef (..)
     , IRef, liftRef
     , IC (..)
 

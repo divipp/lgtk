@@ -19,7 +19,6 @@ import Prelude hiding ((.), id, splitAt, length)
 
 import System.IO.Unsafe
 
-import Data.MLens.Ref
 import Control.MLens.ExtRef
 import Control.MLens.NewRef.Unsafe ()
 import Control.Monad.Restricted

@@ -26,7 +26,6 @@ import Prelude hiding ((.), id, splitAt, length)
 
 import Unsafe.Coerce
 
-import Data.MLens.Ref
 import Control.MLens.ExtRef
 import Control.Monad.Restricted
 

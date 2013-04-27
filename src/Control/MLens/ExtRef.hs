@@ -16,7 +16,6 @@ import Data.Lens.Common (Lens, lens)
 import Prelude hiding ((.), id)
 
 import Control.MLens.NewRef
-import Data.MLens.Ref
 import Control.Monad.Restricted
 
 {- |

@@ -30,7 +30,6 @@ import Control.Monad.Free
 import System.Directory
 
 import Control.Monad.Restricted
-import Data.MLens.Ref
 import Control.MLens.ExtRef
 
 type Receiver m a = (a -> Inn m ()) -> m ()

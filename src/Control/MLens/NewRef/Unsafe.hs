@@ -6,7 +6,6 @@ module Control.MLens.NewRef.Unsafe
 
 import Data.IORef
 
-import Data.MLens.Ref
 import Control.MLens.NewRef
 import Control.Monad.Restricted
 
