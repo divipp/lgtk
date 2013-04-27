@@ -5,6 +5,7 @@
 module Control.MLens.NewRef
     ( -- * Monads with reference creation
       Reference (..)
+    , LensReference (..)
     , NewRef (..), Inner
     , IRef, modRef
     , IC (..)

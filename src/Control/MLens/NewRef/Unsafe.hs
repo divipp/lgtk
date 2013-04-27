@@ -10,15 +10,23 @@ import qualified Data.MLens.Ref as Ref
 import Control.MLens.NewRef
 import Control.Monad.Restricted
 
+instance Reference IORef where
+
+    type RefMonad IORef = IO
+
+    readRef = unsafeR . readIORef
+
+    writeRef = writeIORef
+
+    atomicModRef = atomicModifyIORef
+
 -- | Note that this instance does not fulfil the @NewRef@ laws in a multi-threaded environment.
 instance NewRef IO where
 
-    type Ref IO = Ref.Ref IO
+    type Ref IO = IORef
 
-    liftInner m = m
+    liftInner = id
 
-    newRef x = unsafeC $ do
-        r <- newIORef x
-        return $ Ref.Ref (unsafeR $ readIORef r) (writeIORef r)
+    newRef = unsafeC . newIORef
 
 

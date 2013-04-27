@@ -6,6 +6,7 @@ module Control.MLens
 
     -- * Data types
     , Reference
+    , LensReference
     , Ref
     , IC (..)
     , R, runR, mapR
