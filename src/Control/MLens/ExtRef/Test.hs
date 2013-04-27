@@ -19,7 +19,7 @@ import Control.Category
 import Prelude hiding ((.), id)
 
 import Control.MLens
---import qualified Control.MLens.ExtRef.Pure as Pure
+import qualified Control.MLens.ExtRef.Pure as Pure
 import qualified Control.MLens.ExtRef.IORef as IORef
 
 -----------------------------------------------------------------
@@ -27,12 +27,12 @@ import qualified Control.MLens.ExtRef.IORef as IORef
 
 -- | Consistency tests for the pure implementation of @Ext@, should give an empty list of errors.
 testExtPure :: [String]
-testExtPure = mkTests $ \t -> runIdentity $ runExt $ execWriterT t
+testExtPure = mkTests $ \t -> runIdentity $ Pure.runExt $ execWriterT t
     -- WriterT [String] (Pure.IExt i)
 
 -- | Consistency tests for the pure implementation of @Ext@, should give an empty list of errors.
 testExtPure2 :: [String]
-testExtPure2 = mkTests $ \t -> runIdentity $ runExt $ runExt_ $ \_ -> execWriterT t
+testExtPure2 = mkTests $ \t -> runIdentity $ Pure.runExt $ Pure.runExt_ $ \_ -> execWriterT t
     -- WriterT [String] (Pure.Ext_ i (Pure.IExt j))
 
 -- | Consistency tests for the @IORef@-based implementation of @Ext@, should give an empty list of errors.

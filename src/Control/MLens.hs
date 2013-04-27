@@ -6,6 +6,7 @@ module Control.MLens
 
     -- * Data types
     , Ref
+    , IC (..)
     , R, runR, mapR
     , C, runC, mapC
     , rToC
@@ -14,7 +15,6 @@ module Control.MLens
     , mapRef
     , (%)
     , joinRef
-    , memoRef
 
     -- * Ref operations
     , readRef
@@ -27,17 +27,11 @@ module Control.MLens
     , Inner, liftInner, IRef, liftRef
     , ExtRef
     , extRef
-    , Pure.Ext
-    , Pure.IExt
-    , Pure.runExt
-    , Pure.Ext_
-    , Pure.runExt_
 
     -- * Derived constructs
     , modRef
     , undoTr
     , memoRead
-    , memoWrite
 
     -- * Auxiliary definitions
     , Morph
@@ -58,7 +52,6 @@ import Data.Maybe
 import Control.Monad.Restricted
 import Data.MLens.Ref
 import Control.MLens.ExtRef
-import qualified Control.MLens.ExtRef.Pure as Pure
 
 showLens :: (Show a, Read a) => Lens a String
 showLens = lens show $ \s def -> maybe def fst $ listToMaybe $ reads s

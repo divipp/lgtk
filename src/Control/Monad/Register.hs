@@ -7,10 +7,14 @@
 {-# LANGUAGE UndecidableInstances #-}
 module Control.Monad.Register
     ( MonadRegister (..)
-    , IC (..)
+    , Receiver
+    , Sender
+    , addCEffect
     , addFreeCEffect
     , addRefEffect
     , addPushEffect
+    , constEffect
+    , rEffect
     , FileSystem (..)
 
     , EE
@@ -29,7 +33,12 @@ import Control.Monad.Restricted
 import Data.MLens.Ref
 import Control.MLens.ExtRef
 
-data IC m a = forall b . Eq b => IC (R (Inner m) b) (b -> C m a)
+type Receiver m a = (a -> Inn m ()) -> m ()
+
+ff :: (a -> b) -> Receiver m a -> Receiver m b
+ff f g h = g $ \a -> h $ f a
+
+type Sender m a = ((a -> Inn m ()) -> Inn m ()) -> m ()
 
 class (NewRef m, Monad (Inn m)) => MonadRegister m where
 
@@ -39,22 +48,26 @@ class (NewRef m, Monad (Inn m)) => MonadRegister m where
 
     update :: m ()
 
-    addCEffect :: Eq a => C (Inner m) a -> (a -> Inn m ()) -> m ()
+    addICEffect :: Bool -> IC m a -> Receiver m a
 
     addWEffect :: Eq a => (a -> Inner m ()) -> ((a -> Inn m ()) -> Inn m x) -> m x
 
-    addICEffect :: IC m a -> Inn m (a -> Inn m ()) -> m ()
+constEffect :: (MonadRegister m) => a -> Receiver m a 
+constEffect a f = liftInn $ f a
 
-    addMemoICEffect :: IC m a -> Inn m (a -> Inn m ()) -> m ()
+addCEffect :: (MonadRegister m, Eq a) => R (Inner m) a -> Receiver m a
+addCEffect r = addICEffect False (IC r return)
 
+rEffect :: (MonadRegister m, Eq a) => R (Inner m) a -> Receiver m a
+rEffect = addCEffect
 
-addFreeCEffect :: (MonadRegister m, Functor (Inner m), Eq a) => Free (C (Inner m)) a -> (a -> Inn m ()) -> m ()
+addFreeCEffect :: (MonadRegister m, Functor (Inner m), Eq a) => Free (R (Inner m)) a -> Receiver m a
 addFreeCEffect rb act = unFree (liftInn . act) (flip addCEffect act) rb
 
 addRefEffect :: (MonadRegister m, Eq a) => Ref (Inner m) a -> ((a -> Inn m ()) -> Inn m (a -> Inn m ())) -> m ()
 addRefEffect r int = do
     act <- addWEffect (writeRef r) int
-    addCEffect (rToC $ readRef r) act
+    addCEffect (readRef r) act
 
 addPushEffect :: MonadRegister m => Inner m () -> (Inn m () -> Inn m ()) -> m ()
 addPushEffect ma mb = addWEffect (const ma) $ \f -> mb $ f ()
@@ -64,7 +77,7 @@ newtype EE m a = EE { unEE :: ReaderT (IRef m (m ()), IRef m (m ())) m a }
     deriving (Functor, Monad)
 
 register m = EE $ do
-    (_, r) <- ask
+    r <- asks snd
     lift $ liftInner $ modRef r (>> m)
 
 
@@ -75,51 +88,22 @@ instance (NewRef m) => MonadRegister (EE m) where
     liftInn = EE . lift
 
     update = do
-        (rr, _) <- EE ask
+        rr <- EE $ asks fst
         acts <- liftInner $ runR $ readRef rr
         liftInn acts
 
     addWEffect r int = do
-        (rr, _) <- EE ask
+        rr <- EE $ asks fst
         liftInn $ int $ \a -> do
             liftInner $ r a
             join $ liftInner $ runR $ readRef rr
 
-    addCEffect rb act = do
-        lastB <- runC $ newRef Nothing
-        register $ do
-                b <- liftInner $ runC rb
-                mb <- liftInner $ runR $ readRef lastB
-                case mb of
-                    Just b' | b == b' -> return () 
-                    _ -> do
-                        liftInner $ writeRef lastB $ Just b
-                        act b
-
-    addICEffect (IC rb fb) int = do
-        (rr, _) <- EE ask
-        ir <- liftInn $ runC $ newRef $ return ()
-        lastB <- liftInn $ runC $ newRef Nothing
-        act <- liftInn int
-        register $ do
-                b <- liftInner $ runR rb
-                mb <- liftInner $ runR $ readRef lastB
-                case mb of
-                    Just b' | b == b' -> return () 
-                    _ -> do
-                        liftInner $ writeRef lastB $ Just b
-                        liftInner $ writeRef ir $ return ()
-                        c <- runReaderT (unEE $ runC $ fb b) (rr, ir)
-                        act c
-        register $ join $ liftInner $ runR $ readRef ir
-
     -- TODO: do not track events of inactive parts
-    addMemoICEffect (IC rb fb) int = do
-        (rr, _) <- EE ask
+    addICEffect bb (IC rb fb) act = do
+        rr <- EE $ asks fst
         ir <- liftInn $ runC $ newRef $ return ()
         lastB <- liftInn $ runC $ newRef Nothing
         prev <- liftInn $ runC $ newRef []
-        act <- liftInn int
         register $ do
                 b <- liftInner $ runR rb
                 mb <- liftInner $ runR $ readRef lastB
@@ -128,7 +112,7 @@ instance (NewRef m) => MonadRegister (EE m) where
                     _ -> do
                         liftInner $ writeRef lastB $ Just b
                         prevs <- liftInner $ runR $ readRef prev
-                        c <- case [x | (b', x) <- prevs, b' == b] of
+                        act =<< case [x | (b', x) <- prevs, b' == b] of
                             [(c, s)] -> do
                                 liftInner $ writeRef ir s
                                 return c
@@ -136,9 +120,8 @@ instance (NewRef m) => MonadRegister (EE m) where
                                 liftInner $ writeRef ir $ return ()
                                 c <- runReaderT (unEE $ runC $ fb b) (rr, ir)
                                 s <- liftInner $ runR $ readRef ir
-                                liftInner $ modRef prev ((b, (c, s)) :)
+                                when bb $ liftInner $ modRef prev ((b, (c, s)) :)
                                 return c
-                        act c
         register $ join $ liftInner $ runR $ readRef ir
 
 evalEE :: forall m a . NewRef m => (Morph (EE m) m -> EE m a) -> m a

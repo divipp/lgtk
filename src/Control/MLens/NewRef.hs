@@ -1,10 +1,12 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ExistentialQuantification #-}
 module Control.MLens.NewRef
     ( -- * Monads with reference creation
       NewRef (..)
     , IRef, liftRef
+    , IC (..)
 
     -- * Memo operators
     , memoRef
@@ -95,6 +97,8 @@ memoWrite g = do
         _ -> g b >>= \a -> do
             unsafeC $ liftInner $ writeRef s $ Just (b, a)
             return a
+
+data IC m a = forall b . Eq b => IC (R (Inner m) b) (b -> C m a)
 
 
 
