@@ -3,19 +3,17 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ExistentialQuantification #-}
 module Control.MLens.NewRef
-    ( module Data.MLens.Ref
-
-    -- * Monads with reference creation
-    , NewRef (..)
-    , IRef, liftRef
+    ( -- * Monads with reference creation
+      Reference (..)
+    , NewRef (..), Inner
+    , IRef, modRef
     , IC (..)
 
     -- * Memo operators
-    , memoRef
+--    , memoRef
 
     -- * Auxiliary functions
     , memoRead, memoWrite
-    , IMorph
     ) where
 
 import Control.Monad
@@ -23,7 +21,7 @@ import Control.Monad.Reader
 import Control.Monad.Writer
 import Control.Monad.State
 
-import Data.MLens.Ref
+import Data.MLens.Ref hiding (Ref(..))
 import Control.Monad.Restricted
 
 {- |
@@ -31,24 +29,21 @@ Laws for @NewRef@:
 
  *  Any reference created by @newRef@ should satisfy the reference laws.
 -}
-class (Monad m, Monad (Inner m)) => NewRef m where
+class (Monad m, Reference (Ref m)) => NewRef m where
 
-    type Inner m :: * -> *
+    type Ref m :: * -> *
 
     liftInner :: Morph (Inner m) m
 
     newRef :: a -> C m (IRef m a)
 
-type IRef m = Ref (Inner m)
+type Inner m = RefMonad (Ref m)
 
-type IMorph m n = forall a . Inner m a -> Inner n a
-
-liftRef :: NewRef m => IRef m a -> Ref m a
-liftRef = mapRef liftInner
+type IRef m = Ref m
 
 instance (NewRef m, Monoid w) => NewRef (WriterT w m) where
 
-    type Inner (WriterT w m) = Inner m
+    type Ref (WriterT w m) = Ref m
 
     liftInner = lift . liftInner
 
@@ -56,7 +51,7 @@ instance (NewRef m, Monoid w) => NewRef (WriterT w m) where
 
 instance (NewRef m) => NewRef (StateT s m) where
 
-    type Inner (StateT s m) = Inner m
+    type Ref (StateT s m) = Ref m
 
     liftInner = lift . liftInner
 
@@ -64,13 +59,13 @@ instance (NewRef m) => NewRef (StateT s m) where
 
 instance (NewRef m) => NewRef (ReaderT s m) where
 
-    type Inner (ReaderT s m) = Inner m
+    type Ref (ReaderT s m) = Ref m
 
     liftInner = lift . liftInner
 
     newRef = mapC lift . newRef
 
-
+{-
 -- | Memoise pure references
 memoRef :: (NewRef m, Eq a) => IRef m a -> C m (IRef m a)
 memoRef r = do
@@ -86,7 +81,7 @@ memoRef r = do
                     writeRef s $ Just b
                     writeRef r b
     return $ Ref re w
-
+-}
 
 memoRead :: NewRef m => C m a -> C m (C m a)
 memoRead g = liftM ($ ()) $ memoWrite $ const g

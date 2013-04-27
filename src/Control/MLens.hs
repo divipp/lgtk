@@ -5,6 +5,7 @@ module Control.MLens
     ( module Data.Lens.Common
 
     -- * Data types
+    , Reference
     , Ref
     , IC (..)
     , R, runR, mapR
@@ -12,7 +13,6 @@ module Control.MLens
     , rToC
 
     -- * Ref transformations
-    , mapRef
     , (%)
     , joinRef
 
@@ -24,7 +24,7 @@ module Control.MLens
     , unitRef
     , NewRef
     , newRef
-    , Inner, liftInner, IRef, liftRef
+    , Inner, liftInner, IRef
     , ExtRef
     , extRef
 

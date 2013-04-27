@@ -26,6 +26,7 @@ import Prelude hiding ((.), id, splitAt, length)
 
 import Unsafe.Coerce
 
+import qualified Data.MLens.Ref as Ref
 import Control.MLens.ExtRef
 import Control.Monad.Restricted
 
@@ -87,13 +88,14 @@ extRef_ :: Monad m => Ref (IExt i) x -> Lens a x -> a -> C (Ext i m) (Ref (IExt 
 extRef_ r1 r2 a0 = unsafeC $ Ext $ do
     a1 <- mapStateT (return . runIdentity) $ g a0
     (t,z) <- state $ extend_ (runState . f) (runState . g) a1
-    return $ Ref (unsafeR $ Ext (gets t)) $ \a -> Ext $ modify $ z a
+    return $ Ref.Ref (unsafeR $ Ext (gets t)) $ \a -> Ext $ modify $ z a
    where
     f a = unExt $ writeRef r1 (getL r2 a) >> return a
     g b = unExt $ runR $ liftM (flip (setL r2) b) $ readRef r1
 
 instance (Monad m) => NewRef (Ext i m) where
-    type Inner (Ext i m) = IExt i
+
+    type Ref (Ext i m) = Ref.Ref (IExt i)
 
     liftInner = mapExt (return . runIdentity)
 
@@ -107,7 +109,7 @@ runExt :: Monad m => (forall i . Ext i m a) -> m a
 runExt s = evalStateT (unExt s) initST
 
 
-newtype Ext_ i m a = Ext_ { unExt_ :: ReaderT (IRef m ST) m a }
+newtype Ext_ i m a = Ext_ (ReaderT (IRef m ST) m a)
     deriving (Functor, Monad, MonadWriter w)
 
 instance MonadTrans (Ext_ i) where
@@ -127,7 +129,7 @@ extRef_' r1 r2 a0 = mapC liftInner_ $ extRef_ r1 r2 a0
 
 instance (NewRef m) => NewRef (Ext_ i m) where
 
-    type Inner (Ext_ i m) = IExt i
+    type Ref (Ext_ i m) = Ref.Ref (IExt i)
 
     liftInner = liftInner_
 

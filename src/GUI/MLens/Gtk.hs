@@ -44,7 +44,7 @@ hcat :: [I m] -> I m
 hcat = List Horizontal
 
 smartButton
-  :: (Eq a, Monad (Inner m), Functor (Inner m)) =>
+  :: (Eq a, NewRef m, Functor (Inner m)) =>
      Receiver m String -> (a -> R (Inner m) a) -> IRef m a -> I m
 smartButton s f k =
     Button s $ toFree $ readRef k >>= \x -> f x >>= \y -> 

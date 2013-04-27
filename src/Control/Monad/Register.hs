@@ -8,6 +8,7 @@
 module Control.Monad.Register
     ( MonadRegister (..)
     , Receiver
+    , mapReceiver
     , Sender
     , addCEffect
     , addFreeCEffect
@@ -34,8 +35,8 @@ import Control.MLens.ExtRef
 
 type Receiver m a = (a -> Inn m ()) -> m ()
 
-ff :: (a -> b) -> Receiver m a -> Receiver m b
-ff f g h = g $ \a -> h $ f a
+mapReceiver :: (a -> b) -> Receiver m a -> Receiver m b
+mapReceiver f g h = g $ \a -> h $ f a
 
 type Sender m a = ((a -> Inn m ()) -> Inn m ()) -> m ()
 
@@ -63,7 +64,7 @@ rEffect = addCEffect
 addFreeCEffect :: (MonadRegister m, Functor (Inner m), Eq a) => Free (R (Inner m)) a -> Receiver m a
 addFreeCEffect rb act = unFree (liftInn . act) (flip addCEffect act) rb
 
-addRefEffect :: (MonadRegister m, Eq a) => Ref (Inner m) a -> ((a -> Inn m ()) -> Inn m (a -> Inn m ())) -> m ()
+addRefEffect :: (MonadRegister m, Eq a) => IRef m a -> ((a -> Inn m ()) -> Inn m (a -> Inn m ())) -> m ()
 addRefEffect r int = do
     act <- addWEffect (writeRef r) int
     addCEffect (readRef r) act
@@ -132,7 +133,7 @@ evalEE f = do
 
 instance NewRef m => NewRef (EE m) where
 
-    type Inner (EE m) = Inner m
+    type Ref (EE m) = Ref m
 
     liftInner = EE . liftInner
 

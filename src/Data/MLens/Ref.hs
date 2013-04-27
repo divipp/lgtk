@@ -1,14 +1,14 @@
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Data.MLens.Ref
-    ( -- * Data type for references
-      Ref (..)
-
-    -- * Reference operations
-    , (%)
-    , mapRef
-    , unitRef
+    ( -- * Type class for references
+      Reference (..)
     , modRef
-    , joinRef
+
+    -- * Data type for references
+    , Ref (..)
+    , mapRef
     ) where
 
 import Control.Monad.Identity
@@ -18,6 +18,22 @@ import Control.Category
 import Prelude hiding ((.), id)
 
 import Control.Monad.Restricted
+
+class Monad (RefMonad r) => Reference r where
+
+    type RefMonad r :: * -> *
+
+    readRef  :: r a -> R (RefMonad r) a
+    writeRef :: r a -> a -> RefMonad r ()
+    (%) :: Lens a b -> r a -> r b
+    joinRef :: R (RefMonad r) (r a) -> r a
+    unitRef :: r ()
+
+infixr 8 %
+
+modRef :: Reference r => r a -> (a -> a) -> RefMonad r ()
+k `modRef` f = runR (readRef k) >>= writeRef k . f
+
 
 {- |
 Laws for pure references:
@@ -41,31 +57,29 @@ then
 
 @fstLens % r :: Ref m a@
 -}
-data Ref m a = Ref { readRef :: R m a, writeRef :: a -> m () }
+data Ref m a = Ref { readRef_ :: R m a, writeRef_ :: a -> m () }
 
 mapRef :: Morph m n -> Ref m a -> Ref n a
 mapRef f (Ref r w) = Ref (mapR f r) (f . w)
 
+instance Monad m => Reference (Ref m) where
 
-(%) :: Monad m => Lens a b -> Ref m a -> Ref m b
-l % Ref r w = Ref r' w'
- where
-    r' = liftM (L.getL l) r
+    type RefMonad (Ref m) = m
 
-    w' b = do
-        a <- runR r
-        w $ L.setL l b a
+    readRef = readRef_
 
-infixr 8 %
+    writeRef = writeRef_
 
+    l % Ref r w = Ref r' w'
+     where
+        r' = liftM (L.getL l) r
 
-unitRef :: Monad m => Ref m ()
-unitRef = Ref (return ()) (const $ return ())
+        w' b = do
+            a <- runR r
+            w $ L.setL l b a
 
-modRef :: Monad m => Ref m a -> (a -> a) -> m ()
-k `modRef` f = runR (readRef k) >>= writeRef k . f
+    unitRef = Ref (return ()) (const $ return ())
 
-joinRef :: Monad m => R m (Ref m a) -> Ref m a
-joinRef m = Ref (m >>= readRef) (\a -> runR m >>= \r -> writeRef r a)
+    joinRef m = Ref (m >>= readRef_) (\a -> runR m >>= \r -> writeRef_ r a)
 
 

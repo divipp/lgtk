@@ -14,8 +14,8 @@ import Prelude hiding ((.), id)
 
 intListEditor
     :: (Functor (Inner m), MonadRegister m, ExtRef m)
-    => Ref (Inner m) String         -- ^ state reference
-    -> Ref (Inner m) String         -- ^ settings reference
+    => IRef m String         -- ^ state reference
+    -> IRef m String         -- ^ settings reference
     -> I m
 intListEditor state settings = Action $ do
     list <- extRef state showLens []

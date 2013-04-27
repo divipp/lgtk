@@ -6,17 +6,19 @@ module Control.MLens.NewRef.Unsafe
 
 import Data.IORef
 
+import qualified Data.MLens.Ref as Ref
 import Control.MLens.NewRef
 import Control.Monad.Restricted
 
 -- | Note that this instance does not fulfil the @NewRef@ laws in a multi-threaded environment.
 instance NewRef IO where
-    type Inner IO = IO
+
+    type Ref IO = Ref.Ref IO
 
     liftInner m = m
 
     newRef x = unsafeC $ do
         r <- newIORef x
-        return $ Ref (unsafeR $ readIORef r) (writeIORef r)
+        return $ Ref.Ref (unsafeR $ readIORef r) (writeIORef r)
 
 
