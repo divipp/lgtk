@@ -76,10 +76,15 @@ addPushEffect ma mb = addWEffect (const ma) $ \f -> mb $ f ()
 newtype EE m a = EE { unEE :: ReaderT (IRef m (m ()), IRef m (m ())) m a }
     deriving (Functor, Monad)
 
+register :: (NewRef m) => m () -> EE m ()
 register m = EE $ do
     r <- asks snd
     lift $ liftInner $ modRef r (>> m)
 
+act :: (NewRef m) => EE m (m ())
+act = EE $ do
+    rr <- asks fst
+    return $ join $ liftInner $ runR $ readRef rr
 
 instance (NewRef m) => MonadRegister (EE m) where
 
@@ -87,16 +92,13 @@ instance (NewRef m) => MonadRegister (EE m) where
 
     liftInn = EE . lift
 
-    update = do
-        rr <- EE $ asks fst
-        acts <- liftInner $ runR $ readRef rr
-        liftInn acts
+    update = act >>= liftInn
 
     addWEffect r int = do
-        rr <- EE $ asks fst
+        m <- act
         liftInn $ int $ \a -> do
             liftInner $ r a
-            join $ liftInner $ runR $ readRef rr
+            m
 
     -- TODO: do not track events of inactive parts
     addICEffect bb (IC rb fb) act = do
