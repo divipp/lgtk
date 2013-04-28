@@ -63,8 +63,15 @@ instance (NewRef m) => NewRef (ReaderT s m) where
 
     newRef = mapC lift . newRef
 
+-- | @memoRead g = liftM ($ ()) $ memoWrite $ const g@
 memoRead :: NewRef m => C m a -> C m (C m a)
-memoRead g = liftM ($ ()) $ memoWrite $ const g
+memoRead g = do
+    s <- newRef Nothing
+    return $ mapC liftInner (rToC (readRef s)) >>= \x -> case x of
+        Just a -> return a
+        _ -> g >>= \a -> do
+            unsafeC $ liftInner $ writeRef s $ Just a
+            return a
 
 memoWrite :: (NewRef m, Eq b) => (b -> C m a) -> C m (b -> C m a)
 memoWrite g = do
