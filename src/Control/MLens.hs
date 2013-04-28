@@ -4,32 +4,23 @@
 module Control.MLens
     ( module Data.Lens.Common
 
-    -- * Data types
-    , Reference
-    , LensReference
-    , Ref
-    , IC (..)
+    -- * Restricted monads
     , R, runR, mapR
     , C, runC, mapC
     , rToC
 
-    -- * Ref transformations
-    , (%)
-    , joinRef
+    -- * Reference classes
+    , Reference (..)
+    , LensReference (..)
 
-    -- * Ref operations
-    , readRef
-    , writeRef
-
-    -- * Ref construction
-    , unitRef
-    , NewRef
-    , newRef
-    , Inner, liftInner, IRef
-    , ExtRef
-    , extRef
+    -- * Ref construction classes
+    , NewRef (..)
+    , ExtRef (..)
 
     -- * Derived constructs
+    , Inner
+    , IRef
+    , IC (..)
     , modRef
     , undoTr
     , memoRead
@@ -38,11 +29,13 @@ module Control.MLens
     , Morph
 
     -- * Auxiliary lens definitions
-    , (.)
-    , id
     , listLens
     , maybeLens
     , showLens
+
+    -- * Re-exported
+    , (.)
+    , id
     ) where
 
 import Control.Category

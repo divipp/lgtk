@@ -2,7 +2,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
 module Data.MLens.Ref
-    ( -- * Type class for references
+    ( -- * Type classes for references
       Reference (..)
     , modRef
     , LensReference (..)
@@ -32,15 +32,6 @@ Laws for pure references:
  *  @(writeRef r a >> writeRef r a')@ === @(writeRef r a')@
 
 These laws are equivalent to the get-no-effect, set-get, get-set and set-set laws for monadic lenses.
-
-Reference lenses can be composed with lenses.
-For example, if
-
-@r :: Ref m (a,b)@
-
-then
-
-@fstLens % r :: Ref m a@
 -}
 class Monad (RefMonad r) => Reference r where
 
