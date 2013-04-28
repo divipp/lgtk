@@ -64,7 +64,7 @@ extend_ rk kr a0 x0@(ST x0_)
     setM a x = case limit x of
         (zs, _ : ys) -> let
             (a', re) = rk a zs
-            in foldl (((uncurry (||>)) .) . ap_) (re ||> CC a' kr) ys
+            in foldl ((uncurry (||>) .) . ap_) (re ||> CC a' kr) ys
 
     ST x ||> c = ST (x |> c)
 

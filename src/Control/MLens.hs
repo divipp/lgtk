@@ -1,4 +1,3 @@
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE RankNTypes #-}
 -- | The main monadic lens interface, ideally users should import only this module.
 module Control.MLens

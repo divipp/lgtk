@@ -16,6 +16,8 @@ module Control.MLens.ExtRef.Test
 import Control.Monad.Writer
 import Control.Monad.Identity
 import Control.Category
+import Control.Arrow ((***))
+import Data.Maybe
 import Prelude hiding ((.), id)
 
 import Control.MLens
@@ -185,7 +187,7 @@ mkTests runTest
         r ==> Just 2
         q ==> (True, 2)
         s ==> (True, 2)
-        writeRef' r $ Nothing
+        writeRef' r Nothing
         r ==> Nothing
         q ==> (False, 2)
         s ==> (False, 2)
@@ -255,7 +257,7 @@ mkTests runTest
 
     undoTest3 = runTest $ do
         r <- newRef' 3
-        (undo, redo) <- liftM (\(u,r)->(runR u, runR r)) $ runC $ undoTr (==) r
+        (undo, redo) <- liftM (runR *** runR) $ runC $ undoTr (==) r
         r ==> 3
         redo === False
         undo === False
@@ -285,7 +287,7 @@ mkTests runTest
         undo === True
       where
         push m = liftInner m >>= \x -> maybe (return ()) liftInner x
-        m === t = liftInner m >>= \x -> maybe False (const True) x ==? t
+        m === t = liftInner m >>= \x -> isJust x ==? t
 
     joinRef' r = joinRef $ readRef r
 

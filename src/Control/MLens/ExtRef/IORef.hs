@@ -14,6 +14,7 @@ module Control.MLens.ExtRef.IORef
 import Control.Monad.State
 import Control.Monad.Writer
 import Control.Category
+import Control.Exception (evaluate)
 import Data.Lens.Common
 import Prelude hiding ((.), id, splitAt, length)
 
@@ -50,8 +51,7 @@ instance MonadTrans (Ext i) where
 
 unsafeLiftIO :: Monad m =>  IO a -> Ext i m a
 unsafeLiftIO m = do
-    let a = unsafePerformIO m
-    a `seq` return a
+    evaluate $ unsafePerformIO m
 
 instance Monad m => NewRef (Ext i m) where
     type Inner (Ext i m) = Ext i m
