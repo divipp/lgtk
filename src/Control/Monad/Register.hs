@@ -138,7 +138,7 @@ evalEE morph (EE m) = do
     ch <- liftIO newChan
     _ <- liftIO $ forkIO $ forever $ join $ readChan ch
     (a, reg) <- runWriterT $ runReaderT m $ EEState (join $ readIORef vx) (writeChan ch) $ MorphD morph
-    liftIO $ atomicModifyIORef' vx $ \ac -> (reg >> ac, ())
+    liftIO $ writeIORef vx reg
     return a
 
 instance NewRef m => NewRef (EE m) where
