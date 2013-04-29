@@ -126,12 +126,10 @@ instance (NewRef m) => MonadRegister (EE m) where
                                 return c
         register $ join $ liftInner $ runR $ readRef ir
 
-evalEE :: forall m a . NewRef m => (Morph (EE m) m -> EE m a) -> m a
-evalEE f = do
+evalEE :: forall m a . NewRef m => EE m a -> m a
+evalEE (EE m) = do
     vx <- runC $ newRef $ return ()
-    let unlift :: Morph (EE m) m
-        unlift (EE m) = runReaderT m (vx, vx)
-    unlift $ f unlift
+    runReaderT m (vx, vx)
 
 instance NewRef m => NewRef (EE m) where
 
