@@ -43,6 +43,7 @@ library
                     GUI.MLens.Gtk
                     GUI.MLens.Gtk.ADTEditor
 
+                    GUI.MLens.Gtk.Demos.Main
                     GUI.MLens.Gtk.Demos.Tri
                     GUI.MLens.Gtk.Demos.IntListEditor
                     GUI.MLens.Gtk.Demos.TEditor
@@ -71,7 +72,6 @@ executable lgtkdemo
 
   build-depends:
                     base < 5
-                  , mtl
                   , lgtk
   main-is:
                     Main.hs
