@@ -60,6 +60,7 @@ library
                     GUI.MLens.Gtk.IO
                     GUI.MLens.Gtk.Interface
   ghc-options: 
+                    -threaded
                     -Wall 
                     -fno-warn-incomplete-patterns 
                     -fno-warn-name-shadowing 
@@ -77,6 +78,7 @@ executable lgtkdemo
   hs-source-dirs:
                     main
   ghc-options: 
+                    -threaded
                     -Wall 
                     -fno-warn-incomplete-patterns 
                     -fno-warn-name-shadowing 

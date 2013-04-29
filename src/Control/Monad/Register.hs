@@ -28,8 +28,10 @@ module Control.Monad.Register
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.Free
+import Control.Concurrent
 import System.Directory
 import Data.IORef
+import Data.List
 
 import Control.Monad.Restricted
 import Control.MLens.ExtRef
@@ -78,6 +80,7 @@ data MorphD m n = MorphD (Morph m n)
 data EEState m = EEState
     { actions :: IORef (IO ())
     , registered :: IORef (IO ())
+    , events :: Chan (IO ())
     , morph :: MorphD m IO
     }
 
@@ -87,7 +90,9 @@ newtype EE m a = EE { unEE :: ReaderT (EEState m) m a }
 register :: (MonadIO m) => IO () -> EE m ()
 register m = EE $ do
     r <- asks registered
-    liftIO $ modifyIORef r (>> m)
+    liftIO $ do
+--        m  -- ???
+        atomicModifyIORef' r $ \a -> (a >> m, ())
 
 act :: (MonadIO m) => EE m (IO ())
 act = EE $ do
@@ -111,40 +116,34 @@ instance (NewRef m, MonadIO m) => MonadRegister (EE m) where
     addWEffect r int = do
         m <- act
         md <- morphD
-        liftInn $ int $ \a -> do
+        ch <- EE $ asks events
+        liftInn $ int $ \a -> writeChan ch $ do
             unlift md $ liftInner $ r a
             m
 
     addICEffect bb (IC rb fb) act = do
         rr <- EE ask
-        ir <- liftIO $ newIORef $ return ()
-        lastB <- liftIO $ newIORef Nothing
-        prev <- liftIO $ newIORef []
+        memoref <- liftIO $ newIORef []  -- memo table, first item is the newest
         md <- morphD
         register $ do
-                b <- unlift md $ liftInner $ runR rb
-                mb <- readIORef lastB
-                case mb of
-                    Just b' | b == b' -> return () 
-                    _ -> do
-                        writeIORef lastB $ Just b
-                        prevs <- readIORef prev
-                        act =<< case [x | (b', x) <- prevs, b' == b] of
-                            [(c, s)] -> do
-                                writeIORef ir s
-                                return c
-                            [] -> do
-                                writeIORef ir $ return ()
-                                c <- unlift md $ runReaderT (unEE $ runC $ fb b) $ rr { registered = ir }
-                                s <- readIORef ir
-                                when bb $ modifyIORef prev ((b, (c, s)) :)
-                                return c
-                join $ readIORef ir
+            b <- unlift md $ liftInner $ runR rb
+            join $ atomicModifyIORef' memoref $ \memo -> case memo of
+                ((b', (_, s)): _) | b' == b -> (memo, s)
+                _ -> case partition ((== b) . fst) memo of
+                    (x@(_, (c, s)): _, rem) -> (x: rem, forkIO (act c) >> s)
+                    _ -> (,) memo $ do
+                        ir <- newIORef $ return ()
+                        c <- unlift md $ runReaderT (unEE $ runC $ fb b) $ rr { registered = ir }
+                        s <- readIORef ir
+                        when bb $ atomicModifyIORef' memoref $ \memo -> ((b, (c, s)) : filter ((/= b) . fst) memo, ())
+                        forkIO (act c) >> s
 
 evalEE :: forall m a . (NewRef m, MonadIO m) => Morph m IO -> EE m a -> m a
 evalEE morph (EE m) = do
     vx <- liftIO $ newIORef $ return ()
-    runReaderT m $ EEState vx vx $ MorphD morph
+    ch <- liftIO newChan
+    _ <- liftIO $ forkIO $ forever $ join $ readChan ch
+    runReaderT m $ EEState vx vx ch $ MorphD morph
 
 instance NewRef m => NewRef (EE m) where
 
