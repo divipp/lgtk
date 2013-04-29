@@ -14,7 +14,7 @@ module Control.MLens.NewRef
     , memoRead, memoWrite
     ) where
 
-import Control.Monad
+--import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.Writer
 import Control.Monad.State
