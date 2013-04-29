@@ -118,7 +118,6 @@ instance (NewRef m, MonadIO m) => MonadRegister (EE m) where
     -- TODO: do not track events of inactive parts
     addICEffect bb (IC rb fb) act = do
         rr <- EE ask
-        md <- morphD
         ir <- liftIO $ newIORef $ return ()
         lastB <- liftIO $ newIORef Nothing
         prev <- liftIO $ newIORef []
@@ -140,7 +139,7 @@ instance (NewRef m, MonadIO m) => MonadRegister (EE m) where
                                 s <- liftIO $ readIORef ir
                                 when bb $ liftIO $ modifyIORef prev ((b, (c, s)) :)
                                 return c
-        register $ join $ liftIO $ readIORef ir
+                join $ liftIO $ readIORef ir
 
 evalEE :: forall m a . (NewRef m, MonadIO m) => Morph m IO -> EE m a -> m a
 evalEE morph (EE m) = do
