@@ -29,6 +29,7 @@ import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.Free
 import System.Directory
+import Data.IORef
 
 import Control.Monad.Restricted
 import Control.MLens.ExtRef
@@ -75,23 +76,23 @@ addPushEffect ma mb = addWEffect (const ma) $ \f -> mb $ f ()
 data MorphD m n = MorphD (Morph m n)
 
 data EEState m = EEState
-    { actions :: IRef m (m ())
-    , registered :: IRef m (m ())
+    { actions :: IORef (m ())
+    , registered :: IORef (m ())
     , morph :: MorphD m IO
     }
 
 newtype EE m a = EE { unEE :: ReaderT (EEState m) m a }
     deriving (Functor, Monad)
 
-register :: (NewRef m) => m () -> EE m ()
+register :: (MonadIO m) => m () -> EE m ()
 register m = EE $ do
     r <- asks registered
-    lift $ liftInner $ modRef r (>> m)
+    liftIO $ modifyIORef r (>> m)
 
-act :: (NewRef m) => EE m (m ())
+act :: (MonadIO m) => EE m (m ())
 act = EE $ do
     rr <- asks actions
-    return $ join $ liftInner $ runR $ readRef rr
+    return $ join $ liftIO $ readIORef rr
 
 morphD :: Monad m => EE m (MorphD m IO)
 morphD = EE $ asks morph
@@ -118,32 +119,32 @@ instance (NewRef m, MonadIO m) => MonadRegister (EE m) where
     addICEffect bb (IC rb fb) act = do
         rr <- EE ask
         md <- morphD
-        ir <- EE $ lift $ runC $ newRef $ return ()
-        lastB <- EE $ lift $ runC $ newRef Nothing
-        prev <- EE $ lift $ runC $ newRef []
+        ir <- liftIO $ newIORef $ return ()
+        lastB <- liftIO $ newIORef Nothing
+        prev <- liftIO $ newIORef []
         register $ do
                 b <- liftInner $ runR rb
-                mb <- liftInner $ runR $ readRef lastB
+                mb <- liftIO $ readIORef lastB
                 case mb of
                     Just b' | b == b' -> return () 
                     _ -> do
-                        liftInner $ writeRef lastB $ Just b
-                        prevs <- liftInner $ runR $ readRef prev
+                        liftIO $ writeIORef lastB $ Just b
+                        prevs <- liftIO $ readIORef prev
                         liftIO . act =<< case [x | (b', x) <- prevs, b' == b] of
                             [(c, s)] -> do
-                                liftInner $ writeRef ir s
+                                liftIO $ writeIORef ir s
                                 return c
                             [] -> do
-                                liftInner $ writeRef ir $ return ()
+                                liftIO $ writeIORef ir $ return ()
                                 c <- runReaderT (unEE $ runC $ fb b) $ rr { registered = ir }
-                                s <- liftInner $ runR $ readRef ir
-                                when bb $ liftInner $ modRef prev ((b, (c, s)) :)
+                                s <- liftIO $ readIORef ir
+                                when bb $ liftIO $ modifyIORef prev ((b, (c, s)) :)
                                 return c
-        register $ join $ liftInner $ runR $ readRef ir
+        register $ join $ liftIO $ readIORef ir
 
-evalEE :: forall m a . NewRef m => Morph m IO -> EE m a -> m a
+evalEE :: forall m a . (NewRef m, MonadIO m) => Morph m IO -> EE m a -> m a
 evalEE morph (EE m) = do
-    vx <- runC $ newRef $ return ()
+    vx <- liftIO $ newIORef $ return ()
     runReaderT m $ EEState vx vx $ MorphD morph
 
 instance NewRef m => NewRef (EE m) where
