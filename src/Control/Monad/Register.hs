@@ -72,18 +72,22 @@ addRefEffect r int = do
 addPushEffect :: MonadRegister m => Inner m () -> (Inn m () -> Inn m ()) -> m ()
 addPushEffect ma mb = addWEffect (const ma) $ \f -> mb $ f ()
 
+data EEState m = EEState
+    { actions :: IRef m (m ())
+    , registered :: IRef m (m ())
+    }
 
-newtype EE m a = EE { unEE :: ReaderT (IRef m (m ()), IRef m (m ())) m a }
+newtype EE m a = EE { unEE :: ReaderT (EEState m) m a }
     deriving (Functor, Monad)
 
 register :: (NewRef m) => m () -> EE m ()
 register m = EE $ do
-    r <- asks snd
+    r <- asks registered
     lift $ liftInner $ modRef r (>> m)
 
 act :: (NewRef m) => EE m (m ())
 act = EE $ do
-    rr <- asks fst
+    rr <- asks actions
     return $ join $ liftInner $ runR $ readRef rr
 
 instance (NewRef m) => MonadRegister (EE m) where
@@ -102,7 +106,7 @@ instance (NewRef m) => MonadRegister (EE m) where
 
     -- TODO: do not track events of inactive parts
     addICEffect bb (IC rb fb) act = do
-        rr <- EE $ asks fst
+        rr <- EE ask
         ir <- liftInn $ runC $ newRef $ return ()
         lastB <- liftInn $ runC $ newRef Nothing
         prev <- liftInn $ runC $ newRef []
@@ -120,7 +124,7 @@ instance (NewRef m) => MonadRegister (EE m) where
                                 return c
                             [] -> do
                                 liftInner $ writeRef ir $ return ()
-                                c <- runReaderT (unEE $ runC $ fb b) (rr, ir)
+                                c <- runReaderT (unEE $ runC $ fb b) $ rr { registered = ir }
                                 s <- liftInner $ runR $ readRef ir
                                 when bb $ liftInner $ modRef prev ((b, (c, s)) :)
                                 return c
@@ -129,7 +133,7 @@ instance (NewRef m) => MonadRegister (EE m) where
 evalEE :: forall m a . NewRef m => EE m a -> m a
 evalEE (EE m) = do
     vx <- runC $ newRef $ return ()
-    runReaderT m (vx, vx)
+    runReaderT m $ EEState vx vx
 
 instance NewRef m => NewRef (EE m) where
 
