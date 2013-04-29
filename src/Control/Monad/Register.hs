@@ -95,10 +95,7 @@ newtype EE m a = EE { unEE :: ReaderT (EEState m) (WriterT (IO ()) m) a }
 act :: (MonadIO m) => EE m (IO ())
 act = EE $ asks actions
 
-morphD :: Monad m => EE m (MorphD m IO)
-morphD = EE $ asks morph
-
-unlift :: MorphD m n -> forall a . m a -> n a
+unlift :: MorphD m n -> m a -> n a
 unlift (MorphD f) m = f m
 
 instance (NewRef m, MonadIO m) => MonadRegister (EE m) where
@@ -111,7 +108,7 @@ instance (NewRef m, MonadIO m) => MonadRegister (EE m) where
 
     addWEffect r int = do
         m <- act
-        md <- morphD
+        md <- EE $ asks morph
         send <- EE $ asks sendEvent
         liftInn $ int $ \a -> send $ do
             unlift md $ liftInner $ r a
@@ -120,7 +117,7 @@ instance (NewRef m, MonadIO m) => MonadRegister (EE m) where
     addICEffect bb (IC rb fb) act = do
         rr <- EE ask
         memoref <- liftIO $ newIORef []  -- memo table, first item is the newest
-        md <- morphD
+        md <- EE $ asks morph
         EE $ tell $ do
             b <- unlift md $ liftInner $ runR rb
             join $ atomicModifyIORef' memoref $ \memo -> case memo of
