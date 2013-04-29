@@ -29,4 +29,3 @@ instance NewRef IO where
 
     newRef = unsafeC . newIORef
 
-

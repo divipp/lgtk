@@ -9,7 +9,6 @@ module Control.MLens.ExtRef.Test
       mkTests
     -- * Tests for implementations
     , testExtPure
-    , testExtPure2
 --    , testExtIORef
     ) where
 
@@ -26,16 +25,11 @@ import qualified Control.MLens.ExtRef.Pure as Pure
 
 -----------------------------------------------------------------
 
-
 -- | Consistency tests for the pure implementation of @Ext@, should give an empty list of errors.
 testExtPure :: [String]
 testExtPure = mkTests $ \t -> runIdentity $ Pure.runExt $ execWriterT t
     -- WriterT [String] (Pure.IExt i)
 
--- | Consistency tests for the pure implementation of @Ext@, should give an empty list of errors.
-testExtPure2 :: [String]
-testExtPure2 = mkTests $ \t -> runIdentity $ Pure.runExt $ Pure.runExt_ $ \_ -> execWriterT t
-    -- WriterT [String] (Pure.Ext_ i (Pure.IExt j))
 {-
 -- | Consistency tests for the @IORef@-based implementation of @Ext@, should give an empty list of errors.
 testExtIORef :: [String]

@@ -20,6 +20,7 @@ import Control.Monad.Identity
 import Control.Category
 import qualified Control.Arrow as Arrow
 import Data.Sequence
+import Data.IORef
 import Data.Lens.Common
 import Data.Foldable (toList)
 import Prelude hiding ((.), id, splitAt, length)
@@ -109,25 +110,23 @@ runExt :: Monad m => (forall i . Ext i m a) -> m a
 runExt s = evalStateT (unExt s) initST
 
 
-newtype Ext_ i m a = Ext_ (ReaderT (IRef m ST) m a)
+newtype Ext_ i m a = Ext_ (ReaderT (IORef ST) m a)
     deriving (Functor, Monad, MonadWriter w)
 
 instance MonadTrans (Ext_ i) where
     lift = Ext_ . lift
 
-liftInner_ :: NewRef m => IExt i a -> Ext_ i m a
+liftInner_ :: MonadIO m => IExt i a -> Ext_ i m a
 liftInner_ (Ext m) = Ext_ $ do
     r <- ask
-    lift $ liftInner $ do
-        s <- runR $ readRef r
-        let (a, s') = runState m s
-        writeRef r s'
-        return a
+    liftIO $ atomicModifyIORef' r $ swap . runState m
+  where
+    swap (a, b) = (b, a)
 
-extRef_' :: NewRef m => Ref (IExt i) x -> Lens a x -> a -> C (Ext_ i m) (Ref (IExt i) a)
+extRef_' :: MonadIO m => Ref (IExt i) x -> Lens a x -> a -> C (Ext_ i m) (Ref (IExt i) a)
 extRef_' r1 r2 a0 = mapC liftInner_ $ extRef_ r1 r2 a0
 
-instance (NewRef m) => NewRef (Ext_ i m) where
+instance (MonadIO m) => NewRef (Ext_ i m) where
 
     type Ref (Ext_ i m) = Ref.Ref (IExt i)
 
@@ -135,14 +134,14 @@ instance (NewRef m) => NewRef (Ext_ i m) where
 
     newRef = extRef_' unitRef $ lens (const ()) (const id)
 
-instance (NewRef m) => ExtRef (Ext_ i m) where
+instance (MonadIO m) => ExtRef (Ext_ i m) where
 
     extRef = extRef_'
 
 -- | Running of the @(Ext_ i m)@ monad.
-runExt_ :: forall m a . NewRef m => (forall i . Morph (Ext_ i m) m -> Ext_ i m a) -> m a
+runExt_ :: forall m a . MonadIO m => (forall i . Morph (Ext_ i m) m -> Ext_ i m a) -> m a
 runExt_ f = do
-    vx <- runC $ newRef initST
+    vx <- liftIO $ newIORef initST
     let unlift :: Morph (Ext_ i m) m
         unlift (Ext_ m) = runReaderT m vx
     unlift $ f unlift
