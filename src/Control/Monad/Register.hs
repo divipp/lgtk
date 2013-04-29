@@ -92,7 +92,7 @@ register m = EE $ do
 act :: (MonadIO m) => EE m (IO ())
 act = EE $ do
     rr <- asks actions
-    return $ join $ liftIO $ readIORef rr
+    return $ join $ readIORef rr
 
 morphD :: Monad m => EE m (MorphD m IO)
 morphD = EE $ asks morph
@@ -123,23 +123,23 @@ instance (NewRef m, MonadIO m) => MonadRegister (EE m) where
         md <- morphD
         register $ do
                 b <- unlift md $ liftInner $ runR rb
-                mb <- liftIO $ readIORef lastB
+                mb <- readIORef lastB
                 case mb of
                     Just b' | b == b' -> return () 
                     _ -> do
-                        liftIO $ writeIORef lastB $ Just b
-                        prevs <- liftIO $ readIORef prev
-                        liftIO . act =<< case [x | (b', x) <- prevs, b' == b] of
+                        writeIORef lastB $ Just b
+                        prevs <- readIORef prev
+                        act =<< case [x | (b', x) <- prevs, b' == b] of
                             [(c, s)] -> do
-                                liftIO $ writeIORef ir s
+                                writeIORef ir s
                                 return c
                             [] -> do
-                                liftIO $ writeIORef ir $ return ()
+                                writeIORef ir $ return ()
                                 c <- unlift md $ runReaderT (unEE $ runC $ fb b) $ rr { registered = ir }
-                                s <- liftIO $ readIORef ir
-                                when bb $ liftIO $ modifyIORef prev ((b, (c, s)) :)
+                                s <- readIORef ir
+                                when bb $ modifyIORef prev ((b, (c, s)) :)
                                 return c
-                liftIO $ join $ liftIO $ readIORef ir
+                join $ readIORef ir
 
 evalEE :: forall m a . (NewRef m, MonadIO m) => Morph m IO -> EE m a -> m a
 evalEE morph (EE m) = do
