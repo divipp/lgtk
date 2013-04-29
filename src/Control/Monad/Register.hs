@@ -80,7 +80,7 @@ addPushEffect ma mb = addWEffect (const ma) $ \f -> mb $ f ()
 data MorphD m n = MorphD (Morph m n)
 
 data EEState m = EEState
-    { actions :: IORef (IO ())
+    { actions :: IO ()
     , events :: Chan (IO ())
     , morph :: MorphD m IO
     }
@@ -93,9 +93,7 @@ newtype EE m a = EE { unEE :: ReaderT (EEState m) (WriterT (IO ()) m) a }
     deriving (Functor, Monad)
 
 act :: (MonadIO m) => EE m (IO ())
-act = EE $ do
-    rr <- asks actions
-    return $ join $ readIORef rr
+act = EE $ asks actions
 
 morphD :: Monad m => EE m (MorphD m IO)
 morphD = EE $ asks morph
@@ -139,7 +137,7 @@ evalEE morph (EE m) = do
     vx <- liftIO $ newIORef $ return ()
     ch <- liftIO newChan
     _ <- liftIO $ forkIO $ forever $ join $ readChan ch
-    (a, reg) <- runWriterT $ runReaderT m $ EEState vx ch $ MorphD morph
+    (a, reg) <- runWriterT $ runReaderT m $ EEState (join $ readIORef vx) ch $ MorphD morph
     liftIO $ atomicModifyIORef' vx $ \ac -> (reg >> ac, ())
     return a
 
