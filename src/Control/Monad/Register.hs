@@ -72,9 +72,12 @@ addRefEffect r int = do
 addPushEffect :: MonadRegister m => Inner m () -> (Inn m () -> Inn m ()) -> m ()
 addPushEffect ma mb = addWEffect (const ma) $ \f -> mb $ f ()
 
+data MorphD m n = MorphD (Morph m n)
+
 data EEState m = EEState
     { actions :: IRef m (m ())
     , registered :: IRef m (m ())
+    , morph :: MorphD m IO
     }
 
 newtype EE m a = EE { unEE :: ReaderT (EEState m) m a }
@@ -90,26 +93,34 @@ act = EE $ do
     rr <- asks actions
     return $ join $ liftInner $ runR $ readRef rr
 
-instance (NewRef m) => MonadRegister (EE m) where
+morphD :: Monad m => EE m (MorphD m IO)
+morphD = EE $ asks morph
 
-    type Inn (EE m) = m
+unlift :: MorphD m n -> forall a . m a -> n a
+unlift (MorphD f) m = f m
 
-    liftInn = EE . lift
+instance (NewRef m, MonadIO m) => MonadRegister (EE m) where
 
-    update = act >>= liftInn
+    type Inn (EE m) = IO
+
+    liftInn = EE . liftIO
+
+    update = act >>= EE . lift
 
     addWEffect r int = do
         m <- act
-        liftInn $ int $ \a -> do
+        md <- morphD
+        liftInn $ int $ \a -> unlift md $ do
             liftInner $ r a
             m
 
     -- TODO: do not track events of inactive parts
     addICEffect bb (IC rb fb) act = do
         rr <- EE ask
-        ir <- liftInn $ runC $ newRef $ return ()
-        lastB <- liftInn $ runC $ newRef Nothing
-        prev <- liftInn $ runC $ newRef []
+        md <- morphD
+        ir <- EE $ lift $ runC $ newRef $ return ()
+        lastB <- EE $ lift $ runC $ newRef Nothing
+        prev <- EE $ lift $ runC $ newRef []
         register $ do
                 b <- liftInner $ runR rb
                 mb <- liftInner $ runR $ readRef lastB
@@ -118,7 +129,7 @@ instance (NewRef m) => MonadRegister (EE m) where
                     _ -> do
                         liftInner $ writeRef lastB $ Just b
                         prevs <- liftInner $ runR $ readRef prev
-                        act =<< case [x | (b', x) <- prevs, b' == b] of
+                        liftIO . act =<< case [x | (b', x) <- prevs, b' == b] of
                             [(c, s)] -> do
                                 liftInner $ writeRef ir s
                                 return c
@@ -130,10 +141,10 @@ instance (NewRef m) => MonadRegister (EE m) where
                                 return c
         register $ join $ liftInner $ runR $ readRef ir
 
-evalEE :: forall m a . NewRef m => EE m a -> m a
-evalEE (EE m) = do
+evalEE :: forall m a . NewRef m => Morph m IO -> EE m a -> m a
+evalEE morph (EE m) = do
     vx <- runC $ newRef $ return ()
-    runReaderT m $ EEState vx vx
+    runReaderT m $ EEState vx vx $ MorphD morph
 
 instance NewRef m => NewRef (EE m) where
 
