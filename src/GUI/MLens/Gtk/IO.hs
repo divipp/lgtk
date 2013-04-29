@@ -4,6 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module GUI.MLens.Gtk.IO
     ( runI
+    , gtkContext
     ) where
 
 import Control.Category
@@ -20,22 +21,23 @@ import Control.MLens
 import Control.MLens.Unsafe ()
 import GUI.MLens.Gtk.Interface
 
+gtkContext m = do
+    _ <- unsafeInitGUIForThreadedRTS
+    c <- m
+    window <- windowNew
+    set window [ containerBorderWidth := 10, containerChild := c ]
+    _ <- window `on` deleteEvent $ liftIO'' mainQuit >> return False
+    widgetShowAll window
+    mainGUI
+
 -- | Run an @IO@ parametrized interface description with Gtk backend
 runI
     :: forall m . (MonadRegister m, MonadIO (Inn m), Functor (Inner m))
     => Morph (Inn m) IO
     -> I m
-    -> m ()
-runI dca i = do
-    _ <- liftInn $ liftIO $ unsafeInitGUIForThreadedRTS
-    c <- toWidget i
+    -> m Widget
+runI dca i = toWidget i
 --    update  -- ???
-    liftInn . liftIO'' $ do
-            window <- windowNew
-            set window [ containerBorderWidth := 10, containerChild := c ]
-            _ <- window `on` deleteEvent $ liftIO'' mainQuit >> return False
-            widgetShowAll window
-    liftInn $ liftIO'' mainGUI
  where
     toWidget :: I m -> m Widget
     toWidget i = case i of
