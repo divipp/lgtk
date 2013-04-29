@@ -77,7 +77,7 @@ addRefEffect r int = do
 addPushEffect :: MonadRegister m => Inner m () -> (Inn m () -> Inn m ()) -> m ()
 addPushEffect ma mb = addWEffect (const ma) $ \f -> mb $ f ()
 
-data MorphD m n = MorphD (Morph m n)
+data MorphD m n = MorphD { unlift :: Morph m n }
 
 data EEState m = EEState
     { actions :: IO ()
@@ -92,40 +92,31 @@ instance Monoid (IO ()) where
 newtype EE m a = EE { unEE :: ReaderT (EEState m) (WriterT (IO ()) m) a }
     deriving (Functor, Monad)
 
-act :: (MonadIO m) => EE m (IO ())
-act = EE $ asks actions
-
-unlift :: MorphD m n -> m a -> n a
-unlift (MorphD f) m = f m
-
 instance (NewRef m, MonadIO m) => MonadRegister (EE m) where
 
     type Inn (EE m) = IO
 
     liftInn = EE . liftIO
 
-    update = act >>= liftInn
+    update = EE (asks actions) >>= liftInn
 
     addWEffect r int = do
-        m <- act
-        md <- EE $ asks morph
-        send <- EE $ asks sendEvent
-        liftInn $ int $ \a -> send $ do
-            unlift md $ liftInner $ r a
-            m
+        rr <- EE ask
+        liftInn $ int $ \a -> sendEvent rr $ do
+            unlift (morph rr) $ liftInner $ r a
+            actions rr
 
     addICEffect bb (IC rb fb) act = do
         rr <- EE ask
         memoref <- liftIO $ newIORef []  -- memo table, first item is the newest
-        md <- EE $ asks morph
         EE $ tell $ do
-            b <- unlift md $ liftInner $ runR rb
+            b <- unlift (morph rr) $ liftInner $ runR rb
             join $ atomicModifyIORef' memoref $ \memo -> case memo of
                 ((b', (_, s)): _) | b' == b -> (memo, s)
                 _ -> case partition ((== b) . fst) memo of
                     (x@(_, (c, s)): _, rem) -> (x: rem, forkIO (act c) >> s)
                     _ -> (,) memo $ do
-                        (c, s) <- unlift md $ runWriterT $ runReaderT (unEE $ runC $ fb b) rr
+                        (c, s) <- unlift (morph rr) $ runWriterT $ runReaderT (unEE $ runC $ fb b) rr
                         when bb $ atomicModifyIORef' memoref $ \memo -> ((b, (c, s)) : filter ((/= b) . fst) memo, ())
                         forkIO (act c) >> s
 
