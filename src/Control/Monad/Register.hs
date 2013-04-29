@@ -115,7 +115,6 @@ instance (NewRef m, MonadIO m) => MonadRegister (EE m) where
             unlift md $ liftInner $ r a
             m
 
-    -- TODO: do not track events of inactive parts
     addICEffect bb (IC rb fb) act = do
         rr <- EE ask
         ir <- liftIO $ newIORef $ return ()
