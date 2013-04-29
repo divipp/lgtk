@@ -81,7 +81,7 @@ data MorphD m n = MorphD (Morph m n)
 
 data EEState m = EEState
     { actions :: IO ()
-    , events :: Chan (IO ())
+    , sendEvent :: IO () -> IO ()
     , morph :: MorphD m IO
     }
 
@@ -112,8 +112,8 @@ instance (NewRef m, MonadIO m) => MonadRegister (EE m) where
     addWEffect r int = do
         m <- act
         md <- morphD
-        ch <- EE $ asks events
-        liftInn $ int $ \a -> writeChan ch $ do
+        send <- EE $ asks sendEvent
+        liftInn $ int $ \a -> send $ do
             unlift md $ liftInner $ r a
             m
 
@@ -137,7 +137,7 @@ evalEE morph (EE m) = do
     vx <- liftIO $ newIORef $ return ()
     ch <- liftIO newChan
     _ <- liftIO $ forkIO $ forever $ join $ readChan ch
-    (a, reg) <- runWriterT $ runReaderT m $ EEState (join $ readIORef vx) ch $ MorphD morph
+    (a, reg) <- runWriterT $ runReaderT m $ EEState (join $ readIORef vx) (writeChan ch) $ MorphD morph
     liftIO $ atomicModifyIORef' vx $ \ac -> (reg >> ac, ())
     return a
 
