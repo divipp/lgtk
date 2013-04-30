@@ -52,7 +52,7 @@ smartButton s f k =
 
 -- | Run an interface description
 runI :: (forall m . (Functor (Inner m), MonadRegister m, ExtRef m, FileSystem m) => I m) -> IO ()
-runI e = Gtk.gtkContext $ runExt_ $ \mo -> evalEE mo $ Gtk.runI id e
+runI e = Gtk.gtkContext $ \post -> runExt_ $ \mo -> evalEE mo $ Gtk.runI post id e
 
 toFree :: (Functor m, Monad m) => m a -> Free m a
 toFree = Impure . fmap Pure

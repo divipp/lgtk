@@ -114,19 +114,20 @@ instance (NewRef m, MonadIO m) => MonadRegister (EE m) where
             join $ atomicModifyIORef' memoref $ \memo -> case memo of
                 ((b', (_, s)): _) | b' == b -> (memo, s)
                 _ -> case partition ((== b) . fst) memo of
-                    (x@(_, (c, s)): _, rem) -> (x: rem, forkIO (act c) >> s)
+                    (x@(_, (c, s)): _, rem) -> (x: rem, act c >> s)
                     _ -> (,) memo $ do
                         (c, s) <- unlift (morph rr) $ runWriterT $ runReaderT (unEE $ runC $ fb b) rr
                         when bb $ atomicModifyIORef' memoref $ \memo -> ((b, (c, s)) : filter ((/= b) . fst) memo, ())
-                        forkIO (act c) >> s
+                        act c >> s
 
 evalEE :: forall m a . (NewRef m, MonadIO m) => Morph m IO -> EE m a -> m a
 evalEE morph (EE m) = do
     vx <- liftIO $ newIORef $ return ()
     ch <- liftIO newChan
-    _ <- liftIO $ forkIO $ forever $ join $ readChan ch
     (a, reg) <- runWriterT $ runReaderT m $ EEState (join $ readIORef vx) (writeChan ch) $ MorphD morph
     liftIO $ writeIORef vx reg
+    _ <- liftIO $ forkIO $ forever $ join $ readChan ch
+    liftIO reg
     return a
 
 instance NewRef m => NewRef (EE m) where
