@@ -62,22 +62,22 @@ runI post dca i = do
             return' w
         Entry k -> do
             w <- liftInn $ liftIO' entryNew
-            addRefEffect k $ \re -> do
+            addRefEffect k (liftIO' . entrySetText w) $ \re -> do
                 _ <- liftIO' $ on w entryActivate $ entryGetText w >>= dca . re
-                return $ liftIO' . entrySetText w
+                return ()
             return' w
         Checkbox k -> do
             w <- liftInn $ liftIO' checkButtonNew
-            addRefEffect k $ \re -> do
+            addRefEffect k (liftIO' . toggleButtonSetActive w) $ \re -> do
                 _ <- liftIO' $ on w toggled $ toggleButtonGetActive w >>= dca . re
-                return $ liftIO' . toggleButtonSetActive w
+                return ()
             return' w
         Combobox ss k -> do
             w <- liftInn $ liftIO' comboBoxNewText
             liftInn $ liftIO' $ flip mapM_ ss $ comboBoxAppendText w
-            addRefEffect k $ \re -> do
+            addRefEffect k (liftIO' . comboBoxSetActive w) $ \re -> do
                 _ <- liftIO' $ on w changed $ fmap (max 0) (comboBoxGetActive w) >>= dca . re
-                return $ liftIO' . comboBoxSetActive w
+                return ()
             return' w
         List o xs -> do
             w <- liftInn $ liftIO' $ case o of

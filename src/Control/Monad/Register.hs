@@ -71,9 +71,9 @@ rEffect = addCEffect
 addFreeCEffect :: (MonadRegister m, Functor (Inner' m), Eq a) => Free (R (Inner' m)) a -> Receiver m a
 addFreeCEffect rb act = unFree (liftInn . act) (flip addCEffect act) rb
 
-addRefEffect :: (MonadRegister m, Eq a, ExtRef m, Inner m ~ Inner' m) => IRef m a -> ((a -> Inn m ()) -> Inn m (a -> Inn m ())) -> m ()
-addRefEffect r int = do
-    act <- addWEffect (writeRef r) int
+addRefEffect :: (MonadRegister m, Eq a, ExtRef m, Inner m ~ Inner' m) => IRef m a -> (a -> Inn m ()) -> ((a -> Inn m ()) -> Inn m ()) -> m ()
+addRefEffect r act int = do
+    addWEffect (writeRef r) int
     addCEffect (readRef r) act
 
 addPushEffect :: MonadRegister m => Inner' m () -> (Inn m () -> Inn m ()) -> m ()
@@ -153,7 +153,7 @@ fileRef :: (ExtRef m, MonadRegister m, Inner m ~ Inner' m, MonadIO (Inn m)) => F
 fileRef f = unsafeC $ do
         ms <- liftInn $ liftIO r
         ref <- runC $ newRef ms
-        addRefEffect ref $ \_cb -> return $ liftIO . w   -- TODO: use cb
+        addRefEffect ref (liftIO . w) $ \_cb -> return ()   -- TODO: use cb
         return ref
      where
         r = do
