@@ -40,15 +40,8 @@ class Monad (RefMonad r) => Reference r where
     readRef  :: r a -> R (RefMonad r) a
     writeRef :: r a -> a -> RefMonad r ()
 
-    atomicModRef :: r a -> (a -> (a, b)) -> RefMonad r b
-    atomicModRef r f = do
-        a <- runR $ readRef r
-        let (a', b) = f a
-        writeRef r a'
-        return b
-
 modRef :: Reference r => r a -> (a -> a) -> RefMonad r ()
-k `modRef` f = atomicModRef k $ \a -> (f a, ())
+r `modRef` f = runR (readRef r) >>= writeRef r . f
 
 class Reference r => LensReference r where
 
