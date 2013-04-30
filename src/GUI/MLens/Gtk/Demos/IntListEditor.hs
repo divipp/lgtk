@@ -14,7 +14,7 @@ import Prelude hiding ((.), id)
 ---------------
 
 intListEditor
-    :: (Functor (Inner m), MonadRegister m, ExtRef m, LensReference (Ref m), Inner m ~ Inner' m)
+    :: (Functor (Inner m), MonadRegister m, ExtRef m, Inner m ~ Inner' m)
     => IRef m String         -- ^ state reference
     -> IRef m String         -- ^ settings reference
     -> I m
@@ -83,7 +83,7 @@ intListEditor state settings = Action $ do
     mapSel f (x, y) = (if y then f x else x, y)
 
 
-listEditor :: (MonadRegister m, ExtRef m, LensReference (Ref m), Inner m ~ Inner' m) => a -> (Int -> IRef m a -> C m (I m)) -> IRef m [a] -> C m (I m)
+listEditor :: (MonadRegister m, ExtRef m, Inner m ~ Inner' m) => a -> (Int -> IRef m a -> C m (I m)) -> IRef m [a] -> C m (I m)
 listEditor def ed = editor 0 where
   editor i r = liftM Action $ memoRead $ do
     q <- extRef r listLens (False, (def, []))

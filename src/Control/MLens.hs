@@ -10,7 +10,6 @@ module Control.MLens
 
     -- * Reference classes
     , Reference (..)
-    , LensReference (..)
 
     -- * Ref construction classes
     , NewRef (..)

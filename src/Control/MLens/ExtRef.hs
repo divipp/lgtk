@@ -40,7 +40,7 @@ Law for @newRef@ when @extRef@ is defined:
 
 For basic usage examples, look into the source of "Control.MLens.ExtRef.Pure.Test".
 -}
-class (NewRef m, LensReference (Ref m)) => ExtRef m where
+class (NewRef m) => ExtRef m where
 
     extRef :: IRef m b -> Lens a b -> a -> C m (IRef m a)
 

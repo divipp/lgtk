@@ -26,7 +26,7 @@ setY  x s = take 2 $ Y  x : filter (\x-> case x of Y  _ -> False; _ -> True) s
 setXY x s = take 2 $ XY x : filter (\x-> case x of XY _ -> False; _ -> True) s
 
 -- | The editor
-tri :: (MonadRegister m, NewRef m, LensReference (Ref m)) => I m
+tri :: (MonadRegister m, NewRef m) => I m
 tri = Action $ do
     s <- newRef [X 0, Y 0]
     return $ vcat

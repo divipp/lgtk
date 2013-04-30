@@ -5,7 +5,6 @@ module Data.MLens.Ref
     ( -- * Type classes for references
       Reference (..)
     , modRef
-    , LensReference (..)
 
     -- * Data type for references
     , Ref (..)
@@ -40,16 +39,14 @@ class Monad (RefMonad r) => Reference r where
     readRef  :: r a -> R (RefMonad r) a
     writeRef :: r a -> a -> RefMonad r ()
 
-modRef :: Reference r => r a -> (a -> a) -> RefMonad r ()
-r `modRef` f = runR (readRef r) >>= writeRef r . f
-
-class Reference r => LensReference r where
-
     (%) :: Lens a b -> r a -> r b
     joinRef :: R (RefMonad r) (r a) -> r a
     unitRef :: r ()
 
 infixr 8 %
+
+modRef :: Reference r => r a -> (a -> a) -> RefMonad r ()
+r `modRef` f = runR (readRef r) >>= writeRef r . f
 
 data Ref m a = Ref { readRef_ :: R m a, writeRef_ :: a -> m () }
 
@@ -63,8 +60,6 @@ instance Monad m => Reference (Ref m) where
     readRef = readRef_
 
     writeRef = writeRef_
-
-instance Monad m => LensReference (Ref m) where
 
     l % Ref r w = Ref r' w'
      where
