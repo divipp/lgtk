@@ -28,7 +28,7 @@ class ADTLens a where
     adtLens :: ([(String, [Int])], Elems (ADTEls a), Lens (Int, Elems (ADTEls a)) a)
 
 -- | A generic ADT editor
-adtEditor :: (ExtRef m, ADTLens a) => IRef m a -> C m (I m)
+adtEditor :: (ExtRef m, ADTLens a, Inner m ~ Inner' m) => IRef m a -> C m (I m)
 adtEditor = liftM Action . memoRead . editor  where
     editor r = do
         q <- extRef r k (0, ls)
@@ -40,7 +40,7 @@ adtEditor = liftM Action . memoRead . editor  where
       where
         (ss, ls, k) = adtLens
 
-    mkEditors :: ExtRef m => Elems xs -> IRef m (Elems xs) -> C m [I m]
+    mkEditors :: (ExtRef m, Inner m ~ Inner' m) => Elems xs -> IRef m (Elems xs) -> C m [I m]
     mkEditors ElemsNil _ = return []
     mkEditors (ElemsCons _ xs) r = do
         i <- adtEditor $ lHead % r

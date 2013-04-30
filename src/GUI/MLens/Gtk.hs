@@ -11,7 +11,7 @@ module GUI.MLens.Gtk
     , ListLayout (..)
     , MonadRegister
     , Inner'
-    , IC' (..)
+    , IC (..)
     , constEffect
     , rEffect
     , addICEffect

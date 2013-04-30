@@ -8,7 +8,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 module Control.Monad.Register
     ( MonadRegister (..)
-    , IC' (..)
+    , IC (..)
     , Receiver
     , mapReceiver
     , Sender
@@ -46,7 +46,7 @@ mapReceiver f g h = g $ \a -> h $ f a
 
 type Sender m a = ((a -> Inn m ()) -> Inn m ()) -> m ()
 
-data IC' m a = forall b . Eq b => IC' (R (Inner' m) b) (b -> C m a)
+data IC m a = forall b . Eq b => IC (R (Inner' m) b) (b -> C m a)
 
 class (Monad m, Monad (Inner' m), Monad (Inn m)) => MonadRegister m where
 
@@ -55,7 +55,7 @@ class (Monad m, Monad (Inner' m), Monad (Inn m)) => MonadRegister m where
 
     liftInn :: Morph (Inn m) m
 
-    addICEffect :: Bool -> IC' m a -> Receiver m a
+    addICEffect :: Bool -> IC m a -> Receiver m a
 
     addWEffect :: Eq a => (a -> Inner' m ()) -> ((a -> Inn m ()) -> Inn m x) -> m x
 
@@ -63,7 +63,7 @@ constEffect :: (MonadRegister m) => a -> Receiver m a
 constEffect a f = liftInn $ f a
 
 addCEffect :: (MonadRegister m, Eq a) => R (Inner' m) a -> Receiver m a
-addCEffect r = addICEffect False (IC' r return)
+addCEffect r = addICEffect False (IC r return)
 
 rEffect :: (MonadRegister m, Eq a) => R (Inner' m) a -> Receiver m a
 rEffect = addCEffect
@@ -108,7 +108,7 @@ instance (MonadIO m, Monad n) => MonadRegister (EE n m) where
             unlift (morphN rr) $ r a
             actions rr
 
-    addICEffect bb (IC' rb fb) act = do
+    addICEffect bb (IC rb fb) act = do
         rr <- EE ask
         memoref <- liftIO $ newIORef []  -- memo table, first item is the newest
         EE $ tell $ do

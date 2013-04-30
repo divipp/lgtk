@@ -98,7 +98,7 @@ runI post dca i = do
                         when (null ch) $ do
                             containerAdd ww x
                             widgetShowAll ww
-                addICEffect True (IC' (fmap (== index) $ readRef currentPage) f) g
+                addICEffect True (IC (fmap (== index) $ readRef currentPage) f) g
                 liftInn . liftIO' . flip (notebookAppendPage w) s $ ww
             addWEffect (writeRef currentPage) $ \re -> do
                 _ <- liftIO' $ on w switchPage $ dca . re
@@ -113,7 +113,7 @@ runI post dca i = do
         Cell b (IC m f) -> do
             w <- liftInn $ liftIO' $ alignmentNew 0 0 1 1
 --            w <- lift $ hBoxNew False 1
-            addICEffect b (IC' m $ f >=> unsafeC . toWidget) $ \x -> liftIO' $ do
+            addICEffect b (IC m $ f >=> unsafeC . toWidget) $ \x -> liftIO' $ do
 --                containerForeach w $ widgetHideAll
                 containerForeach w $ containerRemove w
                 containerAdd w x

@@ -17,7 +17,6 @@ module Control.MLens
     -- * Derived constructs
     , Inner
     , IRef
-    , IC (..)
     , modRef
     , undoTr
     , memoRead

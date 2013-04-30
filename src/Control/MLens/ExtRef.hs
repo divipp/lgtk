@@ -8,7 +8,6 @@ module Control.MLens.ExtRef
     , ExtRef (..)
     , Inner
     , IRef, modRef
-    , IC (..)
 
     -- * Applications
     , undoTr
@@ -49,9 +48,6 @@ memoWrite g = do
         _ -> g b >>= \a -> do
             unsafeC $ liftInner $ writeRef s $ Just (b, a)
             return a
-
-data IC m a = forall b . Eq b => IC (R (Inner m) b) (b -> C m a)
-
 
 
 {- |
