@@ -1,11 +1,20 @@
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ExistentialQuantification #-}
 module Control.MLens.ExtRef
-    ( module Control.MLens.NewRef
+    ( -- * Monads with reference creation
+      Reference (..)
+    , NewRef (..), Inner
+    , IRef, modRef
+    , IC (..)
+
     -- * Monads with state expansion
     , ExtRef (extRef)
+
     -- * Applications
     , undoTr
+    , memoRead, memoWrite
     ) where
 
 import Control.Monad
@@ -16,8 +25,67 @@ import Control.Category
 import Data.Lens.Common (Lens, lens)
 import Prelude hiding ((.), id)
 
-import Control.MLens.NewRef
+import Data.MLens.Ref hiding (Ref (..))
 import Control.Monad.Restricted
+
+class (Monad m, Reference (Ref m)) => NewRef m where
+
+    type Ref m :: * -> *
+
+    liftInner :: Morph (Inner m) m
+
+    newRef :: a -> C m (IRef m a)
+
+type Inner m = RefMonad (Ref m)
+
+type IRef m = Ref m
+
+instance (NewRef m, Monoid w) => NewRef (WriterT w m) where
+
+    type Ref (WriterT w m) = Ref m
+
+    liftInner = lift . liftInner
+
+    newRef = mapC lift . newRef
+
+instance (NewRef m) => NewRef (StateT s m) where
+
+    type Ref (StateT s m) = Ref m
+
+    liftInner = lift . liftInner
+
+    newRef = mapC lift . newRef
+
+instance (NewRef m) => NewRef (ReaderT s m) where
+
+    type Ref (ReaderT s m) = Ref m
+
+    liftInner = lift . liftInner
+
+    newRef = mapC lift . newRef
+
+-- | @memoRead g = liftM ($ ()) $ memoWrite $ const g@
+memoRead :: NewRef m => C m a -> C m (C m a)
+memoRead g = do
+    s <- newRef Nothing
+    return $ mapC liftInner (rToC (readRef s)) >>= \x -> case x of
+        Just a -> return a
+        _ -> g >>= \a -> do
+            unsafeC $ liftInner $ writeRef s $ Just a
+            return a
+
+memoWrite :: (NewRef m, Eq b) => (b -> C m a) -> C m (b -> C m a)
+memoWrite g = do
+    s <- newRef Nothing
+    return $ \b -> mapC liftInner (rToC (readRef s)) >>= \x -> case x of
+        Just (b', a) | b' == b -> return a
+        _ -> g b >>= \a -> do
+            unsafeC $ liftInner $ writeRef s $ Just (b, a)
+            return a
+
+data IC m a = forall b . Eq b => IC (R (Inner m) b) (b -> C m a)
+
+
 
 {- |
 Suppose that @r@ is a pure reference and @k@ is a pure lens.
