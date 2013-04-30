@@ -71,7 +71,7 @@ rEffect = addCEffect
 addFreeCEffect :: (MonadRegister m, Functor (Inner' m), Eq a) => Free (R (Inner' m)) a -> Receiver m a
 addFreeCEffect rb act = unFree (liftInn . act) (flip addCEffect act) rb
 
-addRefEffect :: (MonadRegister m, Eq a, NewRef m, Inner m ~ Inner' m) => IRef m a -> ((a -> Inn m ()) -> Inn m (a -> Inn m ())) -> m ()
+addRefEffect :: (MonadRegister m, Eq a, ExtRef m, Inner m ~ Inner' m) => IRef m a -> ((a -> Inn m ()) -> Inn m (a -> Inn m ())) -> m ()
 addRefEffect r int = do
     act <- addWEffect (writeRef r) int
     addCEffect (readRef r) act
@@ -132,15 +132,13 @@ evalEE morphN morph (EE m) = do
     liftIO reg
     return a
 
-instance (NewRef m, n ~ Inner m) => NewRef (EE n m) where
+instance (ExtRef m, n ~ Inner m) => ExtRef (EE n m) where
 
     type Ref (EE n m) = Ref m
 
     liftInner = EE . liftInner
 
     newRef = mapC EE . newRef
-
-instance (ExtRef m, n ~ Inner m) => ExtRef (EE n m) where
 
     extRef r k a = mapC EE $ extRef r k a
 
@@ -151,7 +149,7 @@ instance MonadIO m => MonadIO (EE n m) where
 unFree :: (Functor m, Monad m) => (a -> x) -> (m a -> x) -> Free m a -> x
 unFree r m = evalFree r (m . join . fmap (induce id))
 
-fileRef :: (NewRef m, MonadRegister m, Inner m ~ Inner' m, MonadIO (Inn m)) => FilePath -> C m (IRef m (Maybe String))
+fileRef :: (ExtRef m, MonadRegister m, Inner m ~ Inner' m, MonadIO (Inn m)) => FilePath -> C m (IRef m (Maybe String))
 fileRef f = unsafeC $ do
         ms <- liftInn $ liftIO r
         ref <- runC $ newRef ms

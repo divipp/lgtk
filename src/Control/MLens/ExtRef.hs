@@ -5,12 +5,10 @@
 module Control.MLens.ExtRef
     ( -- * Monads with reference creation
       Reference (..)
-    , NewRef (..), Inner
+    , ExtRef (..)
+    , Inner
     , IRef, modRef
     , IC (..)
-
-    -- * Monads with state expansion
-    , ExtRef (extRef)
 
     -- * Applications
     , undoTr
@@ -28,44 +26,13 @@ import Prelude hiding ((.), id)
 import Data.MLens.Ref hiding (Ref (..))
 import Control.Monad.Restricted
 
-class (Monad m, Reference (Ref m)) => NewRef m where
-
-    type Ref m :: * -> *
-
-    liftInner :: Morph (Inner m) m
-
-    newRef :: a -> C m (IRef m a)
 
 type Inner m = RefMonad (Ref m)
 
 type IRef m = Ref m
 
-instance (NewRef m, Monoid w) => NewRef (WriterT w m) where
-
-    type Ref (WriterT w m) = Ref m
-
-    liftInner = lift . liftInner
-
-    newRef = mapC lift . newRef
-
-instance (NewRef m) => NewRef (StateT s m) where
-
-    type Ref (StateT s m) = Ref m
-
-    liftInner = lift . liftInner
-
-    newRef = mapC lift . newRef
-
-instance (NewRef m) => NewRef (ReaderT s m) where
-
-    type Ref (ReaderT s m) = Ref m
-
-    liftInner = lift . liftInner
-
-    newRef = mapC lift . newRef
-
 -- | @memoRead g = liftM ($ ()) $ memoWrite $ const g@
-memoRead :: NewRef m => C m a -> C m (C m a)
+memoRead :: ExtRef m => C m a -> C m (C m a)
 memoRead g = do
     s <- newRef Nothing
     return $ mapC liftInner (rToC (readRef s)) >>= \x -> case x of
@@ -74,7 +41,7 @@ memoRead g = do
             unsafeC $ liftInner $ writeRef s $ Just a
             return a
 
-memoWrite :: (NewRef m, Eq b) => (b -> C m a) -> C m (b -> C m a)
+memoWrite :: (ExtRef m, Eq b) => (b -> C m a) -> C m (b -> C m a)
 memoWrite g = do
     s <- newRef Nothing
     return $ \b -> mapC liftInner (rToC (readRef s)) >>= \x -> case x of
@@ -108,19 +75,44 @@ Law for @newRef@ when @extRef@ is defined:
 
 For basic usage examples, look into the source of "Control.MLens.ExtRef.Pure.Test".
 -}
-class (NewRef m) => ExtRef m where
+class (Monad m, Reference (Ref m)) => ExtRef m where
+
+    type Ref m :: * -> *
+
+    liftInner :: Morph (Inner m) m
+
+    newRef :: a -> C m (IRef m a)
+    newRef = extRef unitRef $ lens (const ()) (const id)
 
     extRef :: IRef m b -> Lens a b -> a -> C m (IRef m a)
 
 instance (ExtRef m, Monoid w) => ExtRef (WriterT w m) where
 
+    type Ref (WriterT w m) = Ref m
+
+    liftInner = lift . liftInner
+
+    newRef = mapC lift . newRef
+
     extRef x y a = mapC lift $ extRef x y a
 
 instance (ExtRef m) => ExtRef (StateT s m) where
 
+    type Ref (StateT s m) = Ref m
+
+    liftInner = lift . liftInner
+
+    newRef = mapC lift . newRef
+
     extRef r k a = mapC lift $ extRef r k a
 
 instance (ExtRef m) => ExtRef (ReaderT s m) where
+
+    type Ref (ReaderT s m) = Ref m
+
+    liftInner = lift . liftInner
+
+    newRef = mapC lift . newRef
 
     extRef r k a = mapC lift $ extRef r k a
 

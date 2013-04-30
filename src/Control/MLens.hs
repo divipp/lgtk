@@ -12,7 +12,6 @@ module Control.MLens
     , Reference (..)
 
     -- * Ref construction classes
-    , NewRef (..)
     , ExtRef (..)
 
     -- * Derived constructs

@@ -40,7 +40,7 @@ gtkContext m = do
 
 -- | Run an @IO@ parametrized interface description with Gtk backend
 runI
-    :: forall m . (MonadRegister m, NewRef m, MonadIO (Inn m), Inner m ~ Inner' m, Functor (Inner m))
+    :: forall m . (MonadRegister m, ExtRef m, MonadIO (Inn m), Inner m ~ Inner' m, Functor (Inner m))
     => Morph IO IO
     -> Morph (Inn m) IO
     -> I m

@@ -85,25 +85,20 @@ mapExt f = Ext . mapStateT f . unExt
 
 type IExt i = Ext i Identity
 
-extRef_ :: Monad m => Ref (IExt i) x -> Lens a x -> a -> C (Ext i m) (Ref (IExt i) a)
-extRef_ r1 r2 a0 = unsafeC $ Ext $ do
-    a1 <- mapStateT (return . runIdentity) $ g a0
-    (t,z) <- state $ extend_ (runState . f) (runState . g) a1
-    return $ Ref.Ref (unsafeR $ Ext (gets t)) $ \a -> Ext $ modify $ z a
-   where
-    f a = unExt $ writeRef r1 (getL r2 a) >> return a
-    g b = unExt $ runR $ liftM (flip (setL r2) b) $ readRef r1
-
-instance (Monad m) => NewRef (Ext i m) where
+instance (Monad m) => ExtRef (Ext i m) where
 
     type Ref (Ext i m) = Ref.Ref (IExt i)
 
     liftInner = mapExt (return . runIdentity)
 
-    newRef = extRef_ unitRef $ lens (const ()) (const id)
+    extRef r1 r2 a0 = unsafeC $ Ext $ do
+        a1 <- mapStateT (return . runIdentity) $ g a0
+        (t,z) <- state $ extend_ (runState . f) (runState . g) a1
+        return $ Ref.Ref (unsafeR $ Ext (gets t)) $ \a -> Ext $ modify $ z a
+       where
+        f a = unExt $ writeRef r1 (getL r2 a) >> return a
+        g b = unExt $ runR $ liftM (flip (setL r2) b) $ readRef r1
 
-instance (Monad m) => ExtRef (Ext i m) where
-    extRef = extRef_
 
 -- | Basic running of the @(Ext i m)@ monad.
 runExt :: Monad m => (forall i . Ext i m a) -> m a
@@ -123,20 +118,14 @@ liftInner_ (Ext m) = Ext_ $ do
   where
     swap (a, b) = (b, a)
 
-extRef_' :: MonadIO m => Ref (IExt i) x -> Lens a x -> a -> C (Ext_ i m) (Ref (IExt i) a)
-extRef_' r1 r2 a0 = mapC liftInner_ $ extRef_ r1 r2 a0
-
-instance (MonadIO m) => NewRef (Ext_ i m) where
+instance (MonadIO m) => ExtRef (Ext_ i m) where
 
     type Ref (Ext_ i m) = Ref.Ref (IExt i)
 
     liftInner = liftInner_
 
-    newRef = extRef_' unitRef $ lens (const ()) (const id)
+    extRef r1 r2 a0 = mapC liftInner_ $ extRef r1 r2 a0
 
-instance (MonadIO m) => ExtRef (Ext_ i m) where
-
-    extRef = extRef_'
 
 -- | Running of the @(Ext_ i m)@ monad.
 runExt_ :: forall m a . MonadIO m => (forall i . Morph (Ext_ i m) m -> Ext_ i m a) -> m a
