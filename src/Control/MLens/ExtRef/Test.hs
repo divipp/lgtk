@@ -42,7 +42,7 @@ testExtIORef = mkTests $ \t -> execWriter $ IORef.runExt t
 rv ==? v = when (rv /= v) $ tell . return $ "runTest failed: " ++ show rv ++ " /= " ++ show v
 
 -- | Check the current value of a given reference.
-(==>) :: (Eq a, Show a, MonadWriter [String] m, NewRef m) => IRef m a -> a -> m ()
+(==>) :: (Eq a, Show a, MonadWriter [String] m, ExtRef m) => IRef m a -> a -> m ()
 r ==> v = liftInner (runR $ readRef r) >>= (==? v)
 
 infix 0 ==>, ==?
