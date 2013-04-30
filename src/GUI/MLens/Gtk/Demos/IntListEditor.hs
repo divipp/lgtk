@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeFamilies #-}
 -- | An integer list editor
 module GUI.MLens.Gtk.Demos.IntListEditor where
 
@@ -13,7 +14,7 @@ import Prelude hiding ((.), id)
 ---------------
 
 intListEditor
-    :: (Functor (Inner m), MonadRegister m, ExtRef m)
+    :: (Functor (Inner m), MonadRegister m, ExtRef m, LensReference (Ref m), Inner m ~ Inner' m)
     => IRef m String         -- ^ state reference
     -> IRef m String         -- ^ settings reference
     -> I m
@@ -82,13 +83,13 @@ intListEditor state settings = Action $ do
     mapSel f (x, y) = (if y then f x else x, y)
 
 
-listEditor :: (MonadRegister m, ExtRef m) => a -> (Int -> IRef m a -> C m (I m)) -> IRef m [a] -> C m (I m)
+listEditor :: (MonadRegister m, ExtRef m, LensReference (Ref m), Inner m ~ Inner' m) => a -> (Int -> IRef m a -> C m (I m)) -> IRef m [a] -> C m (I m)
 listEditor def ed = editor 0 where
   editor i r = liftM Action $ memoRead $ do
     q <- extRef r listLens (False, (def, []))
     t1 <- ed i $ fstLens . sndLens % q
     t2 <- editor (i+1) $ sndLens . sndLens % q
-    return $ Cell' $ \g -> addICEffect True $ IC (liftM fst $ readRef q) $ \b -> g $ vcat $ if b then [t1, t2] else []
+    return $ Cell' $ \g -> addICEffect True $ IC' (liftM fst $ readRef q) $ \b -> g $ vcat $ if b then [t1, t2] else []
 
 
 

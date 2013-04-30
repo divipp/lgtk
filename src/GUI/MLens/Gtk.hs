@@ -1,4 +1,5 @@
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
 -- | The main LGtk interface, ideally users should import only this module.
 module GUI.MLens.Gtk
@@ -9,12 +10,14 @@ module GUI.MLens.Gtk
     , I (..)
     , ListLayout (..)
     , MonadRegister
+    , Inner'
+    , IC' (..)
     , constEffect
     , rEffect
     , addICEffect
 
     -- * File system
-    , FileSystem (..)
+    , fileRef
 
     -- * Running GUI descriptions
     , runI
@@ -28,6 +31,7 @@ module GUI.MLens.Gtk
     ) where
 
 import Control.Category
+import Control.Monad.Trans
 import Control.Monad.Free
 import Prelude hiding ((.), id)
 
@@ -51,8 +55,8 @@ smartButton s f k =
         if y == x then return Nothing else return $ Just $ runR (readRef k) >>= runR . f >>= writeRef k
 
 -- | Run an interface description
-runI :: (forall m . (Functor (Inner m), MonadRegister m, ExtRef m, FileSystem m) => I m) -> IO ()
-runI e = Gtk.gtkContext $ \post -> runExt_ $ \mo -> evalEE mo $ Gtk.runI post id e
+runI :: (forall m . (Functor (Inner m), MonadRegister m, ExtRef m, Inner m ~ Inner' m, MonadIO (Inn m)) => I m) -> IO ()
+runI e = Gtk.gtkContext $ \post -> runExt_ $ \mo -> evalEE (mo . liftInner) mo $ Gtk.runI post id e
 
 toFree :: (Functor m, Monad m) => m a -> Free m a
 toFree = Impure . fmap Pure
