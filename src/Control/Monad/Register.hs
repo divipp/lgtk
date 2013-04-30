@@ -51,8 +51,6 @@ class (NewRef m, Monad (Inn m)) => MonadRegister m where
 
     liftInn :: Morph (Inn m) m
 
-    update :: m ()
-
     addICEffect :: Bool -> IC m a -> Receiver m a
 
     addWEffect :: Eq a => (a -> Inner m ()) -> ((a -> Inn m ()) -> Inn m x) -> m x
@@ -97,8 +95,6 @@ instance (NewRef m, MonadIO m) => MonadRegister (EE m) where
     type Inn (EE m) = IO
 
     liftInn = EE . liftIO
-
-    update = EE (asks actions) >>= liftInn
 
     addWEffect r int = do
         rr <- EE ask
