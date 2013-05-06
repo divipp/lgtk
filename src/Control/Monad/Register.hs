@@ -57,7 +57,7 @@ class (Monad m, Monad (Inner' m), Monad (Inn m)) => MonadRegister m where
 
     addICEffect :: Bool -> IC m a -> Receiver m a
 
-    addWEffect :: Eq a => (a -> Inner' m ()) -> ((a -> Inn m ()) -> Inn m x) -> m x
+    addWEffect :: Eq a => (a -> Inner' m ()) -> Sender m a
 
 constEffect :: (MonadRegister m) => a -> Receiver m a 
 constEffect a f = liftInn $ f a
