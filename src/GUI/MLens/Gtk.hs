@@ -24,6 +24,7 @@ module GUI.MLens.Gtk
 
     -- * Derived constructs
     , vcat, hcat
+    , cell
     , smartButton
 
     -- * Auxiliary functions
@@ -53,6 +54,9 @@ smartButton
 smartButton s f k =
     Button s $ toFree $ readRef k >>= \x -> f x >>= \y -> 
         if y == x then return Nothing else return $ Just $ runR (readRef k) >>= runR . f >>= writeRef k
+
+cell :: MonadRegister m => Bool -> IC m (I m) -> I m
+cell b (IC r g) = Cell' $ \f -> addICEffect b $ IC r $ \x -> f $ Action $ g x 
 
 -- | Run an interface description
 runI :: (forall m . (Functor (Inner m), MonadRegister m, ExtRef m, Inner m ~ Inner' m, MonadIO (Inn m)) => I m) -> IO ()

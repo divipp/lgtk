@@ -35,24 +35,24 @@ instance ADTLens T where
         set (Node l r) _ = (1, ElemsCons l (ElemsCons r ElemsNil))
 
 -- | @T@ editor with comboboxes, as an ADTEditor
-tEditor1 :: (ExtRef m, Inner m ~ Inner' m) => I m
+tEditor1 :: (MonadRegister m, ExtRef m, Inner m ~ Inner' m) => I m
 tEditor1 = Action $ newRef Leaf >>= adtEditor
 
 -- | @T@ editor with checkboxes, given directly
-tEditor2 :: (ExtRef m, Inner m ~ Inner' m) => I m
+tEditor2 :: (MonadRegister m, ExtRef m, Inner m ~ Inner' m) => I m
 tEditor2 = Action $ liftM editor $ newRef Leaf  where
 
     editor r = Action $ do
         q <- extRef r tLens (False, (Leaf, Leaf))
         return $ hcat
             [ Checkbox $ fstLens % q
-            , Cell True $ IC (liftM fst $ readRef q) $ \b -> return $ vcat $ 
+            , cell True $ IC (liftM fst $ readRef q) $ \b -> return $ vcat $ 
                   [ editor $ fstLens . sndLens % q | b ]
                ++ [ editor $ sndLens . sndLens % q | b ]
             ]
 
 -- | Another @T@ editor with checkboxes, given directly
-tEditor3 :: (ExtRef m, Inner m ~ Inner' m) => IRef m T -> C m (I m)
+tEditor3 :: (MonadRegister m, ExtRef m, Inner m ~ Inner' m) => IRef m T -> C m (I m)
 tEditor3 = liftM Action . memoRead . editor' where
     editor' r = do
         q <- extRef r tLens (False, (Leaf, Leaf))
@@ -60,7 +60,7 @@ tEditor3 = liftM Action . memoRead . editor' where
         t2 <- tEditor3 $ sndLens . sndLens % q
         return $ hcat
             [ Checkbox $ fstLens % q
-            , Cell True $ IC (liftM fst $ readRef q) $ \b -> return $ vcat $ [t1 | b] ++ [t2 | b]
+            , cell True $ IC (liftM fst $ readRef q) $ \b -> return $ vcat $ [t1 | b] ++ [t2 | b]
             ]
 
 

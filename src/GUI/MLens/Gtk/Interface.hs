@@ -25,9 +25,6 @@ data I m
     | List ListLayout [I m]         -- ^ group interfaces into row or column
     | Notebook [(String, I m)]      -- ^ tabs
     | Cell' (forall a . (I m -> C m a) -> Receiver m a)
-    | Cell { remember_content_   :: Bool       -- ^ remember the content or not? (info for the renderer)
-           , underlying_value_   :: IC m (I m)
-           }     -- ^ dynamic interface
     | Action (C m (I m))              -- ^ do an action before giving the interface
 
 data ListLayout

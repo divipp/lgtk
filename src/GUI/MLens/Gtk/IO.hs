@@ -110,15 +110,6 @@ runI post dca i = do
             return' w
         Action m -> 
             runC m >>= toWidget
-        Cell b (IC m f) -> do
-            w <- liftInn $ liftIO' $ alignmentNew 0 0 1 1
---            w <- lift $ hBoxNew False 1
-            addICEffect b (IC m $ f >=> unsafeC . toWidget) $ \x -> liftIO' $ do
---                containerForeach w $ widgetHideAll
-                containerForeach w $ containerRemove w
-                containerAdd w x
-                widgetShowAll w
-            return' w
         Cell' f -> do
             w <- liftInn $ liftIO' $ alignmentNew 0 0 1 1
 --            w <- lift $ hBoxNew False 1
