@@ -26,6 +26,7 @@ module GUI.MLens.Gtk
     , vcat, hcat
     , cell
     , button
+    , checkbox, combobox, entry
     , smartButton
 
     -- * Auxiliary functions
@@ -66,6 +67,15 @@ button :: (MonadRegister m, Inner m ~ Inner' m, Functor (Inner m))
     -> I m
 button r fm = Button r (addFreeCEffect (fmap isJust fm))
     (\f -> addPushEffect (unFree (maybe (return ()) id) (join . fmap (maybe (return ()) id) . runR) fm) $ \g -> f $ \() -> g)
+
+checkbox :: (MonadRegister m, ExtRef m, Inner m ~ Inner' m) => IRef m Bool -> I m
+checkbox r = Checkbox (addCEffect (readRef r), addWEffect (writeRef r))
+
+combobox :: (MonadRegister m, ExtRef m, Inner m ~ Inner' m) => [String] -> IRef m Int -> I m
+combobox ss r = Combobox ss (addCEffect (readRef r), addWEffect (writeRef r))
+
+entry :: (MonadRegister m, ExtRef m, Inner m ~ Inner' m) => IRef m String -> I m
+entry r = Entry (addCEffect (readRef r), addWEffect (writeRef r))
 
 -- | Run an interface description
 runI :: (forall m . (Functor (Inner m), MonadRegister m, ExtRef m, Inner m ~ Inner' m, MonadIO (Inn m)) => I m) -> IO ()

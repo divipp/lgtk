@@ -6,8 +6,10 @@ module GUI.MLens.Gtk.Interface
     , ListLayout (..)
     ) where
 
-import Control.MLens
+import Control.Monad.Restricted
 import Control.Monad.Register
+
+type IRef m a = (Receiver m a, Sender m a)
 
 -- | Interface description parametrized by a monad
 data I m

@@ -28,7 +28,7 @@ intListEditor state settings = Action $ do
     return $ Notebook
         [ (,) "Editor" $ vcat
             [ hcat
-                [ Entry $ joinRef $ liftM (\k -> showLens . k % list) len
+                [ entry $ joinRef $ liftM (\k -> showLens . k % list) len
                 , smartButton (constEffect "+1") (modL' len (+1))      list
                 , smartButton (constEffect "-1") (modL' len (+(-1)))   list
                 , smartButton (rEffect $ liftM (("DeleteAll " ++) . show) $ len >>= \k -> readRef $ k % list) (modL' len $ const 0) list
@@ -53,14 +53,14 @@ intListEditor state settings = Action $ do
             ]
         , (,) "Settings" $ hcat
             [ Label $ constEffect "Create range"
-            , Checkbox range
+            , checkbox range
             ]
         ]
  where
     itemEditor list i r = return $ hcat
         [ Label $ constEffect $ show (i+1) ++ "."
-        , Entry $ showLens . fstLens % r
-        , Checkbox $ sndLens % r
+        , entry $ showLens . fstLens % r
+        , checkbox $ sndLens % r
         , button (constEffect "Del")  $ return $ Just $ modRef list (\xs -> take i xs ++ drop (i+1) xs)
         , button (constEffect "Copy") $ return $ Just $ modRef list (\xs -> take (i+1) xs ++ drop i xs) ]
 

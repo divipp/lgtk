@@ -60,24 +60,21 @@ runI post dca i = do
             sens $ liftIO' . widgetSetSensitive w
             m $ \x -> liftIO' $ on w buttonActivated (dca $ x ()) >> return ()
             return' w
-        Entry k -> do
+        Entry (r, s) -> do
             w <- liftInn $ liftIO' entryNew
-            addRefEffect k (liftIO' . entrySetText w) $ \re -> do
-                _ <- liftIO' $ on w entryActivate $ entryGetText w >>= dca . re
-                return ()
+            r $ liftIO' . entrySetText w
+            s $ \re -> void' $ liftIO' $ on w entryActivate $ entryGetText w >>= dca . re
             return' w
-        Checkbox k -> do
+        Checkbox (r, s) -> do
             w <- liftInn $ liftIO' checkButtonNew
-            addRefEffect k (liftIO' . toggleButtonSetActive w) $ \re -> do
-                _ <- liftIO' $ on w toggled $ toggleButtonGetActive w >>= dca . re
-                return ()
+            r $ liftIO' . toggleButtonSetActive w
+            s $ \re -> void' $ liftIO' $ on w toggled $ toggleButtonGetActive w >>= dca . re
             return' w
-        Combobox ss k -> do
+        Combobox ss (r, s) -> do
             w <- liftInn $ liftIO' comboBoxNewText
             liftInn $ liftIO' $ flip mapM_ ss $ comboBoxAppendText w
-            addRefEffect k (liftIO' . comboBoxSetActive w) $ \re -> do
-                _ <- liftIO' $ on w changed $ fmap (max 0) (comboBoxGetActive w) >>= dca . re
-                return ()
+            r $ liftIO' . comboBoxSetActive w
+            s $ \re -> void' $ liftIO' $ on w changed $ fmap (max 0) (comboBoxGetActive w) >>= dca . re
             return' w
         List o xs -> do
             w <- liftInn $ liftIO' $ case o of
@@ -122,6 +119,9 @@ runI post dca i = do
 
 return' :: Monad m => GObjectClass x => x -> m Widget
 return' = return . castToWidget
+
+void' :: Monad m => m a -> m ()
+void' m = m >> return ()
 
 containerAdd'' w x = do
     a <- alignmentNew 0 0 0 0

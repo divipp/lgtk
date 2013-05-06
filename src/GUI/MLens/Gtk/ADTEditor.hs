@@ -34,7 +34,7 @@ adtEditor = liftM Action . memoRead . editor  where
         q <- extRef r k (0, ls)
         es <- mkEditors ls $ sndLens % q
         return $ hcat
-            [ Combobox (map fst ss) $ fstLens % q
+            [ combobox (map fst ss) $ fstLens % q
             , cell True $ IC (liftM fst $ readRef q) $ \i -> return $ vcat [es !! j | j <- snd $ ss !! i]
             ]
       where

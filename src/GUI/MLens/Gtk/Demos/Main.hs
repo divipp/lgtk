@@ -46,13 +46,13 @@ main = runI $ Notebook
                 return $ lens id (const . max av) % b
         return $ vcat
             [ counter a' b'
-            , hcat [ Label $ constEffect "min", Entry $ showLens % a' ]
-            , hcat [ Label $ constEffect "max", Entry $ showLens % b' ]
+            , hcat [ Label $ constEffect "min", entry $ showLens % a' ]
+            , hcat [ Label $ constEffect "max", entry $ showLens % b' ]
             ]
 
     , (,) "TabSwitch" $ Action $ do
         x <- newRef "a"
-        let w = vcat [ Label $ rEffect $ readRef x, Entry x ]
+        let w = vcat [ Label $ rEffect $ readRef x, entry x ]
         return $ Notebook
             [ (,) "T1" w
             , (,) "T2" w
