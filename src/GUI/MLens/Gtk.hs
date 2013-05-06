@@ -52,11 +52,11 @@ hcat :: [I m] -> I m
 hcat = List Horizontal
 
 smartButton
-  :: (MonadRegister m, Eq a, ExtRef m, Functor (Inner m), Inner m ~ Inner' m) =>
+  :: (MonadRegister m, Eq a, ExtRef m, Inner m ~ Inner' m) =>
      Receiver m String -> (a -> R (Inner m) a) -> IRef m a -> I m
 smartButton s f k =
-    button s $ toFree $ readRef k >>= \x -> f x >>= \y -> 
-        if y == x then return Nothing else return $ Just $ runR (readRef k) >>= runR . f >>= writeRef k
+    Button s (addCEffect $ readRef k >>= \x -> liftM (== x) $ f x)
+             (addWEffect $ \() -> runR (readRef k) >>= runR . f >>= writeRef k)
 
 cell :: MonadRegister m => Bool -> IC m (I m) -> I m
 cell b (IC r g) = Cell' $ \f -> addICEffect b $ IC r $ \x -> f $ Action $ g x 
