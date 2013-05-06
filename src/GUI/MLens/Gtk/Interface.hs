@@ -9,8 +9,6 @@ module GUI.MLens.Gtk.Interface
 import Control.MLens
 import Control.Monad.Register
 
---   forall a . (I m -> C m a) -> Receiver m a
-
 -- | Interface description parametrized by a monad
 data I m
     = Label (Receiver m String)     -- ^ label
