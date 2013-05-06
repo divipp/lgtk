@@ -32,8 +32,8 @@ intListEditor state settings = Action $ do
                 , smartButton (constEffect "+1") (modL' len (+1))      list
                 , smartButton (constEffect "-1") (modL' len (+(-1)))   list
                 , smartButton (rEffect $ liftM (("DeleteAll " ++) . show) $ len >>= \k -> readRef $ k % list) (modL' len $ const 0) list
-                , Button (constEffect "undo") $ toFree $ undo
-                , Button (constEffect "redo") $ toFree $ redo
+                , button (constEffect "undo") $ toFree $ undo
+                , button (constEffect "redo") $ toFree $ redo
                 ]
             , hcat
                 [ sbutton (constEffect "+1")         (map $ mapFst (+1))           list
@@ -61,8 +61,8 @@ intListEditor state settings = Action $ do
         [ Label $ constEffect $ show (i+1) ++ "."
         , Entry $ showLens . fstLens % r
         , Checkbox $ sndLens % r
-        , Button (constEffect "Del")  $ return $ Just $ modRef list (\xs -> take i xs ++ drop (i+1) xs)
-        , Button (constEffect "Copy") $ return $ Just $ modRef list (\xs -> take (i+1) xs ++ drop i xs) ]
+        , button (constEffect "Del")  $ return $ Just $ modRef list (\xs -> take i xs ++ drop (i+1) xs)
+        , button (constEffect "Copy") $ return $ Just $ modRef list (\xs -> take (i+1) xs ++ drop i xs) ]
 
     modL' mr f b = do
         r <- mr

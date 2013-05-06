@@ -54,11 +54,11 @@ runI post dca i = do
 
     toWidget :: I m -> m Widget
     toWidget i = case i of
-        Button s m -> do
+        Button s sens m -> do
             w <- liftInn $ liftIO' buttonNew
             s $ liftIO' . buttonSetLabel w
-            addFreeCEffect (fmap isJust m) $ liftIO' . widgetSetSensitive w
-            addPushEffect (unFree (maybe (return ()) id) (join . fmap (maybe (return ()) id) . runR) m) $ \x -> liftIO' $ on w buttonActivated (dca x) >> return ()
+            sens $ liftIO' . widgetSetSensitive w
+            m $ \x -> liftIO' $ on w buttonActivated (dca $ x ()) >> return ()
             return' w
         Entry k -> do
             w <- liftInn $ liftIO' entryNew

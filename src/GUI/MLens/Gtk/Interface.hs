@@ -6,8 +6,6 @@ module GUI.MLens.Gtk.Interface
     , ListLayout (..)
     ) where
 
-import Control.Monad.Free
-
 import Control.MLens
 import Control.Monad.Register
 
@@ -17,7 +15,8 @@ import Control.Monad.Register
 data I m
     = Label (Receiver m String)     -- ^ label
     | Button { label_  :: Receiver m String
-             , action_ :: Free (R (Inner m)) (Maybe (Inner m ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
+             , sensitive_ :: Receiver m Bool
+             , action_ :: Sender m ()
              }  -- ^ button
     | Checkbox (IRef m Bool)         -- ^ checkbox
     | Combobox [String] (IRef m Int) -- ^ combo box
