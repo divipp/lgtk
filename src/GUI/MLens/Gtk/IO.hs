@@ -40,7 +40,7 @@ gtkContext m = do
 
 -- | Run an @IO@ parametrized interface description with Gtk backend
 runI
-    :: forall m . (MonadRegister m, ExtRef m, MonadIO (Inn m), Inner m ~ Inner' m, Functor (Inner m))
+    :: forall m . (MonadRegister m, ExtRef m, MonadIO (Inn m), Inner m ~ Inner' m)
     => Morph IO IO
     -> Morph (Inn m) IO
     -> I m
@@ -95,7 +95,7 @@ runI post dca i = do
                         when (null ch) $ do
                             containerAdd ww x
                             widgetShowAll ww
-                addICEffect True (IC (fmap (== index) $ readRef currentPage) f) g
+                addICEffect True (IC (liftM (== index) $ readRef currentPage) f) g
                 liftInn . liftIO' . flip (notebookAppendPage w) s $ ww
             addWEffect (writeRef currentPage) $ \re -> do
                 _ <- liftIO' $ on w switchPage $ dca . re
