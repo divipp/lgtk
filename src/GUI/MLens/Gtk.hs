@@ -66,7 +66,7 @@ button :: (MonadRegister m, Inner m ~ Inner' m, Functor (Inner m))
     -> Free (R (Inner m)) (Maybe (Inner m ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
     -> I m
 button r fm = Button r (addFreeCEffect (fmap isJust fm))
-    (\f -> addPushEffect (unFree (maybe (return ()) id) (join . fmap (maybe (return ()) id) . runR) fm) $ \g -> f $ \() -> g)
+    (addWEffect $ \() -> unFree (maybe (return ()) id) (join . fmap (maybe (return ()) id) . runR) fm)
 
 checkbox :: (MonadRegister m, ExtRef m, Inner m ~ Inner' m) => IRef m Bool -> I m
 checkbox r = Checkbox (addCEffect (readRef r), addWEffect (writeRef r))
