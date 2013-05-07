@@ -15,13 +15,11 @@ module Control.Monad.Register
     , Sender
     , addCEffect
     , addFreeCEffect
-    , addPushEffect
     , constEffect
     , rEffect
 
     , EffRef
     , EffIORef
-    , addRefEffect
     , fileRef
 
     , EE
@@ -74,9 +72,6 @@ rEffect = addCEffect
 
 addFreeCEffect :: (MonadRegister m, Functor (Inner' m), Eq a) => Free (R (Inner' m)) a -> Receiver m a
 addFreeCEffect rb act = unFree (liftInn . act) (flip addCEffect act) rb
-
-addPushEffect :: MonadRegister m => Inner' m () -> (Inn m () -> Inn m ()) -> m ()
-addPushEffect ma mb = addWEffect (const ma) $ \f -> mb $ f ()
 
 ---------------------------- An implementation
 
@@ -139,11 +134,6 @@ type EffRef m = (ExtRef m, MonadRegister m, Inner m ~ Inner' m)
 
 type EffIORef m = (EffRef m, MonadIO (Inn m))
 
-addRefEffect :: (EffRef m, Eq a) => Ref m a -> (a -> Inn m ()) -> ((a -> Inn m ()) -> Inn m ()) -> m ()
-addRefEffect r act int = do
-    addWEffect (writeRef r) int
-    addCEffect (readRef r) act
-
 instance (ExtRef m, n ~ Inner m) => ExtRef (EE n m) where
 
     type Ref (EE n m) = Ref m
@@ -161,7 +151,8 @@ fileRef :: (EffIORef m) => FilePath -> C m (Ref m (Maybe String))
 fileRef f = unsafeC $ do
         ms <- liftInn $ liftIO r
         ref <- runC $ newRef ms
-        addRefEffect ref (liftIO . w) $ \_cb -> return ()   -- TODO: use cb
+        -- addWEffect (writeRef ref) $ \cb -> TODO
+        addCEffect (readRef ref) $ liftIO . w
         return ref
      where
         r = do
