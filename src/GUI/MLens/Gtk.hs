@@ -60,7 +60,7 @@ smartButton
   :: (EffRef m, Eq a) =>
      Receiver m String -> (a -> R (Inner m) a) -> Ref m a -> I m
 smartButton s f k =
-    Button s (addCEffect $ readRef k >>= \x -> liftM (== x) $ f x)
+    Button s (addCEffect $ readRef k >>= \x -> liftM (/= x) $ f x)
              (addWEffect $ \() -> runR (readRef k) >>= runR . f >>= writeRef k)
 
 cell :: MonadRegister m => Bool -> IC m (I m) -> I m
