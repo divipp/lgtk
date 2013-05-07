@@ -61,9 +61,9 @@ smartButton s f k =
 cell :: MonadRegister m => Bool -> IC m (I m) -> I m
 cell b (IC r g) = Cell' $ \f -> addICEffect b $ IC r $ \x -> f $ Action $ g x 
 
-button :: (MonadRegister m, Inner m ~ Inner' m, Functor (Inner m))
+button :: (MonadRegister m, Functor (Inner' m))
     => Receiver m String
-    -> Free (R (Inner m)) (Maybe (Inner m ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
+    -> Free (R (Inner' m)) (Maybe (Inner' m ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
     -> I m
 button r fm = Button r (addFreeCEffect (fmap isJust fm))
     (addWEffect $ \() -> unFree (maybe (return ()) id) (join . fmap (maybe (return ()) id) . runR) fm)
