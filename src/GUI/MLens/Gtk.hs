@@ -44,6 +44,8 @@ import Prelude hiding ((.), id)
 
 import Control.Monad.ExtRef
 import Control.Monad.Register
+import Control.Monad.Register.Basic
+import Control.Monad.EffRef
 import GUI.MLens.Gtk.Interface
 import qualified GUI.MLens.Gtk.IO as Gtk
 import Control.Monad.ExtRef.Pure

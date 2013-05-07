@@ -36,7 +36,6 @@ library
                   , gtk
   exposed-modules:
                     Control.Monad.Restricted
-                    Control.Monad.Register
 
                     Control.Monad.ExtRef.Test
 
@@ -50,6 +49,11 @@ library
   other-modules:
                     Control.Monad.ExtRef
                     Control.Monad.ExtRef.Pure
+
+                    Control.Monad.Register
+                    Control.Monad.Register.Basic
+
+                    Control.Monad.EffRef
 
                     GUI.MLens.Gtk.IO
                     GUI.MLens.Gtk.Interface
