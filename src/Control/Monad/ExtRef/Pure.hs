@@ -8,7 +8,7 @@ Pure reference implementation for the @ExtRef@ interface.
 
 The implementation uses @unsafeCoerce@ internally, but its effect cannot escape.
 -}
-module Control.MLens.ExtRef.Pure
+module Control.Monad.ExtRef.Pure
     ( Ext, IExt, runExt
     , Ext_, runExt_
     ) where
@@ -27,7 +27,7 @@ import Prelude hiding ((.), id, splitAt, length)
 
 import Unsafe.Coerce
 
-import Control.MLens.ExtRef
+import Control.Monad.ExtRef
 import Control.Monad.Restricted
 
 

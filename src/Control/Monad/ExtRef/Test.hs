@@ -4,7 +4,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE UndecidableInstances #-}
 -- | Tests for the @ExtRef@ interface.
-module Control.MLens.ExtRef.Test
+module Control.Monad.ExtRef.Test
     ( -- * Tests for the interface
       mkTests
     -- * Tests for implementations
@@ -19,9 +19,9 @@ import Control.Arrow ((***))
 import Data.Maybe
 import Prelude hiding ((.), id)
 
-import Control.MLens.ExtRef
-import qualified Control.MLens.ExtRef.Pure as Pure
---import qualified Control.MLens.ExtRef.IORef as IORef
+import Control.Monad.ExtRef
+import qualified Control.Monad.ExtRef.Pure as Pure
+--import qualified Control.Monad.ExtRef.IORef as IORef
 
 -----------------------------------------------------------------
 

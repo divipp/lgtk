@@ -38,7 +38,7 @@ library
                     Control.Monad.Restricted
                     Control.Monad.Register
 
-                    Control.MLens.ExtRef.Test
+                    Control.Monad.ExtRef.Test
 
                     GUI.MLens.Gtk
                     GUI.MLens.Gtk.ADTEditor
@@ -48,8 +48,8 @@ library
                     GUI.MLens.Gtk.Demos.IntListEditor
                     GUI.MLens.Gtk.Demos.TEditor
   other-modules:
-                    Control.MLens.ExtRef
-                    Control.MLens.ExtRef.Pure
+                    Control.Monad.ExtRef
+                    Control.Monad.ExtRef.Pure
 
                     GUI.MLens.Gtk.IO
                     GUI.MLens.Gtk.Interface

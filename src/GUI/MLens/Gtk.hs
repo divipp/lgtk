@@ -5,7 +5,7 @@
 -- | The main LGtk interface, ideally users should import only this module.
 module GUI.MLens.Gtk
     ( -- * Lenses and references
-      module Control.MLens.ExtRef
+      module Control.Monad.ExtRef
 
     -- * GUI combinators
     , Widget (..)
@@ -42,11 +42,11 @@ import Control.Category
 import Control.Monad
 import Prelude hiding ((.), id)
 
-import Control.MLens.ExtRef
+import Control.Monad.ExtRef
 import Control.Monad.Register
 import GUI.MLens.Gtk.Interface
 import qualified GUI.MLens.Gtk.IO as Gtk
-import Control.MLens.ExtRef.Pure
+import Control.Monad.ExtRef.Pure
 
 type I m = Widget (Inn m) m
 

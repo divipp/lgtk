@@ -36,7 +36,7 @@ import Data.List
 import Prelude hiding ((.), id)
 
 import Control.Monad.Restricted
-import Control.MLens.ExtRef
+import Control.Monad.ExtRef
 
 type Receiver m a = (a -> Inn m ()) -> m ()
 

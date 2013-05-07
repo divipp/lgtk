@@ -7,7 +7,7 @@ IORef-based implementation for the @ExtRef@ interface.
 
 The implementation uses @unsafePerformIO@ internally, but its effect cannot escape.
 -}
-module Control.MLens.ExtRef.IORef
+module Control.Monad.ExtRef.IORef
     ( Ext, runExt, runExt_
     ) where
 
@@ -20,8 +20,8 @@ import Prelude hiding ((.), id, splitAt, length)
 
 import System.IO.Unsafe
 
-import Control.MLens.ExtRef
-import Control.MLens.NewRef.Unsafe ()
+import Control.Monad.ExtRef
+import Control.Monad.NewRef.Unsafe ()
 import Control.Monad.Restricted
 
 

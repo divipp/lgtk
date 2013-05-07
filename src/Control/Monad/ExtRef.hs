@@ -2,7 +2,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ExistentialQuantification #-}
-module Control.MLens.ExtRef
+module Control.Monad.ExtRef
     ( module Data.Lens.Common
 
     -- * Restricted monads
@@ -120,7 +120,7 @@ Law for @newRef@ when @extRef@ is defined:
 
  *  @(newRew x)@ === @(extRef unitLens unitLens x)@
 
-For basic usage examples, look into the source of "Control.MLens.ExtRef.Pure.Test".
+For basic usage examples, look into the source of "Control.Monad.ExtRef.Pure.Test".
 -}
 class (Monad m, Reference (Ref m)) => ExtRef m where
 
