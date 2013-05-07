@@ -3,15 +3,38 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ExistentialQuantification #-}
 module Control.MLens.ExtRef
-    ( -- * Monads with reference creation
-      Reference (..)
-    , ExtRef (..)
-    , Inner
-    , IRef, modRef
+    ( module Data.Lens.Common
 
-    -- * Applications
+    -- * Restricted monads
+    , R, runR, mapR
+    , C, runC, mapC
+    , rToC
+
+    -- * Reference classes
+    , Reference (..)
+
+    -- * Ref construction classes
+    , ExtRef (..)
+
+    -- * Derived constructs
+    , Inner
+    , IRef
+    , modRef
     , undoTr
-    , memoRead, memoWrite
+    , memoRead
+    , memoWrite
+
+    -- * Auxiliary definitions
+    , Morph
+
+    -- * Auxiliary lens definitions
+    , listLens
+    , maybeLens
+    , showLens
+
+    -- * Re-exported
+    , (.)
+    , id
     ) where
 
 import Control.Monad
@@ -19,7 +42,8 @@ import Control.Monad.Reader
 import Control.Monad.Writer
 import Control.Monad.State
 import Control.Category
-import Data.Lens.Common (Lens, lens)
+import Data.Maybe
+import Data.Lens.Common
 import Prelude hiding ((.), id)
 
 import Control.Monad.Restricted
@@ -163,5 +187,20 @@ undoTr eq r = do
 
     redo (xs, y: ys) = Just (y: xs, ys)
     redo _ = Nothing
+
+showLens :: (Show a, Read a) => Lens a String
+showLens = lens show $ \s def -> maybe def fst $ listToMaybe $ reads s
+
+listLens :: Lens (Bool, (a, [a])) [a]
+listLens = lens get set where
+    get (False, _) = []
+    get (True, (l, r)) = l: r
+    set [] (_, x) = (False, x)
+    set (l: r) _ = (True, (l, r))
+
+
+maybeLens :: Lens (Bool, a) (Maybe a)
+maybeLens = lens (\(b,a) -> if b then Just a else Nothing)
+              (\x (_,a) -> maybe (False, a) (\a' -> (True, a')) x)
 
 

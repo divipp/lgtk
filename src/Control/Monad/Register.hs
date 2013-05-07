@@ -33,6 +33,7 @@ import Control.Concurrent
 import System.Directory
 import Data.IORef
 import Data.List
+import Prelude hiding ((.), id)
 
 import Control.Monad.Restricted
 import Control.MLens.ExtRef

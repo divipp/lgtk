@@ -19,7 +19,7 @@ import Control.Arrow ((***))
 import Data.Maybe
 import Prelude hiding ((.), id)
 
-import Control.MLens
+import Control.MLens.ExtRef
 import qualified Control.MLens.ExtRef.Pure as Pure
 --import qualified Control.MLens.ExtRef.IORef as IORef
 
