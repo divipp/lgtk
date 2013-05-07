@@ -25,7 +25,6 @@ data Widget n m
     | List ListLayout [Widget n m]         -- ^ group interfaces into row or column
     | Notebook' (Sender n m Int) [(String, Widget n m)]     -- ^ actual tab index, tabs
     | Cell' (forall a . (Widget n m -> C m a) -> Receiver n m a)
-    | Cell'' (forall a . (Widget n m -> C m a) -> Receiver n m (Maybe a))   -- ^ auxiliary, hide it
     | Action (C m (Widget n m))              -- ^ do an action before giving the interface
 
 data ListLayout

@@ -86,10 +86,10 @@ entry r = Entry (addCEffect (readRef r), addWEffect (writeRef r))
 notebook :: EffRef m => [(String, I m)] -> I m
 notebook xs = Action $ do
     currentPage <- newRef 0
-    let f index (title, w) = (,) title $ Cell'' $ \mkWidget -> let
-           h False = return Nothing
-           h True = liftM Just $ mkWidget w
-         in addICEffect True $ IC (liftM (== index) $ readRef currentPage) h
+    let f index (title, w) = (,) title $ Cell' $ \mkWidget -> let
+           h False = hcat []
+           h True = w
+         in addICEffect True $ IC (liftM (== index) $ readRef currentPage) $ mkWidget . h
 
     return $ Notebook' (addWEffect $ writeRef currentPage) $ zipWith f [0..] xs
 

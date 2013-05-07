@@ -101,19 +101,7 @@ runWidget liftInn post' post dca = toWidget
                 containerAdd w x
                 post' $ post $ widgetShowAll x
             return' w
-        Cell'' f -> do
-            w <- liftInn $ liftIO' $ alignmentNew 0 0 1 1
-            f (unsafeC . toWidget) $ \x -> liftIO' $ case x of
-              Nothing -> return ()
-              Just x -> do
-                ch <- containerGetChildren w
-                case ch of
-                    [y] | y == x -> return ()
-                    _ -> do
-                        containerForeach w $ containerRemove w
-                        containerAdd w x
-                        post' $ post $ widgetShowAll x
-            return' w
+--                ch <- containerGetChildren w
 
 return' :: Monad m => GObjectClass x => x -> m Gtk.Widget
 return' = return . castToWidget
