@@ -114,11 +114,14 @@ instance (MonadIO m, Monad n) => MonadRegister (EE n m) where
                         when bb $ atomicModifyIORef' memoref $ \memo -> ((b, (c, s)) : filter ((/= b) . fst) memo, ())
                         act c >> s
 
-evalEE :: (Monad n, MonadIO m) => Morph n IO -> Morph m IO -> EE n m a -> m a
-evalEE morphN morph (EE m) = do
+-- | evaluation with postponed actions
+evalEE :: (Monad n, MonadIO m) => Morph n IO -> Morph m IO -> ((IO () -> IO ()) -> EE n m a) -> m a
+evalEE morphN morph f = do
+    post <- liftIO $ newIORef $ return ()
+    let (EE m) = f $ \io -> atomicModifyIORef' post $ \m -> (m >> io, ())
     vx <- liftIO $ newIORef $ return ()
     ch <- liftIO newChan
-    (a, reg) <- runWriterT $ runReaderT m $ EEState (join $ readIORef vx) (writeChan ch) (MorphD morph) (MorphD morphN)
+    (a, reg) <- runWriterT $ runReaderT m $ EEState (join (readIORef vx) >> join (atomicModifyIORef' post (\m -> (return (), m)))) (writeChan ch) (MorphD morph) (MorphD morphN)
     liftIO $ writeIORef vx reg
     _ <- liftIO $ forkIO $ forever $ join $ readChan ch
     liftIO reg

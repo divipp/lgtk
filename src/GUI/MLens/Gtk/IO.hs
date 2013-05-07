@@ -40,11 +40,12 @@ gtkContext m = do
 runWidget
     :: forall n m . (Monad m, MonadIO n)
     => Morph n m
+    -> (IO () -> IO ())
     -> Morph IO IO
     -> Morph n IO
     -> Widget n m
     -> m Gtk.Widget
-runWidget liftInn post dca = toWidget
+runWidget liftInn post' post dca = toWidget
  where
     liftIO' :: MonadIO n => IO a -> n a
     liftIO' = liftIO . post
@@ -98,7 +99,7 @@ runWidget liftInn post dca = toWidget
 --                containerForeach w $ widgetHideAll
                 containerForeach w $ containerRemove w
                 containerAdd w x
-                widgetShowAll x
+                post' $ post $ widgetShowAll x
             return' w
         Cell'' f -> do
             w <- liftInn $ liftIO' $ alignmentNew 0 0 1 1
@@ -111,7 +112,7 @@ runWidget liftInn post dca = toWidget
                     _ -> do
                         containerForeach w $ containerRemove w
                         containerAdd w x
-                        widgetShowAll x
+                        post' $ post $ widgetShowAll x
             return' w
 
 return' :: Monad m => GObjectClass x => x -> m Gtk.Widget

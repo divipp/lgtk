@@ -95,5 +95,5 @@ notebook xs = Action $ do
 
 -- | Run an interface description
 runI :: (forall m . EffIORef m => I m) -> IO ()
-runI e = Gtk.gtkContext $ \post -> runExt_ $ \mo -> evalEE (mo . liftInner) mo $ Gtk.runWidget liftInn post id e
+runI e = Gtk.gtkContext $ \post -> runExt_ $ \mo -> evalEE (mo . liftInner) mo $ \post' -> Gtk.runWidget liftInn post' post id e
 
