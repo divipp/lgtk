@@ -35,6 +35,9 @@ library
 
                   , gtk
   exposed-modules:
+                    Control.Monad.Restricted
+                    Control.Monad.Register
+
                     Control.MLens
                     Control.MLens.Unsafe
                     Control.MLens.ExtRef.Test
@@ -47,9 +50,6 @@ library
                     GUI.MLens.Gtk.Demos.IntListEditor
                     GUI.MLens.Gtk.Demos.TEditor
   other-modules:
-                    Control.Monad.Restricted
-                    Control.Monad.Register
-
                     Data.MLens.Ref
 
                     Control.MLens.ExtRef
