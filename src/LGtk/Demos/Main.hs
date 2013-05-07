@@ -1,15 +1,15 @@
-module GUI.MLens.Gtk.Demos.Main
+module LGtk.Demos.Main
     ( main
     ) where
 
 import Control.Monad
 import Prelude hiding (id, (.))
 
-import GUI.MLens.Gtk
+import LGtk
 
-import GUI.MLens.Gtk.Demos.Tri
-import GUI.MLens.Gtk.Demos.IntListEditor
-import GUI.MLens.Gtk.Demos.TEditor
+import LGtk.Demos.Tri
+import LGtk.Demos.IntListEditor
+import LGtk.Demos.TEditor
 
 main :: IO ()
 main = runI $ notebook

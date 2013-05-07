@@ -4,9 +4,9 @@
 An editor for integers x, y, z such that x + y = z always hold and
 the last edited value change.
 -}
-module GUI.MLens.Gtk.Demos.Tri where
+module LGtk.Demos.Tri where
 
-import GUI.MLens.Gtk
+import LGtk
 
 import Control.Monad
 import Prelude hiding ((.), id)

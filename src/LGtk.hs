@@ -3,7 +3,7 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 -- | The main LGtk interface, ideally users should import only this module.
-module GUI.MLens.Gtk
+module LGtk
     ( -- * Lenses and references
       module Control.Monad.ExtRef
 

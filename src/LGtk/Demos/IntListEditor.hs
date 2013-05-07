@@ -2,9 +2,9 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ConstraintKinds #-}
 -- | An integer list editor
-module GUI.MLens.Gtk.Demos.IntListEditor where
+module LGtk.Demos.IntListEditor where
 
-import GUI.MLens.Gtk
+import LGtk
 
 import Control.Monad
 import qualified Control.Arrow as Arrow

@@ -4,12 +4,12 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE DataKinds #-}
-module GUI.MLens.Gtk.ADTEditor
+module LGtk.ADTEditor
     ( List (..), Elems(..), ADTLens(..)
     , adtEditor
     ) where
 
-import GUI.MLens.Gtk
+import LGtk
 
 import Control.Monad
 import Prelude hiding ((.), id)

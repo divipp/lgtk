@@ -1,13 +1,13 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DataKinds #-}
-module GUI.MLens.Gtk.Demos.TEditor where
+module LGtk.Demos.TEditor where
 
 import Control.Monad
 import Prelude hiding ((.), id)
 
-import GUI.MLens.Gtk
-import GUI.MLens.Gtk.ADTEditor
+import LGtk
+import LGtk.ADTEditor
 
 -- | Binary tree shapes
 data T
