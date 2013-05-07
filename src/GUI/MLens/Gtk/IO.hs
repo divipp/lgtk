@@ -1,5 +1,6 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module GUI.MLens.Gtk.IO
@@ -40,7 +41,7 @@ gtkContext m = do
 
 -- | Run an @IO@ parametrized interface description with Gtk backend
 runI
-    :: forall m . (MonadRegister m, ExtRef m, MonadIO (Inn m), Inner m ~ Inner' m)
+    :: forall m . (EffIORef m)
     => Morph IO IO
     -> Morph (Inn m) IO
     -> I m

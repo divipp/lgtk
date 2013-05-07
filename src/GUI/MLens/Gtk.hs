@@ -1,5 +1,6 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 -- | The main LGtk interface, ideally users should import only this module.
 module GUI.MLens.Gtk
@@ -52,8 +53,8 @@ hcat :: [I m] -> I m
 hcat = List Horizontal
 
 smartButton
-  :: (MonadRegister m, Eq a, ExtRef m, Inner m ~ Inner' m) =>
-     Receiver m String -> (a -> R (Inner m) a) -> IRef m a -> I m
+  :: (EffRef m, Eq a) =>
+     Receiver m String -> (a -> R (Inner m) a) -> Ref m a -> I m
 smartButton s f k =
     Button s (addCEffect $ readRef k >>= \x -> liftM (== x) $ f x)
              (addWEffect $ \() -> runR (readRef k) >>= runR . f >>= writeRef k)
@@ -68,17 +69,17 @@ button :: (MonadRegister m, Functor (Inner' m))
 button r fm = Button r (addFreeCEffect (fmap isJust fm))
     (addWEffect $ \() -> unFree (maybe (return ()) id) (join . fmap (maybe (return ()) id) . runR) fm)
 
-checkbox :: (MonadRegister m, ExtRef m, Inner m ~ Inner' m) => IRef m Bool -> I m
+checkbox :: EffRef m => IRef m Bool -> I m
 checkbox r = Checkbox (addCEffect (readRef r), addWEffect (writeRef r))
 
-combobox :: (MonadRegister m, ExtRef m, Inner m ~ Inner' m) => [String] -> IRef m Int -> I m
+combobox :: EffRef m => [String] -> IRef m Int -> I m
 combobox ss r = Combobox ss (addCEffect (readRef r), addWEffect (writeRef r))
 
-entry :: (MonadRegister m, ExtRef m, Inner m ~ Inner' m) => IRef m String -> I m
+entry :: EffRef m => IRef m String -> I m
 entry r = Entry (addCEffect (readRef r), addWEffect (writeRef r))
 
 -- | Run an interface description
-runI :: (forall m . (Functor (Inner m), MonadRegister m, ExtRef m, Inner m ~ Inner' m, MonadIO (Inn m)) => I m) -> IO ()
+runI :: (forall m . (Functor (Inner m), EffIORef m) => I m) -> IO ()
 runI e = Gtk.gtkContext $ \post -> runExt_ $ \mo -> evalEE (mo . liftInner) mo $ Gtk.runI post id e
 
 toFree :: (Functor m, Monad m) => m a -> Free m a
