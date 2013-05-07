@@ -35,7 +35,6 @@ gtkContext m = do
     _ <- window `on` deleteEvent $ liftIO ( mainQuit) >> return False
     widgetShowAll window
     mainGUI
-    return ()
 
 -- | Run an @IO@ parametrized interface description with Gtk backend
 runWidget
@@ -55,7 +54,7 @@ runWidget liftInn post dca = toWidget
             w <- liftInn $ liftIO' buttonNew
             s $ liftIO' . buttonSetLabel w
             sens $ liftIO' . widgetSetSensitive w
-            m $ \x -> liftIO' $ on w buttonActivated (dca $ x ()) >> return ()
+            m $ \x -> liftIO' $ void' $ on w buttonActivated $ dca $ x ()
             return' w
         Entry (r, s) -> do
             w <- liftInn $ liftIO' entryNew
@@ -99,7 +98,7 @@ runWidget liftInn post dca = toWidget
 --                containerForeach w $ widgetHideAll
                 containerForeach w $ containerRemove w
                 containerAdd w x
-                widgetShowAll w
+                widgetShowAll x
             return' w
         Cell'' f -> do
             w <- liftInn $ liftIO' $ alignmentNew 0 0 1 1
@@ -112,7 +111,7 @@ runWidget liftInn post dca = toWidget
                     _ -> do
                         containerForeach w $ containerRemove w
                         containerAdd w x
-                        widgetShowAll w
+                        widgetShowAll x
             return' w
 
 return' :: Monad m => GObjectClass x => x -> m Gtk.Widget
