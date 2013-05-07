@@ -90,11 +90,7 @@ instance Monoid (IO ()) where
     mappend = (>>)
 
 newtype EE n m a = EE { unEE :: ReaderT (EEState n m) (WriterT (IO ()) m) a }
-    deriving (Functor, Monad)
-
-instance MonadIO m => MonadIO (EE n m) where
-
-    liftIO m = EE $ liftIO m
+    deriving (Functor, Monad, MonadIO)
 
 instance (MonadIO m, Monad n) => MonadRegister (EE n m) where
 
