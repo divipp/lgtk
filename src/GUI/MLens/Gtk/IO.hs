@@ -51,6 +51,11 @@ runWidget liftInn post' post dca = toWidget
     liftIO' = liftIO . post
 
     toWidget i = case i of
+        Action m -> runC m >>= toWidget
+        Label s -> do
+            w <- liftInn $ liftIO' $ labelNew Nothing
+            s $ liftIO' . labelSetLabel w
+            return' w
         Button s sens m -> do
             w <- liftInn $ liftIO' buttonNew
             s $ liftIO' . buttonSetLabel w
@@ -86,12 +91,6 @@ runWidget liftInn post' post dca = toWidget
                 liftInn . liftIO' . flip (notebookAppendPage w) s $ ww
             s $ \re -> void' $ liftIO' $ on w switchPage $ dca . re
             return' w
-        Label s -> do
-            w <- liftInn $ liftIO' $ labelNew Nothing
-            s $ liftIO' . labelSetLabel w
-            return' w
-        Action m -> 
-            runC m >>= toWidget
         Cell' f -> do
             w <- liftInn $ liftIO' $ alignmentNew 0 0 1 1
 --            w <- lift $ hBoxNew False 1
