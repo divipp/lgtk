@@ -34,12 +34,12 @@ module GUI.MLens.Gtk
     , button
     , checkbox, combobox, entry
     , smartButton
+    , notebook
     ) where
 
 import Data.Maybe
 import Control.Category
 import Control.Monad
-import Control.Monad.Trans
 import Prelude hiding ((.), id)
 
 import Control.MLens
@@ -83,7 +83,17 @@ combobox ss r = Combobox ss (addCEffect (readRef r), addWEffect (writeRef r))
 entry :: EffRef m => IRef m String -> I m
 entry r = Entry (addCEffect (readRef r), addWEffect (writeRef r))
 
+notebook :: EffRef m => [(String, I m)] -> I m
+notebook xs = Action $ do
+    currentPage <- newRef 0
+    let f index (title, w) = (,) title $ Cell'' $ \mkWidget -> let
+           h False = return Nothing
+           h True = liftM Just $ mkWidget w
+         in addICEffect True $ IC (liftM (== index) $ readRef currentPage) h
+
+    return $ Notebook' (addWEffect $ writeRef currentPage) $ zipWith f [0..] xs
+
 -- | Run an interface description
 runI :: (forall m . EffIORef m => I m) -> IO ()
-runI e = Gtk.gtkContext $ \post -> runExt_ $ \mo -> evalEE (mo . liftInner) mo $ Gtk.runWidget post id e
+runI e = Gtk.gtkContext $ \post -> runExt_ $ \mo -> evalEE (mo . liftInner) mo $ Gtk.runWidget liftInn post id e
 

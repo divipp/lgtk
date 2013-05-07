@@ -26,7 +26,7 @@ intListEditor state settings = Action $ do
     let safe = lens id (const . take maxi)
         len = liftM (\r -> lens length $ extendList r . min maxi) $ readRef range
         sel = liftM (filter snd) $ readRef list
-    return $ Notebook
+    return $ notebook
         [ (,) "Editor" $ vcat
             [ hcat
                 [ entry $ joinRef $ liftM (\k -> showLens . k % list) len

@@ -19,9 +19,6 @@ import Graphics.UI.Gtk hiding (Widget)
 import qualified Graphics.UI.Gtk as Gtk
 
 import Control.Monad.Restricted
-import Control.Monad.Register
-import Control.MLens
-import Control.MLens.Unsafe ()
 import GUI.MLens.Gtk.Interface
 
 gtkContext :: (Morph IO IO -> IO Gtk.Widget) -> IO ()
@@ -42,12 +39,13 @@ gtkContext m = do
 
 -- | Run an @IO@ parametrized interface description with Gtk backend
 runWidget
-    :: forall m . (EffIORef m)
-    => Morph IO IO
-    -> Morph (Inn m) IO
-    -> Widget (Inn m) m
+    :: forall n m . (Monad m, MonadIO n)
+    => Morph n m
+    -> Morph IO IO
+    -> Morph n IO
+    -> Widget n m
     -> m Gtk.Widget
-runWidget post dca i = do
+runWidget liftInn post dca i = do
     w <- toWidget i
     return w
  where
@@ -83,24 +81,12 @@ runWidget post dca i = do
                 Horizontal -> fmap castToBox $ hBoxNew False 1
             flip mapM_ xs $ toWidget >=> liftInn . liftIO' . containerAdd'' w
             return' w
-        Notebook xs -> do
-            currentPage <- runC $ newRef 0
+        Notebook' s xs -> do
             w <- liftInn $ liftIO' notebookNew
-            forM_ (zip [0..] xs) $ \(index, (s, i)) -> do
-                ww <- liftInn $ liftIO' $ alignmentNew 0 0 1 1
-                let f True = liftM Just $ unsafeC $ toWidget i
-                    f False = return Nothing
-                    g Nothing = return ()
-                    g (Just x) = liftIO' $ do
-                        ch <- containerGetChildren ww
-                        when (null ch) $ do
-                            containerAdd ww x
-                            widgetShowAll ww
-                addICEffect True (IC (liftM (== index) $ readRef currentPage) f) g
+            forM_ xs $ \(s, i) -> do
+                ww <- toWidget i
                 liftInn . liftIO' . flip (notebookAppendPage w) s $ ww
-            addWEffect (writeRef currentPage) $ \re -> do
-                _ <- liftIO' $ on w switchPage $ dca . re
-                return ()
+            s $ \re -> void' $ liftIO' $ on w switchPage $ dca . re
             return' w
         Label s -> do
             w <- liftInn $ liftIO' $ labelNew Nothing
@@ -116,6 +102,19 @@ runWidget post dca i = do
                 containerForeach w $ containerRemove w
                 containerAdd w x
                 widgetShowAll w
+            return' w
+        Cell'' f -> do
+            w <- liftInn $ liftIO' $ alignmentNew 0 0 1 1
+            f (unsafeC . toWidget) $ \x -> liftIO' $ case x of
+              Nothing -> return ()
+              Just x -> do
+                ch <- containerGetChildren w
+                case ch of
+                    [y] | y == x -> return ()
+                    _ -> do
+                        containerForeach w $ containerRemove w
+                        containerAdd w x
+                        widgetShowAll w
             return' w
 
 return' :: Monad m => GObjectClass x => x -> m Gtk.Widget

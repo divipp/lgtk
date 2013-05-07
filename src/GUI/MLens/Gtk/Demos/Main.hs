@@ -12,7 +12,7 @@ import GUI.MLens.Gtk.Demos.IntListEditor
 import GUI.MLens.Gtk.Demos.TEditor
 
 main :: IO ()
-main = runI $ Notebook
+main = runI $ notebook
     [ (,) "Hello" $ Label $ constEffect "Hello World!"
 
     , (,) "Counter" $ Action $ do
@@ -53,7 +53,7 @@ main = runI $ Notebook
     , (,) "TabSwitch" $ Action $ do
         x <- newRef "a"
         let w = vcat [ Label $ rEffect $ readRef x, entry x ]
-        return $ Notebook
+        return $ notebook
             [ (,) "T1" w
             , (,) "T2" w
             ]
