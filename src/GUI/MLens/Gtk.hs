@@ -8,7 +8,8 @@ module GUI.MLens.Gtk
       module Control.MLens
 
     -- * GUI combinators
-    , I (..)
+    , Widget (..)
+    , I
     , ListLayout (..)
     , MonadRegister
     , EffRef
@@ -47,6 +48,8 @@ import GUI.MLens.Gtk.Interface
 import qualified GUI.MLens.Gtk.IO as Gtk
 import Control.MLens.ExtRef.Pure
 
+type I m = Widget (Inn m) m
+
 vcat :: [I m] -> I m
 vcat = List Vertical
 
@@ -82,5 +85,5 @@ entry r = Entry (addCEffect (readRef r), addWEffect (writeRef r))
 
 -- | Run an interface description
 runI :: (forall m . EffIORef m => I m) -> IO ()
-runI e = Gtk.gtkContext $ \post -> runExt_ $ \mo -> evalEE (mo . liftInner) mo $ Gtk.runI post id e
+runI e = Gtk.gtkContext $ \post -> runExt_ $ \mo -> evalEE (mo . liftInner) mo $ Gtk.runWidget post id e
 

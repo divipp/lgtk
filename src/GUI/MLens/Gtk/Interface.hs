@@ -2,29 +2,30 @@
 {-# LANGUAGE RankNTypes #-}
 -- | Lens-based Gtk interface
 module GUI.MLens.Gtk.Interface
-    ( I (..)
+    ( Widget (..)
     , ListLayout (..)
     ) where
 
 import Control.Monad.Restricted
-import Control.Monad.Register
 
-type IRef m a = (Receiver m a, Sender m a)
+type Receiver n m a = (a -> n ()) -> m ()
+type Sender n m a = ((a -> n ()) -> n ()) -> m ()
+type RS n m a = (Receiver n m a, Sender n m a)
 
--- | Interface description parametrized by a monad
-data I m
-    = Label (Receiver m String)     -- ^ label
-    | Button { label_  :: Receiver m String
-             , sensitive_ :: Receiver m Bool
-             , action_ :: Sender m ()
+-- | Widget descriptions
+data Widget n m
+    = Label (Receiver n m String)     -- ^ label
+    | Button { label_  :: Receiver n m String
+             , sensitive_ :: Receiver n m Bool
+             , action_ :: Sender n m ()
              }  -- ^ button
-    | Checkbox (IRef m Bool)         -- ^ checkbox
-    | Combobox [String] (IRef m Int) -- ^ combo box
-    | Entry (IRef m String)          -- ^ entry field
-    | List ListLayout [I m]         -- ^ group interfaces into row or column
-    | Notebook [(String, I m)]      -- ^ tabs
-    | Cell' (forall a . (I m -> C m a) -> Receiver m a)
-    | Action (C m (I m))              -- ^ do an action before giving the interface
+    | Checkbox (RS n m Bool)         -- ^ checkbox
+    | Combobox [String] (RS n m Int) -- ^ combo box
+    | Entry (RS n m String)          -- ^ entry field
+    | List ListLayout [Widget n m]         -- ^ group interfaces into row or column
+    | Notebook [(String, Widget n m)]      -- ^ tabs
+    | Cell' (forall a . (Widget n m -> C m a) -> Receiver n m a)
+    | Action (C m (Widget n m))              -- ^ do an action before giving the interface
 
 data ListLayout
     = Horizontal | Vertical

@@ -4,7 +4,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module GUI.MLens.Gtk.IO
-    ( runI
+    ( runWidget
     , gtkContext
     ) where
 
@@ -15,7 +15,8 @@ import Control.Concurrent
 import Data.Maybe
 import Prelude hiding ((.), id)
 
-import Graphics.UI.Gtk
+import Graphics.UI.Gtk hiding (Widget)
+import qualified Graphics.UI.Gtk as Gtk
 
 import Control.Monad.Restricted
 import Control.Monad.Register
@@ -23,7 +24,7 @@ import Control.MLens
 import Control.MLens.Unsafe ()
 import GUI.MLens.Gtk.Interface
 
-gtkContext :: (Morph IO IO -> IO Widget) -> IO ()
+gtkContext :: (Morph IO IO -> IO Gtk.Widget) -> IO ()
 gtkContext m = do
     _ <- unsafeInitGUIForThreadedRTS
     tid <- myThreadId
@@ -40,20 +41,19 @@ gtkContext m = do
     return ()
 
 -- | Run an @IO@ parametrized interface description with Gtk backend
-runI
+runWidget
     :: forall m . (EffIORef m)
     => Morph IO IO
     -> Morph (Inn m) IO
-    -> I m
-    -> m Widget
-runI post dca i = do
+    -> Widget (Inn m) m
+    -> m Gtk.Widget
+runWidget post dca i = do
     w <- toWidget i
     return w
  where
     liftIO' :: MonadIO n => IO a -> n a
     liftIO' = liftIO . post
 
-    toWidget :: I m -> m Widget
     toWidget i = case i of
         Button s sens m -> do
             w <- liftInn $ liftIO' buttonNew
@@ -118,7 +118,7 @@ runI post dca i = do
                 widgetShowAll w
             return' w
 
-return' :: Monad m => GObjectClass x => x -> m Widget
+return' :: Monad m => GObjectClass x => x -> m Gtk.Widget
 return' = return . castToWidget
 
 void' :: Monad m => m a -> m ()
