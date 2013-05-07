@@ -39,7 +39,6 @@ library
                     Control.Monad.Register
 
                     Control.MLens
-                    Control.MLens.Unsafe
                     Control.MLens.ExtRef.Test
 
                     GUI.MLens.Gtk
