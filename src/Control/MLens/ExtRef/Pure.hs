@@ -27,7 +27,6 @@ import Prelude hiding ((.), id, splitAt, length)
 
 import Unsafe.Coerce
 
-import qualified Data.MLens.Ref as Ref
 import Control.MLens.ExtRef
 import Control.Monad.Restricted
 
@@ -73,9 +72,6 @@ extend_ rk kr a0 x0@(ST x0_)
 
 
 data MRef m a = MRef { readRef_ :: R m a, writeRef_ :: a -> m () }
-
-mapRef :: Morph m n -> MRef m a -> MRef n a
-mapRef f (MRef r w) = MRef (mapR f r) (f . w)
 
 instance Monad m => Reference (MRef m) where
 
