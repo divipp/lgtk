@@ -37,7 +37,15 @@ library
   exposed-modules:
                     Control.Monad.Restricted
 
+                    Control.Monad.ExtRef
                     Control.Monad.ExtRef.Test
+
+                    Control.Monad.Register
+
+                    Control.Monad.EffRef
+
+                    GUI.Gtk.Structures
+                    GUI.Gtk.Structures.IO
 
                     GUI.MLens.Gtk
                     GUI.MLens.Gtk.ADTEditor
@@ -47,16 +55,9 @@ library
                     GUI.MLens.Gtk.Demos.IntListEditor
                     GUI.MLens.Gtk.Demos.TEditor
   other-modules:
-                    Control.Monad.ExtRef
                     Control.Monad.ExtRef.Pure
 
-                    Control.Monad.Register
                     Control.Monad.Register.Basic
-
-                    Control.Monad.EffRef
-
-                    GUI.MLens.Gtk.IO
-                    GUI.MLens.Gtk.Interface
   ghc-options: 
                     -threaded
                     -Wall 

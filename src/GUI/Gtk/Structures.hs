@@ -1,7 +1,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE RankNTypes #-}
 -- | Lens-based Gtk interface
-module GUI.MLens.Gtk.Interface
+module GUI.Gtk.Structures
     ( Widget (..)
     , ListLayout (..)
     ) where

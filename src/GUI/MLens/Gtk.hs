@@ -46,8 +46,8 @@ import Control.Monad.ExtRef
 import Control.Monad.Register
 import Control.Monad.Register.Basic
 import Control.Monad.EffRef
-import GUI.MLens.Gtk.Interface
-import qualified GUI.MLens.Gtk.IO as Gtk
+import GUI.Gtk.Structures
+import qualified GUI.Gtk.Structures.IO as Gtk
 import Control.Monad.ExtRef.Pure
 
 type I m = Widget (Inn m) m

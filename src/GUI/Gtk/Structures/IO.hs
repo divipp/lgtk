@@ -3,7 +3,7 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module GUI.MLens.Gtk.IO
+module GUI.Gtk.Structures.IO
     ( runWidget
     , gtkContext
     ) where
@@ -20,7 +20,7 @@ import Graphics.UI.Gtk hiding (Widget)
 import qualified Graphics.UI.Gtk as Gtk
 
 import Control.Monad.Restricted
-import GUI.MLens.Gtk.Interface
+import GUI.Gtk.Structures
 
 gtkContext :: (Morph IO IO -> IO SWidget) -> IO ()
 gtkContext m = do
