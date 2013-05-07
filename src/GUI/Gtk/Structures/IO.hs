@@ -99,8 +99,8 @@ runWidget liftInn post' post dca = toWidget
         Cell' f -> do
             let b = False
             w <- liftInn $ liftIO' $ case b of
-                True -> fmap castToBox $ hBoxNew False 1
-                False -> fmap castToBox $ alignmentNew 0 0 1 1
+                True -> fmap castToContainer $ hBoxNew False 1
+                False -> fmap castToContainer $ alignmentNew 0 0 1 1
             sh <- liftInn $ liftIO $ newIORef $ return ()
             f (unsafeC . toWidget) $ \x -> liftIO' $ do
                 writeIORef sh $ fst x
