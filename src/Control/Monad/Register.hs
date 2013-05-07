@@ -37,7 +37,7 @@ import Data.IORef
 import Data.List
 
 import Control.Monad.Restricted
-import Control.MLens.ExtRef --(IC (..))
+import Control.MLens.ExtRef
 
 type Receiver m a = (a -> Inn m ()) -> m ()
 
@@ -71,13 +71,10 @@ rEffect = addCEffect
 addFreeCEffect :: (MonadRegister m, Functor (Inner' m), Eq a) => Free (R (Inner' m)) a -> Receiver m a
 addFreeCEffect rb act = unFree (liftInn . act) (flip addCEffect act) rb
 
-addRefEffect :: (MonadRegister m, Eq a, ExtRef m, Inner m ~ Inner' m) => IRef m a -> (a -> Inn m ()) -> ((a -> Inn m ()) -> Inn m ()) -> m ()
-addRefEffect r act int = do
-    addWEffect (writeRef r) int
-    addCEffect (readRef r) act
-
 addPushEffect :: MonadRegister m => Inner' m () -> (Inn m () -> Inn m ()) -> m ()
 addPushEffect ma mb = addWEffect (const ma) $ \f -> mb $ f ()
+
+---------------------------- An implementation
 
 data MorphD m n = MorphD { unlift :: Morph m n }
 
@@ -94,6 +91,10 @@ instance Monoid (IO ()) where
 
 newtype EE n m a = EE { unEE :: ReaderT (EEState n m) (WriterT (IO ()) m) a }
     deriving (Functor, Monad)
+
+instance MonadIO m => MonadIO (EE n m) where
+
+    liftIO m = EE $ liftIO m
 
 instance (MonadIO m, Monad n) => MonadRegister (EE n m) where
 
@@ -132,6 +133,13 @@ evalEE morphN morph (EE m) = do
     liftIO reg
     return a
 
+------------------- ExtRef + MonadRegister
+
+addRefEffect :: (MonadRegister m, Eq a, ExtRef m, Inner m ~ Inner' m) => IRef m a -> (a -> Inn m ()) -> ((a -> Inn m ()) -> Inn m ()) -> m ()
+addRefEffect r act int = do
+    addWEffect (writeRef r) int
+    addCEffect (readRef r) act
+
 instance (ExtRef m, n ~ Inner m) => ExtRef (EE n m) where
 
     type Ref (EE n m) = Ref m
@@ -141,10 +149,6 @@ instance (ExtRef m, n ~ Inner m) => ExtRef (EE n m) where
     newRef = mapC EE . newRef
 
     extRef r k a = mapC EE $ extRef r k a
-
-instance MonadIO m => MonadIO (EE n m) where
-
-    liftIO m = EE $ liftIO m
 
 unFree :: (Functor m, Monad m) => (a -> x) -> (m a -> x) -> Free m a -> x
 unFree r m = evalFree r (m . join . fmap (induce id))
