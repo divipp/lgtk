@@ -2,6 +2,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -14,10 +15,13 @@ module Control.Monad.Register
     , Sender
     , addCEffect
     , addFreeCEffect
-    , addRefEffect
     , addPushEffect
     , constEffect
     , rEffect
+
+    , EffRef
+    , EffIORef
+    , addRefEffect
     , fileRef
 
     , EE
@@ -131,7 +135,11 @@ evalEE morphN morph (EE m) = do
 
 ------------------- ExtRef + MonadRegister
 
-addRefEffect :: (MonadRegister m, Eq a, ExtRef m, Inner m ~ Inner' m) => IRef m a -> (a -> Inn m ()) -> ((a -> Inn m ()) -> Inn m ()) -> m ()
+type EffRef m = (ExtRef m, MonadRegister m, Inner m ~ Inner' m)
+
+type EffIORef m = (EffRef m, MonadIO (Inn m))
+
+addRefEffect :: (EffRef m, Eq a) => Ref m a -> (a -> Inn m ()) -> ((a -> Inn m ()) -> Inn m ()) -> m ()
 addRefEffect r act int = do
     addWEffect (writeRef r) int
     addCEffect (readRef r) act
@@ -149,7 +157,7 @@ instance (ExtRef m, n ~ Inner m) => ExtRef (EE n m) where
 unFree :: (Functor m, Monad m) => (a -> x) -> (m a -> x) -> Free m a -> x
 unFree r m = evalFree r (m . join . fmap (induce id))
 
-fileRef :: (ExtRef m, MonadRegister m, Inner m ~ Inner' m, MonadIO (Inn m)) => FilePath -> C m (IRef m (Maybe String))
+fileRef :: (EffIORef m) => FilePath -> C m (Ref m (Maybe String))
 fileRef f = unsafeC $ do
         ms <- liftInn $ liftIO r
         ref <- runC $ newRef ms
