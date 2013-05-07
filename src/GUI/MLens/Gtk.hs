@@ -11,11 +11,15 @@ module GUI.MLens.Gtk
     , I (..)
     , ListLayout (..)
     , MonadRegister
+    , EffRef
+    , EffIORef
     , Inner'
     , IC (..)
     , constEffect
+    , voidReceiver
     , rEffect
     , addICEffect
+    , addWEffect
 
     -- * File system
     , fileRef
@@ -29,15 +33,12 @@ module GUI.MLens.Gtk
     , button
     , checkbox, combobox, entry
     , smartButton
-
-    -- * Auxiliary functions
-    , toFree
     ) where
 
 import Data.Maybe
 import Control.Category
+import Control.Monad
 import Control.Monad.Trans
-import Control.Monad.Free
 import Prelude hiding ((.), id)
 
 import Control.MLens
@@ -62,12 +63,13 @@ smartButton s f k =
 cell :: MonadRegister m => Bool -> IC m (I m) -> I m
 cell b (IC r g) = Cell' $ \f -> addICEffect b $ IC r $ \x -> f $ Action $ g x 
 
-button :: (MonadRegister m, Functor (Inner' m))
+button
+    :: MonadRegister m
     => Receiver m String
-    -> Free (R (Inner' m)) (Maybe (Inner' m ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
+    -> R (Inner' m) (Maybe (Inner' m ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
     -> I m
-button r fm = Button r (addFreeCEffect (fmap isJust fm))
-    (addWEffect $ \() -> unFree (maybe (return ()) id) (join . fmap (maybe (return ()) id) . runR) fm)
+button r fm = Button r (addCEffect $ liftM isJust fm)
+    (addWEffect $ const $ runR fm >>= maybe (return ()) id)
 
 checkbox :: EffRef m => IRef m Bool -> I m
 checkbox r = Checkbox (addCEffect (readRef r), addWEffect (writeRef r))
@@ -79,10 +81,6 @@ entry :: EffRef m => IRef m String -> I m
 entry r = Entry (addCEffect (readRef r), addWEffect (writeRef r))
 
 -- | Run an interface description
-runI :: (forall m . (Functor (Inner m), EffIORef m) => I m) -> IO ()
+runI :: (forall m . EffIORef m => I m) -> IO ()
 runI e = Gtk.gtkContext $ \post -> runExt_ $ \mo -> evalEE (mo . liftInner) mo $ Gtk.runI post id e
-
-toFree :: (Functor m, Monad m) => m a -> Free m a
-toFree = Impure . fmap Pure
-
 

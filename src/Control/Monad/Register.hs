@@ -12,9 +12,9 @@ module Control.Monad.Register
     , IC (..)
     , Receiver
     , mapReceiver
+    , voidReceiver
     , Sender
     , addCEffect
-    , addFreeCEffect
     , constEffect
     , rEffect
 
@@ -24,15 +24,11 @@ module Control.Monad.Register
 
     , EE
     , evalEE
-
-    -- * Auxiliary definitions
-    , unFree
     ) where
 
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.Writer
-import Control.Monad.Free
 import Control.Concurrent
 import System.Directory
 import Data.IORef
@@ -45,6 +41,9 @@ type Receiver m a = (a -> Inn m ()) -> m ()
 
 mapReceiver :: (a -> b) -> Receiver m a -> Receiver m b
 mapReceiver f g h = g $ \a -> h $ f a
+
+voidReceiver :: Monad m => Receiver m a
+voidReceiver _ = return ()
 
 type Sender m a = ((a -> Inn m ()) -> Inn m ()) -> m ()
 
@@ -69,9 +68,6 @@ addCEffect r = addICEffect False (IC r return)
 
 rEffect :: (MonadRegister m, Eq a) => R (Inner' m) a -> Receiver m a
 rEffect = addCEffect
-
-addFreeCEffect :: (MonadRegister m, Functor (Inner' m), Eq a) => Free (R (Inner' m)) a -> Receiver m a
-addFreeCEffect rb act = unFree (liftInn . act) (flip addCEffect act) rb
 
 ---------------------------- An implementation
 
@@ -143,9 +139,6 @@ instance (ExtRef m, n ~ Inner m) => ExtRef (EE n m) where
     newRef = mapC EE . newRef
 
     extRef r k a = mapC EE $ extRef r k a
-
-unFree :: (Functor m, Monad m) => (a -> x) -> (m a -> x) -> Free m a -> x
-unFree r m = evalFree r (m . join . fmap (induce id))
 
 fileRef :: (EffIORef m) => FilePath -> C m (Ref m (Maybe String))
 fileRef f = unsafeC $ do

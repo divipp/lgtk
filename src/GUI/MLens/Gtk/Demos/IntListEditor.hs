@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ConstraintKinds #-}
 -- | An integer list editor
 module GUI.MLens.Gtk.Demos.IntListEditor where
 
@@ -14,9 +15,9 @@ import Prelude hiding ((.), id)
 ---------------
 
 intListEditor
-    :: (Functor (Inner m), MonadRegister m, ExtRef m, Inner m ~ Inner' m)
-    => IRef m String         -- ^ state reference
-    -> IRef m String         -- ^ settings reference
+    :: EffRef m
+    => Ref m String         -- ^ state reference
+    -> Ref m String         -- ^ settings reference
     -> I m
 intListEditor state settings = Action $ do
     list <- extRef state showLens []
@@ -32,8 +33,8 @@ intListEditor state settings = Action $ do
                 , smartButton (constEffect "+1") (modL' len (+1))      list
                 , smartButton (constEffect "-1") (modL' len (+(-1)))   list
                 , smartButton (rEffect $ liftM (("DeleteAll " ++) . show) $ len >>= \k -> readRef $ k % list) (modL' len $ const 0) list
-                , button (constEffect "undo") $ toFree $ undo
-                , button (constEffect "redo") $ toFree $ redo
+                , button (constEffect "undo") undo
+                , button (constEffect "redo") redo
                 ]
             , hcat
                 [ sbutton (constEffect "+1")         (map $ mapFst (+1))           list
@@ -61,8 +62,9 @@ intListEditor state settings = Action $ do
         [ Label $ constEffect $ show (i+1) ++ "."
         , entry $ showLens . fstLens % r
         , checkbox $ sndLens % r
-        , button (constEffect "Del")  $ return $ Just $ modRef list (\xs -> take i xs ++ drop (i+1) xs)
-        , button (constEffect "Copy") $ return $ Just $ modRef list (\xs -> take (i+1) xs ++ drop i xs) ]
+        , Button (constEffect "Del")  voidReceiver $ addWEffect $ const $ modRef list $ \xs -> take i xs ++ drop (i+1) xs
+        , Button (constEffect "Copy") voidReceiver $ addWEffect $ const $ modRef list $ \xs -> take (i+1) xs ++ drop i xs
+        ]
 
     modL' mr f b = do
         r <- mr

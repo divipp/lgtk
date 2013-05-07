@@ -32,7 +32,6 @@ library
 
                   , data-lens
                   , mtl
-                  , control-monad-free
 
                   , gtk
   exposed-modules:
