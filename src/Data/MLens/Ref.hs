@@ -5,10 +5,6 @@ module Data.MLens.Ref
     ( -- * Type classes for references
       Reference (..)
     , modRef
-
-    -- * Data type for references
-    , Ref (..)
-    , mapRef
     ) where
 
 import Control.Monad.Identity
@@ -47,30 +43,5 @@ infixr 8 %
 
 modRef :: Reference r => r a -> (a -> a) -> RefMonad r ()
 r `modRef` f = runR (readRef r) >>= writeRef r . f
-
-data Ref m a = Ref { readRef_ :: R m a, writeRef_ :: a -> m () }
-
-mapRef :: Morph m n -> Ref m a -> Ref n a
-mapRef f (Ref r w) = Ref (mapR f r) (f . w)
-
-instance Monad m => Reference (Ref m) where
-
-    type RefMonad (Ref m) = m
-
-    readRef = readRef_
-
-    writeRef = writeRef_
-
-    l % Ref r w = Ref r' w'
-     where
-        r' = liftM (L.getL l) r
-
-        w' b = do
-            a <- runR r
-            w $ L.setL l b a
-
-    unitRef = Ref (return ()) (const $ return ())
-
-    joinRef m = Ref (m >>= readRef_) (\a -> runR m >>= \r -> writeRef_ r a)
 
 

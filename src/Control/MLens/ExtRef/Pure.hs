@@ -71,6 +71,32 @@ extend_ rk kr a0 x0@(ST x0_)
 
     limit (ST y) = ST Arrow.*** toList $ splitAt (length x0_) y
 
+
+data MRef m a = MRef { readRef_ :: R m a, writeRef_ :: a -> m () }
+
+mapRef :: Morph m n -> MRef m a -> MRef n a
+mapRef f (MRef r w) = MRef (mapR f r) (f . w)
+
+instance Monad m => Reference (MRef m) where
+
+    type RefMonad (MRef m) = m
+
+    readRef = readRef_
+
+    writeRef = writeRef_
+
+    l % MRef r w = MRef r' w'
+     where
+        r' = liftM (getL l) r
+
+        w' b = do
+            a <- runR r
+            w $ setL l b a
+
+    unitRef = MRef (return ()) (const $ return ())
+
+    joinRef m = MRef (m >>= readRef_) (\a -> runR m >>= \r -> writeRef_ r a)
+
 newtype Ext i m a = Ext { unExt :: StateT ST m a }
     deriving (Functor, Monad, MonadWriter w)
 
@@ -87,14 +113,14 @@ type IExt i = Ext i Identity
 
 instance (Monad m) => ExtRef (Ext i m) where
 
-    type Ref (Ext i m) = Ref.Ref (IExt i)
+    type Ref (Ext i m) = MRef (IExt i)
 
     liftInner = mapExt (return . runIdentity)
 
     extRef r1 r2 a0 = unsafeC $ Ext $ do
         a1 <- mapStateT (return . runIdentity) $ g a0
         (t,z) <- state $ extend_ (runState . f) (runState . g) a1
-        return $ Ref.Ref (unsafeR $ Ext (gets t)) $ \a -> Ext $ modify $ z a
+        return $ MRef (unsafeR $ Ext (gets t)) $ \a -> Ext $ modify $ z a
        where
         f a = unExt $ writeRef r1 (getL r2 a) >> return a
         g b = unExt $ runR $ liftM (flip (setL r2) b) $ readRef r1
@@ -120,7 +146,7 @@ liftInner_ (Ext m) = Ext_ $ do
 
 instance (MonadIO m) => ExtRef (Ext_ i m) where
 
-    type Ref (Ext_ i m) = Ref.Ref (IExt i)
+    type Ref (Ext_ i m) = MRef (IExt i)
 
     liftInner = liftInner_
 
