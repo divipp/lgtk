@@ -45,9 +45,7 @@ runWidget
     -> Morph n IO
     -> Widget n m
     -> m Gtk.Widget
-runWidget liftInn post dca i = do
-    w <- toWidget i
-    return w
+runWidget liftInn post dca = toWidget
  where
     liftIO' :: MonadIO n => IO a -> n a
     liftIO' = liftIO . post
