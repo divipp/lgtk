@@ -88,5 +88,5 @@ notebook xs = Action $ do
 
 -- | Run an interface description
 runWidget :: (forall m . EffIORef m => Widget m) -> IO ()
-runWidget e = Gtk.gtkContext $ \post -> runExt_ $ \mo -> evalRegister (mo . liftWriteRef) mo $ \post' -> Gtk.runWidget liftEffectM post' post id e
+runWidget e = Gtk.gtkContext $ \post -> runExt_ $ \mo -> evalRegister (mo . liftWriteRef) mo $ \post' -> Gtk.runWidget liftEffectM post' post e
 
