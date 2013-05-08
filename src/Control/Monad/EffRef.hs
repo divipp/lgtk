@@ -20,7 +20,7 @@ import Control.Monad.ExtRef
 
 type EffRef m = (ExtRef m, MonadRegister m, Inner m ~ Inner' m)
 
-type EffIORef m = (EffRef m, MonadIO (Inn m))
+type EffIORef m = (EffRef m, Inn m ~ IO)
 
 fileRef :: (EffIORef m) => FilePath -> C m (Ref m (Maybe String))
 fileRef f = unsafeC $ do
