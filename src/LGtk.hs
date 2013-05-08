@@ -19,12 +19,12 @@ module LGtk
 
     -- * Derived constructs
     , Widget
-    , vcat, hcat
-    , cell
     , button
-    , checkbox, combobox, entry
     , smartButton
+    , checkbox, combobox, entry
+    , vcat, hcat
     , notebook
+    , cell
     ) where
 
 import Data.Maybe
