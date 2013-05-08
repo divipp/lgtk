@@ -80,6 +80,14 @@ main = runWidget $ notebook
             , Label $ rEffect $ liftM (\b -> if b then "Ready." else "Computing...") $ readRef ready
             ]
 
+    , (,) "Timer" $ Action $ do
+        t <- newRef 0
+        let g t re = void $ forkIO $ threadDelay (ceiling $ 10^6 * 1) >> re (1+t)
+        async (toReceive $ writeRef t) $ asyncToSend False (readRef t) g
+        return $ vcat
+            [ Label $ rEffect $ readRef $ showLens % t
+            ]
+
     , (,) "IntListEditor" $ Action $ do
         state <- fileRef "intListEditorState.txt"
         settings <- fileRef "intListEditorSettings.txt"
