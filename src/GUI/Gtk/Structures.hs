@@ -10,7 +10,7 @@ import Control.Monad.Restricted
 
 type Send n m a = (a -> n ()) -> m ()
 type Receive n m a = ((a -> n ()) -> n ()) -> m ()
-type RS n m a = (Send n m a, Receive n m a)
+type SendReceive n m a = (Send n m a, Receive n m a)
 
 -- | Widget descriptions
 data Widget n m
@@ -19,9 +19,9 @@ data Widget n m
              , sensitive_ :: Send n m Bool
              , action_ :: Receive n m ()
              }  -- ^ button
-    | Checkbox (RS n m Bool)         -- ^ checkbox
-    | Combobox [String] (RS n m Int) -- ^ combo box
-    | Entry (RS n m String)          -- ^ entry field
+    | Checkbox (SendReceive n m Bool)         -- ^ checkbox
+    | Combobox [String] (SendReceive n m Int) -- ^ combo box
+    | Entry (SendReceive n m String)          -- ^ entry field
     | List ListLayout [Widget n m]         -- ^ group interfaces into row or column
     | Notebook' (Receive n m Int) [(String, Widget n m)]     -- ^ actual tab index, tabs
     | Cell' (forall a . (Widget n m -> C m a) -> Send n m a)
