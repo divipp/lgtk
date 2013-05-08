@@ -20,6 +20,11 @@ type Receiver m a = (a -> Inn m ()) -> m ()
 mapReceiver :: (a -> b) -> Receiver m a -> Receiver m b
 mapReceiver f g h = g $ \a -> h $ f a
 
+{- not possible, @Receiver m@ is not an applicative functor
+lift2 :: (a -> b -> c) -> Receiver m a -> Receiver m b -> Receiver m c
+lift2 f ga gb h = ga $ \a -> gb $ \b -> h $ f a b
+-}
+
 voidReceiver :: Monad m => Receiver m a
 voidReceiver _ = return ()
 
