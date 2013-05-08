@@ -40,7 +40,7 @@ import GUI.Gtk.Structures
 import qualified GUI.Gtk.Structures.IO as Gtk
 import Control.Monad.ExtRef.Pure
 
-type I m = Widget (Inn m) m
+type I m = Widget (EffectM m) m
 
 vcat :: [I m] -> I m
 vcat = List Vertical
@@ -87,5 +87,5 @@ notebook xs = Action $ do
 
 -- | Run an interface description
 runI :: (forall m . EffIORef m => I m) -> IO ()
-runI e = Gtk.gtkContext $ \post -> runExt_ $ \mo -> evalRegister (mo . liftInner) mo $ \post' -> Gtk.runWidget liftInn post' post id e
+runI e = Gtk.gtkContext $ \post -> runExt_ $ \mo -> evalRegister (mo . liftInner) mo $ \post' -> Gtk.runWidget liftEffectM post' post id e
 

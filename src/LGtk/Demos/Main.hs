@@ -69,7 +69,7 @@ main = runI $ notebook
         ready <- newRef True
         delay <- newRef 1.0
         unsafeC $ do
-            v <- liftInn $ liftIO newEmptyMVar
+            v <- liftEffectM $ liftIO newEmptyMVar
             addWEffect (writeRef ready) $ \re -> liftIO $ void $ forkIO $ forever $ do
                 _ <- takeMVar v
                 re True

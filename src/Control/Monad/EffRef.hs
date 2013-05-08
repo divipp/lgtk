@@ -20,11 +20,11 @@ import Control.Monad.ExtRef
 
 type EffRef m = (ExtRef m, MonadRegister m, Inner m ~ PureM m)
 
-type EffIORef m = (EffRef m, Inn m ~ IO)
+type EffIORef m = (EffRef m, EffectM m ~ IO)
 
 fileRef :: (EffIORef m) => FilePath -> C m (Ref m (Maybe String))
 fileRef f = unsafeC $ do
-        ms <- liftInn $ liftIO r
+        ms <- liftEffectM $ liftIO r
         ref <- runC $ newRef ms
         -- addWEffect (writeRef ref) $ \cb -> TODO
         addCEffect (readRef ref) $ liftIO . w

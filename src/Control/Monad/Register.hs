@@ -15,7 +15,7 @@ module Control.Monad.Register
 
 import Control.Monad.Restricted
 
-type Receiver m a = (a -> Inn m ()) -> m ()
+type Receiver m a = (a -> EffectM m ()) -> m ()
 
 mapReceiver :: (a -> b) -> Receiver m a -> Receiver m b
 mapReceiver f g h = g $ \a -> h $ f a
@@ -28,23 +28,23 @@ lift2 f ga gb h = ga $ \a -> gb $ \b -> h $ f a b
 voidReceiver :: Monad m => Receiver m a
 voidReceiver _ = return ()
 
-type Sender m a = ((a -> Inn m ()) -> Inn m ()) -> m ()
+type Sender m a = ((a -> EffectM m ()) -> EffectM m ()) -> m ()
 
 data IC m a = forall b . Eq b => IC (R (PureM m) b) (b -> C m a)
 
-class (Monad m, Monad (PureM m), Monad (Inn m)) => MonadRegister m where
+class (Monad m, Monad (PureM m), Monad (EffectM m)) => MonadRegister m where
 
     type PureM m :: * -> *
-    type Inn m :: * -> *
+    type EffectM m :: * -> *
 
-    liftInn :: Morph (Inn m) m
+    liftEffectM :: Morph (EffectM m) m
 
     addICEffect :: Bool -> IC m a -> Receiver m a
 
     addWEffect :: Eq a => (a -> PureM m ()) -> Sender m a
 
 constEffect :: (MonadRegister m) => a -> Receiver m a 
-constEffect a f = liftInn $ f a
+constEffect a f = liftEffectM $ f a
 
 addCEffect :: (MonadRegister m, Eq a) => R (PureM m) a -> Receiver m a
 addCEffect r = addICEffect False (IC r return)

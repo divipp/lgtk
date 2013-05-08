@@ -49,13 +49,13 @@ instance (ExtRef m, n ~ Inner m) => ExtRef (Register n m) where
 instance (MonadIO m, Monad n) => MonadRegister (Register n m) where
 
     type PureM (Register n m) = n
-    type Inn (Register n m) = IO
+    type EffectM (Register n m) = IO
 
-    liftInn = Register . liftIO
+    liftEffectM = Register . liftIO
 
     addWEffect r int = do
         rr <- Register ask
-        liftInn $ int $ \a -> sendEvent rr $ do
+        liftEffectM $ int $ \a -> sendEvent rr $ do
             unlift (morphN rr) $ r a
             actions rr
 

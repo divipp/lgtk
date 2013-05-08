@@ -48,7 +48,7 @@ runWidget
     -> Morph n IO
     -> Widget n m
     -> m SWidget
-runWidget liftInn post' post dca = toWidget
+runWidget liftEffectM post' post dca = toWidget
  where
     liftIO' :: MonadIO n => IO a -> n a
     liftIO' = liftIO . post
@@ -56,52 +56,52 @@ runWidget liftInn post' post dca = toWidget
     toWidget i = case i of
         Action m -> runC m >>= toWidget
         Label s -> do
-            w <- liftInn $ liftIO' $ labelNew Nothing
+            w <- liftEffectM $ liftIO' $ labelNew Nothing
             s $ liftIO' . labelSetLabel w
             return' w
         Button s sens m -> do
-            w <- liftInn $ liftIO' buttonNew
+            w <- liftEffectM $ liftIO' buttonNew
             s $ liftIO' . buttonSetLabel w
             sens $ liftIO' . widgetSetSensitive w
             m $ \x -> liftIO' $ void' $ on w buttonActivated $ dca $ x ()
             return' w
         Entry (r, s) -> do
-            w <- liftInn $ liftIO' entryNew
+            w <- liftEffectM $ liftIO' entryNew
             r $ liftIO' . entrySetText w
             s $ \re -> void' $ liftIO' $ on w entryActivate $ entryGetText w >>= dca . re
             return' w
         Checkbox (r, s) -> do
-            w <- liftInn $ liftIO' checkButtonNew
+            w <- liftEffectM $ liftIO' checkButtonNew
             r $ liftIO' . toggleButtonSetActive w
             s $ \re -> void' $ liftIO' $ on w toggled $ toggleButtonGetActive w >>= dca . re
             return' w
         Combobox ss (r, s) -> do
-            w <- liftInn $ liftIO' comboBoxNewText
-            liftInn $ liftIO' $ flip mapM_ ss $ comboBoxAppendText w
+            w <- liftEffectM $ liftIO' comboBoxNewText
+            liftEffectM $ liftIO' $ flip mapM_ ss $ comboBoxAppendText w
             r $ liftIO' . comboBoxSetActive w
             s $ \re -> void' $ liftIO' $ on w changed $ fmap (max 0) (comboBoxGetActive w) >>= dca . re
             return' w
         List o xs -> do
             ws <- mapM toWidget xs
-            w <- liftInn $ liftIO' $ case o of
+            w <- liftEffectM $ liftIO' $ case o of
                 Vertical -> fmap castToBox $ vBoxNew False 1
                 Horizontal -> fmap castToBox $ hBoxNew False 1
-            shs <- forM ws $ liftInn . liftIO' . containerAdd'' w . snd
+            shs <- forM ws $ liftEffectM . liftIO' . containerAdd'' w . snd
             liftM (mapFst (sequence_ shs >>)) $ return'' ws w
         Notebook' s xs -> do
             ws <- mapM (toWidget . snd) xs
-            w <- liftInn $ liftIO' notebookNew
+            w <- liftEffectM $ liftIO' notebookNew
             forM_ (zip ws xs) $ \(ww, (s, _)) -> do
-                liftInn . liftIO' . flip (notebookAppendPage w) s $ snd $ ww
+                liftEffectM . liftIO' . flip (notebookAppendPage w) s $ snd $ ww
             s $ \re -> void' $ liftIO' $ on w switchPage $ dca . re
             return'' ws w
 
         Cell' f -> do
             let b = False
-            w <- liftInn $ liftIO' $ case b of
+            w <- liftEffectM $ liftIO' $ case b of
                 True -> fmap castToContainer $ hBoxNew False 1
                 False -> fmap castToContainer $ alignmentNew 0 0 1 1
-            sh <- liftInn $ liftIO $ newIORef $ return ()
+            sh <- liftEffectM $ liftIO $ newIORef $ return ()
             f (unsafeC . toWidget) $ \x -> liftIO' $ do
                 writeIORef sh $ fst x
                 post' $ post $ fst x
