@@ -15,40 +15,44 @@ main :: IO ()
 main = runI $ notebook
     [ (,) "Hello" $ Label $ constEffect "Hello World!"
 
-    , (,) "Counter" $ Action $ do
-        c <- newRef 0
-        return $ vcat
-            [ Label $ rEffect $ liftM show $ readRef c
-            , hcat
-                [ smartButton (constEffect "+1") (return . (+1)) c
-                , smartButton (constEffect "-1") (return . (+(-1))) c
-                ]
-            ]
+    , (,) "Counters" $ notebook
 
-    , (,) "Counter[1..3]" $ Action $ do
-        c <- newRef 1
-        return $ vcat
-            [ Label $ rEffect $ liftM show $ readRef c
-            , hcat
-                [ smartButton (constEffect "+1") (return . min 3 . (+1)) c
-                , smartButton (constEffect "-1") (return . max 1 . (+(-1))) c
+        [ (,) "Unbounded" $ Action $ do
+            c <- newRef 0
+            return $ vcat
+                [ Label $ rEffect $ liftM show $ readRef c
+                , hcat
+                    [ smartButton (constEffect "+1") (return . (+1)) c
+                    , smartButton (constEffect "-1") (return . (+(-1))) c
+                    ]
                 ]
-            ]
 
-    , (,) "Counter[a..b]" $ Action $ do
-        a <- newRef 1
-        b <- newRef 3
-        let a' = joinRef $ do
-                bv <- readRef b
-                return $ lens id (const . min bv) % a
-        let b' = joinRef $ do
-                av <- readRef a
-                return $ lens id (const . max av) % b
-        return $ vcat
-            [ counter a' b'
-            , hcat [ Label $ constEffect "min", entry $ showLens % a' ]
-            , hcat [ Label $ constEffect "max", entry $ showLens % b' ]
-            ]
+        , (,) "1..3" $ Action $ do
+            c <- newRef 1
+            return $ vcat
+                [ Label $ rEffect $ liftM show $ readRef c
+                , hcat
+                    [ smartButton (constEffect "+1") (return . min 3 . (+1)) c
+                    , smartButton (constEffect "-1") (return . max 1 . (+(-1))) c
+                    ]
+                ]
+
+        , (,) "a..b" $ Action $ do
+            a <- newRef 1
+            b <- newRef 3
+            let a' = joinRef $ do
+                    bv <- readRef b
+                    return $ lens id (const . min bv) % a
+            let b' = joinRef $ do
+                    av <- readRef a
+                    return $ lens id (const . max av) % b
+            return $ vcat
+                [ counter a' b'
+                , hcat [ Label $ constEffect "min", entry $ showLens % a' ]
+                , hcat [ Label $ constEffect "max", entry $ showLens % b' ]
+                ]
+
+        ]
 
     , (,) "TabSwitch" $ Action $ do
         x <- newRef "a"
