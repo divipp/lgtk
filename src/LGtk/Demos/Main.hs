@@ -5,13 +5,11 @@ module LGtk.Demos.Main
     ) where
 
 import Control.Monad
-import Control.Monad.Trans
 import Control.Concurrent
 import Prelude hiding (id, (.))
 
 import LGtk
 
-import Control.Monad.Restricted
 import LGtk.Demos.Tri
 import LGtk.Demos.IntListEditor
 import LGtk.Demos.TEditor
@@ -77,8 +75,8 @@ main = runWidget $ notebook
             g _ _ = return ()
         async (toReceive $ writeRef ready) $ asyncToSend False f g
         return $ vcat
-            [ entry $ showLens % delay
-            , Button (constSend "Start long computation") (rEffect $ readRef ready) $ toReceive $ const $ writeRef ready False
+            [ hcat [ entry $ showLens % delay, Label $ constSend "sec" ]
+            , Button (rEffect $ readRef delay >>= \d -> return $ "Start " ++ show d ++ " sec computation") (rEffect $ readRef ready) $ toReceive $ const $ writeRef ready False
             , Label $ rEffect $ liftM (\b -> if b then "Ready." else "Computing...") $ readRef ready
             ]
 
