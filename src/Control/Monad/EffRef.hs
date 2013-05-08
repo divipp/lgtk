@@ -26,7 +26,7 @@ fileRef :: (EffIORef m) => FilePath -> C m (Ref m (Maybe String))
 fileRef f = unsafeC $ do
         ms <- liftEffectM $ liftIO r
         ref <- runC $ newRef ms
-        -- addWEffect (writeRef ref) $ \cb -> TODO
+        -- toReceive (writeRef ref) $ \cb -> TODO
         rEffect (readRef ref) $ liftIO . w
         return ref
      where

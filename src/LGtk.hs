@@ -53,7 +53,7 @@ smartButton
      Send m String -> (a -> R (Inner m) a) -> Ref m a -> I m
 smartButton s f k =
     Button s (rEffect $ readRef k >>= \x -> liftM (/= x) $ f x)
-             (addWEffect $ \() -> runR (readRef k) >>= runR . f >>= writeRef k)
+             (toReceive $ \() -> runR (readRef k) >>= runR . f >>= writeRef k)
 
 cell :: MonadRegister m => Bool -> IC m (I m) -> I m
 cell b (IC r g) = Cell' $ \f -> toSend b $ IC r $ \x -> f $ Action $ g x 
@@ -64,16 +64,16 @@ button
     -> R (PureM m) (Maybe (PureM m ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
     -> I m
 button r fm = Button r (rEffect $ liftM isJust fm)
-    (addWEffect $ const $ runR fm >>= maybe (return ()) id)
+    (toReceive $ const $ runR fm >>= maybe (return ()) id)
 
 checkbox :: EffRef m => Ref m Bool -> I m
-checkbox r = Checkbox (rEffect (readRef r), addWEffect (writeRef r))
+checkbox r = Checkbox (rEffect (readRef r), toReceive (writeRef r))
 
 combobox :: EffRef m => [String] -> Ref m Int -> I m
-combobox ss r = Combobox ss (rEffect (readRef r), addWEffect (writeRef r))
+combobox ss r = Combobox ss (rEffect (readRef r), toReceive (writeRef r))
 
 entry :: EffRef m => Ref m String -> I m
-entry r = Entry (rEffect (readRef r), addWEffect (writeRef r))
+entry r = Entry (rEffect (readRef r), toReceive (writeRef r))
 
 notebook :: EffRef m => [(String, I m)] -> I m
 notebook xs = Action $ do
@@ -83,7 +83,7 @@ notebook xs = Action $ do
            h True = w
          in toSend True $ IC (liftM (== index) $ readRef currentPage) $ mkWidget . h
 
-    return $ Notebook' (addWEffect $ writeRef currentPage) $ zipWith f [0..] xs
+    return $ Notebook' (toReceive $ writeRef currentPage) $ zipWith f [0..] xs
 
 -- | Run an interface description
 runI :: (forall m . EffIORef m => I m) -> IO ()

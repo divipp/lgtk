@@ -53,7 +53,7 @@ instance (MonadIO m, Monad n) => MonadRegister (Register n m) where
 
     liftEffectM = Register . liftIO
 
-    addWEffect r int = do
+    toReceive r int = do
         rr <- Register ask
         liftEffectM $ int $ \a -> sendEvent rr $ do
             unlift (morphN rr) $ r a

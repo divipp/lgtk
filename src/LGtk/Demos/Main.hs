@@ -70,7 +70,7 @@ main = runI $ notebook
         delay <- newRef 1.0
         unsafeC $ do
             v <- liftEffectM $ liftIO newEmptyMVar
-            addWEffect (writeRef ready) $ \re -> liftIO $ void $ forkIO $ forever $ do
+            toReceive (writeRef ready) $ \re -> liftIO $ void $ forkIO $ forever $ do
                 _ <- takeMVar v
                 re True
                 return ()
@@ -81,7 +81,7 @@ main = runI $ notebook
                 return ()
         return $ vcat
             [ entry $ showLens % delay
-            , Button (constSend "Start long computation") (rEffect $ readRef ready) $ addWEffect $ const $ writeRef ready False
+            , Button (constSend "Start long computation") (rEffect $ readRef ready) $ toReceive $ const $ writeRef ready False
             , Label $ rEffect $ liftM (\b -> if b then "Ready." else "Computing...") $ readRef ready
             ]
 
