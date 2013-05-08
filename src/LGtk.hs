@@ -57,7 +57,7 @@ smartButton s f k =
     Button s (rEffect $ readRef k >>= \x -> liftM (/= x) $ f x)
              (toReceive $ \() -> runR (readRef k) >>= runR . f >>= writeRef k)
 
-cell :: (EffRef m, Eq a) => Bool -> ReadRef m a -> (a -> C m (Widget m)) -> Widget m
+cell :: (EffRef m, Eq a) => Bool -> ReadRef m a -> (a -> m (Widget m)) -> Widget m
 cell b r g = Cell' $ \f -> toSend b r $ \x -> f $ Action $ g x 
 
 button
@@ -79,7 +79,7 @@ entry r = Entry (rEffect (readRef r), toReceive (writeRef r))
 
 notebook :: EffRef m => [(String, Widget m)] -> Widget m
 notebook xs = Action $ do
-    currentPage <- newRef 0
+    currentPage <- runC $ newRef 0
     let f index (title, w) = (,) title $ Cell' $ \mkWidget -> let
            h False = hcat []
            h True = w

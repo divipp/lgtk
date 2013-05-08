@@ -19,7 +19,7 @@ import Prelude hiding ((.), id)
 import Graphics.UI.Gtk hiding (Widget)
 import qualified Graphics.UI.Gtk as Gtk
 
-import Control.Monad.Restricted
+import Control.Monad.Restricted (Morph)
 import GUI.Gtk.Structures
 
 gtkContext :: (Morph IO IO -> IO SWidget) -> IO ()
@@ -50,7 +50,7 @@ runWidget
 runWidget liftEffectM post' post = toWidget
  where
     toWidget i = case i of
-        Action m -> runC m >>= toWidget
+        Action m -> m >>= toWidget
         Label s -> do
             w <- liftEffectM $ post $ labelNew Nothing
             s $ post . labelSetLabel w
@@ -98,7 +98,7 @@ runWidget liftEffectM post' post = toWidget
                 True -> fmap castToContainer $ hBoxNew False 1
                 False -> fmap castToContainer $ alignmentNew 0 0 1 1
             sh <- liftEffectM $ liftIO $ newIORef $ return ()
-            f (unsafeC . toWidget) $ \x -> post $ do
+            f toWidget $ \x -> post $ do
                 writeIORef sh $ fst x
                 post' $ post $ fst x
                 containerForeach w $ if b then widgetHideAll else containerRemove w 

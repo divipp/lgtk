@@ -30,7 +30,7 @@ class ADTLens a where
 
 -- | A generic ADT editor
 adtEditor :: (EffRef m, ADTLens a) => Ref m a -> C m (Widget m)
-adtEditor = liftM Action . memoRead . editor  where
+adtEditor = liftM (Action . runC) . memoRead . editor  where
     editor r = do
         q <- extRef r k (0, ls)
         es <- mkEditors ls $ sndLens % q

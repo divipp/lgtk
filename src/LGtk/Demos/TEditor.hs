@@ -37,13 +37,13 @@ instance ADTLens T where
 
 -- | @T@ editor with comboboxes, as an ADTEditor
 tEditor1 :: EffRef m => Widget m
-tEditor1 = Action $ newRef Leaf >>= adtEditor
+tEditor1 = Action $ runC $ newRef Leaf >>= adtEditor
 
 -- | @T@ editor with checkboxes, given directly
 tEditor2 :: EffRef m => Widget m
-tEditor2 = Action $ liftM editor $ newRef Leaf  where
+tEditor2 = Action $ runC $ liftM editor $ newRef Leaf  where
 
-    editor r = Action $ do
+    editor r = Action $ runC $ do
         q <- extRef r tLens (False, (Leaf, Leaf))
         return $ hcat
             [ checkbox $ fstLens % q
@@ -54,7 +54,7 @@ tEditor2 = Action $ liftM editor $ newRef Leaf  where
 
 -- | Another @T@ editor with checkboxes, given directly
 tEditor3 :: EffRef m => Ref m T -> C m (Widget m)
-tEditor3 = liftM Action . memoRead . editor' where
+tEditor3 = liftM (Action . runC) . memoRead . editor' where
     editor' r = do
         q <- extRef r tLens (False, (Leaf, Leaf))
         t1 <- tEditor3 $ fstLens . sndLens % q

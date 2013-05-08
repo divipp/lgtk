@@ -9,8 +9,6 @@ module GUI.Gtk.Structures
     , ListLayout (..)
     ) where
 
-import Control.Monad.Restricted
-
 type Send n m a = (a -> n ()) -> m ()
 type Receive n m a = ((a -> n ()) -> n ()) -> m ()
 type SendReceive n m a = (Send n m a, Receive n m a)
@@ -27,8 +25,8 @@ data Widget n m
     | Entry (SendReceive n m String)          -- ^ entry field
     | List ListLayout [Widget n m]         -- ^ group interfaces into row or column
     | Notebook' (Receive n m Int) [(String, Widget n m)]     -- ^ actual tab index, tabs
-    | Cell' (forall a . (Widget n m -> C m a) -> Send n m a)
-    | Action (C m (Widget n m))              -- ^ do an action before giving the interface
+    | Cell' (forall a . (Widget n m -> m a) -> Send n m a)
+    | Action (m (Widget n m))              -- ^ do an action before giving the interface
 
 data ListLayout
     = Horizontal | Vertical

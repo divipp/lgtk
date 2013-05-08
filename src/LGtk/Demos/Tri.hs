@@ -29,7 +29,7 @@ setXY x s = take 2 $ XY x : filter (\x-> case x of XY _ -> False; _ -> True) s
 
 -- | The editor
 tri :: EffRef m => Widget m
-tri = Action $ do
+tri = Action $ runC $ do
     s <- newRef [X 0, Y 0]
     return $ vcat
         [ hcat [entry $ showLens . lens getX setX % s, Label $ constSend "x"]

@@ -13,7 +13,6 @@ module Control.Monad.Register
 
     -- * Register monad
     , MonadRegister (..)
-    , liftEffectMC
 
     -- * Derived
     , rEffect
@@ -53,22 +52,18 @@ class (Monad m, Monad (PureM m), Monad (EffectM m)) => MonadRegister m where
 
     liftEffectM :: Morph (EffectM m) m
 
-    toSend :: Eq b => Bool -> R (PureM m) b -> (b -> C m a) -> Send m a
+    toSend :: Eq b => Bool -> R (PureM m) b -> (b -> m a) -> Send m a
 
     toReceive :: Eq a => (a -> PureM m ()) -> Receive m a
 
 rEffect :: (MonadRegister m, Eq a) => R (PureM m) a -> Send m a
 rEffect r = toSend False r return
 
--- | TODO
-liftEffectMC :: MonadRegister m => Morph (EffectM m) (C m)
-liftEffectMC = unsafeC . liftEffectM
-
 asyncToSend
     :: (Eq b, MonadRegister m)
     => Bool
     -> R (PureM m) b
-    -> (b -> (t -> EffectM m ()) -> C m ())
+    -> (b -> Send m t)
     -> Send m t
 asyncToSend b x y re = toSend b x (\b -> y b re) return
 

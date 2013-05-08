@@ -69,7 +69,7 @@ instance (MonadIO m, Monad n) => MonadRegister (Register n m) where
                 _ -> case partition ((== b) . fst) memo of
                     (x@(_, (c, s)): _, rem) -> (x: rem, act c >> s)
                     _ -> (,) memo $ do
-                        (c, s) <- unlift (morph rr) $ runWriterT $ runReaderT (unRegister $ runC $ fb b) rr
+                        (c, s) <- unlift (morph rr) $ runWriterT $ runReaderT (unRegister $ fb b) rr
                         when bb $ atomicModifyIORef' memoref $ \memo -> ((b, (c, s)) : filter ((/= b) . fst) memo, ())
                         act c >> s
 
