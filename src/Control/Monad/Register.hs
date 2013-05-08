@@ -68,9 +68,9 @@ asyncToSend
     :: (Eq b, MonadRegister m)
     => Bool
     -> R (PureM m) b
-    -> (b -> (t -> EffectM m ()) -> EffectM m ())
+    -> (b -> (t -> EffectM m ()) -> C m ())
     -> Send m t
-asyncToSend b x y re = toSend b x (\b -> liftEffectMC $ y b re) return
+asyncToSend b x y re = toSend b x (\b -> y b re) return
 
 
 

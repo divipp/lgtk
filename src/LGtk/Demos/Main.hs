@@ -71,7 +71,7 @@ main = runWidget $ notebook
         let f = do
                 b <- readRef ready
                 if b then return Nothing else liftM Just $ readRef delay
-            g (Just d) re = void $ forkIO $ threadDelay (ceiling $ 10^6 * d) >> re True
+            g (Just d) re = liftEffectMC $ void $ forkIO $ threadDelay (ceiling $ 10^6 * d) >> re True
             g _ _ = return ()
         async (toReceive $ writeRef ready) $ asyncToSend False f g
         return $ vcat
@@ -82,7 +82,7 @@ main = runWidget $ notebook
 
     , (,) "Timer" $ Action $ do
         t <- newRef 0
-        let g t re = void $ forkIO $ threadDelay (ceiling $ 10^6 * 1) >> re (1+t)
+        let g t re = liftEffectMC $ void $ forkIO $ threadDelay (ceiling $ 10^6 * 1) >> re (1+t)
         async (toReceive $ writeRef t) $ asyncToSend False (readRef t) g
         return $ vcat
             [ Label $ rEffect $ readRef $ showLens % t
