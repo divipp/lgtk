@@ -1,3 +1,5 @@
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE TypeFamilies #-}
 module LGtk.Demos.Main
     ( main
     ) where
@@ -68,17 +70,12 @@ main = runWidget $ notebook
     , (,) "Async" $ Action $ do
         ready <- newRef True
         delay <- newRef 1.0
-        unsafeC $ do
-            v <- liftEffectM $ liftIO newEmptyMVar
-            toReceive (writeRef ready) $ \re -> liftIO $ void $ forkIO $ forever $ do
-                _ <- takeMVar v
-                re True
-                return ()
-            rEffect (liftM2 (,) (readRef ready) (readRef delay)) $ \(b, d) -> when (not b) $ do
-                liftIO $ forkIO $ do
-                    threadDelay $ ceiling $ 10^6 * d
-                    putMVar v ()
-                return ()
+        let f = do
+                b <- readRef ready
+                if b then return Nothing else liftM Just $ readRef delay
+            g (Just d) re = void $ forkIO $ threadDelay (ceiling $ 10^6 * d) >> re True
+            g _ _ = return ()
+        async (toReceive $ writeRef ready) $ asyncToSend False f g
         return $ vcat
             [ entry $ showLens % delay
             , Button (constSend "Start long computation") (rEffect $ readRef ready) $ toReceive $ const $ writeRef ready False

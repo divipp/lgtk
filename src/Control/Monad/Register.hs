@@ -2,16 +2,21 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
 module Control.Monad.Register
-    ( Send
+    ( -- * Type synonymes and basic functions
+      Send
     , mapSend
     , voidSend
     , constSend
     , Receive
     , mapReceive
     , voidReceive
+
+    -- * Register monad
     , MonadRegister (..)
+
     -- * Derived
     , rEffect
+    , asyncToSend
     ) where
 
 import Control.Monad.Restricted
@@ -53,4 +58,14 @@ class (Monad m, Monad (PureM m), Monad (EffectM m)) => MonadRegister m where
 
 rEffect :: (MonadRegister m, Eq a) => R (PureM m) a -> Send m a
 rEffect r = toSend False r return
+
+asyncToSend
+    :: (Eq b, MonadRegister m)
+    => Bool
+    -> R (PureM m) b
+    -> (b -> (t -> EffectM m ()) -> EffectM m ())
+    -> Send m t
+asyncToSend b x y re = toSend b x (\b -> unsafeC $ liftEffectM $ y b re) return
+
+
 
