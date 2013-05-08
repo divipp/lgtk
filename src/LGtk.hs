@@ -56,13 +56,13 @@ smartButton s f k =
     Button s (rEffect $ readRef k >>= \x -> liftM (/= x) $ f x)
              (toReceive $ \() -> runR (readRef k) >>= runR . f >>= writeRef k)
 
-cell :: (MonadRegister m, Eq a) => Bool -> R (PureM m) a -> (a -> C m (Widget m)) -> Widget m
+cell :: (EffRef m, Eq a) => Bool -> ReadRef m a -> (a -> C m (Widget m)) -> Widget m
 cell b r g = Cell' $ \f -> toSend b r $ \x -> f $ Action $ g x 
 
 button
-    :: MonadRegister m
+    :: EffRef m
     => Send m String
-    -> R (PureM m) (Maybe (PureM m ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
+    -> ReadRef m (Maybe (WriteRef m ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
     -> Widget m
 button r fm = Button r (rEffect $ liftM isJust fm)
     (toReceive $ const $ runR fm >>= maybe (return ()) id)
