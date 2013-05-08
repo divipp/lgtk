@@ -32,7 +32,8 @@ import Control.Category
 import Control.Monad
 import Prelude hiding ((.), id)
 
-import Control.Monad.ExtRef
+import Control.Monad.ExtRef hiding (liftWriteRef)
+import qualified Control.Monad.ExtRef as ExtRef
 import Control.Monad.Register
 import Control.Monad.Register.Basic
 import Control.Monad.EffRef
@@ -88,5 +89,5 @@ notebook xs = Action $ do
 
 -- | Run an interface description
 runWidget :: (forall m . EffIORef m => Widget m) -> IO ()
-runWidget e = Gtk.gtkContext $ \post -> runExt_ $ \mo -> evalRegister (mo . liftWriteRef) mo $ \post' -> Gtk.runWidget liftEffectM post' post e
+runWidget e = Gtk.gtkContext $ \post -> runExt_ $ \mo -> evalRegister (mo . ExtRef.liftWriteRef) mo $ \post' -> Gtk.runWidget liftEffectM post' post e
 
