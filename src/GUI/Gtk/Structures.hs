@@ -2,7 +2,10 @@
 {-# LANGUAGE RankNTypes #-}
 -- | Lens-based Gtk interface
 module GUI.Gtk.Structures
-    ( Widget (..)
+    ( Send
+    , Receive
+    , SendReceive
+    , Widget (..)
     , ListLayout (..)
     ) where
 

@@ -18,7 +18,7 @@ intListEditor
     :: EffRef m
     => Ref m String         -- ^ state reference
     -> Ref m String         -- ^ settings reference
-    -> I m
+    -> Widget m
 intListEditor state settings = Action $ do
     list <- extRef state showLens []
     (undo, redo)  <- undoTr ((==) `on` map fst) list
@@ -85,7 +85,7 @@ intListEditor state settings = Action $ do
     mapSel f (x, y) = (if y then f x else x, y)
 
 
-listEditor :: EffRef m => a -> (Int -> Ref m a -> C m (I m)) -> Ref m [a] -> C m (I m)
+listEditor :: EffRef m => a -> (Int -> Ref m a -> C m (Widget m)) -> Ref m [a] -> C m (Widget m)
 listEditor def ed = editor 0 where
   editor i r = liftM Action $ memoRead $ do
     q <- extRef r listLens (False, (def, []))

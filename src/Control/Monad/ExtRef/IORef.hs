@@ -76,6 +76,6 @@ runExt_
     :: forall c m . (Functor m, NewRef m)
     => (forall n . (Monad n, Functor n) => Morph m n -> Morph n m -> c n -> c m)
     -> (forall i . c (Ext i m)) -> m (c m)
-runExt_ mapI int
-    = return $ mapI lift unExt int
+runExt_ mapWidget int
+    = return $ mapWidget lift unExt int
 

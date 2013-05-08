@@ -15,7 +15,7 @@ import LGtk.Demos.IntListEditor
 import LGtk.Demos.TEditor
 
 main :: IO ()
-main = runI $ notebook
+main = runWidget $ notebook
     [ (,) "Hello" $ Label $ constSend "Hello World!"
 
     , (,) "Counters" $ notebook
