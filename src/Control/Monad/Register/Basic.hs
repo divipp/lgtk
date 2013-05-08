@@ -66,11 +66,11 @@ instance (MonadIO m, Monad n) => MonadRegister (Register n m) where
             b <- unlift (morphN rr) $ runR rb
             join $ atomicModifyIORef' memoref $ \memo -> case memo of
                 ((b', (_, s)): _) | b' == b -> (memo, s)
-                _ -> case partition ((== b) . fst) memo of
-                    (x@(_, (c, s)): _, rem) -> (x: rem, act c >> s)
+                _ -> case (bb, partition ((== b) . fst) memo) of
+                    (True, (x@(_, (c, s)): _, rem)) -> (x: rem, act c >> s)
                     _ -> (,) memo $ do
                         (c, s) <- unlift (morph rr) $ runWriterT $ runReaderT (unRegister $ fb b) rr
-                        when bb $ atomicModifyIORef' memoref $ \memo -> ((b, (c, s)) : filter ((/= b) . fst) memo, ())
+                        atomicModifyIORef' memoref $ \memo -> ((b, (c, s)) : if bb then filter ((/= b) . fst) memo else [], ())
                         act c >> s
 
 -- | evaluation with postponed actions
