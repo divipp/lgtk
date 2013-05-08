@@ -3,10 +3,13 @@ module LGtk.Demos.Main
     ) where
 
 import Control.Monad
+import Control.Monad.Trans
+import Control.Concurrent
 import Prelude hiding (id, (.))
 
 import LGtk
 
+import Control.Monad.Restricted
 import LGtk.Demos.Tri
 import LGtk.Demos.IntListEditor
 import LGtk.Demos.TEditor
@@ -60,6 +63,26 @@ main = runI $ notebook
         return $ notebook
             [ (,) "T1" w
             , (,) "T2" w
+            ]
+
+    , (,) "Async" $ Action $ do
+        ready <- newRef True
+        delay <- newRef 1.0
+        unsafeC $ do
+            v <- liftInn $ liftIO newEmptyMVar
+            addWEffect (writeRef ready) $ \re -> liftIO $ void $ forkIO $ forever $ do
+                _ <- takeMVar v
+                re True
+                return ()
+            addCEffect (liftM2 (,) (readRef ready) (readRef delay)) $ \(b, d) -> when (not b) $ do
+                liftIO $ forkIO $ do
+                    threadDelay $ ceiling $ 10^6 * d
+                    putMVar v ()
+                return ()
+        return $ vcat
+            [ entry $ showLens % delay
+            , Button (constEffect "Start long computation") (rEffect $ readRef ready) $ addWEffect $ const $ writeRef ready False
+            , Label $ rEffect $ liftM (\b -> if b then "Ready." else "Computing...") $ readRef ready
             ]
 
     , (,) "IntListEditor" $ Action $ do
