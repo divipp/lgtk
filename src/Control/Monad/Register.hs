@@ -8,7 +8,6 @@ module Control.Monad.Register
     , Sender
     , IC (..)
     , MonadRegister (..)
-    , addCEffect
     , constEffect
     , rEffect
     ) where
@@ -46,9 +45,6 @@ class (Monad m, Monad (PureM m), Monad (EffectM m)) => MonadRegister m where
 constEffect :: (MonadRegister m) => a -> Receiver m a 
 constEffect a f = liftEffectM $ f a
 
-addCEffect :: (MonadRegister m, Eq a) => R (PureM m) a -> Receiver m a
-addCEffect r = addICEffect False (IC r return)
-
 rEffect :: (MonadRegister m, Eq a) => R (PureM m) a -> Receiver m a
-rEffect = addCEffect
+rEffect r = addICEffect False (IC r return)
 

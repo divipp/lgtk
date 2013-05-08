@@ -27,7 +27,7 @@ fileRef f = unsafeC $ do
         ms <- liftEffectM $ liftIO r
         ref <- runC $ newRef ms
         -- addWEffect (writeRef ref) $ \cb -> TODO
-        addCEffect (readRef ref) $ liftIO . w
+        rEffect (readRef ref) $ liftIO . w
         return ref
      where
         r = do

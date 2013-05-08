@@ -52,7 +52,7 @@ smartButton
   :: (EffRef m, Eq a) =>
      Receiver m String -> (a -> R (Inner m) a) -> Ref m a -> I m
 smartButton s f k =
-    Button s (addCEffect $ readRef k >>= \x -> liftM (/= x) $ f x)
+    Button s (rEffect $ readRef k >>= \x -> liftM (/= x) $ f x)
              (addWEffect $ \() -> runR (readRef k) >>= runR . f >>= writeRef k)
 
 cell :: MonadRegister m => Bool -> IC m (I m) -> I m
@@ -63,17 +63,17 @@ button
     => Receiver m String
     -> R (PureM m) (Maybe (PureM m ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
     -> I m
-button r fm = Button r (addCEffect $ liftM isJust fm)
+button r fm = Button r (rEffect $ liftM isJust fm)
     (addWEffect $ const $ runR fm >>= maybe (return ()) id)
 
 checkbox :: EffRef m => Ref m Bool -> I m
-checkbox r = Checkbox (addCEffect (readRef r), addWEffect (writeRef r))
+checkbox r = Checkbox (rEffect (readRef r), addWEffect (writeRef r))
 
 combobox :: EffRef m => [String] -> Ref m Int -> I m
-combobox ss r = Combobox ss (addCEffect (readRef r), addWEffect (writeRef r))
+combobox ss r = Combobox ss (rEffect (readRef r), addWEffect (writeRef r))
 
 entry :: EffRef m => Ref m String -> I m
-entry r = Entry (addCEffect (readRef r), addWEffect (writeRef r))
+entry r = Entry (rEffect (readRef r), addWEffect (writeRef r))
 
 notebook :: EffRef m => [(String, I m)] -> I m
 notebook xs = Action $ do

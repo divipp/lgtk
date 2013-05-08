@@ -74,7 +74,7 @@ main = runI $ notebook
                 _ <- takeMVar v
                 re True
                 return ()
-            addCEffect (liftM2 (,) (readRef ready) (readRef delay)) $ \(b, d) -> when (not b) $ do
+            rEffect (liftM2 (,) (readRef ready) (readRef delay)) $ \(b, d) -> when (not b) $ do
                 liftIO $ forkIO $ do
                     threadDelay $ ceiling $ 10^6 * d
                     putMVar v ()
