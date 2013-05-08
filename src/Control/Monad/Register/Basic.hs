@@ -59,7 +59,7 @@ instance (MonadIO m, Monad n) => MonadRegister (Register n m) where
             unlift (morphN rr) $ r a
             actions rr
 
-    toSend bb (IC rb fb) act = do
+    toSend bb rb fb act = do
         rr <- Register ask
         memoref <- liftIO $ newIORef []  -- memo table, first item is the newest
         Register $ tell $ do

@@ -9,7 +9,6 @@ module Control.Monad.Register
     , Receive
     , mapReceive
     , voidReceive
-    , IC (..)
     , MonadRegister (..)
     , rEffect
     ) where
@@ -40,8 +39,6 @@ mapReceive f = (. (. (. f)))
 voidReceive :: Monad m => Receive m a
 voidReceive _ = return ()
 
-data IC m a = forall b . Eq b => IC (R (PureM m) b) (b -> C m a)
-
 class (Monad m, Monad (PureM m), Monad (EffectM m)) => MonadRegister m where
 
     type PureM m :: * -> *
@@ -49,10 +46,10 @@ class (Monad m, Monad (PureM m), Monad (EffectM m)) => MonadRegister m where
 
     liftEffectM :: Morph (EffectM m) m
 
-    toSend :: Bool -> IC m a -> Send m a
+    toSend :: Eq b => Bool -> R (PureM m) b -> (b -> C m a) -> Send m a
 
     toReceive :: Eq a => (a -> PureM m ()) -> Receive m a
 
 rEffect :: (MonadRegister m, Eq a) => R (PureM m) a -> Send m a
-rEffect r = toSend False (IC r return)
+rEffect r = toSend False r return
 
