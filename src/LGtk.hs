@@ -50,7 +50,7 @@ hcat = List Horizontal
 
 smartButton
   :: (EffRef m, Eq a) =>
-     Send m String -> (a -> R (Inner m) a) -> Ref m a -> I m
+     Send m String -> (a -> ReadRef m a) -> Ref m a -> I m
 smartButton s f k =
     Button s (rEffect $ readRef k >>= \x -> liftM (/= x) $ f x)
              (toReceive $ \() -> runR (readRef k) >>= runR . f >>= writeRef k)
@@ -87,5 +87,5 @@ notebook xs = Action $ do
 
 -- | Run an interface description
 runI :: (forall m . EffIORef m => I m) -> IO ()
-runI e = Gtk.gtkContext $ \post -> runExt_ $ \mo -> evalRegister (mo . liftInner) mo $ \post' -> Gtk.runWidget liftEffectM post' post id e
+runI e = Gtk.gtkContext $ \post -> runExt_ $ \mo -> evalRegister (mo . liftWriteRef) mo $ \post' -> Gtk.runWidget liftEffectM post' post id e
 

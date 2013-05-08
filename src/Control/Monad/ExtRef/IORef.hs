@@ -27,7 +27,7 @@ import Control.Monad.Restricted
 
 extRef_ :: NewRef m => Ref m b -> Lens a b -> a -> C m (Ref m a)
 extRef_ r1 r2 a0 = do
-    inner <- mapC liftInner $ rToC $ readRef r1
+    inner <- mapC liftWriteRef $ rToC $ readRef r1
     let a' = setL r2 inner a0
     store <- newRef a'
     let r = do 
@@ -54,9 +54,9 @@ unsafeLiftIO m = do
     evaluate $ unsafePerformIO m
 
 instance Monad m => NewRef (Ext i m) where
-    type Inner (Ext i m) = Ext i m
+    type WriteRef (Ext i m) = Ext i m
 
-    liftInner m = m
+    liftWriteRef m = m
 
     newRef = liftM (mapRef unsafeLiftIO) . mapC unsafeLiftIO . newRef
 

@@ -43,7 +43,7 @@ rv ==? v = when (rv /= v) $ tell . return $ "runTest failed: " ++ show rv ++ " /
 
 -- | Check the current value of a given reference.
 (==>) :: (Eq a, Show a, MonadWriter [String] m, ExtRef m) => Ref m a -> a -> m ()
-r ==> v = liftInner (runR $ readRef r) >>= (==? v)
+r ==> v = liftWriteRef (runR $ readRef r) >>= (==? v)
 
 infix 0 ==>, ==?
 
@@ -280,13 +280,13 @@ mkTests runTest
         redo === False
         undo === True
       where
-        push m = liftInner m >>= \x -> maybe (return ()) liftInner x
-        m === t = liftInner m >>= \x -> isJust x ==? t
+        push m = liftWriteRef m >>= \x -> maybe (return ()) liftWriteRef x
+        m === t = liftWriteRef m >>= \x -> isJust x ==? t
 
     joinRef' r = joinRef $ readRef r
 
     newRef' r = runC $ newRef r
     extRef' r k a = runC $ extRef r k a
 
-    writeRef' r a = liftInner $ writeRef r a
+    writeRef' r a = liftWriteRef $ writeRef r a
 

@@ -36,11 +36,11 @@ instance Monoid (IO ()) where
 newtype Register n m a = Register { unRegister :: ReaderT (RegisterState n m) (WriterT (IO ()) m) a }
     deriving (Functor, Monad, MonadIO)
 
-instance (ExtRef m, n ~ Inner m) => ExtRef (Register n m) where
+instance (ExtRef m, n ~ WriteRef m) => ExtRef (Register n m) where
 
     type Ref (Register n m) = Ref m
 
-    liftInner = Register . liftInner
+    liftWriteRef = Register . liftWriteRef
 
     newRef = mapC Register . newRef
 

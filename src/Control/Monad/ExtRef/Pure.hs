@@ -111,7 +111,7 @@ instance (Monad m) => ExtRef (Ext i m) where
 
     type Ref (Ext i m) = MRef (IExt i)
 
-    liftInner = mapExt (return . runIdentity)
+    liftWriteRef = mapExt (return . runIdentity)
 
     extRef r1 r2 a0 = unsafeC $ Ext $ do
         a1 <- mapStateT (return . runIdentity) $ g a0
@@ -133,8 +133,8 @@ newtype Ext_ i m a = Ext_ (ReaderT (IORef ST) m a)
 instance MonadTrans (Ext_ i) where
     lift = Ext_ . lift
 
-liftInner_ :: MonadIO m => IExt i a -> Ext_ i m a
-liftInner_ (Ext m) = Ext_ $ do
+liftWriteRef_ :: MonadIO m => IExt i a -> Ext_ i m a
+liftWriteRef_ (Ext m) = Ext_ $ do
     r <- ask
     liftIO $ atomicModifyIORef' r $ swap . runState m
   where
@@ -144,9 +144,9 @@ instance (MonadIO m) => ExtRef (Ext_ i m) where
 
     type Ref (Ext_ i m) = MRef (IExt i)
 
-    liftInner = liftInner_
+    liftWriteRef = liftWriteRef_
 
-    extRef r1 r2 a0 = mapC liftInner_ $ extRef r1 r2 a0
+    extRef r1 r2 a0 = mapC liftWriteRef_ $ extRef r1 r2 a0
 
 
 -- | Running of the @(Ext_ i m)@ monad.

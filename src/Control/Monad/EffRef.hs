@@ -18,7 +18,7 @@ import Control.Monad.Register
 import Control.Monad.ExtRef
 
 
-type EffRef m = (ExtRef m, MonadRegister m, Inner m ~ PureM m)
+type EffRef m = (ExtRef m, MonadRegister m, WriteRef m ~ PureM m)
 
 type EffIORef m = (EffRef m, EffectM m ~ IO)
 
