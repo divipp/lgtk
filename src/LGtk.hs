@@ -50,7 +50,7 @@ hcat = List Horizontal
 
 smartButton
   :: (EffRef m, Eq a) =>
-     Receiver m String -> (a -> R (Inner m) a) -> Ref m a -> I m
+     Send m String -> (a -> R (Inner m) a) -> Ref m a -> I m
 smartButton s f k =
     Button s (rEffect $ readRef k >>= \x -> liftM (/= x) $ f x)
              (addWEffect $ \() -> runR (readRef k) >>= runR . f >>= writeRef k)
@@ -60,7 +60,7 @@ cell b (IC r g) = Cell' $ \f -> addICEffect b $ IC r $ \x -> f $ Action $ g x
 
 button
     :: MonadRegister m
-    => Receiver m String
+    => Send m String
     -> R (PureM m) (Maybe (PureM m ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
     -> I m
 button r fm = Button r (rEffect $ liftM isJust fm)

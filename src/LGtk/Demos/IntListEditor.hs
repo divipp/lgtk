@@ -62,8 +62,8 @@ intListEditor state settings = Action $ do
         [ Label $ constEffect $ show (i+1) ++ "."
         , entry $ showLens . fstLens % r
         , checkbox $ sndLens % r
-        , Button (constEffect "Del")  voidReceiver $ addWEffect $ const $ modRef list $ \xs -> take i xs ++ drop (i+1) xs
-        , Button (constEffect "Copy") voidReceiver $ addWEffect $ const $ modRef list $ \xs -> take (i+1) xs ++ drop i xs
+        , Button (constEffect "Del")  voidSend $ addWEffect $ const $ modRef list $ \xs -> take i xs ++ drop (i+1) xs
+        , Button (constEffect "Copy") voidSend $ addWEffect $ const $ modRef list $ \xs -> take (i+1) xs ++ drop i xs
         ]
 
     modL' mr f b = do

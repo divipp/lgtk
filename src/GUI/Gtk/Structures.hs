@@ -8,23 +8,23 @@ module GUI.Gtk.Structures
 
 import Control.Monad.Restricted
 
-type Receiver n m a = (a -> n ()) -> m ()
-type Sender n m a = ((a -> n ()) -> n ()) -> m ()
-type RS n m a = (Receiver n m a, Sender n m a)
+type Send n m a = (a -> n ()) -> m ()
+type Receive n m a = ((a -> n ()) -> n ()) -> m ()
+type RS n m a = (Send n m a, Receive n m a)
 
 -- | Widget descriptions
 data Widget n m
-    = Label (Receiver n m String)     -- ^ label
-    | Button { label_  :: Receiver n m String
-             , sensitive_ :: Receiver n m Bool
-             , action_ :: Sender n m ()
+    = Label (Send n m String)     -- ^ label
+    | Button { label_  :: Send n m String
+             , sensitive_ :: Send n m Bool
+             , action_ :: Receive n m ()
              }  -- ^ button
     | Checkbox (RS n m Bool)         -- ^ checkbox
     | Combobox [String] (RS n m Int) -- ^ combo box
     | Entry (RS n m String)          -- ^ entry field
     | List ListLayout [Widget n m]         -- ^ group interfaces into row or column
-    | Notebook' (Sender n m Int) [(String, Widget n m)]     -- ^ actual tab index, tabs
-    | Cell' (forall a . (Widget n m -> C m a) -> Receiver n m a)
+    | Notebook' (Receive n m Int) [(String, Widget n m)]     -- ^ actual tab index, tabs
+    | Cell' (forall a . (Widget n m -> C m a) -> Send n m a)
     | Action (C m (Widget n m))              -- ^ do an action before giving the interface
 
 data ListLayout
