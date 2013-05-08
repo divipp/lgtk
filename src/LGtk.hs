@@ -56,7 +56,7 @@ smartButton s f k =
              (addWEffect $ \() -> runR (readRef k) >>= runR . f >>= writeRef k)
 
 cell :: MonadRegister m => Bool -> IC m (I m) -> I m
-cell b (IC r g) = Cell' $ \f -> addICEffect b $ IC r $ \x -> f $ Action $ g x 
+cell b (IC r g) = Cell' $ \f -> toSend b $ IC r $ \x -> f $ Action $ g x 
 
 button
     :: MonadRegister m
@@ -81,7 +81,7 @@ notebook xs = Action $ do
     let f index (title, w) = (,) title $ Cell' $ \mkWidget -> let
            h False = hcat []
            h True = w
-         in addICEffect True $ IC (liftM (== index) $ readRef currentPage) $ mkWidget . h
+         in toSend True $ IC (liftM (== index) $ readRef currentPage) $ mkWidget . h
 
     return $ Notebook' (addWEffect $ writeRef currentPage) $ zipWith f [0..] xs
 

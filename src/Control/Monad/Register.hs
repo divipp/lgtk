@@ -38,7 +38,7 @@ class (Monad m, Monad (PureM m), Monad (EffectM m)) => MonadRegister m where
 
     liftEffectM :: Morph (EffectM m) m
 
-    addICEffect :: Bool -> IC m a -> Send m a
+    toSend :: Bool -> IC m a -> Send m a
 
     addWEffect :: Eq a => (a -> PureM m ()) -> Receive m a
 
@@ -46,5 +46,5 @@ constSend :: (MonadRegister m) => a -> Send m a
 constSend a f = liftEffectM $ f a
 
 rEffect :: (MonadRegister m, Eq a) => R (PureM m) a -> Send m a
-rEffect r = addICEffect False (IC r return)
+rEffect r = toSend False (IC r return)
 
