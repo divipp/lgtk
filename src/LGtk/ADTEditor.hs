@@ -3,6 +3,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 module LGtk.ADTEditor
     ( List (..), Elems(..), ADTLens(..)
@@ -28,7 +29,7 @@ class ADTLens a where
     adtLens :: ([(String, [Int])], Elems (ADTEls a), Lens (Int, Elems (ADTEls a)) a)
 
 -- | A generic ADT editor
-adtEditor :: (MonadRegister m, ExtRef m, ADTLens a, Inner m ~ PureM m) => Ref m a -> C m (I m)
+adtEditor :: (EffRef m, ADTLens a) => Ref m a -> C m (I m)
 adtEditor = liftM Action . memoRead . editor  where
     editor r = do
         q <- extRef r k (0, ls)
@@ -40,7 +41,7 @@ adtEditor = liftM Action . memoRead . editor  where
       where
         (ss, ls, k) = adtLens
 
-    mkEditors :: (MonadRegister m, ExtRef m, Inner m ~ PureM m) => Elems xs -> Ref m (Elems xs) -> C m [I m]
+    mkEditors :: EffRef m => Elems xs -> Ref m (Elems xs) -> C m [I m]
     mkEditors ElemsNil _ = return []
     mkEditors (ElemsCons _ xs) r = do
         i <- adtEditor $ lHead % r

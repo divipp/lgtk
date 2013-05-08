@@ -85,7 +85,7 @@ intListEditor state settings = Action $ do
     mapSel f (x, y) = (if y then f x else x, y)
 
 
-listEditor :: (MonadRegister m, ExtRef m, Inner m ~ PureM m) => a -> (Int -> Ref m a -> C m (I m)) -> Ref m [a] -> C m (I m)
+listEditor :: EffRef m => a -> (Int -> Ref m a -> C m (I m)) -> Ref m [a] -> C m (I m)
 listEditor def ed = editor 0 where
   editor i r = liftM Action $ memoRead $ do
     q <- extRef r listLens (False, (def, []))

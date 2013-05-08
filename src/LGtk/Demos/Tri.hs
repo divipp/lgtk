@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ConstraintKinds #-}
 {- |
 An editor for integers x, y, z such that x + y = z always hold and
 the last edited value change.
@@ -27,7 +28,7 @@ setY  x s = take 2 $ Y  x : filter (\x-> case x of Y  _ -> False; _ -> True) s
 setXY x s = take 2 $ XY x : filter (\x-> case x of XY _ -> False; _ -> True) s
 
 -- | The editor
-tri :: (MonadRegister m, ExtRef m, Inner m ~ PureM m) => I m
+tri :: EffRef m => I m
 tri = Action $ do
     s <- newRef [X 0, Y 0]
     return $ vcat
