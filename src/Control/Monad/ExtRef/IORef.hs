@@ -25,7 +25,7 @@ import Control.Monad.NewRef.Unsafe ()
 import Control.Monad.Restricted
 
 
-extRef_ :: NewRef m => IRef m b -> Lens a b -> a -> C m (IRef m a)
+extRef_ :: NewRef m => Ref m b -> Lens a b -> a -> C m (Ref m a)
 extRef_ r1 r2 a0 = do
     inner <- mapC liftInner $ rToC $ readRef r1
     let a' = setL r2 inner a0

@@ -66,13 +66,13 @@ button
 button r fm = Button r (addCEffect $ liftM isJust fm)
     (addWEffect $ const $ runR fm >>= maybe (return ()) id)
 
-checkbox :: EffRef m => IRef m Bool -> I m
+checkbox :: EffRef m => Ref m Bool -> I m
 checkbox r = Checkbox (addCEffect (readRef r), addWEffect (writeRef r))
 
-combobox :: EffRef m => [String] -> IRef m Int -> I m
+combobox :: EffRef m => [String] -> Ref m Int -> I m
 combobox ss r = Combobox ss (addCEffect (readRef r), addWEffect (writeRef r))
 
-entry :: EffRef m => IRef m String -> I m
+entry :: EffRef m => Ref m String -> I m
 entry r = Entry (addCEffect (readRef r), addWEffect (writeRef r))
 
 notebook :: EffRef m => [(String, I m)] -> I m

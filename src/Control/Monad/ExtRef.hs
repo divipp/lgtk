@@ -18,7 +18,6 @@ module Control.Monad.ExtRef
 
     -- * Derived constructs
     , Inner
-    , IRef
     , modRef
     , undoTr
     , memoRead
@@ -79,8 +78,6 @@ r `modRef` f = runR (readRef r) >>= writeRef r . f
 
 type Inner m = RefMonad (Ref m)
 
-type IRef m = Ref m
-
 -- | @memoRead g = liftM ($ ()) $ memoWrite $ const g@
 memoRead :: ExtRef m => C m a -> C m (C m a)
 memoRead g = do
@@ -128,10 +125,10 @@ class (Monad m, Reference (Ref m)) => ExtRef m where
 
     liftInner :: Morph (Inner m) m
 
-    newRef :: a -> C m (IRef m a)
+    newRef :: a -> C m (Ref m a)
     newRef = extRef unitRef $ lens (const ()) (const id)
 
-    extRef :: IRef m b -> Lens a b -> a -> C m (IRef m a)
+    extRef :: Ref m b -> Lens a b -> a -> C m (Ref m a)
 
 instance (ExtRef m, Monoid w) => ExtRef (WriterT w m) where
 
@@ -168,7 +165,7 @@ instance (ExtRef m) => ExtRef (ReaderT s m) where
 undoTr
     :: ExtRef m =>
        (a -> a -> Bool)     -- ^ equality on state
-    -> IRef m a             -- ^ reference of state
+    -> Ref m a             -- ^ reference of state
     -> C m ( R (Inner m) (Maybe (Inner m ()))   
            , R (Inner m) (Maybe (Inner m ()))
            )  -- ^ undo and redo actions
