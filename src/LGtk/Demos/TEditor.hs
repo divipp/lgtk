@@ -35,11 +35,11 @@ instance ADTLens T where
         set (Node l r) _ = (1, ElemsCons l (ElemsCons r ElemsNil))
 
 -- | @T@ editor with comboboxes, as an ADTEditor
-tEditor1 :: (MonadRegister m, ExtRef m, Inner m ~ Inner' m) => I m
+tEditor1 :: (MonadRegister m, ExtRef m, Inner m ~ PureM m) => I m
 tEditor1 = Action $ newRef Leaf >>= adtEditor
 
 -- | @T@ editor with checkboxes, given directly
-tEditor2 :: (MonadRegister m, ExtRef m, Inner m ~ Inner' m) => I m
+tEditor2 :: (MonadRegister m, ExtRef m, Inner m ~ PureM m) => I m
 tEditor2 = Action $ liftM editor $ newRef Leaf  where
 
     editor r = Action $ do
@@ -52,7 +52,7 @@ tEditor2 = Action $ liftM editor $ newRef Leaf  where
             ]
 
 -- | Another @T@ editor with checkboxes, given directly
-tEditor3 :: (MonadRegister m, ExtRef m, Inner m ~ Inner' m) => Ref m T -> C m (I m)
+tEditor3 :: (MonadRegister m, ExtRef m, Inner m ~ PureM m) => Ref m T -> C m (I m)
 tEditor3 = liftM Action . memoRead . editor' where
     editor' r = do
         q <- extRef r tLens (False, (Leaf, Leaf))

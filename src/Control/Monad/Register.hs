@@ -2,12 +2,12 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
 module Control.Monad.Register
-    ( MonadRegister (..)
-    , IC (..)
-    , Receiver
+    ( Receiver
     , mapReceiver
     , voidReceiver
     , Sender
+    , IC (..)
+    , MonadRegister (..)
     , addCEffect
     , constEffect
     , rEffect
@@ -30,25 +30,25 @@ voidReceiver _ = return ()
 
 type Sender m a = ((a -> Inn m ()) -> Inn m ()) -> m ()
 
-data IC m a = forall b . Eq b => IC (R (Inner' m) b) (b -> C m a)
+data IC m a = forall b . Eq b => IC (R (PureM m) b) (b -> C m a)
 
-class (Monad m, Monad (Inner' m), Monad (Inn m)) => MonadRegister m where
+class (Monad m, Monad (PureM m), Monad (Inn m)) => MonadRegister m where
 
-    type Inner' m :: * -> *
+    type PureM m :: * -> *
     type Inn m :: * -> *
 
     liftInn :: Morph (Inn m) m
 
     addICEffect :: Bool -> IC m a -> Receiver m a
 
-    addWEffect :: Eq a => (a -> Inner' m ()) -> Sender m a
+    addWEffect :: Eq a => (a -> PureM m ()) -> Sender m a
 
 constEffect :: (MonadRegister m) => a -> Receiver m a 
 constEffect a f = liftInn $ f a
 
-addCEffect :: (MonadRegister m, Eq a) => R (Inner' m) a -> Receiver m a
+addCEffect :: (MonadRegister m, Eq a) => R (PureM m) a -> Receiver m a
 addCEffect r = addICEffect False (IC r return)
 
-rEffect :: (MonadRegister m, Eq a) => R (Inner' m) a -> Receiver m a
+rEffect :: (MonadRegister m, Eq a) => R (PureM m) a -> Receiver m a
 rEffect = addCEffect
 

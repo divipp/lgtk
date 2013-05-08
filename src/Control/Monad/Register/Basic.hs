@@ -48,7 +48,7 @@ instance (ExtRef m, n ~ Inner m) => ExtRef (EE n m) where
 
 instance (MonadIO m, Monad n) => MonadRegister (EE n m) where
 
-    type Inner' (EE n m) = n
+    type PureM (EE n m) = n
     type Inn (EE n m) = IO
 
     liftInn = EE . liftIO

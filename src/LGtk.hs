@@ -61,7 +61,7 @@ cell b (IC r g) = Cell' $ \f -> addICEffect b $ IC r $ \x -> f $ Action $ g x
 button
     :: MonadRegister m
     => Receiver m String
-    -> R (Inner' m) (Maybe (Inner' m ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
+    -> R (PureM m) (Maybe (PureM m ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
     -> I m
 button r fm = Button r (addCEffect $ liftM isJust fm)
     (addWEffect $ const $ runR fm >>= maybe (return ()) id)
