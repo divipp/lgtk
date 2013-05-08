@@ -30,40 +30,40 @@ intListEditor state settings = Action $ do
         [ (,) "Editor" $ vcat
             [ hcat
                 [ entry $ joinRef $ liftM (\k -> showLens . k % list) len
-                , smartButton (constEffect "+1") (modL' len (+1))      list
-                , smartButton (constEffect "-1") (modL' len (+(-1)))   list
+                , smartButton (constSend "+1") (modL' len (+1))      list
+                , smartButton (constSend "-1") (modL' len (+(-1)))   list
                 , smartButton (rEffect $ liftM (("DeleteAll " ++) . show) $ len >>= \k -> readRef $ k % list) (modL' len $ const 0) list
-                , button (constEffect "undo") undo
-                , button (constEffect "redo") redo
+                , button (constSend "undo") undo
+                , button (constSend "redo") redo
                 ]
             , hcat
-                [ sbutton (constEffect "+1")         (map $ mapFst (+1))           list
-                , sbutton (constEffect "-1")         (map $ mapFst (+(-1)))        list
-                , sbutton (constEffect "sort")       (sortBy (compare `on` fst))   list
-                , sbutton (constEffect "SelectAll")  (map $ mapSnd $ const True)   list
-                , sbutton (constEffect "SelectPos")  (map $ \(a,_) -> (a, a>0))    list
-                , sbutton (constEffect "SelectEven") (map $ \(a,_) -> (a, even a)) list
-                , sbutton (constEffect "InvertSel")  (map $ mapSnd not)            list
+                [ sbutton (constSend "+1")         (map $ mapFst (+1))           list
+                , sbutton (constSend "-1")         (map $ mapFst (+(-1)))        list
+                , sbutton (constSend "sort")       (sortBy (compare `on` fst))   list
+                , sbutton (constSend "SelectAll")  (map $ mapSnd $ const True)   list
+                , sbutton (constSend "SelectPos")  (map $ \(a,_) -> (a, a>0))    list
+                , sbutton (constSend "SelectEven") (map $ \(a,_) -> (a, even a)) list
+                , sbutton (constSend "InvertSel")  (map $ mapSnd not)            list
                 , sbutton (rEffect $ liftM (("DelSel " ++) . show . length) sel) (filter $ not . snd) list
-                , smartButton (constEffect "CopySel") (modL_ safe $ concatMap $ \(x,b) -> (x,b): [(x,False) | b]) list
-                , sbutton (constEffect "+1 Sel")     (map $ mapSel (+1))           list
-                , sbutton (constEffect "-1 Sel")     (map $ mapSel (+(-1)))        list
+                , smartButton (constSend "CopySel") (modL_ safe $ concatMap $ \(x,b) -> (x,b): [(x,False) | b]) list
+                , sbutton (constSend "+1 Sel")     (map $ mapSel (+1))           list
+                , sbutton (constSend "-1 Sel")     (map $ mapSel (+(-1)))        list
                 ]
             , Label $ rEffect $ liftM (("Sum: " ++) . show . sum . map fst) sel
             , Action $ listEditor def (itemEditor list) list
             ]
         , (,) "Settings" $ hcat
-            [ Label $ constEffect "Create range"
+            [ Label $ constSend "Create range"
             , checkbox range
             ]
         ]
  where
     itemEditor list i r = return $ hcat
-        [ Label $ constEffect $ show (i+1) ++ "."
+        [ Label $ constSend $ show (i+1) ++ "."
         , entry $ showLens . fstLens % r
         , checkbox $ sndLens % r
-        , Button (constEffect "Del")  voidSend $ addWEffect $ const $ modRef list $ \xs -> take i xs ++ drop (i+1) xs
-        , Button (constEffect "Copy") voidSend $ addWEffect $ const $ modRef list $ \xs -> take (i+1) xs ++ drop i xs
+        , Button (constSend "Del")  voidSend $ addWEffect $ const $ modRef list $ \xs -> take i xs ++ drop (i+1) xs
+        , Button (constSend "Copy") voidSend $ addWEffect $ const $ modRef list $ \xs -> take (i+1) xs ++ drop i xs
         ]
 
     modL' mr f b = do

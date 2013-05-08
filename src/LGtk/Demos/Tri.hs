@@ -31,9 +31,9 @@ tri :: (MonadRegister m, ExtRef m, Inner m ~ PureM m) => I m
 tri = Action $ do
     s <- newRef [X 0, Y 0]
     return $ vcat
-        [ hcat [entry $ showLens . lens getX setX % s, Label $ constEffect "x"]
-        , hcat [entry $ showLens . lens getY setY % s, Label $ constEffect "y"]
-        , hcat [entry $ showLens . lens getXY setXY % s, Label $ constEffect "x + y"]
+        [ hcat [entry $ showLens . lens getX setX % s, Label $ constSend "x"]
+        , hcat [entry $ showLens . lens getY setY % s, Label $ constSend "y"]
+        , hcat [entry $ showLens . lens getXY setXY % s, Label $ constSend "x + y"]
         ]
 
 

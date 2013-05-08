@@ -16,7 +16,7 @@ import LGtk.Demos.TEditor
 
 main :: IO ()
 main = runI $ notebook
-    [ (,) "Hello" $ Label $ constEffect "Hello World!"
+    [ (,) "Hello" $ Label $ constSend "Hello World!"
 
     , (,) "Counters" $ notebook
 
@@ -25,8 +25,8 @@ main = runI $ notebook
             return $ vcat
                 [ Label $ rEffect $ liftM show $ readRef c
                 , hcat
-                    [ smartButton (constEffect "+1") (return . (+1)) c
-                    , smartButton (constEffect "-1") (return . (+(-1))) c
+                    [ smartButton (constSend "+1") (return . (+1)) c
+                    , smartButton (constSend "-1") (return . (+(-1))) c
                     ]
                 ]
 
@@ -35,8 +35,8 @@ main = runI $ notebook
             return $ vcat
                 [ Label $ rEffect $ liftM show $ readRef c
                 , hcat
-                    [ smartButton (constEffect "+1") (return . min 3 . (+1)) c
-                    , smartButton (constEffect "-1") (return . max 1 . (+(-1))) c
+                    [ smartButton (constSend "+1") (return . min 3 . (+1)) c
+                    , smartButton (constSend "-1") (return . max 1 . (+(-1))) c
                     ]
                 ]
 
@@ -51,8 +51,8 @@ main = runI $ notebook
                     return $ lens id (const . max av) % b
             return $ vcat
                 [ counter a' b'
-                , hcat [ Label $ constEffect "min", entry $ showLens % a' ]
-                , hcat [ Label $ constEffect "max", entry $ showLens % b' ]
+                , hcat [ Label $ constSend "min", entry $ showLens % a' ]
+                , hcat [ Label $ constSend "max", entry $ showLens % b' ]
                 ]
 
         ]
@@ -81,7 +81,7 @@ main = runI $ notebook
                 return ()
         return $ vcat
             [ entry $ showLens % delay
-            , Button (constEffect "Start long computation") (rEffect $ readRef ready) $ addWEffect $ const $ writeRef ready False
+            , Button (constSend "Start long computation") (rEffect $ readRef ready) $ addWEffect $ const $ writeRef ready False
             , Label $ rEffect $ liftM (\b -> if b then "Ready." else "Computing...") $ readRef ready
             ]
 
@@ -106,8 +106,8 @@ counter a b = Action $ do
     return $ vcat
         [ Label $ rEffect $ liftM show $ readRef c'
         , hcat
-            [ smartButton (constEffect "+1") ((\x -> liftM (min x) $ readRef b) . (+1)) c'
-            , smartButton (constEffect "-1") ((\x -> liftM (max x) $ readRef a) . (+(-1))) c'
+            [ smartButton (constSend "+1") ((\x -> liftM (min x) $ readRef b) . (+1)) c'
+            , smartButton (constSend "-1") ((\x -> liftM (max x) $ readRef a) . (+(-1))) c'
             ]
         ]
 
