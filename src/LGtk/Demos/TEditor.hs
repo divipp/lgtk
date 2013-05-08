@@ -46,7 +46,7 @@ tEditor2 = Action $ liftM editor $ newRef Leaf  where
         q <- extRef r tLens (False, (Leaf, Leaf))
         return $ hcat
             [ checkbox $ fstLens % q
-            , cell True $ IC (liftM fst $ readRef q) $ \b -> return $ vcat $ 
+            , cell True (liftM fst $ readRef q) $ \b -> return $ vcat $ 
                   [ editor $ fstLens . sndLens % q | b ]
                ++ [ editor $ sndLens . sndLens % q | b ]
             ]
@@ -60,7 +60,7 @@ tEditor3 = liftM Action . memoRead . editor' where
         t2 <- tEditor3 $ sndLens . sndLens % q
         return $ hcat
             [ checkbox $ fstLens % q
-            , cell True $ IC (liftM fst $ readRef q) $ \b -> return $ vcat $ [t1 | b] ++ [t2 | b]
+            , cell True (liftM fst $ readRef q) $ \b -> return $ vcat $ [t1 | b] ++ [t2 | b]
             ]
 
 

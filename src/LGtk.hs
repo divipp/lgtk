@@ -55,8 +55,8 @@ smartButton s f k =
     Button s (rEffect $ readRef k >>= \x -> liftM (/= x) $ f x)
              (toReceive $ \() -> runR (readRef k) >>= runR . f >>= writeRef k)
 
-cell :: MonadRegister m => Bool -> IC m (I m) -> I m
-cell b (IC r g) = Cell' $ \f -> toSend b $ IC r $ \x -> f $ Action $ g x 
+cell :: (MonadRegister m, Eq a) => Bool -> R (PureM m) a -> (a -> C m (I m)) -> I m
+cell b r g = Cell' $ \f -> toSend b $ IC r $ \x -> f $ Action $ g x 
 
 button
     :: MonadRegister m
