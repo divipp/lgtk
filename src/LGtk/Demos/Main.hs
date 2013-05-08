@@ -6,6 +6,8 @@ module LGtk.Demos.Main
 
 import Control.Monad
 import Control.Concurrent
+import System.Environment
+import Data.Maybe
 import Prelude hiding (id, (.))
 
 import LGtk
@@ -87,6 +89,33 @@ main = runWidget $ notebook
         return $ vcat
             [ Label $ rEffect $ readRef $ showLens % t
             ]
+
+    , (,) "System" $ notebook
+
+        [ (,) "Args" $ Action $ liftEffectM getArgs >>= \args -> return $ Label $ constSend $ unlines args
+
+        , (,) "ProgName" $ Action $ liftEffectM getProgName >>= \args -> return $ Label $ constSend args
+
+        , (,) "Env" $ Action $ runC $ do
+            v <- newRef "HOME"
+            return $ vcat
+                [ entry v
+                , Label $ \re -> rEffect (readRef v) $ \s -> lookupEnv s >>= re . maybe "Not in env." show
+                ]
+
+        , (,) "Std I/O" $ let
+            put = hcat [ Label $ constSend "putStrLn", Entry (voidSend, \re -> liftEffectM $ re $ \x -> putStrLn x) ]
+            get = Action $ runC $ do
+                ready <- newRef $ Just ""
+                let g False re = liftEffectM $ void $ forkIO $ getLine >>= re
+                    g _ _ = return ()
+                async (toReceive $ writeRef ready . Just) $ asyncToSend False (liftM isJust $ readRef ready) g
+                return $ hcat 
+                    [ Button (constSend "getLine") (rEffect $ liftM isJust $ readRef ready) $ toReceive $ const $ writeRef ready Nothing
+                    , Label $ rEffect $ liftM (maybe "" id) $ readRef ready
+                    ]
+           in vcat [ put, put, put, get, get, get ]
+        ]
 
     , (,) "IntListEditor" $ Action $ runC $ do
         state <- fileRef "intListEditorState.txt"
