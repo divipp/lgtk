@@ -29,6 +29,8 @@ library
                     base < 5
                   , containers
                   , directory
+                  , system-filepath
+                  , fsnotify
 
                   , data-lens
                   , mtl

@@ -13,6 +13,10 @@ import Control.Concurrent
 import Control.Monad
 import Control.Monad.Trans
 import System.Directory
+import System.FSNotify
+--import System.FilePath
+import Filesystem.Path hiding (FilePath)
+import Filesystem.Path.CurrentOS hiding (FilePath)
 import Prelude hiding ((.), id)
 
 import Control.Monad.Restricted
@@ -26,20 +30,39 @@ type EffIORef m = (EffRef m, EffectM m ~ IO)
 
 fileRef :: (EffIORef m) => FilePath -> C m (Ref m (Maybe String))
 fileRef f = unsafeC $ do
-        ms <- liftEffectM $ liftIO r
-        ref <- runC $ newRef ms
-        -- toReceive (writeRef ref) $ \cb -> TODO
-        rEffect (readRef ref) $ liftIO . w
-        return ref
-     where
-        r = do
-            b <- doesFileExist f
-            if b then do
-                xs <- readFile f
-                length xs `seq` return (Just xs)
-             else return Nothing
+    ms <- liftEffectM $ liftIO r
+    ref <- runC $ newRef ms
+    rEffect (readRef ref) $ liftIO . w
+    v <- liftEffectM $ liftIO $ do
+        v <- newEmptyMVar
+        cf <- canonicalizePath f
+        let
+            cf' = decodeString cf
+            g = (== cf')
 
-        w = maybe (doesFileExist f >>= \b -> when b (removeFile f)) (writeFile f)
+            h = r >>= putMVar v
+
+            filt (Added x _) = g x
+            filt (Modified x _) = g x
+            filt (Removed x _) = g x
+
+            act (Added _ _) = h
+            act (Modified _ _) = h
+            act (Removed _ _) = h
+        man <- startManager
+        watchDir man (directory cf') filt act
+        return v
+    toReceive (writeRef ref) $ \re -> void $ forkIO $ forever $ takeMVar v >>= re
+    return ref
+ where
+    r = do
+        b <- doesFileExist f
+        if b then do
+            xs <- readFile f
+            length xs `seq` return (Just xs)
+         else return Nothing
+
+    w = maybe (doesFileExist f >>= \b -> when b (removeFile f)) (writeFile f)
 
 async
     :: (Eq a, EffIORef m)
