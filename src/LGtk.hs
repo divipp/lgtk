@@ -7,28 +7,18 @@ module LGtk
     ( -- * Lenses and references
       module Control.Monad.ExtRef
 
-    -- * GUI combinators
-    , Widget (..)
-    , I
-    , ListLayout (..)
-    , MonadRegister
-    , EffRef
-    , EffIORef
-    , Inner'
-    , IC (..)
-    , constEffect
-    , voidReceiver
-    , rEffect
-    , addICEffect
-    , addWEffect
+    -- * Binding effects to references
+    , module Control.Monad.Register
+    , module Control.Monad.EffRef
 
-    -- * File system
-    , fileRef
+    -- * Gtk structures
+    , module GUI.Gtk.Structures
 
     -- * Running GUI descriptions
     , runI
 
     -- * Derived constructs
+    , I
     , vcat, hcat
     , cell
     , button
