@@ -4,8 +4,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module Control.Monad.Register.Basic
-    ( EE
-    , evalEE
+    ( Register
+    , evalRegister
     ) where
 
 import Control.Monad
@@ -22,7 +22,7 @@ import Control.Monad.ExtRef
 
 data MorphD m n = MorphD { unlift :: Morph m n }
 
-data EEState n m = EEState
+data RegisterState n m = RegisterState
     { actions :: IO ()
     , sendEvent :: IO () -> IO ()
     , morph :: MorphD m IO
@@ -33,54 +33,54 @@ instance Monoid (IO ()) where
     mempty = return ()
     mappend = (>>)
 
-newtype EE n m a = EE { unEE :: ReaderT (EEState n m) (WriterT (IO ()) m) a }
+newtype Register n m a = Register { unRegister :: ReaderT (RegisterState n m) (WriterT (IO ()) m) a }
     deriving (Functor, Monad, MonadIO)
 
-instance (ExtRef m, n ~ Inner m) => ExtRef (EE n m) where
+instance (ExtRef m, n ~ Inner m) => ExtRef (Register n m) where
 
-    type Ref (EE n m) = Ref m
+    type Ref (Register n m) = Ref m
 
-    liftInner = EE . liftInner
+    liftInner = Register . liftInner
 
-    newRef = mapC EE . newRef
+    newRef = mapC Register . newRef
 
-    extRef r k a = mapC EE $ extRef r k a
+    extRef r k a = mapC Register $ extRef r k a
 
-instance (MonadIO m, Monad n) => MonadRegister (EE n m) where
+instance (MonadIO m, Monad n) => MonadRegister (Register n m) where
 
-    type PureM (EE n m) = n
-    type Inn (EE n m) = IO
+    type PureM (Register n m) = n
+    type Inn (Register n m) = IO
 
-    liftInn = EE . liftIO
+    liftInn = Register . liftIO
 
     addWEffect r int = do
-        rr <- EE ask
+        rr <- Register ask
         liftInn $ int $ \a -> sendEvent rr $ do
             unlift (morphN rr) $ r a
             actions rr
 
     addICEffect bb (IC rb fb) act = do
-        rr <- EE ask
+        rr <- Register ask
         memoref <- liftIO $ newIORef []  -- memo table, first item is the newest
-        EE $ tell $ do
+        Register $ tell $ do
             b <- unlift (morphN rr) $ runR rb
             join $ atomicModifyIORef' memoref $ \memo -> case memo of
                 ((b', (_, s)): _) | b' == b -> (memo, s)
                 _ -> case partition ((== b) . fst) memo of
                     (x@(_, (c, s)): _, rem) -> (x: rem, act c >> s)
                     _ -> (,) memo $ do
-                        (c, s) <- unlift (morph rr) $ runWriterT $ runReaderT (unEE $ runC $ fb b) rr
+                        (c, s) <- unlift (morph rr) $ runWriterT $ runReaderT (unRegister $ runC $ fb b) rr
                         when bb $ atomicModifyIORef' memoref $ \memo -> ((b, (c, s)) : filter ((/= b) . fst) memo, ())
                         act c >> s
 
 -- | evaluation with postponed actions
-evalEE :: (Monad n, MonadIO m) => Morph n IO -> Morph m IO -> ((IO () -> IO ()) -> EE n m a) -> m a
-evalEE morphN morph f = do
+evalRegister :: (Monad n, MonadIO m) => Morph n IO -> Morph m IO -> ((IO () -> IO ()) -> Register n m a) -> m a
+evalRegister morphN morph f = do
     post <- liftIO $ newIORef $ return ()
-    let (EE m) = f $ \io -> atomicModifyIORef' post $ \m -> (m >> io, ())
+    let (Register m) = f $ \io -> atomicModifyIORef' post $ \m -> (m >> io, ())
     vx <- liftIO $ newIORef $ return ()
     ch <- liftIO newChan
-    (a, reg) <- runWriterT $ runReaderT m $ EEState (join (readIORef vx) >> join (atomicModifyIORef' post (\m -> (return (), m)))) (writeChan ch) (MorphD morph) (MorphD morphN)
+    (a, reg) <- runWriterT $ runReaderT m $ RegisterState (join (readIORef vx) >> join (atomicModifyIORef' post (\m -> (return (), m)))) (writeChan ch) (MorphD morph) (MorphD morphN)
     liftIO $ writeIORef vx reg
     _ <- liftIO $ forkIO $ forever $ join $ readChan ch
     liftIO reg
