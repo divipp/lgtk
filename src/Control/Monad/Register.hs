@@ -10,6 +10,7 @@ module Control.Monad.Register
     , mapReceive
     , voidReceive
     , MonadRegister (..)
+    -- * Derived
     , rEffect
     ) where
 
