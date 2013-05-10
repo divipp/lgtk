@@ -58,7 +58,7 @@ smartButton s f k =
              (toReceive $ \() -> runR (readRef k) >>= runR . f >>= writeRef k)
 
 cell :: (EffRef m, Eq a) => Bool -> ReadRef m a -> (a -> m (Widget m)) -> Widget m
-cell b r g = Cell' $ \f -> toSend b r $ \x -> f $ Action $ g x 
+cell b r g = Cell (toSend b r) $ Action . g
 
 button
     :: EffRef m
@@ -80,11 +80,9 @@ entry r = Entry (rEffect (readRef r), toReceive (writeRef r))
 notebook :: EffRef m => [(String, Widget m)] -> Widget m
 notebook xs = Action $ do
     currentPage <- newRef 0
-    let f index (title, w) = (,) title $ Cell' $ \mkWidget -> let
+    let f index (title, w) = (,) title $ cell True (liftM (== index) $ readRef currentPage) $ return . h where
            h False = hcat []
            h True = w
-         in toSend True (liftM (== index) $ readRef currentPage) $ mkWidget . h
-
     return $ Notebook' (toReceive $ writeRef currentPage) $ zipWith f [0..] xs
 
 -- | Run an interface description

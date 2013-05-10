@@ -92,13 +92,15 @@ runWidget liftEffectM post' post = toWidget
             s $ \re -> void' $ post $ on w switchPage $ re
             return'' ws w
 
-        Cell' f -> do
+        Cell onCh f -> do
             let b = False
             w <- liftEffectM $ post $ case b of
                 True -> fmap castToContainer $ hBoxNew False 1
                 False -> fmap castToContainer $ alignmentNew 0 0 1 1
             sh <- liftEffectM $ liftIO $ newIORef $ return ()
-            f toWidget $ \x -> post $ do
+            onCh $ \bv -> do
+              x <- toWidget $ f bv
+              return $ liftEffectM $ post $ do
                 writeIORef sh $ fst x
                 post' $ post $ fst x
                 containerForeach w $ if b then widgetHideAll else containerRemove w 

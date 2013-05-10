@@ -25,7 +25,7 @@ data Widget n m
     | Entry (SendReceive n m String)          -- ^ entry field
     | List ListLayout [Widget n m]         -- ^ group interfaces into row or column
     | Notebook' (Receive n m Int) [(String, Widget n m)]     -- ^ actual tab index, tabs
-    | Cell' (forall a . (Widget n m -> m a) -> Send n m a)
+    | forall b . Eq b => Cell ((b -> m (m ())) -> m ()) (b -> Widget n m)
     | Action (m (Widget n m))              -- ^ do an action before giving the interface
 
 data ListLayout
