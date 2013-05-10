@@ -105,9 +105,13 @@ main = runWidget $ notebook
             put = hcat [ Label $ constSend "putStrLn", Entry (voidSend, \re -> liftEffectM $ re putStrLn >> return ()) ]
             get = Action $ do
                 ready <- newRef $ Just ""
-                let g False re = liftEffectM $ void $ forkIO $ getLine >>= re
-                    g _ _ = return ()
-                async (toReceive $ writeRef ready . Just) $ asyncToSend False (liftM isJust $ readRef ready) g
+                toSend False (liftM isJust $ readRef ready) $ \b -> case b of
+                    False -> return $ toReceive (writeRef ready) $ \re -> do
+                        forkIO $ do
+                            l <- getLine
+                            re $ Just l
+                        return $ const $ return ()  -- ok (no block)?
+                    _ -> return (return ())
                 return $ hcat 
                     [ Button (constSend "getLine") (rEffect $ liftM isJust $ readRef ready) $ toReceive $ const $ writeRef ready Nothing
                     , Label $ rEffect $ liftM (maybe "" id) $ readRef ready
