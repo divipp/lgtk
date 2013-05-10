@@ -6,6 +6,7 @@
 module LGtk
     ( -- * Lenses and references
       module Control.Monad.ExtRef
+    , readRef'
 
     -- * Binding effects to references
     , module Control.Monad.Register
@@ -88,4 +89,9 @@ notebook xs = Action $ do
 -- | Run an interface description
 runWidget :: (forall m . EffIORef m => Widget m) -> IO ()
 runWidget e = Gtk.gtkContext $ \post -> runExt_ $ \mo -> evalRegister (mo . ExtRef.liftWriteRef) mo $ \post' -> Gtk.runWidget liftEffectM post' post e
+
+readRef' :: EffIORef m => Ref m a -> m a
+readRef' = ExtRef.liftWriteRef . runR . readRef
+
+
 

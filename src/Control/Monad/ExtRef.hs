@@ -15,6 +15,7 @@ module Control.Monad.ExtRef
     , ExtRef (..)
 
     -- * Derived constructs
+    , ReadR
     , ReadRef
     , WriteRef
     , modRef

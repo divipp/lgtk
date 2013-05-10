@@ -70,12 +70,11 @@ main = runWidget $ notebook
     , (,) "Async" $ Action $ do
         ready <- newRef True
         delay <- newRef 1.0
-        let f = do
-                b <- readRef ready
-                if b then return Nothing else liftM Just $ readRef delay
-            g (Just d) re = liftEffectM $ void $ forkIO $ threadDelay (ceiling $ 10^6 * d) >> re True
-            g _ _ = return ()
-        async (toReceive $ writeRef ready) $ asyncToSend False f g
+        toSend False (readRef ready) $ \b -> case b of
+            True -> return $ return ()
+            False -> do
+                d <- readRef' delay
+                return $ asyncWrite ready True $ ceiling $ 10^6 * d
         return $ vcat
             [ hcat [ entry $ showLens % delay, Label $ constSend "sec" ]
             , Button (rEffect $ readRef delay >>= \d -> return $ "Start " ++ show d ++ " sec computation") (rEffect $ readRef ready) $ toReceive $ const $ writeRef ready False
