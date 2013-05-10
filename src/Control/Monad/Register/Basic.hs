@@ -46,7 +46,7 @@ instance (ExtRef m, n ~ WriteRef m) => ExtRef (Register n m) where
 
     extRef r k a = Register $ extRef r k a
 
-instance (MonadIO m, Monad n) => MonadRegister (Register n m) where
+instance (MonadIO m, MMorph n) => MonadRegister (Register n m) where
 
     type PureM (Register n m) = n
     type EffectM (Register n m) = IO

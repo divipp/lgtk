@@ -1,20 +1,19 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 module Control.Monad.Restricted
-    ( R, runR, mapR
-    , unsafeR
-
-    -- * Auxiliary definitions
-    , Morph
+    ( -- * Auxiliary definitions
+      Morph
+    , MMorph (..)
     ) where
 
-newtype R m a = R { runR :: m a } deriving (Functor, Monad)
-
-unsafeR :: m a -> R m a
-unsafeR = R
-
-mapR :: Morph m n -> R m a -> R n a
-mapR f (R x) = R (f x)
-
 type Morph m n = forall a . m a -> n a
+
+class (Monad m, Monad (R m)) => MMorph m where
+
+    type R m :: * -> *
+
+    runR :: Morph (R m) m
+
 

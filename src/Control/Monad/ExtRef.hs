@@ -6,7 +6,7 @@ module Control.Monad.ExtRef
     ( module Data.Lens.Common
 
     -- * Restricted monads
-    , R, runR, mapR
+    , MMorph (..)
 
     -- * Reference classes
     , Reference (..)
@@ -59,16 +59,18 @@ Laws for pure references:
 
 These laws are equivalent to the get-no-effect, set-get, get-set and set-set laws for monadic lenses.
 -}
-class Monad (RefMonad r) => Reference r where
+class (MMorph (RefMonad r)) => Reference r where
 
     type RefMonad r :: * -> *
 
-    readRef  :: r a -> R (RefMonad r) a
+    readRef  :: r a -> ReadR r a
     writeRef :: r a -> a -> RefMonad r ()
 
     (%) :: Lens a b -> r a -> r b
-    joinRef :: R (RefMonad r) (r a) -> r a
+    joinRef :: ReadR r (r a) -> r a
     unitRef :: r ()
+
+type ReadR r = R (RefMonad r)
 
 infixr 8 %
 
@@ -77,7 +79,7 @@ r `modRef` f = runR (readRef r) >>= writeRef r . f
 
 type WriteRef m = RefMonad (Ref m)
 
-type ReadRef m = R (RefMonad (Ref m))
+type ReadRef m = ReadR (Ref m)
 
 -- | @memoRead g = liftM ($ ()) $ memoWrite $ const g@
 memoRead :: ExtRef m => m a -> m (m a)
@@ -172,7 +174,7 @@ undoTr
            )  -- ^ undo and redo actions
 undoTr eq r = do
     ku <- extRef r undoLens ([], [])
-    let try f = liftM (fmap (writeRef ku) . f) $ readRef ku
+    let try f = liftM (liftM (writeRef ku) . f) $ readRef ku
     return (try undo, try redo)
   where
     undoLens = lens get set where
