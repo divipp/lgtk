@@ -14,7 +14,6 @@ module Control.Monad.Register
 
     -- * Derived
     , rEffect
-    , asyncToSend
     ) where
 
 import Control.Monad.Restricted
@@ -49,16 +48,6 @@ class (Monad m, Monad (PureM m), Monad (EffectM m)) => MonadRegister m where
 
 rEffect :: (MonadRegister m, Eq a) => R (PureM m) a -> Send m a
 rEffect r f = toSend False r $ return . liftEffectM . f
-
-asyncToSend
-    :: (Eq b, MonadRegister m)
-    => Bool
-    -> R (PureM m) b
-    -> (b -> Send m t)
-    -> Send m t
-asyncToSend b x y re = toSend b x (\b -> return $ y b re)
-
-
 
 
 

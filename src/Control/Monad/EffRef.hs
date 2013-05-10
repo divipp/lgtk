@@ -6,7 +6,6 @@ module Control.Monad.EffRef
     ( EffRef
     , EffIORef
     , fileRef
-    , async
     , asyncWrite
     ) where
 
@@ -81,16 +80,6 @@ forkIOs ios = do
         f i Unblock = putMVar x ()
 
     liftM f $ forkIO $ g ios
-
-async
-    :: (Eq a, EffIORef m)
-    => Receive m a
-    -> Send m a
-    -> m ()
-async r w = do
-    v <- liftEffectM $ liftIO newEmptyMVar
-    r $ \re -> forkForever $ takeMVar v >>= re
-    w $ putMVar v
 
 asyncWrite :: (Eq a, EffIORef m) => Ref m a -> a -> Int -> m ()
 asyncWrite r a t = toReceive (writeRef r) $ \re -> forkIOs [ threadDelay t, re a ]
