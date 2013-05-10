@@ -52,7 +52,7 @@ fileRef f = do
         man <- startManager
         watchDir man (directory cf') filt act
         return v
-    toReceive (writeRef ref) $ \re -> void $ forkIO $ forever $ takeMVar v >>= re
+    toReceive (writeRef ref) $ \re -> forkForever $ takeMVar v >>= re
     return ref
  where
     r = do
@@ -64,6 +64,23 @@ fileRef f = do
 
     w = maybe (doesFileExist f >>= \b -> when b (removeFile f)) (writeFile f)
 
+forkForever = forkIOs . repeat
+
+forkIOs :: [IO ()] -> IO (Command -> IO ())
+forkIOs ios = do
+    x <- newMVar ()
+    let g [] = return ()
+        g (i:is) = do
+            () <- takeMVar x
+            putMVar x ()
+            i
+            g is
+        f i Kill = killThread i
+        f i Block = takeMVar x
+        f i Unblock = putMVar x ()
+
+    liftM f $ forkIO $ g ios
+
 async
     :: (Eq a, EffIORef m)
     => Receive m a
@@ -71,7 +88,7 @@ async
     -> m ()
 async r w = do
     v <- liftEffectM $ liftIO newEmptyMVar
-    r $ \re -> void $ forkIO $ forever $ takeMVar v >>= re
+    r $ \re -> forkForever $ takeMVar v >>= re
     w $ putMVar v
 
 

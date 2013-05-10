@@ -7,6 +7,7 @@ module Control.Monad.Register
     , voidSend
     , constSend
     , Receive
+    , Command (..)
 
     -- * Register monad
     , MonadRegister (..)
@@ -31,7 +32,9 @@ voidSend _ = return ()
 constSend :: (MonadRegister m) => a -> Send m a 
 constSend a f = liftEffectM $ f a
 
-type Receive m a = ((a -> EffectM m ()) -> EffectM m ()) -> m ()
+data Command = Kill | Block | Unblock deriving (Eq, Ord, Show)
+
+type Receive m a = ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m ()
 
 class (Monad m, Monad (PureM m), Monad (EffectM m)) => MonadRegister m where
 

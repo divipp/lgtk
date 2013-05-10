@@ -20,6 +20,7 @@ import Graphics.UI.Gtk hiding (Widget)
 import qualified Graphics.UI.Gtk as Gtk
 
 import Control.Monad.Restricted (Morph)
+import Control.Monad.Register (Command (..))
 import GUI.Gtk.Structures
 
 gtkContext :: (Morph IO IO -> IO SWidget) -> IO ()
@@ -59,23 +60,23 @@ runWidget liftEffectM post' post = toWidget
             w <- liftEffectM $ post buttonNew
             s $ post . buttonSetLabel w
             sens $ post . widgetSetSensitive w
-            m $ \x -> void' $ post $ on w buttonActivated $ x ()
+            m $ \x -> post $ on' w buttonActivated $ x ()
             return' w
         Entry (r, s) -> do
             w <- liftEffectM $ post entryNew
             r $ post . entrySetText w
-            s $ \re -> void' $ post $ on w entryActivate $ entryGetText w >>= re
+            s $ \re -> post $ on' w entryActivate $ entryGetText w >>= re
             return' w
         Checkbox (r, s) -> do
             w <- liftEffectM $ post checkButtonNew
             r $ post . toggleButtonSetActive w
-            s $ \re -> void' $ post $ on w toggled $ toggleButtonGetActive w >>= re
+            s $ \re -> post $ on' w toggled $ toggleButtonGetActive w >>= re
             return' w
         Combobox ss (r, s) -> do
             w <- liftEffectM $ post comboBoxNewText
             liftEffectM $ post $ flip mapM_ ss $ comboBoxAppendText w
             r $ post . comboBoxSetActive w
-            s $ \re -> void' $ post $ on w changed $ fmap (max 0) (comboBoxGetActive w) >>= re
+            s $ \re -> post $ on' w changed $ fmap (max 0) (comboBoxGetActive w) >>= re
             return' w
         List o xs -> do
             ws <- mapM toWidget xs
@@ -89,7 +90,7 @@ runWidget liftEffectM post' post = toWidget
             w <- liftEffectM $ post notebookNew
             forM_ (zip ws xs) $ \(ww, (s, _)) -> do
                 liftEffectM . post . flip (notebookAppendPage w) s $ snd $ ww
-            s $ \re -> void' $ post $ on w switchPage $ re
+            s $ \re -> post $ on' w switchPage $ re
             return'' ws w
 
         Cell onCh f -> do
@@ -107,6 +108,12 @@ runWidget liftEffectM post' post = toWidget
                 ch <- containerGetChildren w
                 when (snd x `notElem` ch) $ containerAdd w $ snd x
             liftM (mapFst (join (readIORef sh) >>)) $ return'' [] w
+
+on' :: GObjectClass x => x -> Signal x c -> c -> IO (Command -> IO ())
+on' o s c = liftM (flip f) $ on o s c where
+    f Kill = signalDisconnect
+    f Block = signalBlock
+    f Unblock = signalUnblock
 
 return' :: Monad m => WidgetClass x => x -> m SWidget
 return' w = return (widgetShowAll w, castToWidget w)

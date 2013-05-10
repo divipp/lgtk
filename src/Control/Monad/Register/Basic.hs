@@ -33,7 +33,7 @@ instance Monoid (IO ()) where
     mempty = return ()
     mappend = (>>)
 
-newtype Register n m a = Register { unRegister :: ReaderT (RegisterState n m) (WriterT (IO ()) m) a }
+newtype Register n m a = Register { runRegister :: ReaderT (RegisterState n m) (WriterT (IO (), Command -> IO ()) m) a }
     deriving (Functor, Monad, MonadIO)
 
 instance (ExtRef m, n ~ WriteRef m) => ExtRef (Register n m) where
@@ -53,26 +53,34 @@ instance (MonadIO m, MMorph n) => MonadRegister (Register n m) where
 
     toReceive r int = do
         rr <- Register ask
-        liftEffectM $ int $ \a -> sendEvent rr $ do
+        unreg <- liftEffectM $ int $ \a -> sendEvent rr $ do
             unlift (morphN rr) $ r a
             actions rr
+        Register $ tell $ t2 unreg
+        return ()
 
     toSend bb rb fb = do
         rr <- Register ask
-        memoref <- liftIO $ newIORef []  -- memo table, first item is the newest
-        Register $ tell $ do
+        memoref <- liftIO $ newIORef (const $ return (), const $ return (), [])  -- unreg action, memo table, first item is the newest
+        Register $ tell $ t1 $ do
             b <- unlift (morphN rr) $ runR rb
-            let doit c s1 = do 
-                    s2 <- unlift (morph rr) $ execWriterT $ runReaderT (unRegister c) rr
-                    atomicModifyIORef' memoref $ \memo -> ((b, (c, s1, s2)) : if bb then filter ((/= b) . fst) memo else [], ())
+            let doit c (s1, ureg1) = do 
+                    (s2, ureg2) <- unlift (morph rr) $ execWriterT $ runReaderT (runRegister c) rr
+                    atomicModifyIORef' memoref $ \(_, _, memo) -> ((ureg1, ureg2, (b, (c, s1, s2, ureg1, ureg2)) : if bb then filter ((/= b) . fst) memo else []), ())
                     s1 >> s2
             join $ atomicModifyIORef' memoref $ \memo -> (,) memo $ case memo of
-                ((b', (_, s1, s2)): _) | b' == b -> s1 >> s2
-                _ -> case (bb, filter ((== b) . fst) memo) of
-                    (True, (_, (c, s1, _)): _) -> doit c s1
+                (_, _, ((b', (_, s1, s2, _, _)): _)) | b' == b -> s1 >> s2
+                (ur1, ur2, memo) -> do
+                  ur1 $ if bb then Block else Kill
+                  ur2 Kill
+                  case (bb, filter ((== b) . fst) memo) of
+                    (True, (_, (c, s1, _, ureg1, ureg2)): _) -> ureg1 Unblock >> doit c (s1, ureg1)
                     _ -> do
-                        (c, s1) <- unlift (morph rr) $ runWriterT $ runReaderT (unRegister $ fb b) rr
+                        (c, s1) <- unlift (morph rr) $ runWriterT $ runReaderT (runRegister $ fb b) rr
                         doit c s1
+
+t1 m = (m, const $ return ())
+t2 m = (return (), m)
 
 -- | evaluation with postponed actions
 evalRegister :: (Monad n, MonadIO m) => Morph n IO -> Morph m IO -> ((IO () -> IO ()) -> Register n m a) -> m a
@@ -82,8 +90,8 @@ evalRegister morphN morph f = do
     vx <- liftIO $ newIORef $ return ()
     ch <- liftIO newChan
     (a, reg) <- runWriterT $ runReaderT m $ RegisterState (join (readIORef vx) >> join (atomicModifyIORef' post (\m -> (return (), m)))) (writeChan ch) (MorphD morph) (MorphD morphN)
-    liftIO $ writeIORef vx reg
+    liftIO $ writeIORef vx $ fst reg
     _ <- liftIO $ forkIO $ forever $ join $ readChan ch
-    liftIO reg
+    liftIO $ fst reg        -- needed?
     return a
 

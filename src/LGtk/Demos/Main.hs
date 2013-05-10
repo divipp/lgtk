@@ -104,7 +104,7 @@ main = runWidget $ notebook
                 ]
 
         , (,) "Std I/O" $ let
-            put = hcat [ Label $ constSend "putStrLn", Entry (voidSend, \re -> liftEffectM $ re $ \x -> putStrLn x) ]
+            put = hcat [ Label $ constSend "putStrLn", Entry (voidSend, \re -> liftEffectM $ re putStrLn >> return ()) ]
             get = Action $ do
                 ready <- newRef $ Just ""
                 let g False re = liftEffectM $ void $ forkIO $ getLine >>= re
