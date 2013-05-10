@@ -42,8 +42,6 @@ instance (ExtRef m, n ~ WriteRef m) => ExtRef (Register n m) where
 
     liftWriteRef = Register . liftWriteRef
 
-    newRef = Register . newRef
-
     extRef r k a = Register $ extRef r k a
 
 instance (MonadIO m, MMorph n) => MonadRegister (Register n m) where
