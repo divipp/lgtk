@@ -84,8 +84,7 @@ main = runWidget $ notebook
 
     , (,) "Timer" $ Action $ do
         t <- newRef 0
-        let g t re = liftEffectM $ void $ forkIO $ threadDelay (ceiling $ 10^6 * 1) >> re (1+t)
-        async (toReceive $ writeRef t) $ asyncToSend False (readRef t) g
+        toSend False (readRef t) $ \ti -> return $ asyncWrite t (1 + ti) (10^6)
         return $ vcat
             [ Label $ rEffect $ readRef $ showLens % t
             ]

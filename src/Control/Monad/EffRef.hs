@@ -7,6 +7,7 @@ module Control.Monad.EffRef
     , EffIORef
     , fileRef
     , async
+    , asyncWrite
     ) where
 
 import Control.Concurrent
@@ -90,5 +91,8 @@ async r w = do
     v <- liftEffectM $ liftIO newEmptyMVar
     r $ \re -> forkForever $ takeMVar v >>= re
     w $ putMVar v
+
+asyncWrite :: (Eq a, EffIORef m) => Ref m a -> a -> Int -> m ()
+asyncWrite r a t = toReceive (writeRef r) $ \re -> forkIOs [ threadDelay t, re a ]
 
 
