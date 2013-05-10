@@ -70,11 +70,11 @@ main = runWidget $ notebook
     , (,) "Async" $ Action $ do
         ready <- newRef True
         delay <- newRef 1.0
-        toSend False (readRef ready) $ \b -> case b of
-            True -> return $ return ()
+        onChange (readRef ready) $ \b -> case b of
+            True -> return ()
             False -> do
                 d <- readRef' delay
-                return $ asyncWrite ready True $ ceiling $ 10^6 * d
+                asyncWrite ready True $ ceiling $ 10^6 * d
         return $ vcat
             [ hcat [ entry $ showLens % delay, Label $ constSend "sec" ]
             , Button (rEffect $ readRef delay >>= \d -> return $ "Start " ++ show d ++ " sec computation") (rEffect $ readRef ready) $ toReceive $ const $ writeRef ready False
@@ -83,7 +83,7 @@ main = runWidget $ notebook
 
     , (,) "Timer" $ Action $ do
         t <- newRef 0
-        toSend False (readRef t) $ \ti -> return $ asyncWrite t (1 + ti) (10^6)
+        onChange (readRef t) $ \ti -> asyncWrite t (1 + ti) (10^6)
         return $ vcat
             [ Label $ rEffect $ readRef $ showLens % t
             ]
@@ -105,13 +105,13 @@ main = runWidget $ notebook
             put = hcat [ Label $ constSend "putStrLn", Entry (voidSend, \re -> liftEffectM $ re putStrLn >> return ()) ]
             get = Action $ do
                 ready <- newRef $ Just ""
-                toSend False (liftM isJust $ readRef ready) $ \b -> case b of
-                    False -> return $ register ready $ \re -> do
+                onChange (liftM isJust $ readRef ready) $ \b -> case b of
+                    False -> register ready $ \re -> do
                         forkIO $ do
                             l <- getLine
                             re $ Just l
                         return $ const $ return ()  -- ok (no block)?
-                    _ -> return (return ())
+                    _ -> return ()
                 return $ hcat 
                     [ Button (constSend "getLine") (rEffect $ liftM isJust $ readRef ready) $ toReceive $ const $ writeRef ready Nothing
                     , Label $ rEffect $ liftM (maybe "" id) $ readRef ready

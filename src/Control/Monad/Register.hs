@@ -11,9 +11,6 @@ module Control.Monad.Register
 
     -- * Register monad
     , MonadRegister (..)
-
-    -- * Derived
-    , rEffect
     ) where
 
 import Control.Monad.Restricted
@@ -45,9 +42,6 @@ class (Monad m, Monad (PureM m), Monad (EffectM m)) => MonadRegister m where
     toSend :: Eq b => Bool -> R (PureM m) b -> (b -> m (m ())) -> m ()
 
     toReceive :: Eq a => (a -> PureM m ()) -> Receive m a
-
-rEffect :: (MonadRegister m, Eq a) => R (PureM m) a -> Send m a
-rEffect r f = toSend False r $ return . liftEffectM . f
 
 
 

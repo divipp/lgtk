@@ -8,6 +8,8 @@ module Control.Monad.EffRef
     , fileRef
     , asyncWrite
     , register
+    , onChange
+    , rEffect
     ) where
 
 import Control.Concurrent
@@ -87,5 +89,15 @@ register = toReceive . writeRef
 
 asyncWrite :: (Eq a, EffIORef m) => Ref m a -> a -> Int -> m ()
 asyncWrite r a t = register r $ \re -> forkIOs [ threadDelay t, re a ]
+
+onChange :: (Eq a, EffRef m) => ReadRef m a -> (a -> m ()) -> m ()
+onChange r f = toSend False r $ return . f
+
+rEffect :: (EffRef m, Eq a) => ReadRef m a -> (a -> EffectM m ()) -> m ()
+rEffect r f = onChange r $ liftEffectM . f
+
+
+
+
 
 
