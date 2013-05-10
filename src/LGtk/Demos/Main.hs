@@ -22,7 +22,7 @@ main = runWidget $ notebook
 
     , (,) "Counters" $ notebook
 
-        [ (,) "Unbounded" $ Action $ runC $ do
+        [ (,) "Unbounded" $ Action $ do
             c <- newRef 0
             return $ vcat
                 [ Label $ rEffect $ liftM show $ readRef c
@@ -32,7 +32,7 @@ main = runWidget $ notebook
                     ]
                 ]
 
-        , (,) "1..3" $ Action $ runC $ do
+        , (,) "1..3" $ Action $ do
             c <- newRef 1
             return $ vcat
                 [ Label $ rEffect $ liftM show $ readRef c
@@ -42,7 +42,7 @@ main = runWidget $ notebook
                     ]
                 ]
 
-        , (,) "a..b" $ Action $ runC $ do
+        , (,) "a..b" $ Action $ do
             a <- newRef 1
             b <- newRef 3
             let a' = joinRef $ do
@@ -59,7 +59,7 @@ main = runWidget $ notebook
 
         ]
 
-    , (,) "TabSwitch" $ Action $ runC $ do
+    , (,) "TabSwitch" $ Action $ do
         x <- newRef "a"
         let w = vcat [ Label $ rEffect $ readRef x, entry x ]
         return $ notebook
@@ -67,7 +67,7 @@ main = runWidget $ notebook
             , (,) "T2" w
             ]
 
-    , (,) "Async" $ Action $ runC $ do
+    , (,) "Async" $ Action $ do
         ready <- newRef True
         delay <- newRef 1.0
         let f = do
@@ -82,7 +82,7 @@ main = runWidget $ notebook
             , Label $ rEffect $ liftM (\b -> if b then "Ready." else "Computing...") $ readRef ready
             ]
 
-    , (,) "Timer" $ Action $ runC $ do
+    , (,) "Timer" $ Action $ do
         t <- newRef 0
         let g t re = liftEffectM $ void $ forkIO $ threadDelay (ceiling $ 10^6 * 1) >> re (1+t)
         async (toReceive $ writeRef t) $ asyncToSend False (readRef t) g
@@ -96,7 +96,7 @@ main = runWidget $ notebook
 
         , (,) "ProgName" $ Action $ liftEffectM getProgName >>= \args -> return $ Label $ constSend args
 
-        , (,) "Env" $ Action $ runC $ do
+        , (,) "Env" $ Action $ do
             v <- newRef "HOME"
             return $ vcat
                 [ entry v
@@ -105,7 +105,7 @@ main = runWidget $ notebook
 
         , (,) "Std I/O" $ let
             put = hcat [ Label $ constSend "putStrLn", Entry (voidSend, \re -> liftEffectM $ re $ \x -> putStrLn x) ]
-            get = Action $ runC $ do
+            get = Action $ do
                 ready <- newRef $ Just ""
                 let g False re = liftEffectM $ void $ forkIO $ getLine >>= re
                     g _ _ = return ()
@@ -117,19 +117,19 @@ main = runWidget $ notebook
            in vcat [ put, put, put, get, get, get ]
         ]
 
-    , (,) "IntListEditor" $ Action $ runC $ do
+    , (,) "IntListEditor" $ Action $ do
         state <- fileRef "intListEditorState.txt"
         settings <- fileRef "intListEditorSettings.txt"
         return $ intListEditor (justLens "" % state) (justLens "" % settings)
     , (,) "Tri" tri
     , (,) "T-Editor1" tEditor1
-    , (,) "T-Editor3" $ Action $ runC $ newRef (iterate (Node Leaf) Leaf !! 10) >>= tEditor3
+    , (,) "T-Editor3" $ Action $ newRef (iterate (Node Leaf) Leaf !! 10) >>= tEditor3
     ]
 
 justLens :: a -> Lens (Maybe a) a
 justLens a = lens (maybe a id) (const . Just)
 
-counter a b = Action $ runC $ do
+counter a b = Action $ do
     c <- newRef 0
     let c' = joinRef $ do
             av <- readRef a

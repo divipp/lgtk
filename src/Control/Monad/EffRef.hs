@@ -19,7 +19,7 @@ import Filesystem.Path hiding (FilePath)
 import Filesystem.Path.CurrentOS hiding (FilePath)
 import Prelude hiding ((.), id)
 
-import Control.Monad.Restricted
+--import Control.Monad.Restricted
 import Control.Monad.Register
 import Control.Monad.ExtRef
 
@@ -28,10 +28,10 @@ type EffRef m = (ExtRef m, MonadRegister m, WriteRef m ~ PureM m)
 
 type EffIORef m = (EffRef m, EffectM m ~ IO)
 
-fileRef :: (EffIORef m) => FilePath -> C m (Ref m (Maybe String))
-fileRef f = unsafeC $ do
+fileRef :: (EffIORef m) => FilePath -> m (Ref m (Maybe String))
+fileRef f = do
     ms <- liftEffectM $ liftIO r
-    ref <- runC $ newRef ms
+    ref <- newRef ms
     rEffect (readRef ref) $ liftIO . w
     v <- liftEffectM $ liftIO $ do
         v <- newEmptyMVar
@@ -68,8 +68,8 @@ async
     :: (Eq a, EffIORef m)
     => Receive m a
     -> Send m a
-    -> C m ()
-async r w = unsafeC $ do
+    -> m ()
+async r w = do
     v <- liftEffectM $ liftIO newEmptyMVar
     r $ \re -> void $ forkIO $ forever $ takeMVar v >>= re
     w $ putMVar v

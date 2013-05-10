@@ -19,7 +19,7 @@ intListEditor
     => Ref m String         -- ^ state reference
     -> Ref m String         -- ^ settings reference
     -> Widget m
-intListEditor state settings = Action $ runC $ do
+intListEditor state settings = Action $ do
     list <- extRef state showLens []
     (undo, redo)  <- undoTr ((==) `on` map fst) list
     range <- extRef settings showLens True
@@ -50,7 +50,7 @@ intListEditor state settings = Action $ runC $ do
                 , sbutton (constSend "-1 Sel")     (map $ mapSel (+(-1)))        list
                 ]
             , Label $ rEffect $ liftM (("Sum: " ++) . show . sum . map fst) sel
-            , Action $ runC $ listEditor def (itemEditor list) list
+            , Action $ listEditor def (itemEditor list) list
             ]
         , (,) "Settings" $ hcat
             [ Label $ constSend "Create range"
@@ -85,9 +85,9 @@ intListEditor state settings = Action $ runC $ do
     mapSel f (x, y) = (if y then f x else x, y)
 
 
-listEditor :: EffRef m => a -> (Int -> Ref m a -> C m (Widget m)) -> Ref m [a] -> C m (Widget m)
+listEditor :: EffRef m => a -> (Int -> Ref m a -> m (Widget m)) -> Ref m [a] -> m (Widget m)
 listEditor def ed = editor 0 where
-  editor i r = liftM (Action . runC) $ memoRead $ do
+  editor i r = liftM Action $ memoRead $ do
     q <- extRef r listLens (False, (def, []))
     t1 <- ed i $ fstLens . sndLens % q
     t2 <- editor (i+1) $ sndLens . sndLens % q

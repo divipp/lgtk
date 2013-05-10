@@ -113,7 +113,7 @@ instance (Monad m) => ExtRef (Ext i m) where
 
     liftWriteRef = mapExt (return . runIdentity)
 
-    extRef r1 r2 a0 = unsafeC $ Ext $ do
+    extRef r1 r2 a0 = Ext $ do
         a1 <- mapStateT (return . runIdentity) $ g a0
         (t,z) <- state $ extend_ (runState . f) (runState . g) a1
         return $ MRef (unsafeR $ Ext (gets t)) $ \a -> Ext $ modify $ z a
@@ -146,7 +146,7 @@ instance (MonadIO m) => ExtRef (Ext_ i m) where
 
     liftWriteRef = liftWriteRef_
 
-    extRef r1 r2 a0 = mapC liftWriteRef_ $ extRef r1 r2 a0
+    extRef r1 r2 a0 = liftWriteRef_ $ extRef r1 r2 a0
 
 
 -- | Running of the @(Ext_ i m)@ monad.

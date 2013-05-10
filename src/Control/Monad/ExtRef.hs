@@ -7,8 +7,6 @@ module Control.Monad.ExtRef
 
     -- * Restricted monads
     , R, runR, mapR
-    , C, runC, mapC
-    , rToC
 
     -- * Reference classes
     , Reference (..)
@@ -82,22 +80,22 @@ type WriteRef m = RefMonad (Ref m)
 type ReadRef m = R (RefMonad (Ref m))
 
 -- | @memoRead g = liftM ($ ()) $ memoWrite $ const g@
-memoRead :: ExtRef m => C m a -> C m (C m a)
+memoRead :: ExtRef m => m a -> m (m a)
 memoRead g = do
     s <- newRef Nothing
-    return $ mapC liftWriteRef (rToC (readRef s)) >>= \x -> case x of
+    return $ liftWriteRef (runR (readRef s)) >>= \x -> case x of
         Just a -> return a
         _ -> g >>= \a -> do
-            unsafeC $ liftWriteRef $ writeRef s $ Just a
+            liftWriteRef $ writeRef s $ Just a
             return a
 
-memoWrite :: (ExtRef m, Eq b) => (b -> C m a) -> C m (b -> C m a)
+memoWrite :: (ExtRef m, Eq b) => (b -> m a) -> m (b -> m a)
 memoWrite g = do
     s <- newRef Nothing
-    return $ \b -> mapC liftWriteRef (rToC (readRef s)) >>= \x -> case x of
+    return $ \b -> liftWriteRef (runR (readRef s)) >>= \x -> case x of
         Just (b', a) | b' == b -> return a
         _ -> g b >>= \a -> do
-            unsafeC $ liftWriteRef $ writeRef s $ Just (b, a)
+            liftWriteRef $ writeRef s $ Just (b, a)
             return a
 
 
@@ -128,10 +126,10 @@ class (Monad m, Reference (Ref m)) => ExtRef m where
 
     liftWriteRef :: Morph (WriteRef m) m
 
-    newRef :: a -> C m (Ref m a)
+    newRef :: a -> m (Ref m a)
     newRef = extRef unitRef $ lens (const ()) (const id)
 
-    extRef :: Ref m b -> Lens a b -> a -> C m (Ref m a)
+    extRef :: Ref m b -> Lens a b -> a -> m (Ref m a)
 
 instance (ExtRef m, Monoid w) => ExtRef (WriterT w m) where
 
@@ -139,9 +137,9 @@ instance (ExtRef m, Monoid w) => ExtRef (WriterT w m) where
 
     liftWriteRef = lift . liftWriteRef
 
-    newRef = mapC lift . newRef
+    newRef = lift . newRef
 
-    extRef x y a = mapC lift $ extRef x y a
+    extRef x y a = lift $ extRef x y a
 
 instance (ExtRef m) => ExtRef (StateT s m) where
 
@@ -149,9 +147,9 @@ instance (ExtRef m) => ExtRef (StateT s m) where
 
     liftWriteRef = lift . liftWriteRef
 
-    newRef = mapC lift . newRef
+    newRef = lift . newRef
 
-    extRef r k a = mapC lift $ extRef r k a
+    extRef r k a = lift $ extRef r k a
 
 instance (ExtRef m) => ExtRef (ReaderT s m) where
 
@@ -159,9 +157,9 @@ instance (ExtRef m) => ExtRef (ReaderT s m) where
 
     liftWriteRef = lift . liftWriteRef
 
-    newRef = mapC lift . newRef
+    newRef = lift . newRef
 
-    extRef r k a = mapC lift $ extRef r k a
+    extRef r k a = lift $ extRef r k a
 
 
 -- | Undo-redo state transformation
@@ -169,7 +167,7 @@ undoTr
     :: ExtRef m =>
        (a -> a -> Bool)     -- ^ equality on state
     -> Ref m a             -- ^ reference of state
-    -> C m ( ReadRef m (Maybe (WriteRef m ()))   
+    ->   m ( ReadRef m (Maybe (WriteRef m ()))   
            , ReadRef m (Maybe (WriteRef m ()))
            )  -- ^ undo and redo actions
 undoTr eq r = do

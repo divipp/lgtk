@@ -42,9 +42,9 @@ instance (ExtRef m, n ~ WriteRef m) => ExtRef (Register n m) where
 
     liftWriteRef = Register . liftWriteRef
 
-    newRef = mapC Register . newRef
+    newRef = Register . newRef
 
-    extRef r k a = mapC Register $ extRef r k a
+    extRef r k a = Register $ extRef r k a
 
 instance (MonadIO m, Monad n) => MonadRegister (Register n m) where
 

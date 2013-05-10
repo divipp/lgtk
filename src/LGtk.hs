@@ -79,7 +79,7 @@ entry r = Entry (rEffect (readRef r), toReceive (writeRef r))
 
 notebook :: EffRef m => [(String, Widget m)] -> Widget m
 notebook xs = Action $ do
-    currentPage <- runC $ newRef 0
+    currentPage <- newRef 0
     let f index (title, w) = (,) title $ Cell' $ \mkWidget -> let
            h False = hcat []
            h True = w

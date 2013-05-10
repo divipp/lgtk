@@ -251,7 +251,7 @@ mkTests runTest
 
     undoTest3 = runTest $ do
         r <- newRef' 3
-        (undo, redo) <- liftM (runR *** runR) $ runC $ undoTr (==) r
+        (undo, redo) <- liftM (runR *** runR) $ undoTr (==) r
         r ==> 3
         redo === False
         undo === False
@@ -285,8 +285,8 @@ mkTests runTest
 
     joinRef' r = joinRef $ readRef r
 
-    newRef' r = runC $ newRef r
-    extRef' r k a = runC $ extRef r k a
+    newRef' r = newRef r
+    extRef' r k a = extRef r k a
 
     writeRef' r a = liftWriteRef $ writeRef r a
 
