@@ -7,6 +7,7 @@ module Control.Monad.EffRef
     , EffIORef
     , fileRef
     , asyncWrite
+    , register
     ) where
 
 import Control.Concurrent
@@ -52,7 +53,7 @@ fileRef f = do
         man <- startManager
         watchDir man (directory cf') filt act
         return v
-    toReceive (writeRef ref) $ \re -> forkForever $ takeMVar v >>= re
+    register ref $ \re -> forkForever $ takeMVar v >>= re
     return ref
  where
     r = do
@@ -81,7 +82,10 @@ forkIOs ios = do
 
     liftM f $ forkIO $ g ios
 
+register :: (Eq a, EffRef m) => Ref m a -> ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m ()
+register = toReceive . writeRef
+
 asyncWrite :: (Eq a, EffIORef m) => Ref m a -> a -> Int -> m ()
-asyncWrite r a t = toReceive (writeRef r) $ \re -> forkIOs [ threadDelay t, re a ]
+asyncWrite r a t = register r $ \re -> forkIOs [ threadDelay t, re a ]
 
 

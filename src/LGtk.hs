@@ -70,13 +70,13 @@ button r fm = Button r (rEffect $ liftM isJust fm)
     (toReceive $ const $ runR fm >>= maybe (return ()) id)
 
 checkbox :: EffRef m => Ref m Bool -> Widget m
-checkbox r = Checkbox (rEffect (readRef r), toReceive (writeRef r))
+checkbox r = Checkbox (rEffect (readRef r), register r)
 
 combobox :: EffRef m => [String] -> Ref m Int -> Widget m
-combobox ss r = Combobox ss (rEffect (readRef r), toReceive (writeRef r))
+combobox ss r = Combobox ss (rEffect (readRef r), register r)
 
 entry :: EffRef m => Ref m String -> Widget m
-entry r = Entry (rEffect (readRef r), toReceive (writeRef r))
+entry r = Entry (rEffect (readRef r), register r)
 
 notebook :: EffRef m => [(String, Widget m)] -> Widget m
 notebook xs = Action $ do
@@ -84,7 +84,7 @@ notebook xs = Action $ do
     let f index (title, w) = (,) title $ cell True (liftM (== index) $ readRef currentPage) $ return . h where
            h False = hcat []
            h True = w
-    return $ Notebook' (toReceive $ writeRef currentPage) $ zipWith f [0..] xs
+    return $ Notebook' (register currentPage) $ zipWith f [0..] xs
 
 -- | Run an interface description
 runWidget :: (forall m . EffIORef m => Widget m) -> IO ()

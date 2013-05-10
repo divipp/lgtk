@@ -106,7 +106,7 @@ main = runWidget $ notebook
             get = Action $ do
                 ready <- newRef $ Just ""
                 toSend False (liftM isJust $ readRef ready) $ \b -> case b of
-                    False -> return $ toReceive (writeRef ready) $ \re -> do
+                    False -> return $ register ready $ \re -> do
                         forkIO $ do
                             l <- getLine
                             re $ Just l
