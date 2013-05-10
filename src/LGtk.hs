@@ -63,10 +63,10 @@ cell b r g = Cell (toSend b r) $ Action . g
 
 button
     :: EffRef m
-    => Send m String
+    => ReadRef m String
     -> ReadRef m (Maybe (WriteRef m ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
     -> Widget m
-button r fm = Button r (rEffect $ liftM isJust fm)
+button r fm = Button (rEffect r) (rEffect $ liftM isJust fm)
     (toReceive $ const $ runR fm >>= maybe (return ()) id)
 
 checkbox :: EffRef m => Ref m Bool -> Widget m

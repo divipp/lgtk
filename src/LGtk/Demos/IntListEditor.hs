@@ -33,8 +33,8 @@ intListEditor state settings = Action $ do
                 , smartButton (constSend "+1") (modL' len (+1))      list
                 , smartButton (constSend "-1") (modL' len (+(-1)))   list
                 , smartButton (rEffect $ liftM (("DeleteAll " ++) . show) $ len >>= \k -> readRef $ k % list) (modL' len $ const 0) list
-                , button (constSend "undo") undo
-                , button (constSend "redo") redo
+                , button (return "undo") undo
+                , button (return "redo") redo
                 ]
             , hcat
                 [ sbutton (constSend "+1")         (map $ mapFst (+1))           list
