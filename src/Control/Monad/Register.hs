@@ -32,7 +32,7 @@ data Command = Kill | Block | Unblock deriving (Eq, Ord, Show)
 
 type Receive m a = ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m ()
 
-class (Monad m, Monad (PureM m), Monad (EffectM m)) => MonadRegister m where
+class (Monad m, MMorph (PureM m), Monad (EffectM m)) => MonadRegister m where
 
     type PureM m :: * -> *
     type EffectM m :: * -> *
