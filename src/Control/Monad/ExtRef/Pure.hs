@@ -106,11 +106,11 @@ mapExt f = Ext . mapStateT f . unExt
 type IExt i = Ext i Identity
 
 
-newtype R' m a = R' (m a) deriving (Functor, Monad)
+newtype R' i a = R' (ST -> a) deriving (Functor, Monad)
 
 instance Monad m => MMorph (Ext i m) where
-    type R (Ext i m) = R' (Ext i m)
-    runR (R' m) = m
+    type R (Ext i m) = R' i
+    runR (R' f) = Ext $ gets f
 
 
 instance (Monad m) => ExtRef (Ext i m) where
@@ -122,7 +122,7 @@ instance (Monad m) => ExtRef (Ext i m) where
     extRef r1 r2 a0 = Ext $ do
         a1 <- mapStateT (return . runIdentity) $ g a0
         (t,z) <- state $ extend_ (runState . f) (runState . g) a1
-        return $ MRef (R' $ Ext (gets t)) $ \a -> Ext $ modify $ z a
+        return $ MRef (R' t) $ \a -> Ext $ modify $ z a
        where
         f a = unExt $ writeRef r1 (getL r2 a) >> return a
         g b = unExt $ runR $ liftM (flip (setL r2) b) $ readRef r1
