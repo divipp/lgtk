@@ -42,18 +42,18 @@ unsafeData :: CC x -> a
 unsafeData (CC x _) = unsafeCoerce x
 
 
-newtype ST = ST (Seq (CC ST))
+newtype LSt = LSt (Seq (CC LSt))
 
-initST :: ST
-initST = ST empty
+initLSt :: LSt
+initLSt = LSt empty
 
 extend_
-    :: (a -> ST -> (a, ST))
-    -> (a -> ST -> (a, ST))
+    :: (a -> LSt -> (a, LSt))
+    -> (a -> LSt -> (a, LSt))
     -> a
-    -> ST
-    -> ((ST -> a, a -> ST -> ST), ST)
-extend_ rk kr a0 x0@(ST x0_)
+    -> LSt
+    -> ((LSt -> a, a -> LSt -> LSt), LSt)
+extend_ rk kr a0 x0@(LSt x0_)
     = ((getM, setM), x0 ||> CC a0 kr)
   where
     getM = unsafeData . head' . snd . limit
@@ -66,9 +66,9 @@ extend_ rk kr a0 x0@(ST x0_)
             (a', re) = rk a zs
             in foldl ((uncurry (||>) .) . ap_) (re ||> CC a' kr) ys
 
-    ST x ||> c = ST (x |> c)
+    LSt x ||> c = LSt (x |> c)
 
-    limit (ST y) = ST Arrow.*** toList $ splitAt (length x0_) y
+    limit (LSt y) = LSt Arrow.*** toList $ splitAt (length x0_) y
 
 data MRef m a = MRef { readRef_ :: R m a, writeRef_ :: a -> m () }
 
@@ -92,7 +92,7 @@ instance MMorph m => Reference (MRef m) where
 
     joinRef m = MRef (m >>= readRef_) (\a -> runR m >>= \r -> writeRef_ r a)
 
-newtype Ext i m a = Ext { unExt :: StateT ST m a }
+newtype Ext i m a = Ext { unExt :: StateT LSt m a }
     deriving (Functor, Monad, MonadWriter w)
 
 instance MonadTrans (Ext i) where
@@ -107,7 +107,7 @@ mapExt f = Ext . mapStateT f . unExt
 type IExt i = Ext i Identity
 
 
-newtype R' i a = R' (ST -> a) deriving (Functor, Monad)
+newtype R' i a = R' (LSt -> a) deriving (Functor, Monad)
 
 instance MMorph (Ext i Identity) where
     type R (IExt i) = R' i
@@ -131,24 +131,23 @@ instance (Monad m) => ExtRef (Ext i m) where
 
 -- | Basic running of the @(Ext i m)@ monad.
 runExt :: Monad m => (forall i . Ext i m a) -> m a
-runExt s = evalStateT (unExt s) initST
+runExt s = evalStateT (unExt s) initLSt
 
+data ExtSt m = ExtSt { runExtSt :: Morph (State LSt) m }
 
-newtype Ext_ i m a = Ext_ (ReaderT (IORef ST) m a)
-    deriving (Functor, Monad, MonadWriter w)
+newtype Ext_ i m a = Ext_ (ReaderT (ExtSt m) m a)
+    deriving (Functor, Monad, MonadIO, MonadWriter w)
 
 instance MonadTrans (Ext_ i) where
     lift = Ext_ . lift
 
-instance (MonadIO m) => ExtRef (Ext_ i m) where
+instance (Monad m) => ExtRef (Ext_ i m) where
 
     type Ref (Ext_ i m) = MRef (IExt i)
 
     liftWriteRef (Ext m) = Ext_ $ do
         r <- ask
-        liftIO $ atomicModifyIORef' r $ swap . runState m
-      where
-        swap (a, b) = (b, a)
+        lift $ runExtSt r m
 
     extRef r1 r2 a0 = liftWriteRef $ extRef r1 r2 a0
 
@@ -156,12 +155,11 @@ instance (MonadIO m) => ExtRef (Ext_ i m) where
 -- | Running of the @(Ext_ i m)@ monad.
 runExt_ :: forall m a . MonadIO m => (forall i . Morph (Ext_ i m) m -> Ext_ i m a) -> m a
 runExt_ f = do
-    vx <- liftIO $ newIORef initST
+    vx <- liftIO $ newIORef initLSt
+    let vx' = ExtSt $ \m -> liftIO $ atomicModifyIORef' vx $ swap . runState m
     let unlift :: Morph (Ext_ i m) m
-        unlift (Ext_ m) = runReaderT m vx
+        unlift (Ext_ m) = runReaderT m vx'
     unlift $ f unlift
-
-instance MonadIO m => MonadIO (Ext_ i m) where
-
-    liftIO m = Ext_ $ liftIO m
+  where
+    swap (a, b) = (b, a)
 
