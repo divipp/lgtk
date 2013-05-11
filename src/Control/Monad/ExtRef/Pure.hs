@@ -11,7 +11,7 @@ The implementation uses @unsafeCoerce@ internally, but its effect cannot escape.
 -}
 module Control.Monad.ExtRef.Pure
     ( Ext, IExt, runExt
-    , Ext_, ExtSt (..), runExt_
+    , Ext_, runExt_
     ) where
 
 import Control.Monad.State
@@ -133,9 +133,7 @@ instance (Monad m) => ExtRef (Ext i m) where
 runExt :: Monad m => (forall i . Ext i m a) -> m a
 runExt s = evalStateT (unExt s) initLSt
 
-type ExtSt a m = MorphD (State a) m
-
-newtype Ext_ i m a = Ext_ (ReaderT (ExtSt LSt m) m a)
+newtype Ext_ i m a = Ext_ (ReaderT (MorphD (State LSt) m) m a)
     deriving (Functor, Monad, MonadIO, MonadWriter w)
 
 instance MonadTrans (Ext_ i) where
@@ -154,7 +152,7 @@ instance (Monad m) => ExtRef (Ext_ i m) where
 
 -- | Running of the @(Ext_ i m)@ monad.
 runExt_ :: forall m a . Monad m
-    => (forall a . a -> m (ExtSt a m))
+    => (forall a . a -> m (MorphD (State a) m))
     -> (forall i . Morph (Ext_ i m) m -> Ext_ i m a) -> m a
 runExt_ nr f = do
     vx <- nr initLSt
