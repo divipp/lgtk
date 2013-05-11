@@ -140,20 +140,17 @@ newtype Ext_ i m a = Ext_ (ReaderT (IORef ST) m a)
 instance MonadTrans (Ext_ i) where
     lift = Ext_ . lift
 
-liftWriteRef_ :: MonadIO m => IExt i a -> Ext_ i m a
-liftWriteRef_ (Ext m) = Ext_ $ do
-    r <- ask
-    liftIO $ atomicModifyIORef' r $ swap . runState m
-  where
-    swap (a, b) = (b, a)
-
 instance (MonadIO m) => ExtRef (Ext_ i m) where
 
     type Ref (Ext_ i m) = MRef (IExt i)
 
-    liftWriteRef = liftWriteRef_
+    liftWriteRef (Ext m) = Ext_ $ do
+        r <- ask
+        liftIO $ atomicModifyIORef' r $ swap . runState m
+      where
+        swap (a, b) = (b, a)
 
-    extRef r1 r2 a0 = liftWriteRef_ $ extRef r1 r2 a0
+    extRef r1 r2 a0 = liftWriteRef $ extRef r1 r2 a0
 
 
 -- | Running of the @(Ext_ i m)@ monad.
