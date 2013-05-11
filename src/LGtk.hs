@@ -29,8 +29,11 @@ module LGtk
     ) where
 
 import Data.Maybe
+import Data.IORef
 import Control.Category
 import Control.Monad
+import Control.Monad.State
+import Control.Monad.Trans
 import Prelude hiding ((.), id)
 
 import Control.Monad.ExtRef hiding (liftWriteRef)
@@ -88,10 +91,19 @@ notebook xs = Action $ do
 
 -- | Run an interface description
 runWidget :: (forall m . EffIORef m => Widget m) -> IO ()
-runWidget e = Gtk.gtkContext $ \post -> runExt_ $ \mo -> evalRegister (mo . ExtRef.liftWriteRef) mo $ \post' -> Gtk.runWidget liftEffectM post' post e
+runWidget e = Gtk.gtkContext $ \post -> runExt $ \mo -> evalRegister (mo . ExtRef.liftWriteRef) mo $ \post' -> Gtk.runWidget liftEffectM post' post e
+  where
+    runExt :: forall m a . MonadIO m => (forall i . Morph (Ext_ i m) m -> Ext_ i m a) -> m a
+    runExt f = runExt_ g f
+      where
+        g x = do
+            vx <- liftIO $ newIORef x
+            return $ ExtSt $ \m -> liftIO $ atomicModifyIORef' vx $ swap . runState m
+
+        swap (a, b) = (b, a)
+
 
 readRef' :: EffIORef m => Ref m a -> m a
 readRef' = ExtRef.liftWriteRef . runR . readRef
-
 
 

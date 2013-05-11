@@ -11,7 +11,7 @@ The implementation uses @unsafeCoerce@ internally, but its effect cannot escape.
 -}
 module Control.Monad.ExtRef.Pure
     ( Ext, IExt, runExt
-    , Ext_, runExt_
+    , Ext_, ExtSt (..), runExt_
     ) where
 
 import Control.Monad.State
@@ -21,7 +21,6 @@ import Control.Monad.Identity
 import Control.Category
 import qualified Control.Arrow as Arrow
 import Data.Sequence
-import Data.IORef
 import Data.Lens.Common
 import Data.Foldable (toList)
 import Prelude hiding ((.), id, splitAt, length)
@@ -133,9 +132,9 @@ instance (Monad m) => ExtRef (Ext i m) where
 runExt :: Monad m => (forall i . Ext i m a) -> m a
 runExt s = evalStateT (unExt s) initLSt
 
-data ExtSt m = ExtSt { runExtSt :: Morph (State LSt) m }
+data ExtSt a m = ExtSt { runExtSt :: Morph (State a) m }
 
-newtype Ext_ i m a = Ext_ (ReaderT (ExtSt m) m a)
+newtype Ext_ i m a = Ext_ (ReaderT (ExtSt LSt m) m a)
     deriving (Functor, Monad, MonadIO, MonadWriter w)
 
 instance MonadTrans (Ext_ i) where
@@ -153,13 +152,15 @@ instance (Monad m) => ExtRef (Ext_ i m) where
 
 
 -- | Running of the @(Ext_ i m)@ monad.
-runExt_ :: forall m a . MonadIO m => (forall i . Morph (Ext_ i m) m -> Ext_ i m a) -> m a
-runExt_ f = do
-    vx <- liftIO $ newIORef initLSt
-    let vx' = ExtSt $ \m -> liftIO $ atomicModifyIORef' vx $ swap . runState m
+runExt_ :: forall m a . Monad m
+    => (forall a . a -> m (ExtSt a m))
+    -> (forall i . Morph (Ext_ i m) m -> Ext_ i m a) -> m a
+runExt_ nr f = do
+    vx <- nr initLSt
     let unlift :: Morph (Ext_ i m) m
-        unlift (Ext_ m) = runReaderT m vx'
+        unlift (Ext_ m) = runReaderT m vx
     unlift $ f unlift
   where
     swap (a, b) = (b, a)
+
 
