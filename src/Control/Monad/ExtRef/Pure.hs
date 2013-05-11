@@ -1,6 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {- |
@@ -108,8 +109,8 @@ type IExt i = Ext i Identity
 
 newtype R' i a = R' (ST -> a) deriving (Functor, Monad)
 
-instance Monad m => MMorph (Ext i m) where
-    type R (Ext i m) = R' i
+instance MMorph (Ext i Identity) where
+    type R (IExt i) = R' i
     runR (R' f) = Ext $ gets f
 
 
