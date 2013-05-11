@@ -31,6 +31,7 @@ module LGtk
 import Data.Maybe
 import Data.IORef
 import Control.Category
+import Control.Concurrent
 import Control.Monad
 import Control.Monad.State
 import Control.Monad.Trans
@@ -92,16 +93,23 @@ notebook xs = Action $ do
 
 -- | Run an interface description
 runWidget :: (forall m . EffIORef m => Widget m) -> IO ()
-runWidget e = Gtk.gtkContext $ \post -> runExt $ \mo -> evalRegister (mo . ExtRef.liftWriteRef) mo $ \post' -> Gtk.runWidget liftEffectM post' post e
+runWidget e = Gtk.gtkContext $ \post -> runExt $ \mo -> liftIO newChan' >>= evalRegister newRef' (mo . ExtRef.liftWriteRef) liftIO mo (\post' -> Gtk.runWidget liftEffectM post' post e)
   where
     runExt :: forall m a . MonadIO m => (forall i . Morph (Ext_ i m) m -> Ext_ i m a) -> m a
-    runExt f = runExt_ g f
-      where
-        g x = do
-            vx <- liftIO $ newIORef x
-            return $ MorphD $ \m -> liftIO $ atomicModifyIORef' vx $ swap . runState m
+    runExt f = runExt_ newRef' f
 
+    newRef' x = do
+        vx <- liftIO $ newIORef x
+        return $ MorphD $ \m -> liftIO $ atomicModifyIORef' vx $ swap . runState m
+      where
         swap (a, b) = (b, a)
+
+    newChan' :: IO (IO () -> IO ())
+    newChan' = do
+        ch <- newChan
+        _ <- forkIO $ forever $ join $ readChan ch
+        return $ writeChan ch
+
 
 
 readRef' :: EffIORef m => Ref m a -> m a

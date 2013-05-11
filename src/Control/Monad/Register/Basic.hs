@@ -12,8 +12,6 @@ import Control.Monad
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer
-import Control.Concurrent
-import Data.IORef
 import Data.List
 import Prelude hiding ((.), id)
 
@@ -36,26 +34,29 @@ instance Monad m => Monoid (MM m) where
     mempty = MM $ return ()
     MM a `mappend` MM b = MM $ a >> b
 
-newtype Register n m k a = Register { runRegister :: ReaderT (RegisterState n m k) (WriterT (MM k, Command -> MM k) m) a }
+newtype Register n k m a = Register { runRegister :: ReaderT (RegisterState n m k) (WriterT (MM k, Command -> MM k) m) a }
     deriving (Functor, Monad, MonadIO)
 
-instance (ExtRef m, n ~ WriteRef m, Monad k) => ExtRef (Register n m k) where
+instance (Monad k) => MonadTrans (Register n k) where
+    lift = Register . lift . lift
 
-    type Ref (Register n m k) = Ref m
+instance (ExtRef m, n ~ WriteRef m, Monad k) => ExtRef (Register n k m) where
+
+    type Ref (Register n k m) = Ref m
 
     liftWriteRef = Register . liftWriteRef
 
     extRef r k a = Register $ extRef r k a
 
-liftIO' :: (Monad k, Monad m) => k a -> Register n m k a
+liftIO' :: (Monad k, Monad m) => k a -> Register n k m a
 liftIO' m = do
     rr <- Register $ ask
-    Register $ lift $ lift $ runMorphD (morphK rr) m
+    lift $ runMorphD (morphK rr) m
 
-instance (MonadIO m, MMorph n, Monad k) => MonadRegister (Register n m k) where
+instance (Monad m, MMorph n, Monad k) => MonadRegister (Register n k m) where
 
-    type PureM (Register n m k) = n
-    type EffectM (Register n m k) = k
+    type PureM (Register n k m) = n
+    type EffectM (Register n k m) = k
 
     liftEffectM = liftIO'
 
@@ -78,7 +79,7 @@ instance (MonadIO m, MMorph n, Monad k) => MonadRegister (Register n m k) where
                         ureg2 = runMM . ureg2_
                     runMorphD memoref $ state $ \(_, _, memo) -> (,) () (ureg1, ureg2, (b, (c, s1, s2, ureg1, ureg2)) : if bb then filter ((/= b) . fst) memo else [])
                     s1 >> s2
-            join $ runMorphD memoref $ state $ \memo -> flip (,) memo $ case memo of
+            join $ runMorphD memoref $ gets $ \memo -> case memo of
                 (_, _, ((b', (_, s1, s2, _, _)): _)) | b' == b -> s1 >> s2
                 (ur1, ur2, memo) -> do
                   ur1 $ if bb then Block else Kill
@@ -94,19 +95,20 @@ t1 m = (MM m, mempty)
 t2 m = (mempty, MM . m)
 
 -- | evaluation with postponed actions
-evalRegister :: (Monad n, MonadIO m) => Morph n IO -> Morph m IO -> ((IO () -> IO ()) -> Register n m IO a) -> m a
-evalRegister morphN morph f = do
-    post <- liftIO $ newIORef $ return ()
-    let (Register m) = f $ \io -> atomicModifyIORef' post $ \m -> (m >> io, ())
-    vx <- liftIO $ newIORef $ return ()
-    ch <- liftIO newChan
-    let g x = do
-            vx <- newIORef x
-            return $ MorphD $ \m -> atomicModifyIORef' vx $ swap . runState m
-        swap (a, b) = (b, a)
-    (a, reg) <- runWriterT $ runReaderT m $ RegisterState (join (readIORef vx) >> join (atomicModifyIORef' post (\m -> (return (), m)))) (writeChan ch) (MorphD morph) (MorphD morphN) (MorphD liftIO) g
-    liftIO $ writeIORef vx $ runMM $ fst reg
-    _ <- liftIO $ forkIO $ forever $ join $ readChan ch
+evalRegister :: (Monad n, Monad m, Monad k)
+    => (forall a . a -> k (MorphD (State a) k))
+    -> Morph n k
+    -> Morph k m
+    -> Morph m k
+    -> ((k () -> k ()) -> Register n k m a)
+    -> (k () -> k ())
+    -> m a
+evalRegister newRef' morphN liftIO morph f ch = do
+    post <- liftIO $ newRef' $ return ()
+    let (Register m) = f $ runMorphD post . modify . flip (>>)
+    vx <- liftIO $ newRef' $ error "evalRegister"
+    (a, reg) <- runWriterT $ runReaderT m $ RegisterState (join (runMorphD vx get) >> join (runMorphD post $ state $ \m -> (m, return ()))) ch (MorphD morph) (MorphD morphN) (MorphD liftIO) newRef'
+    liftIO $ runMorphD vx $ put $ runMM $ fst reg
     liftIO $ runMM $ fst reg        -- needed?
     return a
 
