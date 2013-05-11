@@ -20,8 +20,6 @@ import Control.Monad.Restricted
 import Control.Monad.Register
 import Control.Monad.ExtRef
 
-data MorphD m n = MorphD { unlift :: Morph m n }
-
 data RegisterState n m = RegisterState
     { actions :: IO ()
     , sendEvent :: IO () -> IO ()
@@ -54,7 +52,7 @@ instance (MonadIO m, MMorph n) => MonadRegister (Register n m) where
     toReceive r int = do
         rr <- Register ask
         unreg <- liftEffectM $ int $ \a -> sendEvent rr $ do
-            unlift (morphN rr) $ r a
+            runMorphD (morphN rr) $ r a
             actions rr
         Register $ tell $ t2 unreg
         return ()
@@ -63,9 +61,9 @@ instance (MonadIO m, MMorph n) => MonadRegister (Register n m) where
         rr <- Register ask
         memoref <- liftIO $ newIORef (const $ return (), const $ return (), [])  -- unreg action, memo table, first item is the newest
         Register $ tell $ t1 $ do
-            b <- unlift (morphN rr) $ runR rb
+            b <- runMorphD (morphN rr) $ runR rb
             let doit c (s1, ureg1) = do 
-                    (s2, ureg2) <- unlift (morph rr) $ execWriterT $ runReaderT (runRegister c) rr
+                    (s2, ureg2) <- runMorphD (morph rr) $ execWriterT $ runReaderT (runRegister c) rr
                     atomicModifyIORef' memoref $ \(_, _, memo) -> ((ureg1, ureg2, (b, (c, s1, s2, ureg1, ureg2)) : if bb then filter ((/= b) . fst) memo else []), ())
                     s1 >> s2
             join $ atomicModifyIORef' memoref $ \memo -> (,) memo $ case memo of
@@ -76,7 +74,7 @@ instance (MonadIO m, MMorph n) => MonadRegister (Register n m) where
                   case (bb, filter ((== b) . fst) memo) of
                     (True, (_, (c, s1, _, ureg1, ureg2)): _) -> ureg1 Unblock >> doit c (s1, ureg1)
                     _ -> do
-                        (c, s1) <- unlift (morph rr) $ runWriterT $ runReaderT (runRegister $ fb b) rr
+                        (c, s1) <- runMorphD (morph rr) $ runWriterT $ runReaderT (runRegister $ fb b) rr
                         doit c s1
 
 t1 m = (m, const $ return ())

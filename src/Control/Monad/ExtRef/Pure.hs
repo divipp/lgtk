@@ -28,6 +28,7 @@ import Prelude hiding ((.), id, splitAt, length)
 import Unsafe.Coerce
 
 import Control.Monad.ExtRef
+import Control.Monad.Restricted
 
 
 data CC x = forall a . CC a (a -> x -> (a, x))
@@ -132,7 +133,7 @@ instance (Monad m) => ExtRef (Ext i m) where
 runExt :: Monad m => (forall i . Ext i m a) -> m a
 runExt s = evalStateT (unExt s) initLSt
 
-data ExtSt a m = ExtSt { runExtSt :: Morph (State a) m }
+type ExtSt a m = MorphD (State a) m
 
 newtype Ext_ i m a = Ext_ (ReaderT (ExtSt LSt m) m a)
     deriving (Functor, Monad, MonadIO, MonadWriter w)
@@ -146,7 +147,7 @@ instance (Monad m) => ExtRef (Ext_ i m) where
 
     liftWriteRef (Ext m) = Ext_ $ do
         r <- ask
-        lift $ runExtSt r m
+        lift $ runMorphD r m
 
     extRef r1 r2 a0 = liftWriteRef $ extRef r1 r2 a0
 

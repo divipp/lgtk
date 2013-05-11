@@ -36,6 +36,7 @@ import Control.Monad.State
 import Control.Monad.Trans
 import Prelude hiding ((.), id)
 
+import Control.Monad.Restricted
 import Control.Monad.ExtRef hiding (liftWriteRef)
 import qualified Control.Monad.ExtRef as ExtRef
 import Control.Monad.Register
@@ -98,7 +99,7 @@ runWidget e = Gtk.gtkContext $ \post -> runExt $ \mo -> evalRegister (mo . ExtRe
       where
         g x = do
             vx <- liftIO $ newIORef x
-            return $ ExtSt $ \m -> liftIO $ atomicModifyIORef' vx $ swap . runState m
+            return $ MorphD $ \m -> liftIO $ atomicModifyIORef' vx $ swap . runState m
 
         swap (a, b) = (b, a)
 
