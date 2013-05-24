@@ -22,7 +22,7 @@ import System.IO.Unsafe
 
 import Control.Monad.ExtRef
 import Control.Monad.NewRef.Unsafe ()
-import Control.Monad.Restricted
+--import Control.Monad.Restricted
 
 
 extRef_ :: NewRef m => Ref m b -> Lens a b -> a -> C m (Ref m a)

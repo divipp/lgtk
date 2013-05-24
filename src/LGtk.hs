@@ -10,6 +10,8 @@ module LGtk
 
     -- * Binding effects to references
     , module Control.Monad.Register
+    , constSend
+    , liftIO
     , module Control.Monad.EffRef
 
     -- * Gtk structures
@@ -37,7 +39,7 @@ import Control.Monad.State
 import Control.Monad.Trans
 import Prelude hiding ((.), id)
 
-import Control.Monad.Restricted
+--import Control.Monad.Restricted
 import Control.Monad.ExtRef hiding (liftWriteRef)
 import qualified Control.Monad.ExtRef as ExtRef
 import Control.Monad.Register
@@ -47,6 +49,9 @@ import GUI.Gtk.Structures hiding (Send, Receive, SendReceive, Widget)
 import qualified GUI.Gtk.Structures as Gtk
 import qualified GUI.Gtk.Structures.IO as Gtk
 import Control.Monad.ExtRef.Pure
+
+constSend :: (MonadRegister m) => a -> (a -> EffectM m ()) -> m ()
+constSend a f = liftEffectM $ f a
 
 type Widget m = Gtk.Widget (EffectM m) m
 
@@ -58,9 +63,9 @@ hcat = List Horizontal
 
 smartButton
   :: (EffRef m, Eq a) =>
-     Send m String -> (a -> ReadRef m a) -> Ref m a -> Widget m
+     ReadRef m String -> (a -> ReadRef m a) -> Ref m a -> Widget m
 smartButton s f k =
-    Button s (rEffect $ readRef k >>= \x -> liftM (/= x) $ f x)
+    Button (rEffect s) (rEffect $ readRef k >>= \x -> liftM (/= x) $ f x)
              (toReceive $ \() -> runR (readRef k) >>= runR . f >>= writeRef k)
 
 cell :: (EffRef m, Eq a) => Bool -> ReadRef m a -> (a -> m (Widget m)) -> Widget m
@@ -93,7 +98,7 @@ notebook xs = Action $ do
 
 -- | Run an interface description
 runWidget :: (forall m . EffIORef m => Widget m) -> IO ()
-runWidget e = Gtk.gtkContext $ \post -> runExt $ \mo -> liftIO newChan' >>= evalRegister newRef' (mo . ExtRef.liftWriteRef) liftIO mo (\post' -> Gtk.runWidget liftEffectM post' post e)
+runWidget e = Gtk.gtkContext $ \post -> runExt $ \mo -> liftIO newChan' >>= evalRegister newRef' (mo . ExtRef.liftWriteRef) liftIO mo (\post' -> Gtk.runWidget liftIO post' post e)
   where
     runExt :: forall m a . MonadIO m => (forall i . Morph (Ext_ i m) m -> Ext_ i m a) -> m a
     runExt f = runExt_ newRef' f

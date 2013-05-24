@@ -6,7 +6,7 @@ module Control.Monad.ExtRef
     ( module Data.Lens.Common
 
     -- * Restricted monads
-    , MMorph (..)
+    , HasReadPart (..)
 
     -- * Reference classes
     , Reference (..)
@@ -26,6 +26,7 @@ module Control.Monad.ExtRef
 
     -- * Auxiliary definitions
     , Morph
+    , MorphD (..)
 
     -- * Auxiliary lens definitions
     , listLens
@@ -61,7 +62,7 @@ Laws for pure references:
 
 These laws are equivalent to the get-no-effect, set-get, get-set and set-set laws for monadic lenses.
 -}
-class (MMorph (RefMonad r)) => Reference r where
+class (HasReadPart (RefMonad r)) => Reference r where
 
     type RefMonad r :: * -> *
 
@@ -72,7 +73,7 @@ class (MMorph (RefMonad r)) => Reference r where
     joinRef :: ReadR r (r a) -> r a
     unitRef :: r ()
 
-type ReadR r = R (RefMonad r)
+type ReadR r = ReadPart (RefMonad r)
 
 infixr 8 %
 

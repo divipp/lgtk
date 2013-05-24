@@ -28,7 +28,7 @@ import Prelude hiding ((.), id, splitAt, length)
 import Unsafe.Coerce
 
 import Control.Monad.ExtRef
-import Control.Monad.Restricted
+--import Control.Monad.Restricted
 
 
 data CC x = forall a . CC a (a -> x -> (a, x))
@@ -70,9 +70,9 @@ extend_ rk kr a0 x0@(LSt x0_)
 
     limit (LSt y) = LSt Arrow.*** toList $ splitAt (length x0_) y
 
-data MRef m a = MRef { readRef_ :: R m a, writeRef_ :: a -> m () }
+data MRef m a = MRef { readRef_ :: ReadPart m a, writeRef_ :: a -> m () }
 
-instance MMorph m => Reference (MRef m) where
+instance HasReadPart m => Reference (MRef m) where
 
     type RefMonad (MRef m) = m
 
@@ -109,8 +109,8 @@ type IExt i = Ext i Identity
 
 newtype R' i a = R' (LSt -> a) deriving (Functor, Monad)
 
-instance MMorph (Ext i Identity) where
-    type R (IExt i) = R' i
+instance HasReadPart (Ext i Identity) where
+    type ReadPart (IExt i) = R' i
     runR (R' f) = Ext $ gets f
 
 

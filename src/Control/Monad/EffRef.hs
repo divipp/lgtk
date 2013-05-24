@@ -29,14 +29,14 @@ import Control.Monad.ExtRef
 
 type EffRef m = (ExtRef m, MonadRegister m, WriteRef m ~ PureM m)
 
-type EffIORef m = (EffRef m, EffectM m ~ IO)
+type EffIORef m = (EffRef m, EffectM m ~ IO, MonadIO m)
 
 fileRef :: (EffIORef m) => FilePath -> m (Ref m (Maybe String))
 fileRef f = do
-    ms <- liftEffectM $ liftIO r
+    ms <- liftIO r
     ref <- newRef ms
-    rEffect (readRef ref) $ liftIO . w
-    v <- liftEffectM $ liftIO $ do
+    rEffect (readRef ref) $ w
+    v <- liftIO $ do
         v <- newEmptyMVar
         cf <- canonicalizePath f
         let

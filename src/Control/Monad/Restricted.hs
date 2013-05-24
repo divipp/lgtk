@@ -6,17 +6,17 @@ module Control.Monad.Restricted
     ( -- * Auxiliary definitions
       Morph
     , MorphD (..)
-    , MMorph (..)
+    , HasReadPart (..)
     ) where
 
 type Morph m n = forall a . m a -> n a
 
 newtype MorphD m n = MorphD { runMorphD :: Morph m n }
 
-class (Monad m, Monad (R m)) => MMorph m where
+class (Monad m, Monad (ReadPart m)) => HasReadPart m where
 
-    type R m :: * -> *
+    type ReadPart m :: * -> *
 
-    runR :: Morph (R m) m
+    runR :: Morph (ReadPart m) m
 
 

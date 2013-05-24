@@ -53,7 +53,7 @@ liftIO' m = do
     rr <- Register $ ask
     lift $ runMorphD (morphK rr) m
 
-instance (Monad m, MMorph n, Monad k) => MonadRegister (Register n k m) where
+instance (Monad m, HasReadPart n, Monad k) => MonadRegister (Register n k m) where
 
     type PureM (Register n k m) = n
     type EffectM (Register n k m) = k

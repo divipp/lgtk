@@ -27,8 +27,8 @@ main = runWidget $ notebook
             return $ vcat
                 [ Label $ rEffect $ liftM show $ readRef c
                 , hcat
-                    [ smartButton (constSend "+1") (return . (+1)) c
-                    , smartButton (constSend "-1") (return . (+(-1))) c
+                    [ smartButton (return "+1") (return . (+1)) c
+                    , smartButton (return "-1") (return . (+(-1))) c
                     ]
                 ]
 
@@ -37,8 +37,8 @@ main = runWidget $ notebook
             return $ vcat
                 [ Label $ rEffect $ liftM show $ readRef c
                 , hcat
-                    [ smartButton (constSend "+1") (return . min 3 . (+1)) c
-                    , smartButton (constSend "-1") (return . max 1 . (+(-1))) c
+                    [ smartButton (return "+1") (return . min 3 . (+1)) c
+                    , smartButton (return "-1") (return . max 1 . (+(-1))) c
                     ]
                 ]
 
@@ -90,9 +90,9 @@ main = runWidget $ notebook
 
     , (,) "System" $ notebook
 
-        [ (,) "Args" $ Action $ liftEffectM getArgs >>= \args -> return $ Label $ constSend $ unlines args
+        [ (,) "Args" $ Action $ liftIO getArgs >>= \args -> return $ Label $ constSend $ unlines args
 
-        , (,) "ProgName" $ Action $ liftEffectM getProgName >>= \args -> return $ Label $ constSend args
+        , (,) "ProgName" $ Action $ liftIO getProgName >>= \args -> return $ Label $ constSend args
 
         , (,) "Env" $ Action $ do
             v <- newRef "HOME"
@@ -102,7 +102,7 @@ main = runWidget $ notebook
                 ]
 
         , (,) "Std I/O" $ let
-            put = hcat [ Label $ constSend "putStrLn", Entry (voidSend, \re -> liftEffectM $ re putStrLn >> return ()) ]
+            put = hcat [ Label $ constSend "putStrLn", Entry (const $ return (), \re -> liftIO $ re putStrLn >> return ()) ]
             get = Action $ do
                 ready <- newRef $ Just ""
                 onChange (liftM isJust $ readRef ready) $ \b -> case b of
@@ -140,8 +140,8 @@ counter a b = Action $ do
     return $ vcat
         [ Label $ rEffect $ liftM show $ readRef c'
         , hcat
-            [ smartButton (constSend "+1") ((\x -> liftM (min x) $ readRef b) . (+1)) c'
-            , smartButton (constSend "-1") ((\x -> liftM (max x) $ readRef a) . (+(-1))) c'
+            [ smartButton (return "+1") ((\x -> liftM (min x) $ readRef b) . (+1)) c'
+            , smartButton (return "-1") ((\x -> liftM (max x) $ readRef a) . (+(-1))) c'
             ]
         ]
 
