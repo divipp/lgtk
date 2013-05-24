@@ -6,10 +6,9 @@
 module LGtk
     ( -- * Lenses and references
       module Control.Monad.ExtRef
-    , readRef'
 
     -- * Binding effects to references
-    , module Control.Monad.Register
+    , toReceive
     , constSend
     , liftIO
     , module Control.Monad.EffRef
@@ -117,7 +116,5 @@ runWidget e = Gtk.gtkContext $ \post -> runExt $ \mo -> liftIO newChan' >>= eval
 
 
 
-readRef' :: EffIORef m => Ref m a -> m a
-readRef' = ExtRef.liftWriteRef . runR . readRef
 
 

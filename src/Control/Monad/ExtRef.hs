@@ -18,6 +18,7 @@ module Control.Monad.ExtRef
     , ReadR
     , ReadRef
     , WriteRef
+    , readRef'
     , modRef
     , newRef
     , undoTr
@@ -83,6 +84,9 @@ r `modRef` f = runR (readRef r) >>= writeRef r . f
 type WriteRef m = RefMonad (Ref m)
 
 type ReadRef m = ReadR (Ref m)
+
+readRef' :: ExtRef m => Ref m a -> m a
+readRef' = liftWriteRef . runR . readRef
 
 -- | @memoRead g = liftM ($ ()) $ memoWrite $ const g@
 memoRead :: ExtRef m => m a -> m (m a)
