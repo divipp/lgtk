@@ -47,28 +47,26 @@ instance (ExtRef m, n ~ WriteRef m, Monad k) => ExtRef (Register n k m) where
 
     extRef r k a = Register $ extRef r k a
 
-liftIO' :: (Monad k, Monad m) => k a -> Register n k m a
-liftIO' m = do
-    rr <- Register $ ask
-    lift $ runMorphD (morphK rr) m
 
 instance (Monad m, HasReadPart n, Monad k) => MonadRegister (Register n k m) where
 
     type PureM (Register n k m) = n
     type EffectM (Register n k m) = k
 
-    liftEffectM = liftIO'
+    liftEffectM m = do
+        rr <- Register $ ask
+        lift $ runMorphD (morphK rr) m
 
-    toReceive r int = do
+    toReceive_ r int = do
         rr <- Register ask
         unreg <- liftEffectM $ int $ sendEvent rr . runMorphD (morphN rr) . r
         Register $ tell $ t2 unreg
 
-    toSend bb rb fb = do
+    toSend_ bb rb fb = do
         rr <- Register ask
-        memoref <- liftIO' $ newRef' rr (const $ return (), const $ return (), [])  -- unreg action, memo table, first item is the newest
+        memoref <- liftEffectM $ newRef' rr (const $ return (), const $ return (), [])  -- unreg action, memo table, first item is the newest
         Register $ tell $ t1 $ do
-            b <- runMorphD (morphN rr) $ runR rb
+            b <- runMorphD (morphN rr) rb
             let doit c (s1, ureg1) = do 
                     (s2_, ureg2_) <- runMorphD (morph rr) $ execWriterT $ runReaderT (runRegister c) rr
                     let s2 = runMM s2_
@@ -93,7 +91,7 @@ t2 m = (mempty, MM . m)
 -- | evaluation with postponed actions
 evalRegister :: (Monad n, Monad m, Monad k)
     => (forall a . a -> k (MorphD (State a) k))
-    -> Morph n k
+    -> Morph n m
     -> Morph k m
     -> Morph m k
     -> ((k () -> k ()) -> Register n k m a)
@@ -107,7 +105,7 @@ evalRegister newRef' morphN liftIO morph f ch = do
         (\m -> ch $ m
           >> join (runMorphD vx get) >> join (runMorphD post $ state $ \m -> (m, return ())))
         (MorphD morph)
-        (MorphD morphN)
+        (MorphD (morph . morphN))
         (MorphD liftIO)
         newRef'
     liftIO $ runMorphD vx $ put $ runMM $ fst reg
