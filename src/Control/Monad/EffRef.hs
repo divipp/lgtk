@@ -8,6 +8,7 @@ module Control.Monad.EffRef
     , fileRef
     , asyncWrite
     , register
+    , registerIO, rEffectIO
     , onChange
     , rEffect
     , toSend, toReceive
@@ -27,16 +28,15 @@ import Prelude hiding ((.), id)
 import Control.Monad.Register
 import Control.Monad.ExtRef
 
+type EffRef m = (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m))
 
-type EffRef m = (ExtRef m, MonadRegister m, ExtRef (PureM m), Ref m ~ Ref (PureM m))
-
-type EffIORef m = (EffRef m, EffectM m ~ IO, MonadIO m)
+type EffIORef m = (EffRef m, MonadIO' (EffectM m), MonadIO m)
 
 fileRef :: (EffIORef m) => FilePath -> m (Ref m (Maybe String))
 fileRef f = do
     ms <- liftIO r
     ref <- newRef ms
-    rEffect (readRef ref) $ w
+    rEffect (readRef ref) $ liftIO . w
     v <- liftIO $ do
         v <- newEmptyMVar
         cf <- canonicalizePath f
@@ -56,7 +56,7 @@ fileRef f = do
         man <- startManager
         watchDir man (directory cf') filt act
         return v
-    register ref $ \re -> forkForever $ takeMVar v >>= re
+    registerIO ref $ \re -> forkForever $ liftIO $ takeMVar v >>= re
     return ref
  where
     r = do
@@ -68,6 +68,7 @@ fileRef f = do
 
     w = maybe (doesFileExist f >>= \b -> when b (removeFile f)) (writeFile f)
 
+forkForever :: IO () -> IO (Command -> IO ())
 forkForever = forkIOs . repeat
 
 forkIOs :: [IO ()] -> IO (Command -> IO ())
@@ -88,14 +89,20 @@ forkIOs ios = do
 register :: (Eq a, EffRef m) => Ref m a -> ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m ()
 register = toReceive . writeRef
 
+registerIO :: (Eq a, EffIORef m) => Ref m a -> ((a -> IO ()) -> IO (Command -> IO ())) -> m ()
+registerIO r fm = toReceive (writeRef r) $ \x -> unliftIO $ \u -> liftM (fmap liftIO) $ liftIO $ fm $ u . x
+
 asyncWrite :: (Eq a, EffIORef m) => Ref m a -> a -> Int -> m ()
-asyncWrite r a t = register r $ \re -> forkIOs [ threadDelay t, re a ]
+asyncWrite r a t = registerIO r $ \re -> forkIOs [ threadDelay t, re a ]
 
 onChange :: (Eq a, EffRef m) => ReadRef m a -> (a -> m ()) -> m ()
 onChange r f = toSend False r $ return . f
 
 rEffect :: (EffRef m, Eq a) => ReadRef m a -> (a -> EffectM m ()) -> m ()
 rEffect r f = onChange r $ liftEffectM . f
+
+rEffectIO :: (EffIORef m, Eq a) => ReadRef m a -> (a -> IO ()) -> m ()
+rEffectIO r f = rEffect r $ liftIO . f
 
 toSend :: (EffRef m, Eq b) => Bool -> ReadRef m b -> (b -> m (m ())) -> m ()
 toSend b = toSend_ b . liftWriteRef . runR

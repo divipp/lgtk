@@ -97,9 +97,9 @@ runWidget e =
     newChan' >>= \ch ->
     Gtk.gtkContext $ \post ->
     runExtRef_ newRef' $ \mo ->
-        evalRegister newRef' liftIO mo
-            (\post' -> Gtk.runWidget liftIO post' post e)
-            ch
+        evalRegister newRef'
+            (\post' -> Gtk.runWidget mo liftIO liftIO (mo . post' . liftIO) post e)
+            (liftIO . ch . mo) 
   where
     newRef' x = do
         vx <- liftIO $ newMVar x

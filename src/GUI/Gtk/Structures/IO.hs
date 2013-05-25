@@ -41,41 +41,50 @@ type SWidget = (IO (), Gtk.Widget)
 
 -- | Run an @IO@ parametrized interface description with Gtk backend
 runWidget
-    :: forall m . Monad m
-    => Morph IO m
+    :: forall n m . (Monad m, Monad n)
+    => Morph n IO
+    -> Morph IO n
+    -> Morph IO m
     -> (IO () -> IO ())
     -> Morph IO IO
-    -> Widget IO m
+    -> Widget n m
     -> m SWidget
-runWidget liftEffectM post' post = toWidget
+runWidget nio ion liftEffectM post' post = toWidget
  where
+    reg :: Receive n m a -> Receive IO m a
+    reg s f = s $ \re -> liftM (fmap ion) $ ion $ f $ nio . re
+
+    ger :: Send n m a -> Send IO m a
+    ger s f = s $ ion . f
+
     toWidget i = case i of
+
         Action m -> m >>= toWidget
         Label s -> do
             w <- liftEffectM $ post $ labelNew Nothing
-            s $ post . labelSetLabel w
+            ger s $ post . labelSetLabel w
             return' w
         Button s sens m -> do
             w <- liftEffectM $ post buttonNew
-            s $ post . buttonSetLabel w
-            sens $ post . widgetSetSensitive w
-            m $ \x -> post $ on' w buttonActivated $ x ()
+            ger s $ post . buttonSetLabel w
+            ger sens $ post . widgetSetSensitive w
+            reg m $ \x -> post $ on' w buttonActivated $ x ()
             return' w
         Entry (r, s) -> do
             w <- liftEffectM $ post entryNew
-            r $ post . entrySetText w
-            s $ \re -> post $ on' w entryActivate $ entryGetText w >>= re
+            ger r $ post . entrySetText w
+            reg s $ \re -> post $ on' w entryActivate $ entryGetText w >>= re
             return' w
         Checkbox (r, s) -> do
             w <- liftEffectM $ post checkButtonNew
-            r $ post . toggleButtonSetActive w
-            s $ \re -> post $ on' w toggled $ toggleButtonGetActive w >>= re
+            ger r $ post . toggleButtonSetActive w
+            reg s $ \re -> post $ on' w toggled $ toggleButtonGetActive w >>= re
             return' w
         Combobox ss (r, s) -> do
             w <- liftEffectM $ post comboBoxNewText
             liftEffectM $ post $ flip mapM_ ss $ comboBoxAppendText w
-            r $ post . comboBoxSetActive w
-            s $ \re -> post $ on' w changed $ fmap (max 0) (comboBoxGetActive w) >>= re
+            ger r $ post . comboBoxSetActive w
+            reg s $ \re -> post $ on' w changed $ fmap (max 0) (comboBoxGetActive w) >>= re
             return' w
         List o xs -> do
             ws <- mapM toWidget xs
@@ -89,9 +98,8 @@ runWidget liftEffectM post' post = toWidget
             w <- liftEffectM $ post notebookNew
             forM_ (zip ws xs) $ \(ww, (s, _)) -> do
                 liftEffectM . post . flip (notebookAppendPage w) s $ snd $ ww
-            s $ \re -> post $ on' w switchPage $ re
+            reg s $ \re -> post $ on' w switchPage $ re
             return'' ws w
-
         Cell onCh f -> do
             let b = False
             w <- liftEffectM $ post $ case b of

@@ -93,15 +93,15 @@ main = runWidget $ notebook
         [ (,) "Args" $ Action $ liftIO getArgs >>= \args -> return $ Label $ constSend $ unlines args
 
         , (,) "ProgName" $ Action $ liftIO getProgName >>= \args -> return $ Label $ constSend args
-
+{-
         , (,) "Env" $ Action $ do
             v <- newRef "HOME"
             return $ vcat
                 [ entry v
-                , Label $ \re -> rEffect (readRef v) $ \s -> lookupEnv s >>= re . maybe "Not in env." show
+                , Label $ \re -> unliftIO $ \u -> rEffectIO (readRef v) $ \s -> lookupEnv s >>= u . re . maybe "Not in env." show
                 ]
-
-        , (,) "Std I/O" $ let
+-}
+{-        , (,) "Std I/O" $ let
             put = hcat [ Label $ constSend "putStrLn", Entry (const $ return (), \re -> liftIO $ re putStrLn >> return ()) ]
             get = Action $ do
                 ready <- newRef $ Just ""
@@ -117,7 +117,7 @@ main = runWidget $ notebook
                     , Label $ rEffect $ liftM (maybe "" id) $ readRef ready
                     ]
            in vcat [ put, put, put, get, get, get ]
-        ]
+-}        ]
 
     , (,) "IntListEditor" $ Action $ do
         state <- fileRef "intListEditorState.txt"

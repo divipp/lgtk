@@ -28,6 +28,7 @@ module Control.Monad.ExtRef
     -- * Auxiliary definitions
     , Morph
     , MorphD (..)
+    , MonadIO' (..)
 
     -- * Auxiliary lens definitions
     , listLens
