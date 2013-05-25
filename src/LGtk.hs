@@ -95,20 +95,17 @@ notebook xs = Action $ do
 -- | Run an interface description
 runWidget :: (forall m . EffIORef m => Widget m) -> IO ()
 runWidget e = do
-    ch <- newChan'
     post_ <- newRef' $ return ()
     let post' = runMorphD post_ . modify . flip (>>)
+    ch <- newChan
+    _ <- forkIO $ forever $ do
+        join $ readChan ch
+        join $ runMorphD post_ $ state $ \m -> (m, return ())
     Gtk.gtkContext $ \post ->
         runExtRef_ $ \mo ->
             evalRegister
                 (Gtk.runWidget mo post' post e)
-                (liftIO . ch . mo . (>> liftIO (join $ runMorphD post_ $ state $ \m -> (m, return ())))) 
-  where
-    newChan' :: IO (IO () -> IO ())
-    newChan' = do
-        ch <- newChan
-        _ <- forkIO $ forever $ join $ readChan ch
-        return $ writeChan ch
+                (liftIO . writeChan ch . mo)
 
 
 
