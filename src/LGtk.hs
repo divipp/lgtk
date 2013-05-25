@@ -35,10 +35,8 @@ import Control.Category
 import Control.Concurrent
 import Control.Monad
 import Control.Monad.State
-import Control.Monad.Trans
 import Prelude hiding ((.), id)
 
---import Control.Monad.Restricted
 import Control.Monad.ExtRef hiding (liftWriteRef)
 import qualified Control.Monad.ExtRef as ExtRef
 import Control.Monad.Register
@@ -97,11 +95,14 @@ notebook xs = Action $ do
 
 -- | Run an interface description
 runWidget :: (forall m . EffIORef m => Widget m) -> IO ()
-runWidget e = Gtk.gtkContext $ \post -> runExt $ \mo -> liftIO newChan' >>= evalRegister newRef' (mo . ExtRef.liftWriteRef) liftIO mo (\post' -> Gtk.runWidget liftIO post' post e)
+runWidget e =
+    newChan' >>= \ch ->
+    Gtk.gtkContext $ \post ->
+    runExtRef_ newRef' $ \mo ->
+        evalRegister newRef' (mo . ExtRef.liftWriteRef) liftIO mo
+            (\post' -> Gtk.runWidget liftIO post' post e)
+            ch
   where
-    runExt :: forall m a . MonadIO m => (forall i . Morph (Ext_ i m) m -> Ext_ i m a) -> m a
-    runExt f = runExt_ newRef' f
-
     newRef' x = do
         vx <- liftIO $ newIORef x
         return $ MorphD $ \m -> liftIO $ atomicModifyIORef' vx $ swap . runState m
