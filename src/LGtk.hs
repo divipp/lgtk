@@ -102,10 +102,10 @@ runWidget e = do
         join $ readChan ch
         join $ runMorphD post_ $ state $ \m -> (m, return ())
     Gtk.gtkContext $ \post ->
-        runExtRef_ $ \mo ->
+        runExtRef_ $ unliftIO $ \u ->
             evalRegister
-                (Gtk.runWidget mo post' post e)
-                (liftIO . writeChan ch . mo)
+                (Gtk.runWidget u post' post e)
+                (liftIO . writeChan ch . u)
 
 
 

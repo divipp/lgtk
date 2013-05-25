@@ -89,12 +89,12 @@ runExtRef :: Monad m => (forall t . (MonadTrans t, ExtRef (t m)) => t m a) -> m 
 runExtRef s = evalStateT s initLSt
 
 -- | Advanced running of the @ExtRef@ monad.
-runExtRef_ :: forall m a . NewRef m
-    => (forall t . (MonadTrans t, ExtRef (t m), NewRef (t m), MonadIO' (t IO)) => Morph (t m) m -> t m a) -> m a
+runExtRef_
+    :: forall m a . NewRef m
+    => (forall t . (MonadTrans t, ExtRef (t m), NewRef (t m), MonadIO' (t IO)) => t m a)
+    -> m a
 --    -> (Morph (Ext (State LSt) m) m -> Ext (State LSt) m a) -> m a
-runExtRef_ f = do
-    v <- newRef' initLSt
-    runExt v $ f $ runExt v
+runExtRef_ f = newRef' initLSt >>= flip runExt f
 
 
 

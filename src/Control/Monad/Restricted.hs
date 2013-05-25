@@ -50,7 +50,7 @@ runExt :: MorphD n m -> Ext n m a -> m a
 runExt v (Ext m) = runReaderT m v
 
 class MonadIO m => MonadIO' m where
-    unliftIO :: ((m a -> IO a) -> m b) -> m b
+    unliftIO :: (Morph m IO -> m b) -> m b
 
 instance MonadIO' IO where
     unliftIO f = f id
