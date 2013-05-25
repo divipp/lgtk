@@ -12,8 +12,10 @@ module Control.Monad.Restricted
     , Ext (..), lift', runExt
     , MonadIO' (..)
     , NewRef (..)
+    , MonadMonoid (..)
     ) where
 
+import Data.Monoid
 import Control.Concurrent
 import Control.Monad.State
 import Control.Monad.Reader
@@ -74,5 +76,11 @@ instance NewRef IO where
 instance NewRef m => NewRef (Ext n m) where
     newRef' a = liftM (\m -> MorphD $ lift . runMorphD m) $ lift $ newRef' a
 
+
+newtype MonadMonoid a = MonadMonoid { runMonadMonoid :: a () }
+
+instance Monad m => Monoid (MonadMonoid m) where
+    mempty = MonadMonoid $ return ()
+    MonadMonoid a `mappend` MonadMonoid b = MonadMonoid $ a >> b
 
 

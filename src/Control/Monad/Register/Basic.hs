@@ -19,14 +19,8 @@ import Control.Monad.Restricted
 import Control.Monad.Register
 import Control.Monad.ExtRef
 
-newtype MM a = MM { runMM :: a () }
-
-instance Monad m => Monoid (MM m) where
-    mempty = MM $ return ()
-    MM a `mappend` MM b = MM $ a >> b
-
 newtype Register m a
-    = Register { runRegister :: ReaderT (m () -> m ()) (WriterT (MM m, Command -> MM m) m) a }
+    = Register { runRegister :: ReaderT (m () -> m ()) (WriterT (MonadMonoid m, Command -> MonadMonoid m) m) a }
     deriving (Functor, Monad, MonadIO)
 
 instance MonadTrans Register where
@@ -59,8 +53,8 @@ instance (NewRef m) => MonadRegister (Register m) where
             b <- rb
             let doit c (s1, ureg1) = do 
                     (s2_, ureg2_) <- execWriterT $ runReaderT (runRegister c) rr
-                    let s2 = runMM s2_
-                        ureg2 = runMM . ureg2_
+                    let s2 = runMonadMonoid s2_
+                        ureg2 = runMonadMonoid . ureg2_
                     runMorphD memoref $ state $ \(_, _, memo) -> (,) () (ureg1, ureg2, (b, (c, s1, s2, ureg1, ureg2)) : if bb then filter ((/= b) . fst) memo else [])
                     s1 >> s2
             join $ runMorphD memoref $ gets $ \memo -> case memo of
@@ -72,11 +66,11 @@ instance (NewRef m) => MonadRegister (Register m) where
                     (True, (_, (c, s1, _, ureg1, ureg2)): _) -> ureg1 Unblock >> doit c (s1, ureg1)
                     _ -> do
                         (c, s1_) <- runWriterT $ runReaderT (runRegister $ fb b) rr
-                        let s1 = (runMM $ fst s1_, runMM . snd s1_)
+                        let s1 = (runMonadMonoid $ fst s1_, runMonadMonoid . snd s1_)
                         doit c s1
 
-t1 m = (MM m, mempty)
-t2 m = (mempty, MM . m)
+t1 m = (MonadMonoid m, mempty)
+t2 m = (mempty, MonadMonoid . m)
 
 -- | evaluation
 evalRegister
@@ -94,8 +88,8 @@ evalRegister :: (HasReadPart n, ExtRef m, n ~ RefMonad (Ref m), MonadIO m, Monad
 evalRegister (Register m) ch = do
     vx <- newRef' $ error "evalRegister"
     (a, reg) <- runWriterT $ runReaderT m $ \m -> ch $ m >> join (runMorphD vx get)
-    runMorphD vx $ put $ runMM $ fst reg
-    runMM $ fst reg        -- needed?
+    runMorphD vx $ put $ runMonadMonoid $ fst reg
+    runMonadMonoid $ fst reg        -- needed?
     return a
 
 
