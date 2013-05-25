@@ -10,6 +10,7 @@ module Control.Monad.EffRef
     , register
     , onChange
     , rEffect
+    , toSend, toReceive
     ) where
 
 import Control.Concurrent
@@ -27,7 +28,7 @@ import Control.Monad.Register
 import Control.Monad.ExtRef
 
 
-type EffRef m = (ExtRef m, MonadRegister m, WriteRef m ~ PureM m)
+type EffRef m = (ExtRef m, MonadRegister m, ExtRef (PureM m), Ref m ~ Ref (PureM m))
 
 type EffIORef m = (EffRef m, EffectM m ~ IO, MonadIO m)
 
@@ -96,6 +97,11 @@ onChange r f = toSend False r $ return . f
 rEffect :: (EffRef m, Eq a) => ReadRef m a -> (a -> EffectM m ()) -> m ()
 rEffect r f = onChange r $ liftEffectM . f
 
+toSend :: (EffRef m, Eq b) => Bool -> ReadRef m b -> (b -> m (m ())) -> m ()
+toSend b = toSend_ b . liftWriteRef . runR
+
+toReceive :: (EffRef m, Eq a) => (a -> WriteRef m ()) -> ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m ()
+toReceive fm = toReceive_ (liftWriteRef . fm)
 
 
 

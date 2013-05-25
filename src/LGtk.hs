@@ -8,7 +8,6 @@ module LGtk
       module Control.Monad.ExtRef
 
     -- * Binding effects to references
-    , toReceive
     , constSend
     , liftIO
     , module Control.Monad.EffRef
@@ -98,7 +97,7 @@ runWidget e =
     newChan' >>= \ch ->
     Gtk.gtkContext $ \post ->
     runExtRef_ newRef' $ \mo ->
-        evalRegister newRef' ExtRef.liftWriteRef liftIO mo
+        evalRegister newRef' liftIO mo
             (\post' -> Gtk.runWidget liftIO post' post e)
             ch
   where

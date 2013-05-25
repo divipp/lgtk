@@ -3,7 +3,6 @@
 module Control.Monad.Register
     ( Command (..)
     , MonadRegister (..)
-    , toSend, toReceive
     ) where
 
 import Control.Monad.Restricted
@@ -22,10 +21,5 @@ class (Monad m, Monad (PureM m), Monad (EffectM m)) => MonadRegister m where
     toReceive_ :: Eq a => (a -> PureM m ()) -> ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m ()
 
 
-toSend :: (MonadRegister m, HasReadPart (PureM m), Eq b) => Bool -> ReadPart (PureM m) b -> (b -> m (m ())) -> m ()
-toSend b = toSend_ b . runR
-
-toReceive :: (MonadRegister m, Eq a) => (a -> PureM m ()) -> ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m ()
-toReceive = toReceive_
 
 
