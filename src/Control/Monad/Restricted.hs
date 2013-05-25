@@ -11,8 +11,10 @@ module Control.Monad.Restricted
     , HasReadPart (..)
     , Ext (..), lift', runExt
     , MonadIO' (..)
+    , NewRef (..)
     ) where
 
+import Control.Concurrent
 import Control.Monad.State
 import Control.Monad.Reader
 
@@ -58,6 +60,19 @@ instance MonadIO' (ReaderT r IO) where
         x <- ask
         f $ \m -> runReaderT m x
 
+
+class Monad m => NewRef m where
+    newRef' :: forall a . a -> m (MorphD (State a) m)
+
+instance NewRef IO where
+    newRef' x = do
+        vx <- liftIO $ newMVar x
+        return $ MorphD $ \m -> liftIO $ modifyMVar vx $ return . swap . runState m
+      where
+        swap (a, b) = (b, a)
+
+instance NewRef m => NewRef (Ext n m) where
+    newRef' a = liftM (\m -> MorphD $ lift . runMorphD m) $ lift $ newRef' a
 
 
 

@@ -19,18 +19,14 @@ import Control.Monad.Restricted
 import Control.Monad.Register
 import Control.Monad.ExtRef
 
-data RegisterState m = RegisterState
-    { sendEvent :: m () -> m ()
-    , newRef' :: forall a . a -> m (MorphD (State a) m)
-    }
-
 newtype MM a = MM { runMM :: a () }
 
 instance Monad m => Monoid (MM m) where
     mempty = MM $ return ()
     MM a `mappend` MM b = MM $ a >> b
 
-newtype Register m a = Register { runRegister :: ReaderT (RegisterState m) (WriterT (MM m, Command -> MM m) m) a }
+newtype Register m a
+    = Register { runRegister :: ReaderT (m () -> m ()) (WriterT (MM m, Command -> MM m) m) a }
     deriving (Functor, Monad, MonadIO)
 
 instance MonadTrans Register where
@@ -45,7 +41,7 @@ instance ExtRef m => ExtRef (Register m) where
     extRef r k a = Register $ extRef r k a
 
 
-instance (Monad m) => MonadRegister (Register m) where
+instance (NewRef m) => MonadRegister (Register m) where
 
     type EffectM (Register m) = m
 
@@ -53,12 +49,12 @@ instance (Monad m) => MonadRegister (Register m) where
 
     toReceive_ r int = do
         rr <- Register ask
-        unreg <- liftEffectM $ int $ sendEvent rr . r
+        unreg <- liftEffectM $ int $ rr . r
         Register $ tell $ t2 unreg
 
     toSend_ bb rb fb = do
         rr <- Register ask
-        memoref <- lift $ newRef' rr (const $ return (), const $ return (), [])  -- unreg action, memo table, first item is the newest
+        memoref <- lift $ newRef' (const $ return (), const $ return (), [])  -- unreg action, memo table, first item is the newest
         Register $ tell $ t1 $ do
             b <- rb
             let doit c (s1, ureg1) = do 
@@ -82,37 +78,24 @@ instance (Monad m) => MonadRegister (Register m) where
 t1 m = (MM m, mempty)
 t2 m = (mempty, MM . m)
 
--- | evaluation with postponed actions
-evalRegister :: (Monad k)
-    => (forall a . a -> k (MorphD (State a) k))
-    -> ((k () -> k ()) -> Register k a)
+-- | evaluation
+evalRegister
+    :: forall k a . NewRef k
+    => Register k a
     -> (k () -> k ())
     -> k a
 {-
 evalRegister :: (HasReadPart n, ExtRef m, n ~ RefMonad (Ref m), MonadIO m, Monad k)
-    => (forall a . a -> k (MorphD (State a) k))
-    -> Morph n k
-    -> Morph k m
-    -> Morph m k
-    -> (forall t . (MonadTrans t, MonadRegister (t m), PureM (t m) ~ n, EffectM (t m) ~ k, MonadIO (t m)
-       , ExtRef (t m), PureM (t m) ~ WriteRef (t m)) => (k () -> k ()) -> t m a)
+    => (forall t . (MonadTrans t, MonadRegister (t m), PureM (t m) ~ n, EffectM (t m) ~ k, MonadIO (t m)
+       , ExtRef (t m), PureM (t m) ~ WriteRef (t m)) => t m a)
     -> (k () -> k ())
-    -> m a
+    -> k a
 -}
-evalRegister newRef' f ch = do
-    let liftIO = id
-    post <- liftIO $ newRef' $ return ()
-    let (Register m) = f $ runMorphD post . modify . flip (>>)
-    vx <- liftIO $ newRef' $ error "evalRegister"
-    (a, reg) <- runWriterT $ runReaderT m $ RegisterState
-        (\m -> ch $ do
-                m
-                join (runMorphD vx get)
-                join (runMorphD post $ state $ \m -> (m, return ()))
-        )
-        (liftIO . newRef')
-    liftIO $ runMorphD vx $ put $ runMM $ fst reg
-    liftIO $ runMM $ fst reg        -- needed?
+evalRegister (Register m) ch = do
+    vx <- newRef' $ error "evalRegister"
+    (a, reg) <- runWriterT $ runReaderT m $ \m -> ch $ m >> join (runMorphD vx get)
+    runMorphD vx $ put $ runMM $ fst reg
+    runMM $ fst reg        -- needed?
     return a
 
 

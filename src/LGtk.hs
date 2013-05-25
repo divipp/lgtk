@@ -44,6 +44,7 @@ import GUI.Gtk.Structures hiding (Send, Receive, SendReceive, Widget)
 import qualified GUI.Gtk.Structures as Gtk
 import qualified GUI.Gtk.Structures.IO as Gtk
 import Control.Monad.ExtRef.Pure
+import Control.Monad.Restricted
 
 constSend :: (MonadRegister m) => a -> (a -> EffectM m ()) -> m ()
 constSend a f = liftEffectM $ f a
@@ -96,17 +97,13 @@ runWidget :: (forall m . EffIORef m => Widget m) -> IO ()
 runWidget e =
     newChan' >>= \ch ->
     Gtk.gtkContext $ \post ->
-    runExtRef_ newRef' $ \mo ->
-        evalRegister newRef'
-            (\post' -> Gtk.runWidget mo liftIO liftIO (mo . post' . liftIO) post e)
-            (liftIO . ch . mo) 
+    runExtRef_ $ \mo -> do
+        post_ <- newRef' $ return ()
+        let post' = runMorphD post_ . modify . flip (>>)
+        evalRegister
+            (Gtk.runWidget mo liftIO liftIO (mo . post' . liftIO) post e)
+            (liftIO . ch . mo . (>> join (runMorphD post_ $ state $ \m -> (m, return ())))) 
   where
-    newRef' x = do
-        vx <- liftIO $ newMVar x
-        return $ MorphD $ \m -> liftIO $ modifyMVar vx $ return . swap . runState m
-      where
-        swap (a, b) = (b, a)
-
     newChan' :: IO (IO () -> IO ())
     newChan' = do
         ch <- newChan
