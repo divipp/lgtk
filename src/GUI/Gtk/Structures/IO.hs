@@ -41,74 +41,75 @@ type SWidget = (IO (), Gtk.Widget)
 
 -- | Run an @IO@ parametrized interface description with Gtk backend
 runWidget
-    :: forall n m . (Monad m, Monad n)
+    :: forall n m . (MonadIO m, MonadIO n)
     => Morph n IO
-    -> Morph IO n
-    -> Morph IO m
     -> (IO () -> IO ())
     -> Morph IO IO
     -> Widget n m
     -> m SWidget
-runWidget nio ion liftEffectM post' post = toWidget
+runWidget nio post' post = toWidget
  where
+    liftIO' :: MonadIO k => IO a -> k a
+    liftIO' = liftIO . post
+
     reg :: Receive n m a -> Receive IO m a
-    reg s f = s $ \re -> liftM (fmap ion) $ ion $ f $ nio . re
+    reg s f = s $ liftM (fmap liftIO) . liftIO' . f . (nio .)
 
     ger :: Send n m a -> Send IO m a
-    ger s f = s $ ion . f
+    ger s f = s $ liftIO' . f
 
     toWidget i = case i of
 
         Action m -> m >>= toWidget
         Label s -> do
-            w <- liftEffectM $ post $ labelNew Nothing
-            ger s $ post . labelSetLabel w
+            w <- liftIO' $ labelNew Nothing
+            ger s $ labelSetLabel w
             return' w
         Button s sens m -> do
-            w <- liftEffectM $ post buttonNew
-            ger s $ post . buttonSetLabel w
-            ger sens $ post . widgetSetSensitive w
-            reg m $ \x -> post $ on' w buttonActivated $ x ()
+            w <- liftIO' buttonNew
+            ger s $ buttonSetLabel w
+            ger sens $ widgetSetSensitive w
+            reg m $ \x -> on' w buttonActivated $ x ()
             return' w
         Entry (r, s) -> do
-            w <- liftEffectM $ post entryNew
-            ger r $ post . entrySetText w
-            reg s $ \re -> post $ on' w entryActivate $ entryGetText w >>= re
+            w <- liftIO' entryNew
+            ger r $ entrySetText w
+            reg s $ \re -> on' w entryActivate $ entryGetText w >>= re
             return' w
         Checkbox (r, s) -> do
-            w <- liftEffectM $ post checkButtonNew
-            ger r $ post . toggleButtonSetActive w
-            reg s $ \re -> post $ on' w toggled $ toggleButtonGetActive w >>= re
+            w <- liftIO' checkButtonNew
+            ger r $ toggleButtonSetActive w
+            reg s $ \re -> on' w toggled $ toggleButtonGetActive w >>= re
             return' w
         Combobox ss (r, s) -> do
-            w <- liftEffectM $ post comboBoxNewText
-            liftEffectM $ post $ flip mapM_ ss $ comboBoxAppendText w
-            ger r $ post . comboBoxSetActive w
-            reg s $ \re -> post $ on' w changed $ fmap (max 0) (comboBoxGetActive w) >>= re
+            w <- liftIO' comboBoxNewText
+            liftIO' $ flip mapM_ ss $ comboBoxAppendText w
+            ger r $ comboBoxSetActive w
+            reg s $ \re -> on' w changed $ fmap (max 0) (comboBoxGetActive w) >>= re
             return' w
         List o xs -> do
             ws <- mapM toWidget xs
-            w <- liftEffectM $ post $ case o of
+            w <- liftIO' $ case o of
                 Vertical -> fmap castToBox $ vBoxNew False 1
                 Horizontal -> fmap castToBox $ hBoxNew False 1
-            shs <- forM ws $ liftEffectM . post . containerAdd'' w . snd
+            shs <- forM ws $ liftIO' . containerAdd'' w . snd
             liftM (mapFst (sequence_ shs >>)) $ return'' ws w
         Notebook' s xs -> do
             ws <- mapM (toWidget . snd) xs
-            w <- liftEffectM $ post notebookNew
+            w <- liftIO' notebookNew
             forM_ (zip ws xs) $ \(ww, (s, _)) -> do
-                liftEffectM . post . flip (notebookAppendPage w) s $ snd $ ww
-            reg s $ \re -> post $ on' w switchPage $ re
+                liftIO' . flip (notebookAppendPage w) s $ snd $ ww
+            reg s $ \re -> on' w switchPage $ re
             return'' ws w
         Cell onCh f -> do
             let b = False
-            w <- liftEffectM $ post $ case b of
+            w <- liftIO' $ case b of
                 True -> fmap castToContainer $ hBoxNew False 1
                 False -> fmap castToContainer $ alignmentNew 0 0 1 1
-            sh <- liftEffectM $ liftIO $ newMVar $ return ()
+            sh <- liftIO $ liftIO $ newMVar $ return ()
             onCh $ \bv -> do
               x <- toWidget $ f bv
-              return $ liftEffectM $ post $ do
+              return $ liftIO' $ do
                 _ <- swapMVar sh $ fst x
                 post' $ post $ fst x
                 containerForeach w $ if b then widgetHideAll else containerRemove w 
