@@ -68,13 +68,13 @@ instance Monad m => ExtRef (StateT LSt m) where
         rk = setL r1 . getL r2
         kr = setL r2 . getL r1
 
-        extend x0 = (lens getM setM, x0 |> CC kr (kr x0 a0))
+        extend x0 = (lens get set, x0 |> CC kr (kr x0 a0))
           where
             limit = (id Arrow.*** toList) . splitAt (length x0)
 
-            getM = unsafeData . head . snd . limit
+            get = unsafeData . head . snd . limit
 
-            setM a x = foldl (\x -> (|>) x . ap_ x) (rk a zs |> CC kr a) ys where
+            set a x = foldl (\x -> (|>) x . ap_ x) (rk a zs |> CC kr a) ys where
                 (zs, _ : ys) = limit x
 
 
