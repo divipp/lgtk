@@ -43,6 +43,7 @@ module Control.Monad.ExtRef
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.Writer
+import Control.Monad.RWS
 import Control.Category
 import Data.Maybe
 import Data.Lens.Common
@@ -148,6 +149,14 @@ instance (ExtRef m, Monoid w) => ExtRef (WriterT w m) where
 instance (ExtRef m) => ExtRef (ReaderT s m) where
 
     type Ref (ReaderT s m) = Ref m
+
+    liftWriteRef = lift . liftWriteRef
+
+    extRef r k a = lift $ extRef r k a
+
+instance (ExtRef m, Monoid w) => ExtRef (RWST r w s m) where
+
+    type Ref (RWST r w s m) = Ref m
 
     liftWriteRef = lift . liftWriteRef
 
