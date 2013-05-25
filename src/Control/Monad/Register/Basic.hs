@@ -20,8 +20,7 @@ import Control.Monad.Register
 import Control.Monad.ExtRef
 
 data RegisterState n m k = RegisterState
-    { actions :: k ()
-    , sendEvent :: k () -> k ()
+    { sendEvent :: k () -> k ()
     , morph :: MorphD m k
     , morphN :: MorphD n k
     , morphK :: MorphD k m
@@ -62,11 +61,8 @@ instance (Monad m, HasReadPart n, Monad k) => MonadRegister (Register n k m) whe
 
     toReceive r int = do
         rr <- Register ask
-        unreg <- liftEffectM $ int $ \a -> sendEvent rr $ do
-            runMorphD (morphN rr) $ r a
-            actions rr
+        unreg <- liftEffectM $ int $ sendEvent rr . runMorphD (morphN rr) . r
         Register $ tell $ t2 unreg
-        return ()
 
     toSend bb rb fb = do
         rr <- Register ask
@@ -107,7 +103,13 @@ evalRegister newRef' morphN liftIO morph f ch = do
     post <- liftIO $ newRef' $ return ()
     let (Register m) = f $ runMorphD post . modify . flip (>>)
     vx <- liftIO $ newRef' $ error "evalRegister"
-    (a, reg) <- runWriterT $ runReaderT m $ RegisterState (join (runMorphD vx get) >> join (runMorphD post $ state $ \m -> (m, return ()))) ch (MorphD morph) (MorphD morphN) (MorphD liftIO) newRef'
+    (a, reg) <- runWriterT $ runReaderT m $ RegisterState
+        (\m -> ch $ m
+          >> join (runMorphD vx get) >> join (runMorphD post $ state $ \m -> (m, return ())))
+        (MorphD morph)
+        (MorphD morphN)
+        (MorphD liftIO)
+        newRef'
     liftIO $ runMorphD vx $ put $ runMM $ fst reg
     liftIO $ runMM $ fst reg        -- needed?
     return a
