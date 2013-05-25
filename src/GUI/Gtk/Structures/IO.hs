@@ -13,7 +13,6 @@ import Control.Monad
 import Control.Monad.Writer
 import Control.Concurrent
 import Data.Maybe
-import Data.IORef
 import Prelude hiding ((.), id)
 
 import Graphics.UI.Gtk hiding (Widget)
@@ -98,16 +97,16 @@ runWidget liftEffectM post' post = toWidget
             w <- liftEffectM $ post $ case b of
                 True -> fmap castToContainer $ hBoxNew False 1
                 False -> fmap castToContainer $ alignmentNew 0 0 1 1
-            sh <- liftEffectM $ liftIO $ newIORef $ return ()
+            sh <- liftEffectM $ liftIO $ newMVar $ return ()
             onCh $ \bv -> do
               x <- toWidget $ f bv
               return $ liftEffectM $ post $ do
-                writeIORef sh $ fst x
+                _ <- swapMVar sh $ fst x
                 post' $ post $ fst x
                 containerForeach w $ if b then widgetHideAll else containerRemove w 
                 ch <- containerGetChildren w
                 when (snd x `notElem` ch) $ containerAdd w $ snd x
-            liftM (mapFst (join (readIORef sh) >>)) $ return'' [] w
+            liftM (mapFst (join (readMVar sh) >>)) $ return'' [] w
 
 on' :: GObjectClass x => x -> Signal x c -> c -> IO (Command -> IO ())
 on' o s c = liftM (flip f) $ on o s c where

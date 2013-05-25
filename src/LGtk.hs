@@ -30,7 +30,6 @@ module LGtk
     ) where
 
 import Data.Maybe
-import Data.IORef
 import Control.Category
 import Control.Concurrent
 import Control.Monad
@@ -104,8 +103,8 @@ runWidget e =
             ch
   where
     newRef' x = do
-        vx <- liftIO $ newIORef x
-        return $ MorphD $ \m -> liftIO $ atomicModifyIORef' vx $ swap . runState m
+        vx <- liftIO $ newMVar x
+        return $ MorphD $ \m -> liftIO $ modifyMVar vx $ return . swap . runState m
       where
         swap (a, b) = (b, a)
 
