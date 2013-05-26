@@ -7,6 +7,7 @@ module Control.Monad.EffRef
     , rEffect
     , SafeIO (..)
     , EffIORef (..)
+    , putStrLn_
     ) where
 
 import Control.Concurrent
@@ -103,6 +104,12 @@ class (EffRef m, SafeIO m, SafeIO (ReadRef m)) => EffIORef m where
     getLine_   :: (String -> WriteRef m ()) -> m ()
 
     registerIO :: Eq a => (a -> WriteRef m ()) -> ((a -> IO ()) -> IO (Command -> IO ())) -> m ()
+
+-- | @putStrLn_@ === @putStr_ . (++ "\n")@
+putStrLn_ :: EffIORef m => String -> m ()
+putStrLn_ = putStr_ . (++ "\n")
+
+
 
 -- | This instance is used in the implementation, the end users do not need it.
 instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m), MonadIO' (EffectM m), SafeIO (ReadRef m), SafeIO m) => EffIORef (IdentityT m) where

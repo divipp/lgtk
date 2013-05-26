@@ -30,36 +30,36 @@ intListEditor state settings = action $ do
         [ (,) "Editor" $ return $ vcat
             [ hcat
                 [ entry $ joinRef $ liftM (\k -> showLens . k `lensMap` list) len
-                , smartButton (return "+1") (modL' len (+1))      list
-                , smartButton (return "-1") (modL' len (+(-1)))   list
-                , smartButton (liftM (("DeleteAll " ++) . show) $ len >>= \k -> readRef $ k `lensMap` list) (modL' len $ const 0) list
+                , smartButton (return "+1") list $ modL' len (+1)
+                , smartButton (return "-1") list $ modL' len (+(-1))
+                , smartButton (liftM (("DeleteAll " ++) . show) $ len >>= \k -> readRef $ k `lensMap` list) list $ modL' len $ const 0
                 , button (return "undo") undo
                 , button (return "redo") redo
                 ]
             , hcat
-                [ sbutton (return "+1")         (map $ mapFst (+1))           list
-                , sbutton (return "-1")         (map $ mapFst (+(-1)))        list
-                , sbutton (return "sort")       (sortBy (compare `on` fst))   list
-                , sbutton (return "SelectAll")  (map $ mapSnd $ const True)   list
-                , sbutton (return "SelectPos")  (map $ \(a,_) -> (a, a>0))    list
-                , sbutton (return "SelectEven") (map $ \(a,_) -> (a, even a)) list
-                , sbutton (return "InvertSel")  (map $ mapSnd not)            list
-                , sbutton (liftM (("DelSel " ++) . show . length) sel) (filter $ not . snd) list
-                , smartButton (return "CopySel") (modL_ safe $ concatMap $ \(x,b) -> (x,b): [(x,False) | b]) list
-                , sbutton (return "+1 Sel")     (map $ mapSel (+1))           list
-                , sbutton (return "-1 Sel")     (map $ mapSel (+(-1)))        list
+                [ sbutton (return "+1")         list $ map $ mapFst (+1)
+                , sbutton (return "-1")         list $ map $ mapFst (+(-1))
+                , sbutton (return "sort")       list $ sortBy (compare `on` fst)
+                , sbutton (return "SelectAll")  list $ map $ mapSnd $ const True
+                , sbutton (return "SelectPos")  list $ map $ \(a,_) -> (a, a>0)
+                , sbutton (return "SelectEven") list $ map $ \(a,_) -> (a, even a)
+                , sbutton (return "InvertSel")  list $ map $ mapSnd not
+                , sbutton (liftM (("DelSel " ++) . show . length) sel) list $ filter $ not . snd
+                , smartButton (return "CopySel") list $ modL_ safe $ concatMap $ \(x,b) -> (x,b): [(x,False) | b]
+                , sbutton (return "+1 Sel")     list $ map $ mapSel (+1)
+                , sbutton (return "-1 Sel")     list $ map $ mapSel (+(-1))
                 ]
             , label $ liftM (("Sum: " ++) . show . sum . map fst) sel
             , action $ listEditor def (itemEditor list) list
             ]
         , (,) "Settings" $ return $ hcat
-            [ labelConst "Create range"
+            [ label $ return "Create range"
             , checkbox range
             ]
         ]
  where
     itemEditor list i r = return $ hcat
-        [ labelConst $ show (i+1) ++ "."
+        [ label $ return $ show (i+1) ++ "."
         , entry $ showLens . fstLens `lensMap` r
         , checkbox $ sndLens `lensMap` r
         , button_ (return "Del")  (return True) $ modRef list $ \xs -> take i xs ++ drop (i+1) xs
@@ -82,7 +82,7 @@ intListEditor state settings = action $ do
     mapSnd f (x, y) = (x, f y)
     mapSel f (x, y) = (if y then f x else x, y)
 
-    sbutton s f k = smartButton s (return . f) k
+    sbutton s k f = smartButton s k $ return . f
 
 
 listEditor :: EffRef m => a -> (Int -> Ref m a -> m (Widget m)) -> Ref m [a] -> m (Widget m)

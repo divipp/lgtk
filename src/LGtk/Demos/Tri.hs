@@ -32,9 +32,9 @@ tri :: EffRef m => Widget m
 tri = action $ do
     s <- newRef [X 0, Y 0]
     return $ vcat
-        [ hcat [entry $ showLens . lens getX setX `lensMap` s, labelConst "x"]
-        , hcat [entry $ showLens . lens getY setY `lensMap` s, labelConst "y"]
-        , hcat [entry $ showLens . lens getXY setXY `lensMap` s, labelConst "x + y"]
+        [ hcat [entry $ showLens . lens getX setX `lensMap` s, label $ return "x"]
+        , hcat [entry $ showLens . lens getY setY `lensMap` s, label $ return "y"]
+        , hcat [entry $ showLens . lens getXY setXY `lensMap` s, label $ return "x + y"]
         ]
 
 

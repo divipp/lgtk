@@ -17,7 +17,7 @@ import LGtk.Demos.TEditor
 
 main :: IO ()
 main = runWidget $ notebook
-    [ (,) "Hello" $ return $ labelConst "Hello World!"
+    [ (,) "Hello" $ return $ label $ return "Hello World!"
 
     , (,) "Counters" $ return $ notebook
 
@@ -26,8 +26,8 @@ main = runWidget $ notebook
             return $ vcat
                 [ label $ liftM show $ readRef c
                 , hcat
-                    [ smartButton (return "+1") (return . (+1)) c
-                    , smartButton (return "-1") (return . (+(-1))) c
+                    [ smartButton (return "+1") c $ return . (+1)
+                    , smartButton (return "-1") c $ return . (+(-1))
                     ]
                 ]
 
@@ -36,8 +36,8 @@ main = runWidget $ notebook
             return $ vcat
                 [ label $ liftM show $ readRef c
                 , hcat
-                    [ smartButton (return "+1") (return . min 3 . (+1)) c
-                    , smartButton (return "-1") (return . max 1 . (+(-1))) c
+                    [ smartButton (return "+1") c $ return . min 3 . (+1)
+                    , smartButton (return "-1") c $ return . max 1 . (+(-1))
                     ]
                 ]
 
@@ -52,19 +52,31 @@ main = runWidget $ notebook
                     return $ lens id (const . max av) `lensMap` b
             return $ vcat
                 [ counter a' b'
-                , hcat [ labelConst "min", entry $ showLens `lensMap` a' ]
-                , hcat [ labelConst "max", entry $ showLens `lensMap` b' ]
+                , hcat [ label $ return "min", entry $ showLens `lensMap` a' ]
+                , hcat [ label $ return "max", entry $ showLens `lensMap` b' ]
                 ]
 
         ]
 
-    , (,) "TabSwitch" $ do
-        x <- newRef "a"
-        let w = vcat [ label $ readRef x, entry x ]
-        return $ notebook
-            [ (,) "T1" $ return w
-            , (,) "T2" $ return w
-            ]
+    , (,) "Tabs" $ return $ notebook
+
+        [ (,) "TabSwitch" $ do
+            x <- newRef "a"
+            let w = vcat [ label $ readRef x, entry x ]
+            return $ notebook
+                [ (,) "T1" $ return w
+                , (,) "T2" $ return w
+                ]
+
+        , (,) "TabSwitch" $ return $ action $ do
+            x <- newRef "a"
+            let w = vcat [ label $ readRef x, entry x ]
+            return $ notebook
+                [ (,) "T1" $ return w
+                , (,) "T2" $ return w
+                ]
+
+        ]
 
     , (,) "Async" $ do
         ready <- newRef True
@@ -75,23 +87,23 @@ main = runWidget $ notebook
                 d <- readRef' delay
                 asyncWrite (ceiling $ 10^6 * d) (writeRef ready) True
         return $ vcat
-            [ hcat [ entry $ showLens `lensMap` delay, labelConst "sec" ]
+            [ hcat [ entry $ showLens `lensMap` delay, label $ return "sec" ]
             , button_ (readRef delay >>= \d -> return $ "Start " ++ show d ++ " sec computation") (readRef ready) $ writeRef ready False
             , label $ liftM (\b -> if b then "Ready." else "Computing...") $ readRef ready
             ]
 
     , (,) "Timer" $ do
         t <- newRef 0
-        onChange (readRef t) $ \ti -> return $ asyncWrite t (1 + ti) (10^6)
+        onChange (readRef t) $ \ti -> return $ asyncWrite (10^6) (writeRef t) (1 + ti) 
         return $ vcat
             [ label $ readRef $ showLens `lensMap` t
             ]
 
     , (,) "System" $ return $ notebook
 
-        [ (,) "Args" $ getArgs >>= \args -> return $ labelConst $ unlines args
+        [ (,) "Args" $ getArgs >>= \args -> return $ label $ return $ unlines args
 
-        , (,) "ProgName" $ getProgName >>= \args -> return $ labelConst args
+        , (,) "ProgName" $ getProgName >>= \args -> return $ label $ return args
 
         , (,) "Env" $ do
             v <- newRef "HOME"
@@ -105,7 +117,7 @@ main = runWidget $ notebook
                 x <- newRef ""
                 onChange (readRef x) $ return . putStrLn_
                 return $ hcat 
-                    [ labelConst "putStrLn"
+                    [ label $ return "putStrLn"
                     , entry x
                     ]
             get = action $ do
@@ -141,8 +153,8 @@ counter a b = action $ do
     return $ vcat
         [ label $ liftM show $ readRef c'
         , hcat
-            [ smartButton (return "+1") ((\x -> liftM (min x) $ readRef b) . (+1)) c'
-            , smartButton (return "-1") ((\x -> liftM (max x) $ readRef a) . (+(-1))) c'
+            [ smartButton (return "+1") c' $ (\x -> liftM (min x) $ readRef b) . (+1)
+            , smartButton (return "-1") c' $ (\x -> liftM (max x) $ readRef a) . (+(-1))
             ]
         ]
 
