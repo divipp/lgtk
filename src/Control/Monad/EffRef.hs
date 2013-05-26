@@ -24,15 +24,12 @@ import Control.Monad.ExtRef
 
 class ExtRef m => EffRef m where
 
-    onChange :: Eq a => ReadRef m a -> (a -> m ()) -> m ()
-    onChange r f = toSend r $ return . f
+    onChange :: Eq a => ReadRef m a -> (a -> m (m ())) -> m ()
 
     register :: Eq a => Ref m a -> ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m ()
     register = toReceive . writeRef
 
     rEffect  :: Eq a => ReadRef m a -> (a -> EffectM m ()) -> m ()
-
-    toSend   :: Eq b => ReadRef m b -> (b -> m (m ())) -> m ()
 
     toReceive :: Eq a => (a -> WriteRef m ()) -> ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m ()
 
@@ -41,9 +38,9 @@ class ExtRef m => EffRef m where
 
 instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)) => EffRef (IdentityT m) where
 
-    rEffect r f = onChange r $ liftEffectM . f
+    rEffect r f = onChange r $ return . liftEffectM . f
 
-    toSend = toSend_ . liftWriteRef . liftReadPart
+    onChange = toSend_ . liftWriteRef . liftReadPart
 
     toReceive fm = toReceive_ (liftWriteRef . fm)
 

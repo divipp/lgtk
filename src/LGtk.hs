@@ -131,7 +131,7 @@ smartButton s f k =
              (liftReadPart (readRef k) >>= liftReadPart . f >>= writeRef k)
 
 cell :: (EffRef m, Eq a) => ReadRef m a -> (a -> m (Widget m)) -> Widget m
-cell r g = Cell (toSend r) $ Action . g
+cell r g = Cell (onChange r) $ Action . g
 
 label :: EffRef m => ReadRef m String -> Widget m
 label = Label . rEffect
