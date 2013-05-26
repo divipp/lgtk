@@ -33,6 +33,7 @@ library
                   , fsnotify
 
                   , data-lens
+                  , transformers
                   , mtl
 
                   , gtk

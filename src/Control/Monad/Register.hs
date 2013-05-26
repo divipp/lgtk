@@ -5,6 +5,9 @@ module Control.Monad.Register
     , MonadRegister (..)
     ) where
 
+import Control.Monad
+import Control.Monad.Trans.Identity
+
 import Control.Monad.Restricted
 
 data Command = Kill | Block | Unblock deriving (Eq, Ord, Show)
@@ -20,5 +23,12 @@ class (Monad m, Monad (EffectM m)) => MonadRegister m where
     toReceive_ :: Eq a => (a -> EffectM m ()) -> ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m ()
 
 
+instance MonadRegister m => MonadRegister (IdentityT m) where
 
+    type EffectM (IdentityT m) = EffectM m
 
+    liftEffectM m = IdentityT $ liftEffectM m
+
+    toSend_ b m f = IdentityT $ toSend_ b m (liftM runIdentityT . runIdentityT . f)
+
+    toReceive_ f g = IdentityT $ toReceive_ f g

@@ -40,7 +40,7 @@ main = runWidget $ notebook
                     , smartButton (return "-1") (return . max 1 . (+(-1))) c
                     ]
                 ]
-
+{-
         , (,) "a..b" $ Action $ do
             a <- newRef 1
             b <- newRef 3
@@ -55,7 +55,7 @@ main = runWidget $ notebook
                 , hcat [ Label $ constSend "min", entry $ showLens % a' ]
                 , hcat [ Label $ constSend "max", entry $ showLens % b' ]
                 ]
-
+-}
         ]
 
     , (,) "TabSwitch" $ Action $ do
@@ -125,6 +125,7 @@ main = runWidget $ notebook
     , (,) "Tri" tri
     , (,) "T-Editor1" tEditor1
     , (,) "T-Editor3" $ Action $ newRef (iterate (Node Leaf) Leaf !! 10) >>= tEditor3
+
     ]
 
 justLens :: a -> Lens (Maybe a) a

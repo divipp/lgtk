@@ -45,8 +45,6 @@ module LGtk
 
     -- * Binding effects to references
     , EffRef
-    , EffIORef
-    , asyncWrite
     , onChange
 
     , constSend -- TODO: eliminate
@@ -54,10 +52,12 @@ module LGtk
     , toReceive -- TODO: eliminate
 
     -- * I/O effects
-    , fileRef
+    , EffIORef
     , getArgs
     , getProgName
     , lookupEnv
+    , asyncWrite
+    , fileRef
 
     -- * Gtk structures
     , module GUI.Gtk.Structures   -- TODO: eliminate
@@ -71,6 +71,7 @@ module LGtk
     , vcat, hcat
     , notebook
     , cell
+    , action
 
     -- ** Running GUI descriptions
     , runWidget
@@ -81,6 +82,7 @@ import Control.Category
 import Control.Concurrent
 import Control.Monad
 import Control.Monad.State
+import Control.Monad.Trans.Identity
 import Prelude hiding ((.), id)
 import Data.Lens.Common
 
@@ -94,9 +96,6 @@ import qualified GUI.Gtk.Structures as Gtk
 import qualified GUI.Gtk.Structures.IO as Gtk
 import Control.Monad.ExtRef.Pure
 import Control.Monad.Restricted
-
-constSend :: (MonadRegister m) => a -> (a -> EffectM m ()) -> m ()
-constSend a f = liftEffectM $ f a
 
 type Widget m = Gtk.Widget (EffectM m) m
 
@@ -141,6 +140,9 @@ notebook xs = Action $ do
            h True = w
     return $ Notebook' (register currentPage) $ zipWith f [0..] xs
 
+action :: EffRef m => m (Widget m) -> Widget m
+action = Action
+
 -- | Run an interface description
 runWidget :: (forall m . EffIORef m => Widget m) -> IO ()
 runWidget e = do
@@ -153,7 +155,8 @@ runWidget e = do
     Gtk.gtkContext $ \post ->
         runExtRef_ $ unliftIO $ \u ->
             evalRegister
-                (Gtk.runWidget u post' post e)
+                (        runIdentityT $
+                    Gtk.runWidget u post' post e)
                 (liftIO . writeChan ch . u)
 
 

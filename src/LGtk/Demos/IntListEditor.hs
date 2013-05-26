@@ -78,11 +78,11 @@ intListEditor state settings = Action $ do
     def = (0, True)
     maxi = 15
 
-    sbutton s f k = smartButton s (return . f) k
-
     mapFst f (x, y) = (f x, y)
     mapSnd f (x, y) = (x, f y)
     mapSel f (x, y) = (if y then f x else x, y)
+
+    sbutton s f k = smartButton s (return . f) k
 
 
 listEditor :: EffRef m => a -> (Int -> Ref m a -> m (Widget m)) -> Ref m [a] -> m (Widget m)
