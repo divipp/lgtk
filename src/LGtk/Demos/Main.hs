@@ -17,11 +17,11 @@ import LGtk.Demos.TEditor
 
 main :: IO ()
 main = runWidget $ notebook
-    [ (,) "Hello" $ labelConst "Hello World!"
+    [ (,) "Hello" $ return $ labelConst "Hello World!"
 
-    , (,) "Counters" $ notebook
+    , (,) "Counters" $ return $ notebook
 
-        [ (,) "Unbounded" $ action $ do
+        [ (,) "Unbounded" $ do
             c <- newRef 0
             return $ vcat
                 [ label $ liftM show $ readRef c
@@ -31,7 +31,7 @@ main = runWidget $ notebook
                     ]
                 ]
 
-        , (,) "1..3" $ action $ do
+        , (,) "1..3" $ do
             c <- newRef 1
             return $ vcat
                 [ label $ liftM show $ readRef c
@@ -41,7 +41,7 @@ main = runWidget $ notebook
                     ]
                 ]
 
-        , (,) "a..b" $ action $ do
+        , (,) "a..b" $ do
             a <- newRef 1
             b <- newRef 3
             let a' = joinRef $ do
@@ -58,15 +58,15 @@ main = runWidget $ notebook
 
         ]
 
-    , (,) "TabSwitch" $ action $ do
+    , (,) "TabSwitch" $ do
         x <- newRef "a"
         let w = vcat [ label $ readRef x, entry x ]
         return $ notebook
-            [ (,) "T1" w
-            , (,) "T2" w
+            [ (,) "T1" $ return w
+            , (,) "T2" $ return w
             ]
 
-    , (,) "Async" $ action $ do
+    , (,) "Async" $ do
         ready <- newRef True
         delay <- newRef 1.0
         onChange (readRef ready) $ \b -> case b of
@@ -80,27 +80,27 @@ main = runWidget $ notebook
             , label $ liftM (\b -> if b then "Ready." else "Computing...") $ readRef ready
             ]
 
-    , (,) "Timer" $ action $ do
+    , (,) "Timer" $ do
         t <- newRef 0
         onChange (readRef t) $ \ti -> asyncWrite t (1 + ti) (10^6)
         return $ vcat
             [ label $ readRef $ showLens `lensMap` t
             ]
 
-    , (,) "System" $ notebook
+    , (,) "System" $ return $ notebook
 
-        [ (,) "Args" $ action $ getArgs >>= \args -> return $ labelConst $ unlines args
+        [ (,) "Args" $ getArgs >>= \args -> return $ labelConst $ unlines args
 
-        , (,) "ProgName" $ action $ getProgName >>= \args -> return $ labelConst args
+        , (,) "ProgName" $ getProgName >>= \args -> return $ labelConst args
 
-        , (,) "Env" $ action $ do
+        , (,) "Env" $ do
             v <- newRef "HOME"
             return $ vcat
                 [ entry v
                 , label $ readRef v >>= liftM (maybe "Not in env." show) . lookupEnv 
                 ]
 
-        , (,) "Std I/O" $ let
+        , (,) "Std I/O" $ return $ let
             put = action $ do
                 x <- newRef ""
                 onChange (readRef x) putStrLn_
@@ -119,13 +119,13 @@ main = runWidget $ notebook
            in vcat [ put, put, put, get, get, get ]
         ]
 
-    , (,) "IntListEditor" $ action $ do
+    , (,) "IntListEditor" $ do
         state <- fileRef "intListEditorState.txt"
         settings <- fileRef "intListEditorSettings.txt"
         return $ intListEditor (justLens "" `lensMap` state) (justLens "" `lensMap` settings)
-    , (,) "Tri" tri
-    , (,) "T-Editor1" tEditor1
-    , (,) "T-Editor3" $ action $ newRef (iterate (Node Leaf) Leaf !! 10) >>= tEditor3
+    , (,) "Tri" $ return tri
+    , (,) "T-Editor1" $ return tEditor1
+    , (,) "T-Editor3" $ newRef (iterate (Node Leaf) Leaf !! 10) >>= tEditor3
 
     ]
 

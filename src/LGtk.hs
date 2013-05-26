@@ -130,8 +130,8 @@ smartButton s f k =
     button_ s (readRef k >>= \x -> liftM (/= x) $ f x)
              (liftReadPart (readRef k) >>= liftReadPart . f >>= writeRef k)
 
-cell :: (EffRef m, Eq a) => Bool -> ReadRef m a -> (a -> m (Widget m)) -> Widget m
-cell b r g = Cell (toSend b r) $ Action . g
+cell :: (EffRef m, Eq a) => ReadRef m a -> (a -> m (Widget m)) -> Widget m
+cell r g = Cell (toSend r) $ Action . g
 
 label :: EffRef m => ReadRef m String -> Widget m
 label = Label . rEffect
@@ -163,11 +163,11 @@ combobox ss r = Combobox ss (rEffect (readRef r), register r)
 entry :: EffRef m => Ref m String -> Widget m
 entry r = Entry (rEffect (readRef r), register r)
 
-notebook :: EffRef m => [(String, Widget m)] -> Widget m
+notebook :: EffRef m => [(String, m (Widget m))] -> Widget m
 notebook xs = Action $ do
     currentPage <- newRef 0
-    let f index (title, w) = (,) title $ cell True (liftM (== index) $ readRef currentPage) $ return . h where
-           h False = hcat []
+    let f index (title, w) = (,) title $ cell (liftM (== index) $ readRef currentPage) h where
+           h False = return $ hcat []
            h True = w
     return $ Notebook' (register currentPage) $ zipWith f [0..] xs
 

@@ -30,7 +30,7 @@ instance NewRef m => MonadRegister (Register m) where
         unreg <- lift $ int $ rr . r
         tell $ t2 unreg
 
-    toSend_ bb rb fb = do
+    toSend_ rb fb = do
         rr <- ask
         memoref <- lift $ newRef' (const $ return (), const $ return (), [])  -- unreg action, memo table, first item is the newest
         tell $ t1 $ do
@@ -39,15 +39,15 @@ instance NewRef m => MonadRegister (Register m) where
                     ((), (s2_, ureg2_)) <- execRWST c rr ()
                     let s2 = runMonadMonoid s2_
                         ureg2 = runMonadMonoid . ureg2_
-                    runMorphD memoref $ state $ \(_, _, memo) -> (,) () (ureg1, ureg2, (b, (c, s1, s2, ureg1, ureg2)) : if bb then filter ((/= b) . fst) memo else [])
+                    runMorphD memoref $ state $ \(_, _, memo) -> (,) () (ureg1, ureg2, (b, (c, s1, s2, ureg1, ureg2)) : filter ((/= b) . fst) memo)
                     s1 >> s2
             join $ runMorphD memoref $ gets $ \memo -> case memo of
                 (_, _, ((b', (_, s1, s2, _, _)): _)) | b' == b -> s1 >> s2
                 (ur1, ur2, memo) -> do
-                  ur1 $ if bb then Block else Kill
+                  ur1 Block
                   ur2 Kill
-                  case (bb, filter ((== b) . fst) memo) of
-                    (True, (_, (c, s1, _, ureg1, ureg2)): _) -> ureg1 Unblock >> doit c (s1, ureg1)
+                  case filter ((== b) . fst) memo of
+                    ((_, (c, s1, _, ureg1, ureg2)): _) -> ureg1 Unblock >> doit c (s1, ureg1)
                     _ -> do
                         (c, (), s1_) <- runRWST (fb b) rr ()
                         let s1 = (runMonadMonoid $ fst s1_, runMonadMonoid . snd s1_)
