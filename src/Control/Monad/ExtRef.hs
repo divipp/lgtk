@@ -20,7 +20,6 @@ module Control.Monad.ExtRef
     , WriteRef
     , readRef'
     , modRef
-    , newRef
     , undoTr
     , memoRead
     , memoWrite
@@ -138,6 +137,10 @@ class (Monad m, Reference (Ref m)) => ExtRef m where
 
     extRef :: Ref m b -> Lens a b -> a -> m (Ref m a)
 
+    -- | @newRef = extRef unitRef $ lens (const ()) (const id)@
+    newRef :: a -> m (Ref m a)
+    newRef = extRef unitRef $ lens (const ()) (const id)
+
 instance (ExtRef m, Monoid w) => ExtRef (WriterT w m) where
 
     type Ref (WriterT w m) = Ref m
@@ -161,10 +164,6 @@ instance (ExtRef m, Monoid w) => ExtRef (RWST r w s m) where
     liftWriteRef = lift . liftWriteRef
 
     extRef r k a = lift $ extRef r k a
-
--- | @newRef = extRef unitRef $ lens (const ()) (const id)@
-newRef :: ExtRef m => a -> m (Ref m a)
-newRef = extRef unitRef $ lens (const ()) (const id)
 
 
 -- | Undo-redo state transformation
