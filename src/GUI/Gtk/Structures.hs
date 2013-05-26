@@ -11,7 +11,7 @@ module GUI.Gtk.Structures
 
 import Control.Monad.Register (Command (..))
 
-type Send n m a = (n a, (a -> n ()) -> m ())
+type Send n m a = (a -> n ()) -> m ()
 type Receive n m a = ((a -> n ()) -> n (Command -> n ())) -> m ()
 type SendReceive n m a = (Send n m a, Receive n m a)
 

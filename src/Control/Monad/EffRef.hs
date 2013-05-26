@@ -46,25 +46,22 @@ class ExtRef m => EffRef m where
 
     @k a1 >>= \\b1 -> h b1 >> k a2 >>= \\b2 -> h b2 >> h b1@
     -}
-    onChange :: Eq a => ReadRef m a -> (a -> m (m ())) -> m ()
+    onChange :: Eq a => Bool -> ReadRef m a -> (a -> m (m ())) -> m ()
 
     toReceive :: Eq a => (a -> WriteRef m ()) -> ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m ()
 
-    rEffect  :: (EffRef m, Eq a) => ReadRef m a -> (EffectM m a, (a -> EffectM m ()) -> m ())
-
-rEffect_  :: (EffRef m, Eq a) => ReadRef m a -> (a -> EffectM m ()) -> m ()
-rEffect_ = snd . rEffect
+    rEffect  :: (EffRef m, Eq a) => Bool -> ReadRef m a -> (a -> EffectM m ()) -> m ()
 
 -- | This instance is used in the implementation, the end users do not need it.
 instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)) => EffRef (IdentityT m) where
 
     liftEffectM' = liftEffectM
 
-    onChange = toSend_ . liftWriteRef . liftReadPart
+    onChange init = toSend_ init . liftReadRef
 
     toReceive fm = toReceive_ (liftWriteRef . fm)
 
-    rEffect r = (liftWriteRef . liftReadPart $ r, \f -> onChange r $ return . liftEffectM' . f)
+    rEffect init r f = onChange init r $ return . liftEffectM' . f
 
 -- | Type class for IO actions.
 class (EffRef m, SafeIO m, SafeIO (ReadRef m)) => EffIORef m where
@@ -129,7 +126,7 @@ instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)
     fileRef f = do
         ms <- liftIO' r
         ref <- newRef ms
-        rEffect_ (readRef ref) $ liftIO . w
+        rEffect False (readRef ref) $ liftIO . w
         v <- liftIO' $ do
             v <- newEmptyMVar
             cf <- canonicalizePath f

@@ -42,7 +42,7 @@ rv ==? v = when (rv /= v) $ tell . return $ "runTest failed: " ++ show rv ++ " /
 
 -- | Check the current value of a given reference.
 (==>) :: (Eq a, Show a, MonadWriter [String] m, ExtRef m) => Ref m a -> a -> m ()
-r ==> v = liftWriteRef (liftReadPart $ readRef r) >>= (==? v)
+r ==> v = readRef' r >>= (==? v)
 
 infix 0 ==>, ==?
 

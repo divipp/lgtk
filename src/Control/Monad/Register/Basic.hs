@@ -30,28 +30,38 @@ instance NewRef m => MonadRegister (Register m) where
         unreg <- lift $ int $ rr . r
         tell $ t2 unreg
 
-    toSend_ rb fb = do
+    toSend_ init rb fb = do
         rr <- ask
-        memoref <- lift $ newRef' []  -- memo table, first item is the newest
+        b <- lift rb
+        v <- case init of
+            False -> return $ Left b
+            True -> lift $ do
+                (c, (), (s1, ureg1)) <- runRWST (fb b) rr ()
+                ((), (s2, ureg2)) <- execRWST c rr ()
+                runMonadMonoid $ s1 `mappend` s2
+                return $ Right [(b, (c, s1, s2, ureg1, ureg2))]
+        memoref <- lift $ newRef' v
+                            -- memo table, first item is the newest
         tell $ t1 $ do
             b <- rb
-            (s1, s2) <- join $ runMorphD memoref $ gets $ \memo -> case memo of
-                ((b', (_, s1, s2, _, _)): _) | b' == b -> return (s1, s2)
+            join $ runMorphD memoref $ gets $ \memo -> case memo of
+                Left b' | b' == b -> return ()
+                Right ((b', (_, s1, s2, _, _)): _) | b' == b ->
+                    runMonadMonoid $ s1 `mappend` s2
                 _ -> do
                     case memo of
-                        ((_, (_, _, _, ureg1, ureg2)): _) ->
+                        Right ((_, (_, _, _, ureg1, ureg2)): _) ->
                             runMonadMonoid $ ureg1 Block `mappend` ureg2 Kill
                         _ -> return ()
-                    (c, (), (s1, ureg1)) <- case filter ((== b) . fst) memo of
+                    (c, (), (s1, ureg1)) <- case filter ((== b) . fst) $ either (const []) id memo of
                         ((_, (c, s1, _, ureg1, _)): _) -> do
                             runMonadMonoid $ ureg1 Unblock
                             return (c, (), (s1, ureg1))
                         _ -> runRWST (fb b) rr ()
                     ((), (s2, ureg2)) <- execRWST c rr ()
                     runMorphD memoref $ state $ \memo ->
-                        (,) () $ (b, (c, s1, s2, ureg1, ureg2)) : filter ((/= b) . fst) memo
-                    return (s1, s2)
-            runMonadMonoid $ s1 `mappend` s2
+                        (,) () $ Right $ (:) (b, (c, s1, s2, ureg1, ureg2)) $ filter ((/= b) . fst) $ either (const []) id memo
+                    runMonadMonoid $ s1 `mappend` s2
 
 t1 m = (MonadMonoid m, mempty)
 t2 m = (mempty, MonadMonoid . m)

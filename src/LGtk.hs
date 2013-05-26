@@ -41,10 +41,11 @@ module LGtk
     , newRef
     , ReadRef
     , WriteRef
-    , readRef'
+    , liftReadRef
 
     -- ** Derived constructs
     , modRef
+    , readRef'
     , memoRead
     , undoTr
 
@@ -64,7 +65,7 @@ module LGtk
     , getLine_
     , fileRef
 
-    -- ** Derived
+    -- ** Derived constructs
     , putStrLn_
 
     -- * GUI
@@ -159,7 +160,7 @@ empty = hcat []
 
 -- | Dynamic label.
 label :: EffRef m => ReadRef m String -> Widget m
-label = Label . rEffect
+label = Label . rEffect True
 
 -- | Low-level button.
 button_
@@ -168,7 +169,7 @@ button_
     -> ReadRef m Bool       -- ^ the button is active when this returns @True@
     -> WriteRef m ()        -- ^ the action to do when the button is pressed
     -> Widget m
-button_ r x y = Button (rEffect r) (rEffect x) (toReceive $ \() -> y)
+button_ r x y = Button (rEffect True r) (rEffect True x) (toReceive $ \() -> y)
 
 button
     :: EffRef m
@@ -189,15 +190,15 @@ smartButton s k f =
 
 -- | Checkbox.
 checkbox :: EffRef m => Ref m Bool -> Widget m
-checkbox r = Checkbox (rEffect (readRef r), toReceive $ writeRef r)
+checkbox r = Checkbox (rEffect True (readRef r), toReceive $ writeRef r)
 
 -- | Simple combo box.
 combobox :: EffRef m => [String] -> Ref m Int -> Widget m
-combobox ss r = Combobox ss (rEffect (readRef r), toReceive $ writeRef r)
+combobox ss r = Combobox ss (rEffect True (readRef r), toReceive $ writeRef r)
 
 -- | Text entry.
 entry :: EffRef m => Ref m String -> Widget m
-entry r = Entry (rEffect (readRef r), toReceive $ writeRef r)
+entry r = Entry (rEffect True (readRef r), toReceive $ writeRef r)
 
 {- | Notebook (tabs).
 
@@ -216,21 +217,21 @@ notebook xs = Action $ do
 The monadic action for inner widget creation is memoised in the first monad layer.
 -}
 cell_ :: (EffRef m, Eq a) => ReadRef m a -> (forall x . (Widget m -> m x) -> a -> m (m x)) -> Widget m
-cell_ = Cell . onChange
+cell_ = Cell . onChange True
 
 {- | Dynamic cell.
 
-The widget are memoised.
+The inner widgets are memoised.
 -}
 cell :: (EffRef m, Eq a) => ReadRef m a -> (a -> Widget m) -> Widget m
-cell r m = cell_ r $ \mk b -> liftM return $ mk $ m b
+cell r m = cell_ r $ \mk -> liftM return . mk . m
 
 {- | Dynamic cell.
 
-The widget are not memoised.
+The inner widgets are not memoised.
 -}
 cellNoMemo :: (EffRef m, Eq a) => ReadRef m a -> (a -> Widget m) -> Widget m
-cellNoMemo r m = cell_ r $ \mk b -> return $ mk $ m b
+cellNoMemo r m = cell_ r $ \mk -> return . mk . m
 
 -- | @action@ makes possible to do any 'EffRef' action while creating the widget.
 action :: EffRef m => m (Widget m) -> Widget m

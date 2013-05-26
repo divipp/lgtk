@@ -18,7 +18,7 @@ class (Monad m, Monad (EffectM m)) => MonadRegister m where
 
     liftEffectM :: Morph (EffectM m) m
 
-    toSend_ :: Eq b => EffectM m b -> (b -> m (m ())) -> m ()
+    toSend_ :: Eq b => Bool -> EffectM m b -> (b -> m (m ())) -> m ()
 
     toReceive_ :: Eq a => (a -> EffectM m ()) -> ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m ()
 
@@ -29,6 +29,7 @@ instance MonadRegister m => MonadRegister (IdentityT m) where
 
     liftEffectM m = IdentityT $ liftEffectM m
 
-    toSend_ m f = IdentityT $ toSend_ m (liftM runIdentityT . runIdentityT . f)
+    toSend_ init m f = IdentityT $ toSend_ init m $ liftM runIdentityT . runIdentityT . f
 
     toReceive_ f g = IdentityT $ toReceive_ f g
+

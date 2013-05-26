@@ -56,9 +56,7 @@ runWidget nio post' post = toWidget
     reg s f = s $ liftM (fmap liftIO) . liftIO' . f . (nio .)
 
     ger :: Send n m a -> (a -> IO ()) -> m ()
-    ger (x, s) f = do
-        liftIO' $ nio x >>= f
-        s $ liftIO' . f
+    ger s f = s $ liftIO' . f
 
     toWidget :: Widget n m -> m SWidget
     toWidget i = case i of
@@ -111,15 +109,15 @@ runWidget nio post' post = toWidget
                 False -> fmap castToContainer $ alignmentNew 0 0 1 1
             sh <- liftIO $ liftIO $ newMVar $ return ()
             onCh $ \bv -> do
-              mx <- f toWidget bv
-              return $ do
-                x <- mx
-                liftIO' $ do 
-                  _ <- swapMVar sh $ fst x
-                  post' $ post $ fst x
-                  containerForeach w $ if b then widgetHideAll else containerRemove w 
-                  ch <- containerGetChildren w
-                  when (snd x `notElem` ch) $ containerAdd w $ snd x
+                  mx <- f toWidget bv
+                  return $ do
+                    x <- mx
+                    liftIO' $ do 
+                      _ <- swapMVar sh $ fst x
+                      post' $ post $ fst x
+                      containerForeach w $ if b then widgetHideAll else containerRemove w 
+                      ch <- containerGetChildren w
+                      when (snd x `notElem` ch) $ containerAdd w $ snd x
             liftM (mapFst (join (readMVar sh) >>)) $ return'' [] w
 
 on' :: GObjectClass x => x -> Signal x c -> c -> IO (Command -> IO ())

@@ -13,12 +13,13 @@ module Control.Monad.ExtRef
 
     -- * Ref construction class
     , ExtRef (..)
-    , readRef'
 
     -- * Derived constructs
     , ReadRef
     , WriteRef
     , modRef
+    , liftReadRef
+    , readRef'
     , undoTr
     , memoRead
     , memoWrite
@@ -114,13 +115,18 @@ type WriteRef m = RefMonad (Ref m)
 
 type ReadRef m = ReadPart (RefMonad (Ref m))
 
-{- | @readRef@ lifted to the reference creation class.
+{- | @ReadRef@ lifted to the reference creation class.
 
-Note that we do not lift @writeRef@ to the reference creation class, which a crucial restriction
+Note that we do not lift @WriteRef@ to the reference creation class, which a crucial restriction
 in the LGtk interface; this is a feature.
 -}
+liftReadRef :: ExtRef m => Morph (ReadRef m) m
+liftReadRef = liftWriteRef . liftReadPart
+
+{- | @readRef@ lifted to the reference creation class.
+-}
 readRef' :: ExtRef m => Ref m a -> m a
-readRef' = liftWriteRef . liftReadPart . readRef
+readRef' = liftReadRef . readRef
 
 {- | Lazy monadic evaluation.
 In case of @y <- memoRead x@, invoking @y@ will invoke @x@ at most once.
@@ -140,7 +146,7 @@ Laws:
 memoRead :: ExtRef m => m a -> m (m a)
 memoRead g = do
     s <- newRef Nothing
-    return $ liftWriteRef (liftReadPart (readRef s)) >>= \x -> case x of
+    return $ readRef' s >>= \x -> case x of
         Just a -> return a
         _ -> g >>= \a -> do
             liftWriteRef $ writeRef s $ Just a
@@ -149,7 +155,7 @@ memoRead g = do
 memoWrite :: (ExtRef m, Eq b) => (b -> m a) -> m (b -> m a)
 memoWrite g = do
     s <- newRef Nothing
-    return $ \b -> liftWriteRef (liftReadPart (readRef s)) >>= \x -> case x of
+    return $ \b -> readRef' s >>= \x -> case x of
         Just (b', a) | b' == b -> return a
         _ -> g b >>= \a -> do
             liftWriteRef $ writeRef s $ Just (b, a)

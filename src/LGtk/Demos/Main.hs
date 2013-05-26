@@ -73,7 +73,7 @@ main = runWidget $ notebook
     , (,) "Async" $ action $ do
         ready <- newRef True
         delay <- newRef 1.0
-        onChange (readRef ready) $ \b -> return $ case b of
+        onChange False (readRef ready) $ \b -> return $ case b of
             True -> return ()
             False -> do
                 d <- readRef' delay
@@ -86,7 +86,7 @@ main = runWidget $ notebook
 
     , (,) "Timer" $ action $ do
         t <- newRef 0
-        onChange (readRef t) $ \ti -> return $ asyncWrite (10^6) (writeRef t) (1 + ti) 
+        onChange True (readRef t) $ \ti -> return $ asyncWrite (10^6) (writeRef t) (1 + ti) 
         return $ vcat
             [ label $ readRef $ showLens `lensMap` t
             ]
@@ -107,14 +107,14 @@ main = runWidget $ notebook
         , (,) "Std I/O" $ let
             put = action $ do
                 x <- newRef ""
-                onChange (readRef x) $ return . putStrLn_
+                onChange False (readRef x) $ return . putStrLn_
                 return $ hcat 
                     [ label $ return "putStrLn"
                     , entry x
                     ]
             get = action $ do
                 ready <- newRef $ Just ""
-                onChange (liftM isJust $ readRef ready) $ \b -> 
+                onChange False (liftM isJust $ readRef ready) $ \b -> 
                     return $ when (not b) $ getLine_ $ writeRef ready . Just
                 return $ hcat 
                     [ button_ (return "getLine") (liftM isJust $ readRef ready) $ writeRef ready Nothing

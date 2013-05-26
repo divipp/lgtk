@@ -51,7 +51,7 @@ tEditor3 r = do
             True -> action $ do
                 t1 <- tEditor3 $ fstLens . sndLens `lensMap` q
                 t2 <- tEditor3 $ sndLens . sndLens `lensMap` q
-                return $ vcat $ [t1, t2]
+                return $ vcat [t1, t2]
         ]
 
 
