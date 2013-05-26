@@ -17,11 +17,11 @@ import LGtk.Demos.TEditor
 
 main :: IO ()
 main = runWidget $ notebook
-    [ (,) "Hello" $ return $ label $ return "Hello World!"
+    [ (,) "Hello" $ label $ return "Hello World!"
 
-    , (,) "Counters" $ return $ notebook
+    , (,) "Counters" $ notebook
 
-        [ (,) "Unbounded" $ do
+        [ (,) "Unbounded" $ action $ do
             c <- newRef 0
             return $ vcat
                 [ label $ liftM show $ readRef c
@@ -31,7 +31,7 @@ main = runWidget $ notebook
                     ]
                 ]
 
-        , (,) "1..3" $ do
+        , (,) "1..3" $ action $ do
             c <- newRef 1
             return $ vcat
                 [ label $ liftM show $ readRef c
@@ -41,7 +41,7 @@ main = runWidget $ notebook
                     ]
                 ]
 
-        , (,) "a..b" $ do
+        , (,) "a..b" $ action $ do
             a <- newRef 1
             b <- newRef 3
             let a' = joinRef $ do
@@ -58,27 +58,19 @@ main = runWidget $ notebook
 
         ]
 
-    , (,) "Tabs" $ return $ notebook
+    , (,) "Tabs" $ notebook
 
-        [ (,) "TabSwitch" $ do
+        [ (,) "TabSwitch" $ action $ do
             x <- newRef "a"
             let w = vcat [ label $ readRef x, entry x ]
             return $ notebook
-                [ (,) "T1" $ return w
-                , (,) "T2" $ return w
-                ]
-
-        , (,) "TabSwitch" $ return $ action $ do
-            x <- newRef "a"
-            let w = vcat [ label $ readRef x, entry x ]
-            return $ notebook
-                [ (,) "T1" $ return w
-                , (,) "T2" $ return w
+                [ (,) "T1" w
+                , (,) "T2" w
                 ]
 
         ]
 
-    , (,) "Async" $ do
+    , (,) "Async" $ action $ do
         ready <- newRef True
         delay <- newRef 1.0
         onChange (readRef ready) $ \b -> return $ case b of
@@ -92,27 +84,27 @@ main = runWidget $ notebook
             , label $ liftM (\b -> if b then "Ready." else "Computing...") $ readRef ready
             ]
 
-    , (,) "Timer" $ do
+    , (,) "Timer" $ action $ do
         t <- newRef 0
         onChange (readRef t) $ \ti -> return $ asyncWrite (10^6) (writeRef t) (1 + ti) 
         return $ vcat
             [ label $ readRef $ showLens `lensMap` t
             ]
 
-    , (,) "System" $ return $ notebook
+    , (,) "System" $ notebook
 
-        [ (,) "Args" $ getArgs >>= \args -> return $ label $ return $ unlines args
+        [ (,) "Args" $ action $ getArgs >>= \args -> return $ label $ return $ unlines args
 
-        , (,) "ProgName" $ getProgName >>= \args -> return $ label $ return args
+        , (,) "ProgName" $ action $ getProgName >>= \args -> return $ label $ return args
 
-        , (,) "Env" $ do
+        , (,) "Env" $ action $ do
             v <- newRef "HOME"
             return $ vcat
                 [ entry v
                 , label $ readRef v >>= liftM (maybe "Not in env." show) . lookupEnv 
                 ]
 
-        , (,) "Std I/O" $ return $ let
+        , (,) "Std I/O" $ let
             put = action $ do
                 x <- newRef ""
                 onChange (readRef x) $ return . putStrLn_
@@ -131,13 +123,13 @@ main = runWidget $ notebook
            in vcat [ put, put, put, get, get, get ]
         ]
 
-    , (,) "IntListEditor" $ do
+    , (,) "IntListEditor" $ action $ do
         state <- fileRef "intListEditorState.txt"
         settings <- fileRef "intListEditorSettings.txt"
         return $ intListEditor (justLens "" `lensMap` state) (justLens "" `lensMap` settings)
-    , (,) "Tri" $ return tri
-    , (,) "T-Editor1" $ return tEditor1
-    , (,) "T-Editor3" $ newRef (iterate (Node Leaf) Leaf !! 10) >>= tEditor3
+    , (,) "Tri" tri
+    , (,) "T-Editor1" tEditor1
+    , (,) "T-Editor3" $ action $ newRef (iterate (Node Leaf) Leaf !! 10) >>= tEditor3
 
     ]
 

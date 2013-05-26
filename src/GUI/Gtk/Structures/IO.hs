@@ -58,6 +58,7 @@ runWidget nio post' post = toWidget
     ger :: Send n m a -> Send IO m a
     ger s f = s $ liftIO' . f
 
+    toWidget :: Widget n m -> m SWidget
     toWidget i = case i of
 
         Action m -> m >>= toWidget
@@ -108,9 +109,9 @@ runWidget nio post' post = toWidget
                 False -> fmap castToContainer $ alignmentNew 0 0 1 1
             sh <- liftIO $ liftIO $ newMVar $ return ()
             onCh $ \bv -> do
-              mx <- {- toWidget $ -} f bv
+              mx <- f toWidget bv
               return $ do
-                x <- toWidget mx
+                x <- mx
                 liftIO' $ do 
                   _ <- swapMVar sh $ fst x
                   post' $ post $ fst x

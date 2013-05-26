@@ -41,28 +41,17 @@ tEditor1 :: EffRef m => Widget m
 tEditor1 = action $ newRef Leaf >>= adtEditor
 
 -- | @T@ editor with checkboxes, given directly
-tEditor2 :: EffRef m => Widget m
-tEditor2 = action $ liftM editor $ newRef Leaf  where
-
-    editor r = action $ do
-        q <- extRef r tLens (False, (Leaf, Leaf))
-        return $ hcat
-            [ checkbox $ fstLens `lensMap` q
-            , cell (liftM fst $ readRef q) $ \b -> return $ vcat $ 
-                  [ editor $ fstLens . sndLens `lensMap` q | b ]
-               ++ [ editor $ sndLens . sndLens `lensMap` q | b ]
-            ]
-
--- | Another @T@ editor with checkboxes, given directly
 tEditor3 :: EffRef m => Ref m T -> m (Widget m)
-tEditor3 = liftM action . memoRead . editor' where
-    editor' r = do
-        q <- extRef r tLens (False, (Leaf, Leaf))
-        t1 <- tEditor3 $ fstLens . sndLens `lensMap` q
-        t2 <- tEditor3 $ sndLens . sndLens `lensMap` q
-        return $ hcat
-            [ checkbox $ fstLens `lensMap` q
-            , cell (liftM fst $ readRef q) $ \b -> return $ vcat $ [t1 | b] ++ [t2 | b]
-            ]
+tEditor3 r = do
+    q <- extRef r tLens (False, (Leaf, Leaf))
+    return $ hcat
+        [ checkbox $ fstLens `lensMap` q
+        , cell (liftM fst $ readRef q) $ \b -> case b of
+            False -> empty
+            True -> action $ do
+                t1 <- tEditor3 $ fstLens . sndLens `lensMap` q
+                t2 <- tEditor3 $ sndLens . sndLens `lensMap` q
+                return $ vcat $ [t1, t2]
+        ]
 
 

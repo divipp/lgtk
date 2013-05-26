@@ -27,7 +27,7 @@ intListEditor state settings = action $ do
         len = liftM (\r -> lens length $ extendList r . min maxi) $ readRef range
         sel = liftM (filter snd) $ readRef list
     return $ notebook
-        [ (,) "Editor" $ return $ vcat
+        [ (,) "Editor" $ vcat
             [ hcat
                 [ entry $ joinRef $ liftM (\k -> showLens . k `lensMap` list) len
                 , smartButton (return "+1") list $ modL' len (+1)
@@ -52,7 +52,7 @@ intListEditor state settings = action $ do
             , label $ liftM (("Sum: " ++) . show . sum . map fst) sel
             , action $ listEditor def (itemEditor list) list
             ]
-        , (,) "Settings" $ return $ hcat
+        , (,) "Settings" $ hcat
             [ label $ return "Create range"
             , checkbox range
             ]
@@ -87,11 +87,14 @@ intListEditor state settings = action $ do
 
 listEditor :: EffRef m => a -> (Int -> Ref m a -> m (Widget m)) -> Ref m [a] -> m (Widget m)
 listEditor def ed = editor 0 where
-  editor i r = liftM action $ memoRead $ do
+  editor i r = do
     q <- extRef r listLens (False, (def, []))
-    t1 <- ed i $ fstLens . sndLens `lensMap` q
-    t2 <- editor (i+1) $ sndLens . sndLens `lensMap` q
-    return $ cell (liftM fst $ readRef q) $ \b -> return $ vcat $ if b then [t1, t2] else []
+    return $ cell (liftM fst $ readRef q) $ \b -> case b of
+        False -> empty
+        True -> action $ do
+            t1 <- ed i $ fstLens . sndLens `lensMap` q
+            t2 <- editor (i+1) $ sndLens . sndLens `lensMap` q
+            return $ vcat [t1, t2]
 
 
 

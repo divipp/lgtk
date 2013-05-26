@@ -82,10 +82,13 @@ module LGtk
     , vcat
     , hcat
     , notebook
-    , cell
+    , cell_
     , action
 
     -- ** Derived constructs
+    , empty
+    , cell
+    , cellNoMemo
     , button
     , smartButton
 
@@ -150,9 +153,9 @@ vcat = List Vertical
 hcat :: [Widget m] -> Widget m
 hcat = List Horizontal
 
--- | Dynamic cell.
-cell :: (EffRef m, Eq a) => ReadRef m a -> (a -> m (Widget m)) -> Widget m
-cell = Cell . onChange
+-- | Empty widget.
+empty :: Widget m
+empty = hcat []
 
 -- | Dynamic label.
 label :: EffRef m => ReadRef m String -> Widget m
@@ -196,14 +199,38 @@ combobox ss r = Combobox ss (rEffect (readRef r), toReceive $ writeRef r)
 entry :: EffRef m => Ref m String -> Widget m
 entry r = Entry (rEffect (readRef r), toReceive $ writeRef r)
 
--- | Notebook (tabs).
-notebook :: EffRef m => [(String, m (Widget m))] -> Widget m
+{- | Notebook (tabs).
+
+The tabs are created lazily.
+-}
+notebook :: EffRef m => [(String, Widget m)] -> Widget m
 notebook xs = Action $ do
     currentPage <- newRef 0
-    let f index (title, w) = (,) title $ cell (liftM (== index) $ readRef currentPage) h where
-           h False = return $ hcat []
-           h True = w
+    let f index (title, w) = (,) title $ cell (liftM (== index) $ readRef currentPage) $ \b -> case b of
+           False -> hcat []
+           True -> w
     return $ Notebook' (toReceive $ writeRef currentPage) $ zipWith f [0..] xs
+
+{- | Dynamic cell.
+
+The monadic action for inner widget creation is memoised in the first monad layer.
+-}
+cell_ :: (EffRef m, Eq a) => ReadRef m a -> (forall x . (Widget m -> m x) -> a -> m (m x)) -> Widget m
+cell_ = Cell . onChange
+
+{- | Dynamic cell.
+
+The widget are memoised.
+-}
+cell :: (EffRef m, Eq a) => ReadRef m a -> (a -> Widget m) -> Widget m
+cell r m = cell_ r $ \mk b -> liftM return $ mk $ m b
+
+{- | Dynamic cell.
+
+The widget are not memoised.
+-}
+cellNoMemo :: (EffRef m, Eq a) => ReadRef m a -> (a -> Widget m) -> Widget m
+cellNoMemo r m = cell_ r $ \mk b -> return $ mk $ m b
 
 -- | @action@ makes possible to do any 'EffRef' action while creating the widget.
 action :: EffRef m => m (Widget m) -> Widget m
