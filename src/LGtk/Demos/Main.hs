@@ -6,7 +6,6 @@ module LGtk.Demos.Main
 
 import Control.Monad
 import Control.Concurrent
-import System.Environment
 import Data.Maybe
 import Prelude hiding (id, (.))
 
@@ -90,9 +89,9 @@ main = runWidget $ notebook
 
     , (,) "System" $ notebook
 
-        [ (,) "Args" $ Action $ liftIO getArgs >>= \args -> return $ Label $ constSend $ unlines args
+        [ (,) "Args" $ Action $ getArgs >>= \args -> return $ Label $ constSend $ unlines args
 
-        , (,) "ProgName" $ Action $ liftIO getProgName >>= \args -> return $ Label $ constSend args
+        , (,) "ProgName" $ Action $ getProgName >>= \args -> return $ Label $ constSend args
 {-
         , (,) "Env" $ Action $ do
             v <- newRef "HOME"

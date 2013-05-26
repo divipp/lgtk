@@ -12,11 +12,13 @@ module Control.Monad.EffRef
     , onChange
     , rEffect
     , toSend, toReceive
+    , getArgs, getProgName, lookupEnv
     ) where
 
 import Control.Concurrent
 import Control.Monad
 import Control.Monad.Trans
+import qualified System.Environment as Env
 import System.Directory
 import System.FSNotify
 --import System.FilePath
@@ -30,14 +32,17 @@ import Control.Monad.ExtRef
 
 type EffRef m = (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m))
 
-type EffIORef m = (EffRef m, MonadIO' (EffectM m), MonadIO m)
+type EffIORef m = (EffRef m, MonadIO' (EffectM m))
+
+liftIO' :: EffIORef m => IO a -> m a
+liftIO' = liftEffectM . liftIO
 
 fileRef :: (EffIORef m) => FilePath -> m (Ref m (Maybe String))
 fileRef f = do
-    ms <- liftIO r
+    ms <- liftIO' r
     ref <- newRef ms
     rEffect (readRef ref) $ liftIO . w
-    v <- liftIO $ do
+    v <- liftIO' $ do
         v <- newEmptyMVar
         cf <- canonicalizePath f
         let
@@ -67,6 +72,15 @@ fileRef f = do
          else return Nothing
 
     w = maybe (doesFileExist f >>= \b -> when b (removeFile f)) (writeFile f)
+
+getArgs :: EffIORef m => m [String]
+getArgs = liftIO' Env.getArgs
+
+getProgName :: EffIORef m => m String
+getProgName = liftIO' Env.getProgName
+
+lookupEnv :: EffIORef m => String -> m (Maybe String)
+lookupEnv = liftIO' . Env.lookupEnv
 
 forkForever :: IO () -> IO (Command -> IO ())
 forkForever = forkIOs . repeat
