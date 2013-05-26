@@ -137,7 +137,7 @@ label :: EffRef m => ReadRef m String -> Widget m
 label = Label . rEffect
 
 labelConst :: EffRef m => String -> Widget m
-labelConst = Label . constSend
+labelConst = label . return
 
 button
     :: EffRef m

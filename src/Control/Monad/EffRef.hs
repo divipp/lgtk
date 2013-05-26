@@ -33,8 +33,6 @@ class ExtRef m => EffRef m where
 
     toReceive :: Eq a => (a -> WriteRef m ()) -> ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m ()
 
-    constSend :: a -> (a -> EffectM m ()) -> m ()
-
 
 instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)) => EffRef (IdentityT m) where
 
@@ -43,8 +41,6 @@ instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)
     onChange = toSend_ . liftWriteRef . liftReadPart
 
     toReceive fm = toReceive_ (liftWriteRef . fm)
-
-    constSend a f = liftEffectM $ f a
 
 
 class (EffRef m, SafeIO m, SafeIO (ReadRef m)) => EffIORef m where
