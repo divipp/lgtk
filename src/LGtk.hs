@@ -53,10 +53,6 @@ module LGtk
     , EffRef
     , onChange
 
-    , constSend -- TODO: eliminate
-    , rEffect   -- TODO: eliminate
-    , toReceive -- TODO: eliminate
-
     -- * I/O
     , EffIORef
     , getArgs
@@ -72,15 +68,20 @@ module LGtk
 
     -- ** GUI descriptions
     , Widget
-    , button
-    , checkbox, combobox, entry
-    , vcat, hcat
+    , action
+    , label
+    , button_
+    , checkbox
+    , combobox
+    , entry
+    , vcat
+    , hcat
     , notebook
     , cell
-    , action
-    , module GUI.Gtk.Structures   -- TODO: eliminate
 
     -- ** Derived constructs
+    , labelConst
+    , button
     , smartButton
 
     ) where
@@ -94,8 +95,7 @@ import Control.Monad.Trans.Identity
 import Prelude hiding ((.), id)
 import Data.Lens.Common
 
-import Control.Monad.ExtRef hiding (liftWriteRef)
-import qualified Control.Monad.ExtRef as ExtRef
+import Control.Monad.ExtRef
 import Control.Monad.Register
 import Control.Monad.Register.Basic
 import Control.Monad.EffRef
@@ -117,19 +117,32 @@ smartButton
   :: (EffRef m, Eq a) =>
      ReadRef m String -> (a -> ReadRef m a) -> Ref m a -> Widget m
 smartButton s f k =
-    Button (rEffect s) (rEffect $ readRef k >>= \x -> liftM (/= x) $ f x)
-             (toReceive $ \() -> runR (readRef k) >>= runR . f >>= writeRef k)
+    button_ s (readRef k >>= \x -> liftM (/= x) $ f x)
+             (runR (readRef k) >>= runR . f >>= writeRef k)
 
 cell :: (EffRef m, Eq a) => Bool -> ReadRef m a -> (a -> m (Widget m)) -> Widget m
 cell b r g = Cell (toSend b r) $ Action . g
+
+label :: EffRef m => ReadRef m String -> Widget m
+label = Label . rEffect
+
+labelConst :: EffRef m => String -> Widget m
+labelConst = Label . constSend
 
 button
     :: EffRef m
     => ReadRef m String
     -> ReadRef m (Maybe (WriteRef m ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
     -> Widget m
-button r fm = Button (rEffect r) (rEffect $ liftM isJust fm)
-    (toReceive $ const $ runR fm >>= maybe (return ()) id)
+button r fm = button_ r (liftM isJust fm) (runR fm >>= maybe (return ()) id)
+
+button_
+    :: EffRef m
+    => ReadRef m String
+    -> ReadRef m Bool
+    -> WriteRef m ()
+    -> Widget m
+button_ r x y = Button (rEffect r) (rEffect x) (toReceive $ \() -> y)
 
 checkbox :: EffRef m => Ref m Bool -> Widget m
 checkbox r = Checkbox (rEffect (readRef r), register r)

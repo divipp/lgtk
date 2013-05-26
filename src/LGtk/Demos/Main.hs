@@ -17,31 +17,31 @@ import LGtk.Demos.TEditor
 
 main :: IO ()
 main = runWidget $ notebook
-    [ (,) "Hello" $ Label $ constSend "Hello World!"
+    [ (,) "Hello" $ labelConst "Hello World!"
 
     , (,) "Counters" $ notebook
 
-        [ (,) "Unbounded" $ Action $ do
+        [ (,) "Unbounded" $ action $ do
             c <- newRef 0
             return $ vcat
-                [ Label $ rEffect $ liftM show $ readRef c
+                [ label $ liftM show $ readRef c
                 , hcat
                     [ smartButton (return "+1") (return . (+1)) c
                     , smartButton (return "-1") (return . (+(-1))) c
                     ]
                 ]
 
-        , (,) "1..3" $ Action $ do
+        , (,) "1..3" $ action $ do
             c <- newRef 1
             return $ vcat
-                [ Label $ rEffect $ liftM show $ readRef c
+                [ label $ liftM show $ readRef c
                 , hcat
                     [ smartButton (return "+1") (return . min 3 . (+1)) c
                     , smartButton (return "-1") (return . max 1 . (+(-1))) c
                     ]
                 ]
 {-
-        , (,) "a..b" $ Action $ do
+        , (,) "a..b" $ action $ do
             a <- newRef 1
             b <- newRef 3
             let a' = joinRef $ do
@@ -52,21 +52,21 @@ main = runWidget $ notebook
                     return $ lens id (const . max av) `lensMap` b
             return $ vcat
                 [ counter a' b'
-                , hcat [ Label $ constSend "min", entry $ showLens `lensMap` a' ]
-                , hcat [ Label $ constSend "max", entry $ showLens `lensMap` b' ]
+                , hcat [ labelConst "min", entry $ showLens `lensMap` a' ]
+                , hcat [ labelConst "max", entry $ showLens `lensMap` b' ]
                 ]
 -}
         ]
 
-    , (,) "TabSwitch" $ Action $ do
+    , (,) "TabSwitch" $ action $ do
         x <- newRef "a"
-        let w = vcat [ Label $ rEffect $ readRef x, entry x ]
+        let w = vcat [ label $ readRef x, entry x ]
         return $ notebook
             [ (,) "T1" w
             , (,) "T2" w
             ]
 
-    , (,) "Async" $ Action $ do
+    , (,) "Async" $ action $ do
         ready <- newRef True
         delay <- newRef 1.0
         onChange (readRef ready) $ \b -> case b of
@@ -75,25 +75,25 @@ main = runWidget $ notebook
                 d <- readRef' delay
                 asyncWrite ready True $ ceiling $ 10^6 * d
         return $ vcat
-            [ hcat [ entry $ showLens `lensMap` delay, Label $ constSend "sec" ]
-            , Button (rEffect $ readRef delay >>= \d -> return $ "Start " ++ show d ++ " sec computation") (rEffect $ readRef ready) $ toReceive $ const $ writeRef ready False
-            , Label $ rEffect $ liftM (\b -> if b then "Ready." else "Computing...") $ readRef ready
+            [ hcat [ entry $ showLens `lensMap` delay, labelConst "sec" ]
+            , button_ (readRef delay >>= \d -> return $ "Start " ++ show d ++ " sec computation") (readRef ready) $ writeRef ready False
+            , label $ liftM (\b -> if b then "Ready." else "Computing...") $ readRef ready
             ]
 
-    , (,) "Timer" $ Action $ do
+    , (,) "Timer" $ action $ do
         t <- newRef 0
         onChange (readRef t) $ \ti -> asyncWrite t (1 + ti) (10^6)
         return $ vcat
-            [ Label $ rEffect $ readRef $ showLens `lensMap` t
+            [ label $ readRef $ showLens `lensMap` t
             ]
 
     , (,) "System" $ notebook
 
-        [ (,) "Args" $ Action $ getArgs >>= \args -> return $ Label $ constSend $ unlines args
+        [ (,) "Args" $ action $ getArgs >>= \args -> return $ labelConst $ unlines args
 
-        , (,) "ProgName" $ Action $ getProgName >>= \args -> return $ Label $ constSend args
+        , (,) "ProgName" $ action $ getProgName >>= \args -> return $ labelConst args
 {-
-        , (,) "Env" $ Action $ do
+        , (,) "Env" $ action $ do
             v <- newRef "HOME"
             return $ vcat
                 [ entry v
@@ -101,8 +101,8 @@ main = runWidget $ notebook
                 ]
 -}
 {-        , (,) "Std I/O" $ let
-            put = hcat [ Label $ constSend "putStrLn", Entry (const $ return (), \re -> liftIO $ re putStrLn >> return ()) ]
-            get = Action $ do
+            put = hcat [ labelConst "putStrLn", Entry (const $ return (), \re -> liftIO $ re putStrLn >> return ()) ]
+            get = action $ do
                 ready <- newRef $ Just ""
                 onChange (liftM isJust $ readRef ready) $ \b -> case b of
                     False -> register ready $ \re -> do
@@ -113,32 +113,32 @@ main = runWidget $ notebook
                     _ -> return ()
                 return $ hcat 
                     [ Button (constSend "getLine") (rEffect $ liftM isJust $ readRef ready) $ toReceive $ const $ writeRef ready Nothing
-                    , Label $ rEffect $ liftM (maybe "" id) $ readRef ready
+                    , label $ liftM (maybe "" id) $ readRef ready
                     ]
            in vcat [ put, put, put, get, get, get ]
 -}        ]
 
-    , (,) "IntListEditor" $ Action $ do
+    , (,) "IntListEditor" $ action $ do
         state <- fileRef "intListEditorState.txt"
         settings <- fileRef "intListEditorSettings.txt"
         return $ intListEditor (justLens "" `lensMap` state) (justLens "" `lensMap` settings)
     , (,) "Tri" tri
     , (,) "T-Editor1" tEditor1
-    , (,) "T-Editor3" $ Action $ newRef (iterate (Node Leaf) Leaf !! 10) >>= tEditor3
+    , (,) "T-Editor3" $ action $ newRef (iterate (Node Leaf) Leaf !! 10) >>= tEditor3
 
     ]
 
 justLens :: a -> Lens (Maybe a) a
 justLens a = lens (maybe a id) (const . Just)
 
-counter a b = Action $ do
+counter a b = action $ do
     c <- newRef 0
     let c' = joinRef $ do
             av <- readRef a
             bv <- readRef b
             return $ iso (min bv . max av) id `lensMap` c
     return $ vcat
-        [ Label $ rEffect $ liftM show $ readRef c'
+        [ label $ liftM show $ readRef c'
         , hcat
             [ smartButton (return "+1") ((\x -> liftM (min x) $ readRef b) . (+1)) c'
             , smartButton (return "-1") ((\x -> liftM (max x) $ readRef a) . (+(-1))) c'

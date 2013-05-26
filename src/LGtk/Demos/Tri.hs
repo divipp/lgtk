@@ -29,12 +29,12 @@ setXY x s = take 2 $ XY x : filter (\x-> case x of XY _ -> False; _ -> True) s
 
 -- | The editor
 tri :: EffRef m => Widget m
-tri = Action $ do
+tri = action $ do
     s <- newRef [X 0, Y 0]
     return $ vcat
-        [ hcat [entry $ showLens . lens getX setX `lensMap` s, Label $ constSend "x"]
-        , hcat [entry $ showLens . lens getY setY `lensMap` s, Label $ constSend "y"]
-        , hcat [entry $ showLens . lens getXY setXY `lensMap` s, Label $ constSend "x + y"]
+        [ hcat [entry $ showLens . lens getX setX `lensMap` s, labelConst "x"]
+        , hcat [entry $ showLens . lens getY setY `lensMap` s, labelConst "y"]
+        , hcat [entry $ showLens . lens getXY setXY `lensMap` s, labelConst "x + y"]
         ]
 
 

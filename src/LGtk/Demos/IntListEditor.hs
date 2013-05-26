@@ -19,7 +19,7 @@ intListEditor
     => Ref m String         -- ^ state reference
     -> Ref m String         -- ^ settings reference
     -> Widget m
-intListEditor state settings = Action $ do
+intListEditor state settings = action $ do
     list <- extRef state showLens []
     (undo, redo)  <- undoTr ((==) `on` map fst) list
     range <- extRef settings showLens True
@@ -49,21 +49,21 @@ intListEditor state settings = Action $ do
                 , sbutton (return "+1 Sel")     (map $ mapSel (+1))           list
                 , sbutton (return "-1 Sel")     (map $ mapSel (+(-1)))        list
                 ]
-            , Label $ rEffect $ liftM (("Sum: " ++) . show . sum . map fst) sel
-            , Action $ listEditor def (itemEditor list) list
+            , label $ liftM (("Sum: " ++) . show . sum . map fst) sel
+            , action $ listEditor def (itemEditor list) list
             ]
         , (,) "Settings" $ hcat
-            [ Label $ constSend "Create range"
+            [ labelConst "Create range"
             , checkbox range
             ]
         ]
  where
     itemEditor list i r = return $ hcat
-        [ Label $ constSend $ show (i+1) ++ "."
+        [ labelConst $ show (i+1) ++ "."
         , entry $ showLens . fstLens `lensMap` r
         , checkbox $ sndLens `lensMap` r
-        , Button (constSend "Del")  (const $ return ()) $ toReceive $ const $ modRef list $ \xs -> take i xs ++ drop (i+1) xs
-        , Button (constSend "Copy") (const $ return ()) $ toReceive $ const $ modRef list $ \xs -> take (i+1) xs ++ drop i xs
+        , button_ (return "Del")  (return True) $ modRef list $ \xs -> take i xs ++ drop (i+1) xs
+        , button_ (return "Copy") (return True) $ modRef list $ \xs -> take (i+1) xs ++ drop i xs
         ]
 
     modL' mr f b = do
@@ -87,7 +87,7 @@ intListEditor state settings = Action $ do
 
 listEditor :: EffRef m => a -> (Int -> Ref m a -> m (Widget m)) -> Ref m [a] -> m (Widget m)
 listEditor def ed = editor 0 where
-  editor i r = liftM Action $ memoRead $ do
+  editor i r = liftM action $ memoRead $ do
     q <- extRef r listLens (False, (def, []))
     t1 <- ed i $ fstLens . sndLens `lensMap` q
     t2 <- editor (i+1) $ sndLens . sndLens `lensMap` q
