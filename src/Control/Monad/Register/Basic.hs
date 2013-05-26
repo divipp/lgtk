@@ -79,7 +79,6 @@ evalRegister_ m ch = do
     vx <- newRef' $ error "evalRegister"
     (a, (), reg) <- runRWST m (ch . (>> join (runMorphD vx get))) ()
     runMorphD vx $ put $ runMonadMonoid $ fst reg
-    runMonadMonoid $ fst reg        -- needed?
     return a
 
 

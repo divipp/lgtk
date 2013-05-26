@@ -55,8 +55,10 @@ runWidget nio post' post = toWidget
     reg :: Receive n m a -> Receive IO m a
     reg s f = s $ liftM (fmap liftIO) . liftIO' . f . (nio .)
 
-    ger :: Send n m a -> Send IO m a
-    ger s f = s $ liftIO' . f
+    ger :: Send n m a -> (a -> IO ()) -> m ()
+    ger (x, s) f = do
+        liftIO' $ nio x >>= f
+        s $ liftIO' . f
 
     toWidget :: Widget n m -> m SWidget
     toWidget i = case i of

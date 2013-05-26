@@ -4,7 +4,6 @@
 {-# LANGUAGE UndecidableInstances #-}
 module Control.Monad.EffRef
     ( EffRef (..)
-    , rEffect
     , SafeIO (..)
     , EffIORef (..)
     , putStrLn_
@@ -51,9 +50,10 @@ class ExtRef m => EffRef m where
 
     toReceive :: Eq a => (a -> WriteRef m ()) -> ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m ()
 
-rEffect  :: (EffRef m, Eq a) => ReadRef m a -> (a -> EffectM m ()) -> m ()
-rEffect r f = onChange r $ return . liftEffectM' . f
+    rEffect  :: (EffRef m, Eq a) => ReadRef m a -> (EffectM m a, (a -> EffectM m ()) -> m ())
 
+rEffect_  :: (EffRef m, Eq a) => ReadRef m a -> (a -> EffectM m ()) -> m ()
+rEffect_ = snd . rEffect
 
 -- | This instance is used in the implementation, the end users do not need it.
 instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)) => EffRef (IdentityT m) where
@@ -64,6 +64,7 @@ instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)
 
     toReceive fm = toReceive_ (liftWriteRef . fm)
 
+    rEffect r = (liftWriteRef . liftReadPart $ r, \f -> onChange r $ return . liftEffectM' . f)
 
 -- | Type class for IO actions.
 class (EffRef m, SafeIO m, SafeIO (ReadRef m)) => EffIORef m where
@@ -128,7 +129,7 @@ instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)
     fileRef f = do
         ms <- liftIO' r
         ref <- newRef ms
-        rEffect (readRef ref) $ liftIO . w
+        rEffect_ (readRef ref) $ liftIO . w
         v <- liftIO' $ do
             v <- newEmptyMVar
             cf <- canonicalizePath f
