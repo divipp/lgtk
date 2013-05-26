@@ -44,7 +44,7 @@ instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)
 
     rEffect r f = onChange r $ liftEffectM . f
 
-    toSend b = toSend_ b . liftWriteRef . runR
+    toSend b = toSend_ b . liftWriteRef . liftReadPart
 
     toReceive fm = toReceive_ (liftWriteRef . fm)
 

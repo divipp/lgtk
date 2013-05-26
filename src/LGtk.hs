@@ -21,6 +21,7 @@ module LGtk
     , showLens
 
     -- * Restricted monads
+    , Morph
     , HasReadPart (..)
 
     -- * References
@@ -40,7 +41,6 @@ module LGtk
     , newRef
 
     -- ** Derived constructs
-    , ReadR
     , ReadRef
     , WriteRef
     , readRef'
@@ -118,7 +118,7 @@ smartButton
      ReadRef m String -> (a -> ReadRef m a) -> Ref m a -> Widget m
 smartButton s f k =
     button_ s (readRef k >>= \x -> liftM (/= x) $ f x)
-             (runR (readRef k) >>= runR . f >>= writeRef k)
+             (liftReadPart (readRef k) >>= liftReadPart . f >>= writeRef k)
 
 cell :: (EffRef m, Eq a) => Bool -> ReadRef m a -> (a -> m (Widget m)) -> Widget m
 cell b r g = Cell (toSend b r) $ Action . g
@@ -134,7 +134,7 @@ button
     => ReadRef m String
     -> ReadRef m (Maybe (WriteRef m ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
     -> Widget m
-button r fm = button_ r (liftM isJust fm) (runR fm >>= maybe (return ()) id)
+button r fm = button_ r (liftM isJust fm) (liftReadPart fm >>= maybe (return ()) id)
 
 button_
     :: EffRef m

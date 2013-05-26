@@ -28,11 +28,11 @@ class (Monad m, Monad (ReadPart m)) => HasReadPart m where
 
     type ReadPart m :: * -> *
 
-    runR :: Morph (ReadPart m) m
+    liftReadPart :: Morph (ReadPart m) m
 
 instance Monad m => HasReadPart (StateT s m) where
     type ReadPart (StateT s m) = Reader s
-    runR = gets . runReader
+    liftReadPart = gets . runReader
 
 
 newtype Ext n m a = Ext { unExt :: ReaderT (MorphD n m) m a }

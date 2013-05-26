@@ -15,7 +15,6 @@ module Control.Monad.ExtRef
     , ExtRef (..)
 
     -- * Derived constructs
-    , ReadR
     , ReadRef
     , WriteRef
     , readRef'
@@ -68,32 +67,30 @@ class (HasReadPart (RefMonad r)) => Reference r where
 
     type RefMonad r :: * -> *
 
-    readRef  :: r a -> ReadR r a
+    readRef  :: r a -> ReadPart (RefMonad r) a
     writeRef :: r a -> a -> RefMonad r ()
 
     lensMap :: Lens a b -> r a -> r b
-    joinRef :: ReadR r (r a) -> r a
+    joinRef :: ReadPart (RefMonad r) (r a) -> r a
     unitRef :: r ()
-
-type ReadR r = ReadPart (RefMonad r)
 
 infixr 8 `lensMap`
 
 modRef :: Reference r => r a -> (a -> a) -> RefMonad r ()
-r `modRef` f = runR (readRef r) >>= writeRef r . f
+r `modRef` f = liftReadPart (readRef r) >>= writeRef r . f
 
 type WriteRef m = RefMonad (Ref m)
 
-type ReadRef m = ReadR (Ref m)
+type ReadRef m = ReadPart (RefMonad (Ref m))
 
 readRef' :: ExtRef m => Ref m a -> m a
-readRef' = liftWriteRef . runR . readRef
+readRef' = liftWriteRef . liftReadPart . readRef
 
 -- | @memoRead g = liftM ($ ()) $ memoWrite $ const g@
 memoRead :: ExtRef m => m a -> m (m a)
 memoRead g = do
     s <- newRef Nothing
-    return $ liftWriteRef (runR (readRef s)) >>= \x -> case x of
+    return $ liftWriteRef (liftReadPart (readRef s)) >>= \x -> case x of
         Just a -> return a
         _ -> g >>= \a -> do
             liftWriteRef $ writeRef s $ Just a
@@ -102,7 +99,7 @@ memoRead g = do
 memoWrite :: (ExtRef m, Eq b) => (b -> m a) -> m (b -> m a)
 memoWrite g = do
     s <- newRef Nothing
-    return $ \b -> liftWriteRef (runR (readRef s)) >>= \x -> case x of
+    return $ \b -> liftWriteRef (liftReadPart (readRef s)) >>= \x -> case x of
         Just (b', a) | b' == b -> return a
         _ -> g b >>= \a -> do
             liftWriteRef $ writeRef s $ Just (b, a)
