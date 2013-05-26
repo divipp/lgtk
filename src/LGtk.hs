@@ -54,12 +54,19 @@ module LGtk
     , onChange
 
     -- * I/O
-    , EffIORef
+    , SafeIO
     , getArgs
     , getProgName
     , lookupEnv
+
+    , EffIORef
     , asyncWrite
+    , putStr_
+    , getLine_
     , fileRef
+
+    -- ** Derived
+    , putStrLn_
 
     -- * GUI
 
@@ -104,6 +111,10 @@ import qualified GUI.Gtk.Structures as Gtk
 import qualified GUI.Gtk.Structures.IO as Gtk
 import Control.Monad.ExtRef.Pure
 import Control.Monad.Restricted
+
+putStrLn_ :: EffIORef m => String -> m ()
+putStrLn_ = putStr_ . (++ "\n")
+
 
 type Widget m = Gtk.Widget (EffectM m) m
 

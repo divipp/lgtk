@@ -4,6 +4,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 module Control.Monad.EffRef
     ( EffRef (..)
+    , SafeIO (..)
     , EffIORef (..)
     ) where
 
@@ -11,21 +12,23 @@ import Control.Concurrent
 import Control.Monad
 import Control.Monad.Trans
 import Control.Monad.Trans.Identity
-import qualified System.Environment as Env
 import System.Directory
 import System.FSNotify
 import Filesystem.Path hiding (FilePath)
 import Filesystem.Path.CurrentOS hiding (FilePath)
 import Prelude hiding ((.), id)
 
+import Control.Monad.Restricted
 import Control.Monad.Register
 import Control.Monad.ExtRef
 
 class ExtRef m => EffRef m where
 
     onChange :: Eq a => ReadRef m a -> (a -> m ()) -> m ()
+    onChange r f = toSend False r $ return . f
 
     register :: Eq a => Ref m a -> ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m ()
+    register = toReceive . writeRef
 
     rEffect  :: Eq a => ReadRef m a -> (a -> EffectM m ()) -> m ()
 
@@ -38,10 +41,6 @@ class ExtRef m => EffRef m where
 
 instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)) => EffRef (IdentityT m) where
 
-    onChange r f = toSend False r $ return . f
-
-    register = toReceive . writeRef
-
     rEffect r f = onChange r $ liftEffectM . f
 
     toSend b = toSend_ b . liftWriteRef . liftReadPart
@@ -51,31 +50,27 @@ instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)
     constSend a f = liftEffectM $ f a
 
 
---liftIO' :: EffIORef_ m => IO a -> m a
-liftIO' m = liftEffectM $ liftIO m
-
-class EffRef m => EffIORef m where
+class (EffRef m, SafeIO m, SafeIO (ReadRef m)) => EffIORef m where
 
     asyncWrite :: Eq a => Ref m a -> a -> Int -> m ()
+    fileRef    :: FilePath -> m (Ref m (Maybe String))
+    putStr_    :: String -> m ()
+    getLine_   :: (String -> WriteRef m ()) -> m ()
 
-    getArgs     :: m [String]
-    getProgName :: m String
-    lookupEnv   :: String -> m (Maybe String)
+    registerIO :: Eq a => (a -> WriteRef m ()) -> ((a -> IO ()) -> IO (Command -> IO ())) -> m ()
 
-    fileRef :: FilePath -> m (Ref m (Maybe String))
-
-    registerIO :: Eq a => Ref m a -> ((a -> IO ()) -> IO (Command -> IO ())) -> m ()
-
-instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m), MonadIO' (EffectM m)) => EffIORef (IdentityT m) where
+instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m), MonadIO' (EffectM m), SafeIO (ReadRef m), SafeIO m) => EffIORef (IdentityT m) where
 
     registerIO r fm
-        = toReceive (writeRef r) $ \x -> unliftIO $ \u -> liftM (fmap liftIO) $ liftIO $ fm $ u . x
+        = toReceive r $ \x -> unliftIO $ \u -> liftM (fmap liftIO) $ liftIO $ fm $ u . x
 
-    asyncWrite r a t = registerIO r $ \re -> forkIOs [ threadDelay t, re a ]
+    asyncWrite r a t = registerIO (writeRef r) $ \re -> forkIOs [ threadDelay t, re a ]
 
-    getArgs = liftIO' Env.getArgs
-    getProgName = liftIO' Env.getProgName
-    lookupEnv = liftIO' . Env.lookupEnv
+    putStr_ = liftIO' . putStr
+
+    getLine_ w = registerIO w $ \re -> do
+        forkIO $ getLine >>= re
+        return $ const $ return ()  -- TODO
 
     fileRef f = do
         ms <- liftIO' r
@@ -100,7 +95,7 @@ instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)
             man <- startManager
             watchDir man (directory cf') filt act
             return v
-        registerIO ref $ \re -> forkForever $ liftIO $ takeMVar v >>= re
+        registerIO (writeRef ref) $ \re -> forkForever $ liftIO $ takeMVar v >>= re
         return ref
      where
         r = do
@@ -111,6 +106,10 @@ instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)
              else return Nothing
 
         w = maybe (doesFileExist f >>= \b -> when b (removeFile f)) (writeFile f)
+
+
+--liftIO' :: EffIORef_ m => IO a -> m a
+liftIO' m = liftEffectM $ liftIO m
 
 forkForever :: IO () -> IO (Command -> IO ())
 forkForever = forkIOs . repeat

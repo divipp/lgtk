@@ -11,6 +11,7 @@ module Control.Monad.Restricted
     , HasReadPart (..)
     , Ext (..), lift', runExt
     , MonadIO' (..)
+    , SafeIO (..)
     , NewRef (..)
     , MonadMonoid (..)
     ) where
@@ -19,6 +20,9 @@ import Data.Monoid
 import Control.Concurrent
 import Control.Monad.State
 import Control.Monad.Reader
+import Control.Monad.RWS
+import Control.Monad.Trans.Identity
+import qualified System.Environment as Env
 
 type Morph m n = forall a . m a -> n a
 
@@ -62,6 +66,35 @@ instance MonadIO' (ReaderT r IO) where
         x <- ask
         f $ \m -> runReaderT m x
 
+class Monad m => SafeIO m where
+
+    getArgs     :: m [String]
+    getProgName :: m String
+    lookupEnv   :: String -> m (Maybe String)
+
+instance SafeIO IO where
+
+    getArgs     = Env.getArgs
+    getProgName = Env.getProgName
+    lookupEnv   = Env.lookupEnv
+
+instance SafeIO m => SafeIO (Ext n m) where
+
+    getArgs     = lift getArgs
+    getProgName = lift getProgName
+    lookupEnv   = lift . lookupEnv
+
+instance SafeIO m => SafeIO (IdentityT m) where
+
+    getArgs     = lift getArgs
+    getProgName = lift getProgName
+    lookupEnv   = lift . lookupEnv
+
+instance (SafeIO m, Monoid w) => SafeIO (RWST r w s m) where
+
+    getArgs     = lift getArgs
+    getProgName = lift getProgName
+    lookupEnv   = lift . lookupEnv
 
 class Monad m => NewRef m where
     newRef' :: forall a . a -> m (MorphD (State a) m)

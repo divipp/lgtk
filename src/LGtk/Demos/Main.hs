@@ -40,7 +40,7 @@ main = runWidget $ notebook
                     , smartButton (return "-1") (return . max 1 . (+(-1))) c
                     ]
                 ]
-{-
+
         , (,) "a..b" $ action $ do
             a <- newRef 1
             b <- newRef 3
@@ -55,7 +55,7 @@ main = runWidget $ notebook
                 , hcat [ labelConst "min", entry $ showLens `lensMap` a' ]
                 , hcat [ labelConst "max", entry $ showLens `lensMap` b' ]
                 ]
--}
+
         ]
 
     , (,) "TabSwitch" $ action $ do
@@ -92,31 +92,32 @@ main = runWidget $ notebook
         [ (,) "Args" $ action $ getArgs >>= \args -> return $ labelConst $ unlines args
 
         , (,) "ProgName" $ action $ getProgName >>= \args -> return $ labelConst args
-{-
+
         , (,) "Env" $ action $ do
             v <- newRef "HOME"
             return $ vcat
                 [ entry v
-                , Label $ \re -> unliftIO $ \u -> rEffectIO (readRef v) $ \s -> lookupEnv s >>= u . re . maybe "Not in env." show
+                , label $ readRef v >>= liftM (maybe "Not in env." show) . lookupEnv 
                 ]
--}
-{-        , (,) "Std I/O" $ let
-            put = hcat [ labelConst "putStrLn", Entry (const $ return (), \re -> liftIO $ re putStrLn >> return ()) ]
+
+        , (,) "Std I/O" $ let
+            put = action $ do
+                x <- newRef ""
+                onChange (readRef x) putStrLn_
+                return $ hcat 
+                    [ labelConst "putStrLn"
+                    , entry x
+                    ]
             get = action $ do
                 ready <- newRef $ Just ""
-                onChange (liftM isJust $ readRef ready) $ \b -> case b of
-                    False -> register ready $ \re -> do
-                        forkIO $ do
-                            l <- getLine
-                            re $ Just l
-                        return $ const $ return ()  -- ok (no block)?
-                    _ -> return ()
+                onChange (liftM isJust $ readRef ready) $ \b -> 
+                    when (not b) $ getLine_ $ writeRef ready . Just
                 return $ hcat 
-                    [ Button (constSend "getLine") (rEffect $ liftM isJust $ readRef ready) $ toReceive $ const $ writeRef ready Nothing
-                    , label $ liftM (maybe "" id) $ readRef ready
+                    [ button_ (return "getLine") (liftM isJust $ readRef ready) $ writeRef ready Nothing
+                    , label $ liftM (maybe "<<<waiting for input>>>" id) $ readRef ready
                     ]
            in vcat [ put, put, put, get, get, get ]
--}        ]
+        ]
 
     , (,) "IntListEditor" $ action $ do
         state <- fileRef "intListEditorState.txt"

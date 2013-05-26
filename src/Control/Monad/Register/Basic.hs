@@ -56,9 +56,9 @@ instance NewRef m => MonadRegister (Register m) where
 t1 m = (MonadMonoid m, mempty)
 t2 m = (mempty, MonadMonoid . m)
 
-evalRegister :: forall k a . (NewRef k, ExtRef k, MonadIO k)
+evalRegister :: forall k a . (NewRef k, ExtRef k, MonadIO k, SafeIO k)
     => (forall t . (MonadTrans t, MonadRegister (t k), MonadIO (t k)
-       , ExtRef (t k), Ref (t k) ~ Ref k, EffectM (t k) ~ k) => t k a)
+       , ExtRef (t k), Ref (t k) ~ Ref k, EffectM (t k) ~ k, SafeIO (t k)) => t k a)
     -> (k () -> k ())
     -> k a
 evalRegister m = evalRegister_ m

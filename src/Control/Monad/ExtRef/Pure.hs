@@ -2,6 +2,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 {- |
 Pure reference implementation for the @ExtRef@ interface.
 
@@ -16,13 +17,14 @@ import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Identity
 import Control.Category
-import qualified Control.Arrow as Arrow
+import Control.Arrow ((***))
 import Data.Sequence
 import Data.Lens.Common
 import Data.Foldable (toList)
 import Prelude hiding ((.), id, splitAt, length)
 
 import Unsafe.Coerce
+import System.IO.Unsafe
 
 import Control.Monad.Restricted
 import Control.Monad.ExtRef
@@ -70,7 +72,7 @@ instance Monad m => ExtRef (StateT LSt m) where
 
         extend x0 = (lens get set, x0 |> CC kr (kr x0 a0))
           where
-            limit = (id Arrow.*** toList) . splitAt (length x0)
+            limit = (id *** toList) . splitAt (length x0)
 
             get = unsafeData . head . snd . limit
 
@@ -88,10 +90,21 @@ instance (ExtRef n, Monad m) => ExtRef (Ext n m) where
 runExtRef :: Monad m => (forall t . (MonadTrans t, ExtRef (t m)) => t m a) -> m a
 runExtRef s = evalStateT s initLSt
 
+
+instance SafeIO (Reader (Seq CC)) where
+
+    getArgs     = runSafeIO getArgs
+    getProgName = runSafeIO getProgName
+    lookupEnv   = runSafeIO . lookupEnv
+
+runSafeIO :: Monad m => IO a -> m a
+runSafeIO = return . unsafePerformIO
+
+
 -- | Advanced running of the @ExtRef@ monad.
 runExtRef_
     :: forall m a . NewRef m
-    => (forall t . (MonadTrans t, ExtRef (t m), NewRef (t m), MonadIO' (t IO)) => t m a)
+    => (forall t . (MonadTrans t, ExtRef (t m), NewRef (t m), MonadIO' (t IO), SafeIO (ReadRef (t IO)), SafeIO (t IO)) => t m a)
     -> m a
 --    -> (Morph (Ext (State LSt) m) m -> Ext (State LSt) m a) -> m a
 runExtRef_ f = newRef' initLSt >>= flip runExt f
