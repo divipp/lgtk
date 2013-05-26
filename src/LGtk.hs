@@ -20,7 +20,7 @@ module LGtk
     -- ** Impure lenses
     , showLens
 
-    -- * Restricted monads
+    -- * Auxiliary definitions
     , Morph
     , HasReadPart (..)
 
@@ -39,15 +39,14 @@ module LGtk
     , Ref
     , extRef
     , newRef
-
-    -- ** Derived constructs
     , ReadRef
     , WriteRef
     , readRef'
-    , undoTr
-    , memoRead
-    , memoWrite
+
+    -- ** Derived constructs
     , modRef
+    , memoRead
+    , undoTr
 
     -- * Dynamic networks
     , EffRef

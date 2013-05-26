@@ -8,16 +8,16 @@ module Control.Monad.ExtRef
     -- * Restricted monads
     , HasReadPart (..)
 
-    -- * Reference classes
+    -- * Reference class
     , Reference (..)
 
-    -- * Ref construction classes
+    -- * Ref construction class
     , ExtRef (..)
+    , readRef'
 
     -- * Derived constructs
     , ReadRef
     , WriteRef
-    , readRef'
     , modRef
     , undoTr
     , memoRead
@@ -51,31 +51,62 @@ import Prelude hiding ((.), id)
 import Control.Monad.Restricted
 
 {- |
-Laws for pure references:
+A reference @r a@ is isomorphic to @'Lens' s a@ for some fixed state @s@.
 
- *  @(readRef r >> return ())@ === @(return ())@
-
- *  @(readRef r >>= writeRef r)@ === @(return ())@
-
- *  @(writeRef r a >> readRef r)@ === @(return a)@
-
- *  @(writeRef r a >> writeRef r a')@ === @(writeRef r a')@
-
-These laws are equivalent to the get-no-effect, set-get, get-set and set-set laws for monadic lenses.
+ *  @r  ===  Lens s@
 -}
 class (HasReadPart (RefMonad r)) => Reference r where
 
+    {- | @Refmonad r  ===  State s@
+
+    Property erived from the 'HasReadPart' instance:
+
+     *  @ReadPart (Refmonad r)  ===  Reader s@
+    -}
     type RefMonad r :: * -> *
 
+    {- | @readRef === reader . getL@
+
+    Property derived from the set-get law for lenses:
+
+     *  @(readRef r >>= writeRef r)@ === @return ()@
+
+    Properties derived from the 'HasReadPart' instance:
+
+     *  @(readRef r >> return ())@ === @return ()@
+    -}
     readRef  :: r a -> ReadPart (RefMonad r) a
+
+    {- | @writeRef r === modify . setL r@
+
+    Properties derived from the get-set and set-set laws for lenses:
+
+     *  @(writeRef r a >> readRef r)@ === @return a@
+
+     *  @(writeRef r a >> writeRef r a')@ === @writeRef r a'@
+    -}
     writeRef :: r a -> a -> RefMonad r ()
 
+    {- | Apply a lens on a reference.
+
+    @lensMap === (.)@
+    -}
     lensMap :: Lens a b -> r a -> r b
+
+    {- | @joinRef@ makes possible to define dynamic references, i.e. references which depends on
+    values of other references.
+    It is not possible to create new reference dynamically with @joinRef@; for that, see 'onChange'.
+
+    @joinRef === Lens . join . (runLens .) . runReader@
+    -}
     joinRef :: ReadPart (RefMonad r) (r a) -> r a
+
+    -- | @unitRef === lens (const ()) (const id)@
     unitRef :: r ()
 
 infixr 8 `lensMap`
 
+-- | @modRef r f = liftReadPart (readRef r) >>= writeRef r . f@
 modRef :: Reference r => r a -> (a -> a) -> RefMonad r ()
 r `modRef` f = liftReadPart (readRef r) >>= writeRef r . f
 
@@ -83,10 +114,29 @@ type WriteRef m = RefMonad (Ref m)
 
 type ReadRef m = ReadPart (RefMonad (Ref m))
 
+{- | @readRef@ lifted to the reference creation class.
+
+Note that we do not lift @writeRef@ to the reference creation class, which a crucial restriction
+in the LGtk interface; this is a feature.
+-}
 readRef' :: ExtRef m => Ref m a -> m a
 readRef' = liftWriteRef . liftReadPart . readRef
 
--- | @memoRead g = liftM ($ ()) $ memoWrite $ const g@
+{- | Lazy monadic evaluation.
+In case of @y <- memoRead x@, invoking @y@ will invoke @x@ at most once.
+
+Laws:
+
+ *  @(memoRead x >> return ())@ === @return ()@
+
+ *  @(memoRead x >>= id)@ === @x@
+
+ *  @(memoRead x >>= \y -> liftM2 (,) y y)@ === @liftM (\a -> (a, a)) y@
+
+ *  @(memoRead x >>= \y -> liftM3 (,) y y y)@ === @liftM (\a -> (a, a, a)) y@
+
+ *  ...
+-}
 memoRead :: ExtRef m => m a -> m (m a)
 memoRead g = do
     s <- newRef Nothing
@@ -106,39 +156,48 @@ memoWrite g = do
             return a
 
 
-{- |
-Suppose that @r@ is a pure reference and @k@ is a pure lens.
+{- | Monad for reference creation. Reference creation is not a method
+of the 'Reference' type class to make possible to
+create the same type of references in multiple monads.
 
-The following laws should hold:
+@(Extref m) === (StateT s m)@, where 's' is an extendible state.
 
- *  @(extRef r k a0 >>= readRef)@ === @(readRef r >>= setL k a0)@
-
- *  @(extRef r k a0 >> readRef r)@ === @(readRef r)@
-
-Given @s <- extRef r k a0@, the following laws should hold:
-
- *  @s@ is a pure reference
-
- *  @(k . s)@ === @r@
-
-Law for @newRef@ when @extRef@ is defined:
-
- *  @(newRew x)@ === @(extRef unitLens unitLens x)@
-
-For basic usage examples, look into the source of "Control.Monad.ExtRef.Pure.Test".
+For basic usage examples, look into the source of @Control.Monad.ExtRef.Pure.Test@.
 -}
 class (Monad m, Reference (Ref m)) => ExtRef m where
 
     type Ref m :: * -> *
 
+    -- | @'WriteRef' m@ is a submonad of @m@.
     liftWriteRef :: Morph (WriteRef m) m
 
+    {- | Reference creation by extending the state of an existing reference.
+
+    Suppose that @r@ is a reference and @k@ is a lens.
+
+    Law 1: @extRef@ applies @k@ on @r@ backwards, i.e. 
+    the result of @(extRef r k a0)@ should behaves exactly as @(lensMap k r)@.
+
+     *  @(liftM (k .) $ extRef r k a0)@ === @return r@
+
+    Law 2: @extRef@ does not change the value of @r@:
+
+     *  @(extRef r k a0 >> readRef r)@ === @(readRef r)@
+
+    Law 3: Proper initialization of newly defined reference with @a0@:
+
+     *  @(extRef r k a0 >>= readRef)@ === @(readRef r >>= setL k a0)@
+    -}
     extRef :: Ref m b -> Lens a b -> a -> m (Ref m a)
 
-    -- | @newRef = extRef unitRef $ lens (const ()) (const id)@
+    {- | @newRef@ extends the state @s@ in an independent way.
+
+    @newRef === extRef unitRef (lens (const ()) (const id))@
+    -}
     newRef :: a -> m (Ref m a)
     newRef = extRef unitRef $ lens (const ()) (const id)
 
+-- | This instance is used in the implementation, the end users do not need it.
 instance (ExtRef m, Monoid w) => ExtRef (WriterT w m) where
 
     type Ref (WriterT w m) = Ref m
@@ -146,7 +205,7 @@ instance (ExtRef m, Monoid w) => ExtRef (WriterT w m) where
     liftWriteRef = lift . liftWriteRef
 
     extRef x y a = lift $ extRef x y a
-
+{-
 instance (ExtRef m) => ExtRef (ReaderT s m) where
 
     type Ref (ReaderT s m) = Ref m
@@ -154,7 +213,9 @@ instance (ExtRef m) => ExtRef (ReaderT s m) where
     liftWriteRef = lift . liftWriteRef
 
     extRef r k a = lift $ extRef r k a
+-}
 
+-- | This instance is used in the implementation, the end users do not need it.
 instance (ExtRef m) => ExtRef (IdentityT m) where
 
     type Ref (IdentityT m) = Ref m
@@ -163,6 +224,7 @@ instance (ExtRef m) => ExtRef (IdentityT m) where
 
     extRef r k a = lift $ extRef r k a
 
+-- | This instance is used in the implementation, the end users do not need it.
 instance (ExtRef m, Monoid w) => ExtRef (RWST r w s m) where
 
     type Ref (RWST r w s m) = Ref m
@@ -172,7 +234,7 @@ instance (ExtRef m, Monoid w) => ExtRef (RWST r w s m) where
     extRef r k a = lift $ extRef r k a
 
 
--- | Undo-redo state transformation
+-- | Undo-redo state transformation.
 undoTr
     :: ExtRef m =>
        (a -> a -> Bool)     -- ^ equality on state
