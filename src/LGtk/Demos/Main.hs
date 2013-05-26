@@ -73,7 +73,7 @@ main = runWidget $ notebook
             True -> return ()
             False -> do
                 d <- readRef' delay
-                asyncWrite ready True $ ceiling $ 10^6 * d
+                asyncWrite (ceiling $ 10^6 * d) (writeRef ready) True
         return $ vcat
             [ hcat [ entry $ showLens `lensMap` delay, labelConst "sec" ]
             , button_ (readRef delay >>= \d -> return $ "Start " ++ show d ++ " sec computation") (readRef ready) $ writeRef ready False

@@ -155,13 +155,13 @@ button_
 button_ r x y = Button (rEffect r) (rEffect x) (toReceive $ \() -> y)
 
 checkbox :: EffRef m => Ref m Bool -> Widget m
-checkbox r = Checkbox (rEffect (readRef r), register r)
+checkbox r = Checkbox (rEffect (readRef r), toReceive $ writeRef r)
 
 combobox :: EffRef m => [String] -> Ref m Int -> Widget m
-combobox ss r = Combobox ss (rEffect (readRef r), register r)
+combobox ss r = Combobox ss (rEffect (readRef r), toReceive $ writeRef r)
 
 entry :: EffRef m => Ref m String -> Widget m
-entry r = Entry (rEffect (readRef r), register r)
+entry r = Entry (rEffect (readRef r), toReceive $ writeRef r)
 
 notebook :: EffRef m => [(String, m (Widget m))] -> Widget m
 notebook xs = Action $ do
@@ -169,7 +169,7 @@ notebook xs = Action $ do
     let f index (title, w) = (,) title $ cell (liftM (== index) $ readRef currentPage) h where
            h False = return $ hcat []
            h True = w
-    return $ Notebook' (register currentPage) $ zipWith f [0..] xs
+    return $ Notebook' (toReceive $ writeRef currentPage) $ zipWith f [0..] xs
 
 action :: EffRef m => m (Widget m) -> Widget m
 action = Action

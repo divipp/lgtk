@@ -86,30 +86,40 @@ instance MonadIO' (ReaderT r IO) where
         x <- ask
         f $ \m -> runReaderT m x
 
+-- | Type class for effectless, synchronous @IO@ actions.
 class Monad m => SafeIO m where
 
+    -- | The program's command line arguments (not including the program name). 
     getArgs     :: m [String]
+
+    -- | The name of the program as it was invoked.
     getProgName :: m String
+
+    -- | @getEnv var@ returns the value of the environment variable @var@.
     lookupEnv   :: String -> m (Maybe String)
 
+-- | This instance is used in the implementation, the end users do not need it.
 instance SafeIO IO where
 
     getArgs     = Env.getArgs
     getProgName = Env.getProgName
     lookupEnv   = Env.lookupEnv
 
+-- | This instance is used in the implementation, the end users do not need it.
 instance SafeIO m => SafeIO (Ext n m) where
 
     getArgs     = lift getArgs
     getProgName = lift getProgName
     lookupEnv   = lift . lookupEnv
 
+-- | This instance is used in the implementation, the end users do not need it.
 instance SafeIO m => SafeIO (IdentityT m) where
 
     getArgs     = lift getArgs
     getProgName = lift getProgName
     lookupEnv   = lift . lookupEnv
 
+-- | This instance is used in the implementation, the end users do not need it.
 instance (SafeIO m, Monoid w) => SafeIO (RWST r w s m) where
 
     getArgs     = lift getArgs
