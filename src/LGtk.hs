@@ -5,7 +5,7 @@
 -- | Main LGtk interface.
 module LGtk
     ( 
-    -- * Re-exported from "Control.Category"
+    -- * "Control.Category" re-export
       (.)
     , id
 
@@ -24,26 +24,32 @@ module LGtk
     , HasReadPart (..)
 
     -- * References
-    , Reference, RefMonad, readRef, (%), joinRef, unitRef
-    , ExtRef, Ref, extRef
+    -- ** Basic operations
+    , Reference
+    , RefMonad
+    , readRef
+    , writeRef
+    , lensMap
+    , joinRef
+    , unitRef
 
-    , writeRef  -- TODO: eliminate
-
-    -- ** Semi-derived constructs
-    , undoTr
-    , memoRead
-    , memoWrite
-
-    , modRef    -- TODO: eliminate
+    -- ** Reference creation
+    , ExtRef
+    , Ref
+    , extRef
+    , newRef
 
     -- ** Derived constructs
     , ReadR
     , ReadRef
     , WriteRef
     , readRef'
-    , newRef
+    , undoTr
+    , memoRead
+    , memoWrite
+    , modRef
 
-    -- * Binding effects to references
+    -- * Dynamic networks
     , EffRef
     , onChange
 
@@ -51,7 +57,7 @@ module LGtk
     , rEffect   -- TODO: eliminate
     , toReceive -- TODO: eliminate
 
-    -- * I/O effects
+    -- * I/O
     , EffIORef
     , getArgs
     , getProgName
@@ -59,22 +65,24 @@ module LGtk
     , asyncWrite
     , fileRef
 
-    -- * Gtk structures
-    , module GUI.Gtk.Structures   -- TODO: eliminate
-    , ListLayout (..)
+    -- * GUI
 
-    -- ** Derived constructs
+    -- ** Running
+    , runWidget
+
+    -- ** GUI descriptions
     , Widget
     , button
-    , smartButton
     , checkbox, combobox, entry
     , vcat, hcat
     , notebook
     , cell
     , action
+    , module GUI.Gtk.Structures   -- TODO: eliminate
 
-    -- ** Running GUI descriptions
-    , runWidget
+    -- ** Derived constructs
+    , smartButton
+
     ) where
 
 import Data.Maybe

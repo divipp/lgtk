@@ -46,14 +46,14 @@ main = runWidget $ notebook
             b <- newRef 3
             let a' = joinRef $ do
                     bv <- readRef b
-                    return $ lens id (const . min bv) % a
+                    return $ lens id (const . min bv) `lensMap` a
             let b' = joinRef $ do
                     av <- readRef a
-                    return $ lens id (const . max av) % b
+                    return $ lens id (const . max av) `lensMap` b
             return $ vcat
                 [ counter a' b'
-                , hcat [ Label $ constSend "min", entry $ showLens % a' ]
-                , hcat [ Label $ constSend "max", entry $ showLens % b' ]
+                , hcat [ Label $ constSend "min", entry $ showLens `lensMap` a' ]
+                , hcat [ Label $ constSend "max", entry $ showLens `lensMap` b' ]
                 ]
 -}
         ]
@@ -75,7 +75,7 @@ main = runWidget $ notebook
                 d <- readRef' delay
                 asyncWrite ready True $ ceiling $ 10^6 * d
         return $ vcat
-            [ hcat [ entry $ showLens % delay, Label $ constSend "sec" ]
+            [ hcat [ entry $ showLens `lensMap` delay, Label $ constSend "sec" ]
             , Button (rEffect $ readRef delay >>= \d -> return $ "Start " ++ show d ++ " sec computation") (rEffect $ readRef ready) $ toReceive $ const $ writeRef ready False
             , Label $ rEffect $ liftM (\b -> if b then "Ready." else "Computing...") $ readRef ready
             ]
@@ -84,7 +84,7 @@ main = runWidget $ notebook
         t <- newRef 0
         onChange (readRef t) $ \ti -> asyncWrite t (1 + ti) (10^6)
         return $ vcat
-            [ Label $ rEffect $ readRef $ showLens % t
+            [ Label $ rEffect $ readRef $ showLens `lensMap` t
             ]
 
     , (,) "System" $ notebook
@@ -121,7 +121,7 @@ main = runWidget $ notebook
     , (,) "IntListEditor" $ Action $ do
         state <- fileRef "intListEditorState.txt"
         settings <- fileRef "intListEditorSettings.txt"
-        return $ intListEditor (justLens "" % state) (justLens "" % settings)
+        return $ intListEditor (justLens "" `lensMap` state) (justLens "" `lensMap` settings)
     , (,) "Tri" tri
     , (,) "T-Editor1" tEditor1
     , (,) "T-Editor3" $ Action $ newRef (iterate (Node Leaf) Leaf !! 10) >>= tEditor3
@@ -136,7 +136,7 @@ counter a b = Action $ do
     let c' = joinRef $ do
             av <- readRef a
             bv <- readRef b
-            return $ iso (min bv . max av) id % c
+            return $ iso (min bv . max av) id `lensMap` c
     return $ vcat
         [ Label $ rEffect $ liftM show $ readRef c'
         , hcat

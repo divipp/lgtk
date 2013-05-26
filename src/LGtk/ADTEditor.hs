@@ -34,9 +34,9 @@ adtEditor :: (EffRef m, ADTLens a) => Ref m a -> m (Widget m)
 adtEditor = liftM Action . memoRead . editor  where
     editor r = do
         q <- extRef r k (0, ls)
-        es <- mkEditors ls $ sndLens % q
+        es <- mkEditors ls $ sndLens `lensMap` q
         return $ hcat
-            [ combobox (map fst ss) $ fstLens % q
+            [ combobox (map fst ss) $ fstLens `lensMap` q
             , cell True (liftM fst $ readRef q) $ \i -> return $ vcat [es !! j | j <- snd $ ss !! i]
             ]
       where
@@ -45,8 +45,8 @@ adtEditor = liftM Action . memoRead . editor  where
     mkEditors :: EffRef m => Elems xs -> Ref m (Elems xs) -> m [Widget m]
     mkEditors ElemsNil _ = return []
     mkEditors (ElemsCons _ xs) r = do
-        i <- adtEditor $ lHead % r
-        is <- mkEditors xs $ lTail % r
+        i <- adtEditor $ lHead `lensMap` r
+        is <- mkEditors xs $ lTail `lensMap` r
         return $ i : is
       where
         lHead = lens get set where

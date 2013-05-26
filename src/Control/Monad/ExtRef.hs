@@ -71,13 +71,13 @@ class (HasReadPart (RefMonad r)) => Reference r where
     readRef  :: r a -> ReadR r a
     writeRef :: r a -> a -> RefMonad r ()
 
-    (%) :: Lens a b -> r a -> r b
+    lensMap :: Lens a b -> r a -> r b
     joinRef :: ReadR r (r a) -> r a
     unitRef :: r ()
 
 type ReadR r = ReadPart (RefMonad r)
 
-infixr 8 %
+infixr 8 `lensMap`
 
 modRef :: Reference r => r a -> (a -> a) -> RefMonad r ()
 r `modRef` f = runR (readRef r) >>= writeRef r . f

@@ -36,7 +36,7 @@ instance Reference (Lens a) where
 
     writeRef r = modify . setL r
 
-    (%) = (.)
+    lensMap = (.)
 
     unitRef = lens (const ()) (const id)
 
