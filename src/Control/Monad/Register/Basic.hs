@@ -4,6 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Control.Monad.Register.Basic
     ( evalRegister
+    , evalRegisterBasic
     ) where
 
 import Control.Monad
@@ -60,10 +61,23 @@ evalRegister :: forall k a . (NewRef k, ExtRef k, MonadIO k)
        , ExtRef (t k), Ref (t k) ~ Ref k, EffectM (t k) ~ k) => t k a)
     -> (k () -> k ())
     -> k a
+evalRegister m = evalRegister_ m
 
-evalRegister m ch = do
+evalRegisterBasic
+    :: forall k a . NewRef k
+    => (forall t . (MonadTrans t, MonadRegister (t k)) => t k a)
+    -> (k () -> k ())
+    -> k a
+evalRegisterBasic m = evalRegister_ m
+
+evalRegister_
+    :: NewRef k
+    => (Register k a)
+    -> (k () -> k ())
+    -> k a
+evalRegister_ m ch = do
     vx <- newRef' $ error "evalRegister"
-    (a, (), reg) <- runRWST (m :: Register k a) (ch . (>> join (runMorphD vx get))) ()
+    (a, (), reg) <- runRWST m (ch . (>> join (runMorphD vx get))) ()
     runMorphD vx $ put $ runMonadMonoid $ fst reg
     runMonadMonoid $ fst reg        -- needed?
     return a
