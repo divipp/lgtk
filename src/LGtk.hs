@@ -150,8 +150,9 @@ vcat = List Vertical
 hcat :: [Widget m] -> Widget m
 hcat = List Horizontal
 
+-- | Dynamic cell.
 cell :: (EffRef m, Eq a) => ReadRef m a -> (a -> m (Widget m)) -> Widget m
-cell r g = Cell (onChange r) $ Action . g
+cell = Cell . onChange
 
 -- | Dynamic label.
 label :: EffRef m => ReadRef m String -> Widget m
