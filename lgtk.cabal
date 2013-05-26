@@ -37,18 +37,6 @@ library
 
                   , gtk
   exposed-modules:
-                    Control.Monad.Restricted
-
-                    Control.Monad.ExtRef
-                    Control.Monad.ExtRef.Test
-
-                    Control.Monad.Register
-
-                    Control.Monad.EffRef
-
-                    GUI.Gtk.Structures
-                    GUI.Gtk.Structures.IO
-
                     LGtk
                     LGtk.ADTEditor
 
@@ -57,9 +45,19 @@ library
                     LGtk.Demos.IntListEditor
                     LGtk.Demos.TEditor
   other-modules:
-                    Control.Monad.ExtRef.Pure
+                    Control.Monad.Restricted
 
+                    Control.Monad.ExtRef
+                    Control.Monad.ExtRef.Pure
+                    Control.Monad.ExtRef.Test
+
+                    Control.Monad.Register
                     Control.Monad.Register.Basic
+
+                    Control.Monad.EffRef
+
+                    GUI.Gtk.Structures
+                    GUI.Gtk.Structures.IO
   ghc-options: 
                     -threaded
                     -Wall 

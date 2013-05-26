@@ -2,23 +2,68 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
--- | The main LGtk interface, ideally users should import only this module.
+-- | Main LGtk interface.
 module LGtk
-    ( -- * Lenses and references
-      module Control.Monad.ExtRef
+    ( 
+    -- * Re-exported from "Control.Category"
+      (.)
+    , id
+
+    -- * Lenses
+    -- ** "Data.Lens.Common" module
+    , module Data.Lens.Common
+
+    -- ** Additional lenses
+    , listLens
+    , maybeLens
+
+    -- ** Impure lenses
+    , showLens
+
+    -- * Restricted monads
+    , HasReadPart (..)
+
+    -- * References
+    , Reference, RefMonad, readRef, (%), joinRef, unitRef
+    , ExtRef, Ref, extRef
+
+    , writeRef  -- TODO: eliminate
+
+    -- ** Semi-derived constructs
+    , undoTr
+    , memoRead
+    , memoWrite
+
+    , modRef    -- TODO: eliminate
+
+    -- ** Derived constructs
+    , ReadR
+    , ReadRef
+    , WriteRef
+    , readRef'
+    , newRef
 
     -- * Binding effects to references
-    , constSend
-    , liftIO
-    , module Control.Monad.EffRef
+    , EffRef
+    , EffIORef
+    , asyncWrite
+    , onChange
+
+    , constSend -- TODO: eliminate
+    , rEffect   -- TODO: eliminate
+    , toReceive -- TODO: eliminate
+
+    -- * I/O effects
+    , fileRef
+    , getArgs
+    , getProgName
+    , lookupEnv
 
     -- * Gtk structures
-    , module GUI.Gtk.Structures
+    , module GUI.Gtk.Structures   -- TODO: eliminate
+    , ListLayout (..)
 
-    -- * Running GUI descriptions
-    , runWidget
-
-    -- * Derived constructs
+    -- ** Derived constructs
     , Widget
     , button
     , smartButton
@@ -26,6 +71,9 @@ module LGtk
     , vcat, hcat
     , notebook
     , cell
+
+    -- ** Running GUI descriptions
+    , runWidget
     ) where
 
 import Data.Maybe
@@ -34,6 +82,7 @@ import Control.Concurrent
 import Control.Monad
 import Control.Monad.State
 import Prelude hiding ((.), id)
+import Data.Lens.Common
 
 import Control.Monad.ExtRef hiding (liftWriteRef)
 import qualified Control.Monad.ExtRef as ExtRef
