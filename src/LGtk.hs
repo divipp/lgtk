@@ -98,11 +98,12 @@ module LGtk
 
     -- ** Derived constructs
     , empty
-    , cell
-    , cellNoMemo
+    , entryShow
     , button
     , smartButton
     , smartButton', EqRef (..), toRef
+    , cell
+    , cellNoMemo
 
     ) where
 
@@ -205,7 +206,7 @@ toRef :: ExtRef m => EqRef m a -> Ref m a
 toRef (EqRef r k) = k `lensMap` r
 
 smartButton'
-    :: (EffRef m, Eq a)
+    :: EffRef m
     => ReadRef m String     -- ^ dynamic label of the button
     -> EqRef m a              -- ^ underlying reference
     -> (a -> a)   -- ^ The button is active when this function changes the value of the reference.
@@ -226,6 +227,10 @@ combobox ss r = Combobox ss (rEffect True (readRef r), toReceive $ writeRef r)
 -- | Text entry.
 entry :: EffRef m => Ref m String -> Widget m
 entry r = Entry (rEffect True (readRef r), toReceive $ writeRef r)
+
+-- | Text entry.
+entryShow :: (EffRef m, Show a, Read a) => Ref m a -> Widget m
+entryShow r = entry $ showLens `lensMap` r
 
 {- | Notebook (tabs).
 

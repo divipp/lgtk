@@ -41,15 +41,15 @@ main = runWidget $ notebook
         , (,) "a..b" $ action $ do
             ab <- newRef (1, 3)
             let (a, b) = interval ab
-            c <- counter ab
+            c <- counter 0 ab
             return $ vcat
                 [ label $ liftM show $ readRef $ toRef c
                 , hcat
                     [ smartButton' (return "+1") c (+1)
                     , smartButton' (return "-1") c (+(-1))
                     ]
-                , hcat [ label $ return "min", entry $ showLens `lensMap` a ]
-                , hcat [ label $ return "max", entry $ showLens `lensMap` b ]
+                , hcat [ label $ return "min", entryShow a ]
+                , hcat [ label $ return "max", entryShow b ]
                 ]
 
         ]
@@ -75,7 +75,7 @@ main = runWidget $ notebook
                 d <- readRef' delay
                 asyncWrite (ceiling $ 10^6 * d) (writeRef ready) True
         return $ vcat
-            [ hcat [ entry $ showLens `lensMap` delay, label $ return "sec" ]
+            [ hcat [ entryShow delay, label $ return "sec" ]
             , button_ (readRef delay >>= \d -> return $ "Start " ++ show d ++ " sec computation") (readRef ready) $ writeRef ready False
             , label $ liftM (\b -> if b then "Ready." else "Computing...") $ readRef ready
             ]
@@ -132,9 +132,9 @@ main = runWidget $ notebook
 justLens :: a -> Lens (Maybe a) a
 justLens a = lens (maybe a id) (const . Just)
 
-counter :: EffRef m => Ref m (Integer, Integer) -> m (EqRef m Integer)
-counter ab = do
-    c <- extRef ab (sndLens . fix) (0, (0, 0))
+counter :: (EffRef m, Ord a) => a -> Ref m (a, a) -> m (EqRef m a)
+counter x ab = do
+    c <- extRef ab (sndLens . fix) (x, (x, x))
     return $ EqRef c $ fstLens . fix
   where
     fix = iso id $ \(x, ab@(a, b)) -> (min b $ max a x, ab)

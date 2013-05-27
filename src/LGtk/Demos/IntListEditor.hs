@@ -29,7 +29,7 @@ intListEditor state settings = action $ do
     return $ notebook
         [ (,) "Editor" $ vcat
             [ hcat
-                [ entry $ joinRef $ liftM (\k -> showLens . k `lensMap` list) len
+                [ entryShow $ joinRef $ liftM (`lensMap` list) len
                 , smartButton (return "+1") list $ modL' len (+1)
                 , smartButton (return "-1") list $ modL' len (+(-1))
                 , smartButton (liftM (("DeleteAll " ++) . show) $ len >>= \k -> readRef $ k `lensMap` list) list $ modL' len $ const 0
@@ -60,7 +60,7 @@ intListEditor state settings = action $ do
  where
     itemEditor list i r = return $ hcat
         [ label $ return $ show (i+1) ++ "."
-        , entry $ showLens . fstLens `lensMap` r
+        , entryShow $ fstLens `lensMap` r
         , checkbox $ sndLens `lensMap` r
         , button_ (return "Del")  (return True) $ modRef list $ \xs -> take i xs ++ drop (i+1) xs
         , button_ (return "Copy") (return True) $ modRef list $ \xs -> take (i+1) xs ++ drop i xs
