@@ -115,13 +115,14 @@ runWidget nio post' post = toWidget
                 False -> fmap castToContainer $ alignmentNew 0 0 1 1
             sh <- liftIO $ newMVar $ return ()
             onCh $ \bv -> do
-                  mx <- f toWidget bv
-                  return $ mx >>= \x -> liftIO' $ do 
-                      _ <- swapMVar sh $ fst x
-                      post' $ post $ fst x
-                      containerForeach w $ if b then widgetHideAll else containerRemove w 
-                      ch <- containerGetChildren w
-                      when (snd x `notElem` ch) $ containerAdd w $ snd x
+                mx <- f toWidget bv
+                return $ mx >>= \(x, y) -> liftIO' $ do 
+                    _ <- swapMVar sh x
+                    containerForeach w $ if b then widgetHideAll else containerRemove w 
+                    post' $ post $ do
+                        ch <- containerGetChildren w
+                        when (y `notElem` ch) $ containerAdd w y
+                        x
             liftM (mapFst (join (readMVar sh) >>)) $ return'' [] w
 
 on' :: GObjectClass x => x -> Signal x c -> c -> IO (Command -> IO ())
@@ -135,9 +136,6 @@ return' w = return (widgetShowAll w, castToWidget w)
 
 return'' :: Monad m => WidgetClass x => [SWidget] -> x -> m SWidget
 return'' ws w = return (mapM_ fst ws >> widgetShow w, castToWidget w)
-
-void' :: Monad m => m a -> m ()
-void' m = m >> return ()
 
 mapFst f (a, b) = (f a, b)
 
