@@ -72,11 +72,14 @@ runWidget nio post' post = toWidget
             w <- liftIO' $ labelNew Nothing
             ger nhd s $ labelSetLabel w
             return' w
-        Button s sens m -> do
+        Button s sens col m -> do
             w <- liftIO' buttonNew
             hd <- reg m $ \re -> on' w buttonActivated $ re ()
             ger hd s $ buttonSetLabel w
             ger hd sens $ widgetSetSensitive w
+            ger hd col $ \c -> do
+                widgetModifyBg w StateNormal c
+                widgetModifyBg w StatePrelight c
             return' w
         Entry (r, s) -> do
             w <- liftIO' entryNew

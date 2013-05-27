@@ -7,7 +7,11 @@ module GUI.Gtk.Structures
     , SendReceive
     , Widget (..)
     , ListLayout (..)
+    , Color (..)
     ) where
+
+--import Graphics.UI.Gtk (Color)
+import Graphics.UI.Gtk.Gdk.GC (Color (Color))
 
 import Control.Monad.Register (Command (..))
 
@@ -20,6 +24,7 @@ data Widget n m
     = Label (Send n m String)     -- ^ label
     | Button { label_  :: Send n m String
              , sensitive_ :: Send n m Bool
+             , color_ :: Send n m Color
              , action_ :: Receive n m ()
              }  -- ^ button
     | Checkbox (SendReceive n m Bool)         -- ^ checkbox

@@ -94,6 +94,7 @@ module LGtk
     -- ** GUI descriptions
     , label
     , button_
+    , Color (..)
     , checkbox
     , combobox
     , entry
@@ -110,6 +111,9 @@ module LGtk
     , smartButton
     , cell
     , cellNoMemo
+
+    -- ** Experimental
+    , button__
 
     ) where
 
@@ -181,6 +185,16 @@ empty = hcat []
 label :: EffRef m => ReadRef m String -> Widget m
 label = Label . rEffect True
 
+-- | Low-level button with changeable background color.
+button__
+    :: EffRef m
+    => ReadRef m String     -- ^ dynamic label of the button
+    -> ReadRef m Bool       -- ^ the button is active when this returns @True@
+    -> ReadRef m Color      -- ^ dynamic background color
+    -> WriteRef m ()        -- ^ the action to do when the button is pressed
+    -> Widget m
+button__ r x c y = Button (rEffect True r) (rEffect True x) (rEffect True c) (toReceive $ \() -> y)
+
 -- | Low-level button.
 button_
     :: EffRef m
@@ -188,7 +202,7 @@ button_
     -> ReadRef m Bool       -- ^ the button is active when this returns @True@
     -> WriteRef m ()        -- ^ the action to do when the button is pressed
     -> Widget m
-button_ r x y = Button (rEffect True r) (rEffect True x) (toReceive $ \() -> y)
+button_ r x y = Button (rEffect True r) (rEffect True x) (const $ return ()) (toReceive $ \() -> y)
 
 button
     :: EffRef m

@@ -54,6 +54,13 @@ main = runWidget $ notebook
 
         ]
 
+    , (,) "Buttons" $ action $ do
+        x <- newRef 0
+        let is = [0, 65535 `div` 2, 65535]
+            colorlist = liftM3 Color is is is
+            f n = colorlist !! (n `mod` length colorlist)
+        return $ button__ (return "Push") (return True) (liftM f $ readRef x) $ modRef x (+1)
+
     , (,) "Tabs" $ notebook
 
         [ (,) "TabSwitch" $ action $ do
