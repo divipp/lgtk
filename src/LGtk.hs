@@ -8,6 +8,8 @@ module LGtk
     ( 
     -- * Categories
       Category (..)
+    , Tensor (..)
+    , liftM
 
     -- * Lenses
     -- ** Construction
@@ -110,6 +112,7 @@ module LGtk
 
 import Data.Maybe
 import Control.Category
+import Control.Category.Product
 import Control.Concurrent
 import Control.Monad
 import Control.Monad.State
@@ -192,16 +195,16 @@ button
 button r fm = button_ r (liftM isJust fm) (liftReadPart fm >>= maybe (return ()) id)
 
 
-data EqRef r a = forall b . Eq b => EqRef (r b) (ReadPart (RefMonad r) (Lens b a))
+data EqRef r a = forall b . Eq b => EqRef (ReadPart (RefMonad r) (r b, Lens b a))
 
 --joinEqRef :: ReadRef m (EqRef m a) -> EqRef m a
---joinEqRef
+--joinEqRef m = EqRef (joinRef
 
 toRef :: Reference r => EqRef r a -> r a
-toRef (EqRef r k) = joinRef $ liftM (`lensMap` r) k
+toRef (EqRef m) = joinRef $ liftM (\(r, k) -> k `lensMap` r) m
 
 toEqRef :: (Reference r, Eq a) => r a -> EqRef r a
-toEqRef r = EqRef r $ return id
+toEqRef r = EqRef $ return (r, id)
 
 smartButton'
     :: EffRef m
@@ -209,11 +212,9 @@ smartButton'
     -> EqRef (Ref m) a              -- ^ underlying reference
     -> (a -> a)   -- ^ The button is active when this function changes the value of the reference.
     -> Widget m
-smartButton' s (EqRef r mk) f
-    = button_ s (readRef r >>= \x -> liftM (/= x) $ g x)
-             (liftReadPart (readRef r >>= g) >>= writeRef r)
- where
-    g a = liftM (\k -> modL k f a) mk
+smartButton' s (EqRef m) f
+    = button_ s (m >>= \(r, k) -> liftM (\x -> modL k f x /= x) $ readRef r)
+             (liftReadPart m >>= \(r, k) -> modRef r $ modL k f)
 
 smartButton
     :: (EffRef m, Eq a)

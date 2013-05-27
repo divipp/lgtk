@@ -124,7 +124,7 @@ main = runWidget $ notebook
         list <- extRef (justLens "" `lensMap` state) showLens []
         settings <- fileRef "intListEditorSettings.txt"
         range <- extRef (justLens "" `lensMap` settings) showLens True
-        return $ intListEditor list range
+        return $ intListEditor (0, True) 15 list range
     , (,) "Tri" tri
     , (,) "T-Editor1" tEditor1
     , (,) "T-Editor3" $ action $ newRef (iterate (Node Leaf) Leaf !! 10) >>= tEditor3
@@ -137,7 +137,7 @@ justLens a = lens (maybe a id) (const . Just)
 counter :: (EffRef m, Ord a) => a -> Ref m (a, a) -> m (EqRef (Ref m) a)
 counter x ab = do
     c <- extRef ab (sndLens . fix) (x, (x, x))
-    return $ EqRef c $ return $ fstLens . fix
+    return $ EqRef $ return (c, fstLens . fix)
   where
     fix = iso id $ \(x, ab@(a, b)) -> (min b $ max a x, ab)
 
