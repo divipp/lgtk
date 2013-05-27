@@ -10,6 +10,7 @@ module Control.Monad.EffRef
     ) where
 
 import Control.Concurrent
+import Control.Exception (evaluate)
 import Control.Monad
 import Control.Monad.Trans
 import Control.Monad.Trans.Identity
@@ -113,48 +114,58 @@ putStrLn_ = putStr_ . (++ "\n")
 instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m), MonadIO' (EffectM m), SafeIO (ReadRef m), SafeIO m) => EffIORef (IdentityT m) where
 
     registerIO r fm = do
-        c <- toReceive r $ \x -> unliftIO $ \u -> liftM (fmap liftIO) $ liftIO $ fm $ u . x
+        toReceive r $ \x -> unliftIO $ \u -> liftM (fmap liftIO) $ liftIO $ fm $ u . x
         return ()
 
-    asyncWrite t r a = registerIO r $ \re -> forkIOs [ threadDelay t, re a ]
+    asyncWrite t r a
+        = registerIO r $ \re -> forkIOs [ threadDelay t, re a ]
 
     putStr_ = liftIO' . putStr
 
     getLine_ w = registerIO w $ \re -> do
-        forkIO $ getLine >>= re
+        _ <- forkIO $ getLine >>= re
         return $ const $ return ()  -- TODO
 
     fileRef f = do
         ms <- liftIO' r
         ref <- newRef ms
-        rEffect False (readRef ref) $ liftIO . w
-        v <- liftIO' $ do
-            v <- newEmptyMVar
-            cf <- canonicalizePath f
-            let
-                cf' = decodeString cf
-                g = (== cf')
+        v <- liftIO' newEmptyMVar
+        vman <- liftIO' newEmptyMVar
+        cf <- liftIO' $ canonicalizePath f
+        let
+            cf' = decodeString cf
+            g = (== cf')
 
-                h = r >>= putMVar v
+            h = tryPutMVar v () >> return ()
 
-                filt (Added x _) = g x
-                filt (Modified x _) = g x
-                filt (Removed x _) = g x
+            filt (Added x _) = g x
+            filt (Modified x _) = g x
+            filt (Removed x _) = g x
 
-                act (Added _ _) = h
-                act (Modified _ _) = h
-                act (Removed _ _) = h
-            man <- startManager
-            watchDir man (directory cf') filt act
-            return v
-        registerIO (writeRef ref) $ \re -> forkForever $ liftIO $ takeMVar v >>= re
+            act (Added _ _) = h
+            act (Modified _ _) = h
+            act (Removed _ _) = h
+
+            startm = do
+                man <- startManager
+                watchDir man (directory cf') filt act
+                putMVar vman $ stopManager man
+
+        liftIO' startm
+        registerIO (writeRef ref) $ \re -> forkForever $ takeMVar v >> r >>= re
+        rEffect False (readRef ref) $ \x -> liftIO $ do
+            join $ takeMVar vman
+            _ <- tryTakeMVar v
+            w x
+            startm
         return ref
      where
         r = do
             b <- doesFileExist f
             if b then do
                 xs <- readFile f
-                length xs `seq` return (Just xs)
+                _ <- evaluate (length xs)
+                return (Just xs)
              else return Nothing
 
         w = maybe (doesFileExist f >>= \b -> when b (removeFile f)) (writeFile f)
@@ -176,8 +187,8 @@ forkIOs ios = do
             i
             g is
         f i Kill = killThread i
-        f i Block = takeMVar x
-        f i Unblock = putMVar x ()
+        f _ Block = takeMVar x
+        f _ Unblock = putMVar x ()
 
     liftM f $ forkIO $ g ios
 
