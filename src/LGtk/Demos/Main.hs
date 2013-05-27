@@ -5,7 +5,6 @@ module LGtk.Demos.Main
     ) where
 
 import Control.Monad
-import Control.Concurrent
 import Data.Maybe
 import Prelude hiding (id, (.))
 

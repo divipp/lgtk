@@ -5,22 +5,31 @@
 -- | Main LGtk interface.
 module LGtk
     ( 
-    -- * "Control.Category" re-export
-      (.)
-    , id
+    -- * Categories
+      Category (..)
 
     -- * Lenses
-    -- ** "Data.Lens.Common" module
-    , module Data.Lens.Common
+    -- ** Construction
+    , Lens (Lens)
+    , lens
+    , iso
 
-    -- ** Additional lenses
+    -- ** Deconstruction
+    , runLens
+    , getL
+    , setL
+    , modL
+
+    -- ** Pure lenses
+    , fstLens
+    , sndLens
     , listLens
     , maybeLens
 
     -- ** Impure lenses
     , showLens
 
-    -- * Auxiliary definitions
+    -- * Monad morphisms
     , Morph
     , HasReadPart (..)
 
