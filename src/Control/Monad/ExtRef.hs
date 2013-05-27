@@ -52,33 +52,33 @@ import Prelude hiding ((.), id)
 import Control.Monad.Restricted
 
 {- |
-A reference @r a@ is isomorphic to @'Lens' s a@ for some fixed state @s@.
+A reference @(r a)@ is isomorphic to @('Lens' s a)@ for some fixed state @s@.
 
- *  @r  ===  Lens s@
+@r@  ===  @Lens s@
 -}
 class (HasReadPart (RefMonad r)) => Reference r where
 
-    {- | @Refmonad r  ===  State s@
+    {- | @Refmonad r@  ===  @State s@
 
-    Property erived from the 'HasReadPart' instance:
+    Property derived from the 'HasReadPart' instance:
 
-     *  @ReadPart (Refmonad r)  ===  Reader s@
+    @ReadPart (Refmonad r)@  ===  @Reader s@
     -}
     type RefMonad r :: * -> *
 
-    {- | @readRef === reader . getL@
+    {- | @readRef@ === @reader . getL@
 
     Property derived from the set-get law for lenses:
 
-     *  @(readRef r >>= writeRef r)@ === @return ()@
+    @(readRef r >>= writeRef r)@ === @return ()@
 
     Properties derived from the 'HasReadPart' instance:
 
-     *  @(readRef r >> return ())@ === @return ()@
+    @(readRef r >> return ())@ === @return ()@
     -}
     readRef  :: r a -> ReadPart (RefMonad r) a
 
-    {- | @writeRef r === modify . setL r@
+    {- | @writeRef r@ === @modify . setL r@
 
     Properties derived from the get-set and set-set laws for lenses:
 
@@ -90,7 +90,7 @@ class (HasReadPart (RefMonad r)) => Reference r where
 
     {- | Apply a lens on a reference.
 
-    @lensMap === (.)@
+    @lensMap@ === @(.)@
     -}
     lensMap :: Lens a b -> r a -> r b
 
@@ -98,16 +98,16 @@ class (HasReadPart (RefMonad r)) => Reference r where
     values of other references.
     It is not possible to create new reference dynamically with @joinRef@; for that, see 'onChange'.
 
-    @joinRef === Lens . join . (runLens .) . runReader@
+    @joinRef@ === @Lens . join . (runLens .) . runReader@
     -}
     joinRef :: ReadPart (RefMonad r) (r a) -> r a
 
-    -- | @unitRef === lens (const ()) (const id)@
+    -- | @unitRef@ === @lens (const ()) (const id)@
     unitRef :: r ()
 
 infixr 8 `lensMap`
 
--- | @modRef r f = liftReadPart (readRef r) >>= writeRef r . f@
+-- | @modRef r f@ === @liftReadPart (readRef r) >>= writeRef r . f@
 modRef :: Reference r => r a -> (a -> a) -> RefMonad r ()
 r `modRef` f = liftReadPart (readRef r) >>= writeRef r . f
 
@@ -198,7 +198,7 @@ class (Monad m, Reference (Ref m)) => ExtRef m where
 
     {- | @newRef@ extends the state @s@ in an independent way.
 
-    @newRef === extRef unitRef (lens (const ()) (const id))@
+    @newRef@ === @extRef unitRef (lens (const ()) (const id))@
     -}
     newRef :: a -> m (Ref m a)
     newRef = extRef unitRef $ lens (const ()) (const id)
