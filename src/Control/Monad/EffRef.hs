@@ -48,7 +48,7 @@ class ExtRef m => EffRef m where
     -}
     onChange :: Eq a => Bool -> ReadRef m a -> (a -> m (m ())) -> m ()
 
-    toReceive :: Eq a => (a -> WriteRef m ()) -> ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m ()
+    toReceive :: Eq a => (a -> WriteRef m ()) -> ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m (Command -> EffectM m ())
 
     rEffect  :: (EffRef m, Eq a) => Bool -> ReadRef m a -> (a -> EffectM m ()) -> m ()
 
@@ -112,8 +112,9 @@ putStrLn_ = putStr_ . (++ "\n")
 -- | This instance is used in the implementation, the end users do not need it.
 instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m), MonadIO' (EffectM m), SafeIO (ReadRef m), SafeIO m) => EffIORef (IdentityT m) where
 
-    registerIO r fm
-        = toReceive r $ \x -> unliftIO $ \u -> liftM (fmap liftIO) $ liftIO $ fm $ u . x
+    registerIO r fm = do
+        c <- toReceive r $ \x -> unliftIO $ \u -> liftM (fmap liftIO) $ liftIO $ fm $ u . x
+        return ()
 
     asyncWrite t r a = registerIO r $ \re -> forkIOs [ threadDelay t, re a ]
 

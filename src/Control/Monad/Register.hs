@@ -20,7 +20,7 @@ class (Monad m, Monad (EffectM m)) => MonadRegister m where
 
     toSend_ :: Eq b => Bool -> EffectM m b -> (b -> m (m ())) -> m ()
 
-    toReceive_ :: Eq a => (a -> EffectM m ()) -> ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m ()
+    toReceive_ :: Eq a => (a -> EffectM m ()) -> ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m (Command -> EffectM m ())
 
 
 instance MonadRegister m => MonadRegister (IdentityT m) where

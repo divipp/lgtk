@@ -33,7 +33,7 @@ gtkContext m = do
     c <- m post
     window <- windowNew
     set window [ containerBorderWidth := 10, containerChild := snd c ]
-    _ <- window `on` deleteEvent $ liftIO ( mainQuit) >> return False
+    _ <- window `on` deleteEvent $ liftIO mainQuit >> return False
     widgetShowAll window
     mainGUI
 
@@ -53,10 +53,16 @@ runWidget nio post' post = toWidget
     liftIO' = liftIO . post
 
     reg :: Receive n m a -> Receive IO m a
-    reg s f = s $ liftM (fmap liftIO) . liftIO' . f . (nio .)
+    reg s f = liftM (nio .) $ s $ liftM (fmap liftIO) . liftIO' . f . (nio .)
 
-    ger :: Send n m a -> (a -> IO ()) -> m ()
-    ger s f = s $ liftIO' . f
+    ger :: (Command -> IO ()) -> Send n m a -> Send IO m a
+    ger hd s f = s $ \a -> liftIO' $ do
+        hd Block
+        f a
+        hd Unblock
+
+    nhd :: Command -> IO ()
+    nhd = const $ return ()
 
     toWidget :: Widget n m -> m SWidget
     toWidget i = case i of
@@ -64,29 +70,29 @@ runWidget nio post' post = toWidget
         Action m -> m >>= toWidget
         Label s -> do
             w <- liftIO' $ labelNew Nothing
-            ger s $ labelSetLabel w
+            ger nhd s $ labelSetLabel w
             return' w
         Button s sens m -> do
             w <- liftIO' buttonNew
-            ger s $ buttonSetLabel w
-            ger sens $ widgetSetSensitive w
-            reg m $ \x -> on' w buttonActivated $ x ()
+            hd <- reg m $ \re -> on' w buttonActivated $ re ()
+            ger hd s $ buttonSetLabel w
+            ger hd sens $ widgetSetSensitive w
             return' w
         Entry (r, s) -> do
             w <- liftIO' entryNew
-            ger r $ entrySetText w
-            reg s $ \re -> on' w entryActivate $ entryGetText w >>= re
+            hd <- reg s $ \re -> on' w entryActivate $ entryGetText w >>= re
+            ger hd r $ entrySetText w
             return' w
         Checkbox (r, s) -> do
             w <- liftIO' checkButtonNew
-            ger r $ toggleButtonSetActive w
-            reg s $ \re -> on' w toggled $ toggleButtonGetActive w >>= re
+            hd <- reg s $ \re -> on' w toggled $ toggleButtonGetActive w >>= re
+            ger hd r $ toggleButtonSetActive w
             return' w
         Combobox ss (r, s) -> do
             w <- liftIO' comboBoxNewText
             liftIO' $ flip mapM_ ss $ comboBoxAppendText w
-            ger r $ comboBoxSetActive w
-            reg s $ \re -> on' w changed $ fmap (max 0) (comboBoxGetActive w) >>= re
+            hd <- reg s $ \re -> on' w changed $ fmap (max 0) (comboBoxGetActive w) >>= re
+            ger hd r $ comboBoxSetActive w
             return' w
         List o xs -> do
             ws <- mapM toWidget xs
@@ -100,19 +106,17 @@ runWidget nio post' post = toWidget
             w <- liftIO' notebookNew
             forM_ (zip ws xs) $ \(ww, (s, _)) -> do
                 liftIO' . flip (notebookAppendPage w) s $ snd $ ww
-            reg s $ \re -> on' w switchPage $ re
+            _ <- reg s $ \re -> on' w switchPage $ re
             return'' ws w
         Cell onCh f -> do
             let b = False
             w <- liftIO' $ case b of
                 True -> fmap castToContainer $ hBoxNew False 1
                 False -> fmap castToContainer $ alignmentNew 0 0 1 1
-            sh <- liftIO $ liftIO $ newMVar $ return ()
+            sh <- liftIO $ newMVar $ return ()
             onCh $ \bv -> do
                   mx <- f toWidget bv
-                  return $ do
-                    x <- mx
-                    liftIO' $ do 
+                  return $ mx >>= \x -> liftIO' $ do 
                       _ <- swapMVar sh $ fst x
                       post' $ post $ fst x
                       containerForeach w $ if b then widgetHideAll else containerRemove w 

@@ -29,6 +29,7 @@ instance NewRef m => MonadRegister (Register m) where
         rr <- ask
         unreg <- lift $ int $ rr . r
         tell $ t2 unreg
+        return unreg
 
     toSend_ init rb fb = do
         rr <- ask
