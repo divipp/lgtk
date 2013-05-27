@@ -14,15 +14,15 @@ intListEditor
     -> Ref m [(a, Bool)]    -- ^ state reference
     -> Ref m Bool           -- ^ settings reference
     -> Widget m
-intListEditor def maxi list range = action $ do
-    (undo, redo)  <- undoTr ((==) `on` map fst) list
+intListEditor def maxi list_ range = action $ do
+    (undo, redo)  <- undoTr ((==) `on` map fst) list_
     return $ notebook
         [ (,) "Editor" $ vcat
             [ hcat
                 [ entryShow $ toRef len
-                , smartButton' (return "+1") len (+1)
-                , smartButton' (return "-1") len (+(-1))
-                , smartButton' (liftM (("DeleteAll " ++) . show) $ readRef $ toRef len) len $ const 0
+                , smartButton (return "+1") len (+1)
+                , smartButton (return "-1") len (+(-1))
+                , smartButton (liftM (("DeleteAll " ++) . show) $ readRef $ toRef len) len $ const 0
                 , button (return "undo") undo
                 , button (return "redo") redo
                 ]
@@ -35,12 +35,12 @@ intListEditor def maxi list range = action $ do
                 , smartButton (return "SelectEven") list $ map $ \(a,_) -> (a, even a)
                 , smartButton (return "InvertSel")  list $ map $ second not
                 , smartButton (liftM (("DelSel " ++) . show . length) sel) list $ filter $ not . snd
-                , smartButton' (return "CopySel") safeList $ concatMap $ \(x,b) -> (x,b): [(x,False) | b]
+                , smartButton (return "CopySel") safeList $ concatMap $ \(x,b) -> (x,b): [(x,False) | b]
                 , smartButton (return "+1 Sel")     list $ map $ mapSel (+1)
                 , smartButton (return "-1 Sel")     list $ map $ mapSel (+(-1))
                 ]
             , label $ liftM (("Sum: " ++) . show . sum . map fst) sel
-            , action $ listEditor def (itemEditor list) list
+            , action $ listEditor def itemEditor list_
             ]
         , (,) "Settings" $ hcat
             [ label $ return "Create range"
@@ -48,17 +48,19 @@ intListEditor def maxi list range = action $ do
             ]
         ]
  where
-    itemEditor list i r = return $ hcat
+    list = eqRef list_
+
+    itemEditor i r = return $ hcat
         [ label $ return $ show (i+1) ++ "."
         , entryShow $ fstLens `lensMap` r
         , checkbox $ sndLens `lensMap` r
-        , button_ (return "Del")  (return True) $ modRef list $ \xs -> take i xs ++ drop (i+1) xs
-        , button_ (return "Copy") (return True) $ modRef list $ \xs -> take (i+1) xs ++ drop i xs
+        , button_ (return "Del")  (return True) $ modRef list_ $ \xs -> take i xs ++ drop (i+1) xs
+        , button_ (return "Copy") (return True) $ modRef list_ $ \xs -> take (i+1) xs ++ drop i xs
         ]
 
-    safeList = lens id (const . take maxi) `lensMap` eqRef list
+    safeList = lens id (const . take maxi) `lensMap` list
 
-    sel = liftM (filter snd) $ readRef list
+    sel = liftM (filter snd) $ readRef list_
 
     len = joinRef $ liftM ((`lensMap` eqRef (toRef safeList)) . lens length . extendList) $ readRef range
     extendList r n xs = take n $ (reverse . drop 1 . reverse) xs ++

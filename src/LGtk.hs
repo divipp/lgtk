@@ -107,7 +107,6 @@ module LGtk
     , entryShow
     , button
     , smartButton
-    , smartButton'
     , cell
     , cellNoMemo
 
@@ -199,24 +198,15 @@ button r fm = button_ r (liftM isJust fm) (liftReadPart fm >>= maybe (return ())
 
 
 
-smartButton'
+smartButton
     :: EffRef m
     => ReadRef m String     -- ^ dynamic label of the button
     -> EqRef (Ref m) a              -- ^ underlying reference
-    -> (a -> a)   -- ^ The button is active when this function changes the value of the reference.
-    -> Widget m
-smartButton' s m f
-    = button_ s (runEqRef m >>= \(EqRef_ r k) -> liftM (\x -> modL k f x /= x) $ readRef r)
-             (liftReadPart (runEqRef m) >>= \(EqRef_ r k) -> modRef r $ modL k f)
-
-smartButton
-    :: (EffRef m, Eq a)
-    => ReadRef m String     -- ^ dynamic label of the button
-    -> Ref m a              -- ^ underlying reference
     -> (a -> a)   -- ^ The button is active when this function is not identity on value of the reference. When the button is pressed, the value of the reference is modified with this function.
     -> Widget m
-smartButton s = smartButton' s . eqRef
-
+smartButton s m f
+    = button_ s (runEqRef m >>= \(EqRef_ r k) -> liftM (\x -> modL k f x /= x) $ readRef r)
+             (liftReadPart (runEqRef m) >>= \(EqRef_ r k) -> modRef r $ modL k f)
 
 
 -- | Checkbox.
