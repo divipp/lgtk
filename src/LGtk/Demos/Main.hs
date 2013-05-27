@@ -84,7 +84,7 @@ main = runWidget $ notebook
         t <- newRef 0
         onChange True (readRef t) $ \ti -> return $ asyncWrite (10^6) (writeRef t) (1 + ti) 
         return $ vcat
-            [ label $ readRef $ showLens `lensMap` t
+            [ label $ liftM show $ readRef t
             ]
 
     , (,) "System" $ notebook
@@ -132,10 +132,10 @@ main = runWidget $ notebook
 justLens :: a -> Lens (Maybe a) a
 justLens a = lens (maybe a id) (const . Just)
 
-counter :: (EffRef m, Ord a) => a -> Ref m (a, a) -> m (EqRef m a)
+counter :: (EffRef m, Ord a) => a -> Ref m (a, a) -> m (EqRef (Ref m) a)
 counter x ab = do
     c <- extRef ab (sndLens . fix) (x, (x, x))
-    return $ EqRef c $ fstLens . fix
+    return $ EqRef c $ return $ fstLens . fix
   where
     fix = iso id $ \(x, ab@(a, b)) -> (min b $ max a x, ab)
 

@@ -101,7 +101,8 @@ module LGtk
     , entryShow
     , button
     , smartButton
-    , smartButton', EqRef (..), toRef
+    , smartButton'
+    , EqRef (..), toRef, toEqRef
     , cell
     , cellNoMemo
 
@@ -200,19 +201,25 @@ smartButton s k f =
     button_ s (readRef k >>= \x -> liftM (/= x) $ f x)
              (liftReadPart (readRef k) >>= liftReadPart . f >>= writeRef k)
 
-data EqRef m a = forall b . Eq b => EqRef (Ref m b) (Lens b a)
+data EqRef r a = forall b . Eq b => EqRef (r b) (ReadPart (RefMonad r) (Lens b a))
 
-toRef :: ExtRef m => EqRef m a -> Ref m a
-toRef (EqRef r k) = k `lensMap` r
+--joinEqRef :: ReadRef m (EqRef m a) -> EqRef m a
+--joinEqRef
+
+toRef :: Reference r => EqRef r a -> r a
+toRef (EqRef r k) = joinRef $ liftM (`lensMap` r) k
+
+toEqRef :: (Reference r, Eq a) => r a -> EqRef r a
+toEqRef r = EqRef r $ return id
 
 smartButton'
     :: EffRef m
     => ReadRef m String     -- ^ dynamic label of the button
-    -> EqRef m a              -- ^ underlying reference
+    -> EqRef (Ref m) a              -- ^ underlying reference
     -> (a -> a)   -- ^ The button is active when this function changes the value of the reference.
     -> Widget m
-smartButton' s (EqRef r k) f =
-    smartButton s r $ return . modL k f
+smartButton' s (EqRef r mk) f =
+    smartButton s r $ \a -> liftM (\k -> modL k f a) mk
 
 
 

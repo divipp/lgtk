@@ -24,15 +24,15 @@ intListEditor state settings = action $ do
     (undo, redo)  <- undoTr ((==) `on` map fst) list
     range <- extRef settings showLens True
     let safe = lens id (const . take maxi)
-        len = liftM (\r -> lens length $ extendList r . min maxi) $ readRef range
+        len = EqRef list $ liftM (\r -> lens length $ extendList r . min maxi) $ readRef range
         sel = liftM (filter snd) $ readRef list
     return $ notebook
         [ (,) "Editor" $ vcat
             [ hcat
-                [ entryShow $ joinRef $ liftM (`lensMap` list) len
-                , smartButton (return "+1") list $ modL' len (+1)
-                , smartButton (return "-1") list $ modL' len (+(-1))
-                , smartButton (liftM (("DeleteAll " ++) . show) $ len >>= \k -> readRef $ k `lensMap` list) list $ modL' len $ const 0
+                [ entryShow $ toRef len
+                , smartButton' (return "+1") len (+1)
+                , smartButton' (return "-1") len (+(-1))
+                , smartButton' (liftM (("DeleteAll " ++) . show) $ readRef $ toRef len) len $ const 0
                 , button (return "undo") undo
                 , button (return "redo") redo
                 ]
