@@ -40,12 +40,16 @@ main = runWidget $ notebook
 
         , (,) "a..b" $ action $ do
             ab <- newRef (1, 3)
-            let set1 a (_, b) = (min b a, b)
-                set2 b (a, _) = (a, max a b)
+            let (a, b) = interval ab
+            c <- counter ab
             return $ vcat
-                [ counter ab
-                , hcat [ label $ return "min", entry $ showLens . lens fst set1 `lensMap` ab ]
-                , hcat [ label $ return "max", entry $ showLens . lens snd set2 `lensMap` ab ]
+                [ label $ liftM show $ readRef $ toRef c
+                , hcat
+                    [ smartButton' (return "+1") c (+1)
+                    , smartButton' (return "-1") c (+(-1))
+                    ]
+                , hcat [ label $ return "min", entry $ showLens `lensMap` a ]
+                , hcat [ label $ return "max", entry $ showLens `lensMap` b ]
                 ]
 
         ]
@@ -128,16 +132,16 @@ main = runWidget $ notebook
 justLens :: a -> Lens (Maybe a) a
 justLens a = lens (maybe a id) (const . Just)
 
-counter :: EffRef m => Ref m (Integer, Integer) -> Widget m
-counter ab = action $ do
-    let fix = iso id $ \(x, ab@(a, b)) -> (min b $ max a x, ab)
-        x = fstLens . fix
+counter :: EffRef m => Ref m (Integer, Integer) -> m (EqRef m Integer)
+counter ab = do
     c <- extRef ab (sndLens . fix) (0, (0, 0))
-    return $ vcat
-        [ label $ liftM show $ readRef $ x `lensMap` c
-        , hcat
-            [ smartButton (return "+1") c $ return . modL x (+1)
-            , smartButton (return "-1") c $ return . modL x (+(-1))
-            ]
-        ]
+    return $ EqRef c $ fstLens . fix
+  where
+    fix = iso id $ \(x, ab@(a, b)) -> (min b $ max a x, ab)
+
+interval :: (Reference r, Ord a) => r (a, a) -> (r a, r a)
+interval ab = (lens fst set1 `lensMap` ab, lens snd set2 `lensMap` ab) where
+    set1 a (_, b) = (min b a, b)
+    set2 b (a, _) = (a, max a b)
+
 

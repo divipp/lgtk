@@ -2,6 +2,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ExistentialQuantification #-}
 -- | Main LGtk interface.
 module LGtk
     ( 
@@ -101,6 +102,7 @@ module LGtk
     , cellNoMemo
     , button
     , smartButton
+    , smartButton', EqRef (..), toRef
 
     ) where
 
@@ -196,6 +198,22 @@ smartButton
 smartButton s k f =
     button_ s (readRef k >>= \x -> liftM (/= x) $ f x)
              (liftReadPart (readRef k) >>= liftReadPart . f >>= writeRef k)
+
+data EqRef m a = forall b . Eq b => EqRef (Ref m b) (Lens b a)
+
+toRef :: ExtRef m => EqRef m a -> Ref m a
+toRef (EqRef r k) = k `lensMap` r
+
+smartButton'
+    :: (EffRef m, Eq a)
+    => ReadRef m String     -- ^ dynamic label of the button
+    -> EqRef m a              -- ^ underlying reference
+    -> (a -> a)   -- ^ The button is active when this function changes the value of the reference.
+    -> Widget m
+smartButton' s (EqRef r k) f =
+    smartButton s r $ return . modL k f
+
+
 
 -- | Checkbox.
 checkbox :: EffRef m => Ref m Bool -> Widget m
