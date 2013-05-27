@@ -1,5 +1,3 @@
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE TypeFamilies #-}
 module LGtk.Demos.Main
     ( main
     ) where
@@ -41,18 +39,13 @@ main = runWidget $ notebook
                 ]
 
         , (,) "a..b" $ action $ do
-            a <- newRef 1
-            b <- newRef 3
-            let a' = joinRef $ do
-                    bv <- readRef b
-                    return $ lens id (const . min bv) `lensMap` a
-            let b' = joinRef $ do
-                    av <- readRef a
-                    return $ lens id (const . max av) `lensMap` b
+            ab <- newRef (1, 3)
+            let set1 a (_, b) = (min b a, b)
+                set2 b (a, _) = (a, max a b)
             return $ vcat
-                [ counter a' b'
-                , hcat [ label $ return "min", entry $ showLens `lensMap` a' ]
-                , hcat [ label $ return "max", entry $ showLens `lensMap` b' ]
+                [ counter ab
+                , hcat [ label $ return "min", entry $ showLens . lens fst set1 `lensMap` ab ]
+                , hcat [ label $ return "max", entry $ showLens . lens snd set2 `lensMap` ab ]
                 ]
 
         ]
@@ -135,17 +128,16 @@ main = runWidget $ notebook
 justLens :: a -> Lens (Maybe a) a
 justLens a = lens (maybe a id) (const . Just)
 
-counter a b = action $ do
-    c <- newRef 0
-    let c' = joinRef $ do
-            av <- readRef a
-            bv <- readRef b
-            return $ iso (min bv . max av) id `lensMap` c
+counter :: EffRef m => Ref m (Integer, Integer) -> Widget m
+counter ab = action $ do
+    let fix = iso id $ \(x, ab@(a, b)) -> (min b $ max a x, ab)
+        x = fstLens . fix
+    c <- extRef ab (sndLens . fix) (0, (0, 0))
     return $ vcat
-        [ label $ liftM show $ readRef c'
+        [ label $ liftM show $ readRef $ x `lensMap` c
         , hcat
-            [ smartButton (return "+1") c' $ (\x -> liftM (min x) $ readRef b) . (+1)
-            , smartButton (return "-1") c' $ (\x -> liftM (max x) $ readRef a) . (+(-1))
+            [ smartButton (return "+1") c $ return . modL x (+1)
+            , smartButton (return "-1") c $ return . modL x (+(-1))
             ]
         ]
 
