@@ -62,8 +62,9 @@ module LGtk
     , undoTr
 
     , EqRef
-    , toRef
     , eqRef
+    , toRef
+    , hasEffect
 
     -- * Dynamic networks
     , EffRef
@@ -205,9 +206,7 @@ smartButton
     -> (a -> a)   -- ^ The button is active when this function is not identity on value of the reference. When the button is pressed, the value of the reference is modified with this function.
     -> Widget m
 smartButton s m f
-    = button_ s (runEqRef m >>= \(EqRef_ r k) -> liftM (\x -> modL k f x /= x) $ readRef r)
-             (liftReadPart (runEqRef m) >>= \(EqRef_ r k) -> modRef r $ modL k f)
-
+    = button_ s (hasEffect m f) (modRef m f)
 
 -- | Checkbox.
 checkbox :: EffRef m => Ref m Bool -> Widget m

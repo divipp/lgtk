@@ -76,7 +76,9 @@ main = runWidget $ notebook
                 asyncWrite (ceiling $ 10^6 * d) (writeRef ready) True
         return $ vcat
             [ hcat [ entryShow delay, label $ return "sec" ]
-            , button_ (readRef delay >>= \d -> return $ "Start " ++ show d ++ " sec computation") (readRef ready) $ writeRef ready False
+            , button_ (readRef delay >>= \d -> return $ "Start " ++ show d ++ " sec computation")
+                      (readRef ready)
+                      (writeRef ready False)
             , label $ liftM (\b -> if b then "Ready." else "Computing...") $ readRef ready
             ]
 
@@ -125,8 +127,11 @@ main = runWidget $ notebook
         settings <- fileRef "intListEditorSettings.txt"
         range <- extRef (justLens "" `lensMap` settings) showLens True
         return $ intListEditor (0, True) 15 list range
+
     , (,) "Tri" tri
+
     , (,) "T-Editor1" tEditor1
+
     , (,) "T-Editor3" $ action $ newRef (iterate (Node Leaf) Leaf !! 10) >>= tEditor3
 
     ]

@@ -25,10 +25,10 @@ module Control.Monad.ExtRef
     , memoWrite
 
     -- * References with equation
-    , EqRef_ (..)
-    , EqRef (..)
-    , toRef
+    , EqRef
     , eqRef
+    , toRef
+    , hasEffect
 
     -- * Auxiliary definitions
     , Morph
@@ -74,10 +74,6 @@ class (HasReadPart (RefMonad r)) => Reference r where
 
     {- | @readRef@ === @reader . getL@
 
-    Property derived from the set-get law for lenses:
-
-    @(readRef r >>= writeRef r)@ === @return ()@
-
     Properties derived from the 'HasReadPart' instance:
 
     @(readRef r >> return ())@ === @return ()@
@@ -86,7 +82,9 @@ class (HasReadPart (RefMonad r)) => Reference r where
 
     {- | @writeRef r@ === @modify . setL r@
 
-    Properties derived from the get-set and set-set laws for lenses:
+    Properties derived from the set-get, get-set and set-set laws for lenses:
+
+     *  @(readRef r >>= writeRef r)@ === @return ()@
 
      *  @(writeRef r a >> readRef r)@ === @return a@
 
@@ -116,56 +114,6 @@ infixr 8 `lensMap`
 -- | @modRef r f@ === @liftReadPart (readRef r) >>= writeRef r . f@
 modRef :: Reference r => r a -> (a -> a) -> RefMonad r ()
 r `modRef` f = liftReadPart (readRef r) >>= writeRef r . f
-
-type WriteRef m = RefMonad (Ref m)
-
-type ReadRef m = ReadPart (RefMonad (Ref m))
-
-{- | @ReadRef@ lifted to the reference creation class.
-
-Note that we do not lift @WriteRef@ to the reference creation class, which a crucial restriction
-in the LGtk interface; this is a feature.
--}
-liftReadRef :: ExtRef m => Morph (ReadRef m) m
-liftReadRef = liftWriteRef . liftReadPart
-
-{- | @readRef@ lifted to the reference creation class.
--}
-readRef' :: ExtRef m => Ref m a -> m a
-readRef' = liftReadRef . readRef
-
-{- | Lazy monadic evaluation.
-In case of @y <- memoRead x@, invoking @y@ will invoke @x@ at most once.
-
-Laws:
-
- *  @(memoRead x >> return ())@ === @return ()@
-
- *  @(memoRead x >>= id)@ === @x@
-
- *  @(memoRead x >>= \y -> liftM2 (,) y y)@ === @liftM (\a -> (a, a)) y@
-
- *  @(memoRead x >>= \y -> liftM3 (,) y y y)@ === @liftM (\a -> (a, a, a)) y@
-
- *  ...
--}
-memoRead :: ExtRef m => m a -> m (m a)
-memoRead g = do
-    s <- newRef Nothing
-    return $ readRef' s >>= \x -> case x of
-        Just a -> return a
-        _ -> g >>= \a -> do
-            liftWriteRef $ writeRef s $ Just a
-            return a
-
-memoWrite :: (ExtRef m, Eq b) => (b -> m a) -> m (b -> m a)
-memoWrite g = do
-    s <- newRef Nothing
-    return $ \b -> readRef' s >>= \x -> case x of
-        Just (b', a) | b' == b -> return a
-        _ -> g b >>= \a -> do
-            liftWriteRef $ writeRef s $ Just (b, a)
-            return a
 
 
 {- | Monad for reference creation. Reference creation is not a method
@@ -209,7 +157,61 @@ class (Monad m, Reference (Ref m)) => ExtRef m where
     newRef :: a -> m (Ref m a)
     newRef = extRef unitRef $ lens (const ()) (const id)
 
--- | This instance is used in the implementation, the end users do not need it.
+
+type WriteRef m = RefMonad (Ref m)
+
+type ReadRef m = ReadPart (RefMonad (Ref m))
+
+{- | @ReadRef@ lifted to the reference creation class.
+
+Note that we do not lift @WriteRef@ to the reference creation class, which a crucial restriction
+in the LGtk interface; this is a feature.
+-}
+liftReadRef :: ExtRef m => Morph (ReadRef m) m
+liftReadRef = liftWriteRef . liftReadPart
+
+{- | @readRef@ lifted to the reference creation class.
+
+@readRef'@ === @liftReadRef . readRef@
+-}
+readRef' :: ExtRef m => Ref m a -> m a
+readRef' = liftReadRef . readRef
+
+{- | Lazy monadic evaluation.
+In case of @y <- memoRead x@, invoking @y@ will invoke @x@ at most once.
+
+Laws:
+
+ *  @(memoRead x >> return ())@ === @return ()@
+
+ *  @(memoRead x >>= id)@ === @x@
+
+ *  @(memoRead x >>= \y -> liftM2 (,) y y)@ === @liftM (\a -> (a, a)) y@
+
+ *  @(memoRead x >>= \y -> liftM3 (,) y y y)@ === @liftM (\a -> (a, a, a)) y@
+
+ *  ...
+-}
+memoRead :: ExtRef m => m a -> m (m a)
+memoRead g = do
+    s <- newRef Nothing
+    return $ readRef' s >>= \x -> case x of
+        Just a -> return a
+        _ -> g >>= \a -> do
+            liftWriteRef $ writeRef s $ Just a
+            return a
+
+memoWrite :: (ExtRef m, Eq b) => (b -> m a) -> m (b -> m a)
+memoWrite g = do
+    s <- newRef Nothing
+    return $ \b -> readRef' s >>= \x -> case x of
+        Just (b', a) | b' == b -> return a
+        _ -> g b >>= \a -> do
+            liftWriteRef $ writeRef s $ Just (b, a)
+            return a
+
+
+-- | This instance is used in the implementation, end users do not need it.
 instance (ExtRef m, Monoid w) => ExtRef (WriterT w m) where
 
     type Ref (WriterT w m) = Ref m
@@ -227,7 +229,7 @@ instance (ExtRef m) => ExtRef (ReaderT s m) where
     extRef r k a = lift $ extRef r k a
 -}
 
--- | This instance is used in the implementation, the end users do not need it.
+-- | This instance is used in the implementation, end users do not need it.
 instance (ExtRef m) => ExtRef (IdentityT m) where
 
     type Ref (IdentityT m) = Ref m
@@ -236,7 +238,7 @@ instance (ExtRef m) => ExtRef (IdentityT m) where
 
     extRef r k a = lift $ extRef r k a
 
--- | This instance is used in the implementation, the end users do not need it.
+-- | This instance is used in the implementation, end users do not need it.
 instance (ExtRef m, Monoid w) => ExtRef (RWST r w s m) where
 
     type Ref (RWST r w s m) = Ref m
@@ -273,15 +275,24 @@ undoTr eq r = do
 
 data EqRef_ r a = forall b . Eq b => EqRef_ (r b) (Lens b a)
 
+-- | References with inherent equivalence
 newtype EqRef r a = EqRef { runEqRef :: ReadPart (RefMonad r) (EqRef_ r a) }
 
--- instance Reference r => Reference (EqRef r) where
+-- | @hasEffect@ is correct only if @eqRef@ is applied on a pure reference (a reference which is a pure lens on the hidden state).
+eqRef :: (Reference r, Eq a) => r a -> EqRef r a
+eqRef r = EqRef $ return $ EqRef_ r id
 
 toRef :: Reference r => EqRef r a -> r a
 toRef (EqRef m) = joinRef $ liftM (\(EqRef_ r k) -> k `lensMap` r) m
 
-eqRef :: (Reference r, Eq a) => r a -> EqRef r a
-eqRef r = EqRef $ return $ EqRef_ r id
+-- | @hasEffect r f@ returns @False@ iff @(modRef m f)@ === @(return ())@.
+hasEffect
+    :: Reference r
+    => EqRef r a
+    -> (a -> a)
+    -> ReadPart (RefMonad r) Bool
+hasEffect m f = runEqRef m >>= \(EqRef_ r k) -> liftM (\x -> modL k f x /= x) $ readRef r
+
 
 instance Reference r => Reference (EqRef r) where
 
