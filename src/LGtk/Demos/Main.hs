@@ -121,8 +121,10 @@ main = runWidget $ notebook
 
     , (,) "IntListEditor" $ action $ do
         state <- fileRef "intListEditorState.txt"
+        list <- extRef (justLens "" `lensMap` state) showLens []
         settings <- fileRef "intListEditorSettings.txt"
-        return $ intListEditor (justLens "" `lensMap` state) (justLens "" `lensMap` settings)
+        range <- extRef (justLens "" `lensMap` settings) showLens True
+        return $ intListEditor list range
     , (,) "Tri" tri
     , (,) "T-Editor1" tEditor1
     , (,) "T-Editor3" $ action $ newRef (iterate (Node Leaf) Leaf !! 10) >>= tEditor3

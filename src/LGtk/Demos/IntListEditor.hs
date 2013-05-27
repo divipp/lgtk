@@ -16,13 +16,11 @@ import Prelude hiding ((.), id)
 
 intListEditor
     :: EffRef m
-    => Ref m String         -- ^ state reference
-    -> Ref m String         -- ^ settings reference
+    => Ref m [(Int, Bool)]  -- ^ state reference
+    -> Ref m Bool           -- ^ settings reference
     -> Widget m
-intListEditor state settings = action $ do
-    list <- extRef state showLens []
+intListEditor list range = action $ do
     (undo, redo)  <- undoTr ((==) `on` map fst) list
-    range <- extRef settings showLens True
     let safe = lens id (const . take maxi)
         len = EqRef list $ liftM (\r -> lens length $ extendList r . min maxi) $ readRef range
         sel = liftM (filter snd) $ readRef list
