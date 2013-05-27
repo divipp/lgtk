@@ -61,6 +61,10 @@ module LGtk
     , memoRead
     , undoTr
 
+    , EqRef
+    , toRef
+    , eqRef
+
     -- * Dynamic networks
     , EffRef
     , onChange
@@ -104,7 +108,6 @@ module LGtk
     , button
     , smartButton
     , smartButton'
-    , EqRef (..), toRef, toEqRef
     , cell
     , cellNoMemo
 
@@ -195,16 +198,6 @@ button
 button r fm = button_ r (liftM isJust fm) (liftReadPart fm >>= maybe (return ()) id)
 
 
-data EqRef r a = forall b . Eq b => EqRef (ReadPart (RefMonad r) (r b, Lens b a))
-
---joinEqRef :: ReadRef m (EqRef m a) -> EqRef m a
---joinEqRef m = EqRef (joinRef
-
-toRef :: Reference r => EqRef r a -> r a
-toRef (EqRef m) = joinRef $ liftM (\(r, k) -> k `lensMap` r) m
-
-toEqRef :: (Reference r, Eq a) => r a -> EqRef r a
-toEqRef r = EqRef $ return (r, id)
 
 smartButton'
     :: EffRef m
@@ -212,9 +205,9 @@ smartButton'
     -> EqRef (Ref m) a              -- ^ underlying reference
     -> (a -> a)   -- ^ The button is active when this function changes the value of the reference.
     -> Widget m
-smartButton' s (EqRef m) f
-    = button_ s (m >>= \(r, k) -> liftM (\x -> modL k f x /= x) $ readRef r)
-             (liftReadPart m >>= \(r, k) -> modRef r $ modL k f)
+smartButton' s m f
+    = button_ s (runEqRef m >>= \(EqRef_ r k) -> liftM (\x -> modL k f x /= x) $ readRef r)
+             (liftReadPart (runEqRef m) >>= \(EqRef_ r k) -> modRef r $ modL k f)
 
 smartButton
     :: (EffRef m, Eq a)
@@ -222,7 +215,7 @@ smartButton
     -> Ref m a              -- ^ underlying reference
     -> (a -> a)   -- ^ The button is active when this function is not identity on value of the reference. When the button is pressed, the value of the reference is modified with this function.
     -> Widget m
-smartButton s = smartButton' s . toEqRef
+smartButton s = smartButton' s . eqRef
 
 
 

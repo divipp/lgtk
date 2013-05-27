@@ -56,11 +56,11 @@ intListEditor def maxi list range = action $ do
         , button_ (return "Copy") (return True) $ modRef list $ \xs -> take (i+1) xs ++ drop i xs
         ]
 
-    safeList = EqRef $ return (list, lens id $ const . take maxi)
+    safeList = lens id (const . take maxi) `lensMap` eqRef list
 
     sel = liftM (filter snd) $ readRef list
 
-    len = EqRef $ liftM ((,) (toRef safeList) . lens length . extendList) $ readRef range
+    len = joinRef $ liftM ((`lensMap` eqRef (toRef safeList)) . lens length . extendList) $ readRef range
     extendList r n xs = take n $ (reverse . drop 1 . reverse) xs ++
         (uncurry zip . (iterate (+ if r then 1 else 0) *** repeat)) (head $ reverse xs ++ [def])
 

@@ -137,7 +137,7 @@ justLens a = lens (maybe a id) (const . Just)
 counter :: (EffRef m, Ord a) => a -> Ref m (a, a) -> m (EqRef (Ref m) a)
 counter x ab = do
     c <- extRef ab (sndLens . fix) (x, (x, x))
-    return $ EqRef $ return (c, fstLens . fix)
+    return $ fstLens . fix `lensMap` eqRef c
   where
     fix = iso id $ \(x, ab@(a, b)) -> (min b $ max a x, ab)
 

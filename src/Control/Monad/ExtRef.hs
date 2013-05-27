@@ -24,6 +24,12 @@ module Control.Monad.ExtRef
     , memoRead
     , memoWrite
 
+    -- * References with equation
+    , EqRef_ (..)
+    , EqRef (..)
+    , toRef
+    , eqRef
+
     -- * Auxiliary definitions
     , Morph
     , MorphD (..)
@@ -263,6 +269,36 @@ undoTr eq r = do
 
     redo (xs, y: ys) = Just (y: xs, ys)
     redo _ = Nothing
+
+
+data EqRef_ r a = forall b . Eq b => EqRef_ (r b) (Lens b a)
+
+newtype EqRef r a = EqRef { runEqRef :: ReadPart (RefMonad r) (EqRef_ r a) }
+
+-- instance Reference r => Reference (EqRef r) where
+
+toRef :: Reference r => EqRef r a -> r a
+toRef (EqRef m) = joinRef $ liftM (\(EqRef_ r k) -> k `lensMap` r) m
+
+eqRef :: (Reference r, Eq a) => r a -> EqRef r a
+eqRef r = EqRef $ return $ EqRef_ r id
+
+instance Reference r => Reference (EqRef r) where
+
+    type (RefMonad (EqRef r)) = RefMonad r
+
+    readRef = readRef . toRef
+
+    writeRef = writeRef . toRef
+
+    lensMap l (EqRef m) = EqRef $ m >>= \(EqRef_ r k) -> return $ EqRef_ r $ l . k
+
+    joinRef = EqRef . join . liftM runEqRef
+
+    unitRef = eqRef unitRef
+
+
+
 
 showLens :: (Show a, Read a) => Lens a String
 showLens = lens show $ \s def -> maybe def fst $ listToMaybe $ reads s
