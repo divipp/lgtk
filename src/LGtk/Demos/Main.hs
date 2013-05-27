@@ -23,8 +23,8 @@ main = runWidget $ notebook
             return $ vcat
                 [ label $ liftM show $ readRef c
                 , hcat
-                    [ smartButton (return "+1") c $ return . (+1)
-                    , smartButton (return "-1") c $ return . (+(-1))
+                    [ smartButton (return "+1") c (+1)
+                    , smartButton (return "-1") c (+(-1))
                     ]
                 ]
 
@@ -33,8 +33,8 @@ main = runWidget $ notebook
             return $ vcat
                 [ label $ liftM show $ readRef c
                 , hcat
-                    [ smartButton (return "+1") c $ return . min 3 . (+1)
-                    , smartButton (return "-1") c $ return . max 1 . (+(-1))
+                    [ smartButton (return "+1") c $ min 3 . (+1)
+                    , smartButton (return "-1") c $ max 1 . (+(-1))
                     ]
                 ]
 

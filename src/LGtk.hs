@@ -191,15 +191,6 @@ button
     -> Widget m
 button r fm = button_ r (liftM isJust fm) (liftReadPart fm >>= maybe (return ()) id)
 
-smartButton
-    :: (EffRef m, Eq a)
-    => ReadRef m String     -- ^ dynamic label of the button
-    -> Ref m a              -- ^ underlying reference
-    -> (a -> ReadRef m a)   -- ^ The button is active when this monadic function changes its input. When the button is pressed, the value of the reference is modified with this function.
-    -> Widget m
-smartButton s k f =
-    button_ s (readRef k >>= \x -> liftM (/= x) $ f x)
-             (liftReadPart (readRef k) >>= liftReadPart . f >>= writeRef k)
 
 data EqRef r a = forall b . Eq b => EqRef (r b) (ReadPart (RefMonad r) (Lens b a))
 
@@ -218,8 +209,19 @@ smartButton'
     -> EqRef (Ref m) a              -- ^ underlying reference
     -> (a -> a)   -- ^ The button is active when this function changes the value of the reference.
     -> Widget m
-smartButton' s (EqRef r mk) f =
-    smartButton s r $ \a -> liftM (\k -> modL k f a) mk
+smartButton' s (EqRef r mk) f
+    = button_ s (readRef r >>= \x -> liftM (/= x) $ g x)
+             (liftReadPart (readRef r >>= g) >>= writeRef r)
+ where
+    g a = liftM (\k -> modL k f a) mk
+
+smartButton
+    :: (EffRef m, Eq a)
+    => ReadRef m String     -- ^ dynamic label of the button
+    -> Ref m a              -- ^ underlying reference
+    -> (a -> a)   -- ^ The button is active when this function is not identity on value of the reference. When the button is pressed, the value of the reference is modified with this function.
+    -> Widget m
+smartButton s = smartButton' s . toEqRef
 
 
 

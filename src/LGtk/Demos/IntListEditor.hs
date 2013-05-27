@@ -1,13 +1,10 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE ConstraintKinds #-}
 -- | An integer list editor
 module LGtk.Demos.IntListEditor where
 
 import LGtk
 
 import Control.Monad
-import qualified Control.Arrow as Arrow
+import Control.Arrow ((***))
 import Data.List
 import Data.Function (on)
 import Prelude hiding ((.), id)
@@ -21,9 +18,6 @@ intListEditor
     -> Widget m
 intListEditor list range = action $ do
     (undo, redo)  <- undoTr ((==) `on` map fst) list
-    let safe = lens id (const . take maxi)
-        len = EqRef list $ liftM (\r -> lens length $ extendList r . min maxi) $ readRef range
-        sel = liftM (filter snd) $ readRef list
     return $ notebook
         [ (,) "Editor" $ vcat
             [ hcat
@@ -35,17 +29,17 @@ intListEditor list range = action $ do
                 , button (return "redo") redo
                 ]
             , hcat
-                [ sbutton (return "+1")         list $ map $ mapFst (+1)
-                , sbutton (return "-1")         list $ map $ mapFst (+(-1))
-                , sbutton (return "sort")       list $ sortBy (compare `on` fst)
-                , sbutton (return "SelectAll")  list $ map $ mapSnd $ const True
-                , sbutton (return "SelectPos")  list $ map $ \(a,_) -> (a, a>0)
-                , sbutton (return "SelectEven") list $ map $ \(a,_) -> (a, even a)
-                , sbutton (return "InvertSel")  list $ map $ mapSnd not
-                , sbutton (liftM (("DelSel " ++) . show . length) sel) list $ filter $ not . snd
-                , smartButton (return "CopySel") list $ modL_ safe $ concatMap $ \(x,b) -> (x,b): [(x,False) | b]
-                , sbutton (return "+1 Sel")     list $ map $ mapSel (+1)
-                , sbutton (return "-1 Sel")     list $ map $ mapSel (+(-1))
+                [ smartButton (return "+1")         list $ map $ mapFst (+1)
+                , smartButton (return "-1")         list $ map $ mapFst (+(-1))
+                , smartButton (return "sort")       list $ sortBy (compare `on` fst)
+                , smartButton (return "SelectAll")  list $ map $ mapSnd $ const True
+                , smartButton (return "SelectPos")  list $ map $ \(a,_) -> (a, a>0)
+                , smartButton (return "SelectEven") list $ map $ \(a,_) -> (a, even a)
+                , smartButton (return "InvertSel")  list $ map $ mapSnd not
+                , smartButton (liftM (("DelSel " ++) . show . length) sel) list $ filter $ not . snd
+                , smartButton' (return "CopySel") safeList $ concatMap $ \(x,b) -> (x,b): [(x,False) | b]
+                , smartButton (return "+1 Sel")     list $ map $ mapSel (+1)
+                , smartButton (return "-1 Sel")     list $ map $ mapSel (+(-1))
                 ]
             , label $ liftM (("Sum: " ++) . show . sum . map fst) sel
             , action $ listEditor def (itemEditor list) list
@@ -64,14 +58,13 @@ intListEditor list range = action $ do
         , button_ (return "Copy") (return True) $ modRef list $ \xs -> take (i+1) xs ++ drop i xs
         ]
 
-    modL' mr f b = do
-        r <- mr
-        modL_ r f b
+    safeList = EqRef list $ return $ lens id (const . take maxi)
 
-    modL_ r f b = return $ modL r f b
+    sel = liftM (filter snd) $ readRef list
 
+    len = EqRef (toRef safeList) $ liftM (lens length . extendList) $ readRef range
     extendList r n xs = take n $ (reverse . drop 1 . reverse) xs ++
-        (uncurry zip . ((if r then enumFrom else repeat) Arrow.*** repeat)) (head $ reverse xs ++ [def])
+        (uncurry zip . ((if r then enumFrom else repeat) *** repeat)) (head $ reverse xs ++ [def])
 
     def = (0, True)
     maxi = 15
@@ -79,9 +72,6 @@ intListEditor list range = action $ do
     mapFst f (x, y) = (f x, y)
     mapSnd f (x, y) = (x, f y)
     mapSel f (x, y) = (if y then f x else x, y)
-
-    sbutton s k f = smartButton s k $ return . f
-
 
 listEditor :: EffRef m => a -> (Int -> Ref m a -> m (Widget m)) -> Ref m [a] -> m (Widget m)
 listEditor def ed = editor 0 where
