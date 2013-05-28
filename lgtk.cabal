@@ -5,12 +5,12 @@ synopsis:           lens-based API for Gtk
 description:
     The main interface module of LGtk is "LGtk".
     .
-    See also <http://people.inf.elte.hu/divip/LGtk/index.html>
+    See also <http://www.haskell.org/haskellwiki/LGtk>
 stability:          experimental
 license:            BSD3
 license-file:       LICENSE
 author:             Péter Diviánszky
-homepage:           http://people.inf.elte.hu/divip/LGtk/index.html
+homepage:           http://www.haskell.org/haskellwiki/LGtk
 bug-reports:        http://hub.darcs.net/divip/lgtk/issues
 maintainer:         divipp@gmail.com
 cabal-version:      >= 1.8
