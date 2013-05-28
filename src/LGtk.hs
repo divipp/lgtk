@@ -40,6 +40,7 @@ module LGtk
     -- ** Basic operations
     , Reference
     , RefMonad
+    , ReadRefMonad
     , readRef
     , writeRef
     , lensMap

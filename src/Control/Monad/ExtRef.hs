@@ -10,6 +10,7 @@ module Control.Monad.ExtRef
 
     -- * Reference class
     , Reference (..)
+    , ReadRefMonad
 
     -- * Ref construction class
     , ExtRef (..)
@@ -78,7 +79,7 @@ class (HasReadPart (RefMonad r)) => Reference r where
 
     @(readRef r >> return ())@ === @return ()@
     -}
-    readRef  :: r a -> ReadPart (RefMonad r) a
+    readRef  :: r a -> ReadRefMonad r a
 
     {- | @writeRef r@ === @modify . setL r@
 
@@ -104,10 +105,12 @@ class (HasReadPart (RefMonad r)) => Reference r where
 
     @joinRef@ === @Lens . join . (runLens .) . runReader@
     -}
-    joinRef :: ReadPart (RefMonad r) (r a) -> r a
+    joinRef :: ReadRefMonad r (r a) -> r a
 
     -- | @unitRef@ === @lens (const ()) (const id)@
     unitRef :: r ()
+
+type ReadRefMonad m = ReadPart (RefMonad m)
 
 infixr 8 `lensMap`
 
@@ -160,7 +163,7 @@ class (Monad m, Reference (Ref m)) => ExtRef m where
 
 type WriteRef m = RefMonad (Ref m)
 
-type ReadRef m = ReadPart (RefMonad (Ref m))
+type ReadRef m = ReadRefMonad (Ref m)
 
 {- | @ReadRef@ lifted to the reference creation class.
 
@@ -290,7 +293,7 @@ hasEffect
     :: Reference r
     => EqRef r a
     -> (a -> a)
-    -> ReadPart (RefMonad r) Bool
+    -> ReadRefMonad r Bool
 hasEffect m f = runEqRef m >>= \(EqRef_ r k) -> liftM (\x -> modL k f x /= x) $ readRef r
 
 
