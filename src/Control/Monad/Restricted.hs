@@ -23,6 +23,7 @@ import Control.Monad.Reader
 import Control.Monad.RWS
 import Control.Monad.Trans.Identity
 import qualified System.Environment as Env
+import System.IO.Error (catchIOError, isDoesNotExistError)
 
 {- |
 Monad morphism. Think as @m@ is a submonad of @n@.
@@ -103,7 +104,9 @@ instance SafeIO IO where
 
     getArgs     = Env.getArgs
     getProgName = Env.getProgName
-    lookupEnv   = Env.lookupEnv
+--    lookupEnv   = Env.lookupEnv -- does not work with Haskell Platform 2013.2.0.0
+    lookupEnv v = catchIOError (liftM Just $ Env.getEnv v) $ \e ->
+        if isDoesNotExistError e then return Nothing else ioError e
 
 -- | This instance is used in the implementation, the end users do not need it.
 instance SafeIO m => SafeIO (Ext n m) where
