@@ -2,8 +2,7 @@ module LGtk.Demos.Main
     ( main
     ) where
 
-import Control.Monad
-import Data.Maybe
+import Data.Maybe (isJust)
 import Prelude hiding (id, (.))
 
 import LGtk
@@ -43,7 +42,7 @@ main = runWidget $ notebook
             let (a, b) = interval ab
             c <- counter 0 ab
             return $ vcat
-                [ label $ liftM show $ readRef $ toRef c
+                [ label $ liftM show $ readRef c
                 , hcat
                     [ smartButton (return "+1") c (+1)
                     , smartButton (return "-1") c (+(-1))

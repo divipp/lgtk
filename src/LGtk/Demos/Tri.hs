@@ -1,6 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE ConstraintKinds #-}
 {- |
 An editor for integers x, y, z such that x + y = z always hold and
 the last edited value change.
@@ -9,7 +6,6 @@ module LGtk.Demos.Tri where
 
 import LGtk
 
-import Control.Monad
 import Prelude hiding ((.), id)
 
 -- | Information pieces: what is known?
@@ -32,8 +28,8 @@ tri :: EffRef m => Widget m
 tri = action $ do
     s <- newRef [X 0, Y 0]
     return $ vcat
-        [ hcat [entryShow $ lens getX setX `lensMap` s, label $ return "x"]
-        , hcat [entryShow $ lens getY setY `lensMap` s, label $ return "y"]
+        [ hcat [entryShow $ lens getX  setX  `lensMap` s, label $ return "x"]
+        , hcat [entryShow $ lens getY  setY  `lensMap` s, label $ return "y"]
         , hcat [entryShow $ lens getXY setXY `lensMap` s, label $ return "x + y"]
         ]
 

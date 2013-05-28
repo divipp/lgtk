@@ -14,10 +14,10 @@ module Control.Monad.ExtRef
 
     -- * Ref construction class
     , ExtRef (..)
-
-    -- * Derived constructs
     , ReadRef
     , WriteRef
+
+    -- * Derived constructs
     , modRef
     , liftReadRef
     , readRef'

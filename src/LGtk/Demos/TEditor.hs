@@ -1,11 +1,8 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
 module LGtk.Demos.TEditor where
 
-import Control.Monad
 import Prelude hiding ((.), id)
 
 import LGtk

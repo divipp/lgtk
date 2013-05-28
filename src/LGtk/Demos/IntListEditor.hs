@@ -22,7 +22,7 @@ intListEditor def maxi list_ range = action $ do
                 [ entryShow $ toRef len
                 , smartButton (return "+1") len (+1)
                 , smartButton (return "-1") len (+(-1))
-                , smartButton (liftM (("DeleteAll " ++) . show) $ readRef $ toRef len) len $ const 0
+                , smartButton (liftM (("DeleteAll " ++) . show) $ readRef len) len $ const 0
                 , button (return "undo") undo
                 , button (return "redo") redo
                 ]

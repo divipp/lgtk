@@ -1,10 +1,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 -- | A generic ADT editor defined on top of the main LGtk interface, "LGtk".
 module LGtk.ADTEditor
@@ -14,7 +11,6 @@ module LGtk.ADTEditor
 
 import LGtk
 
-import Control.Monad
 import Prelude hiding ((.), id)
 
 -- | Type-level lists

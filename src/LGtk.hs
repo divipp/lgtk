@@ -6,10 +6,19 @@
 -- | Main LGtk interface.
 module LGtk
     ( 
-    -- * Categories
+    -- * Re-export
+
+    -- ** Category
       Category (..)
+
+    -- ** Tensor
     , Tensor (..)
+
+    -- ** Monad
     , liftM
+    , liftM2
+    , liftM3
+    , when
 
     -- * Lenses
     -- ** Construction
@@ -94,13 +103,13 @@ module LGtk
 
     -- ** GUI descriptions
     , label
-    , button_
-    , Color (..)
     , checkbox
     , combobox
     , entry
     , vcat
     , hcat
+    , button_
+    , Color (..)
     , notebook
     , cell_
     , action
