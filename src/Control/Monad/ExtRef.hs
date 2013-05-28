@@ -69,7 +69,7 @@ class (HasReadPart (RefMonad r)) => Reference r where
 
     Property derived from the 'HasReadPart' instance:
 
-    @ReadPart (Refmonad r)@  ===  @Reader s@
+    @ReadRefMonad r@ = @ReadPart (Refmonad r)@  ===  @Reader s@
     -}
     type RefMonad r :: * -> *
 
@@ -278,13 +278,29 @@ undoTr eq r = do
 
 data EqRef_ r a = forall b . Eq b => EqRef_ (r b) (Lens b a)
 
--- | References with inherent equivalence
-newtype EqRef r a = EqRef { runEqRef :: ReadPart (RefMonad r) (EqRef_ r a) }
+{- | References with inherent equivalence.
 
--- | @hasEffect@ is correct only if @eqRef@ is applied on a pure reference (a reference which is a pure lens on the hidden state).
+@EqRef r a@ === @ReadRefMonad r (forall b . Eq b => (Lens b a, r b))@
+
+As a reference, @(m :: EqRef r a)@ behaves as
+
+@joinRef $ liftM (uncurry lensMap) m@
+
+@EqRef@ makes defining auto-sensitive buttons easier, see later.
+-}
+newtype EqRef r a = EqRef { runEqRef :: ReadRefMonad r (EqRef_ r a) }
+
+{- | @EqRef@ construction.
+
+@hasEffect@ is correct only if @eqRef@ is applied on a pure reference (a reference which is a pure lens on the hidden state).
+-}
 eqRef :: (Reference r, Eq a) => r a -> EqRef r a
 eqRef r = EqRef $ return $ EqRef_ r id
 
+{- | An @EqRef@ is a normal reference if we forget about the equality.
+
+@toRef m@ === @joinRef $ liftM (uncurry lensMap) m@
+-}
 toRef :: Reference r => EqRef r a -> r a
 toRef (EqRef m) = joinRef $ liftM (\(EqRef_ r k) -> k `lensMap` r) m
 

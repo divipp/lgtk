@@ -31,21 +31,33 @@ class ExtRef m => EffRef m where
 
     {- |
     Let @r@ be an effectless action (@ReadRef@ guarantees this).
-    @onChange r fmm@ has the following effect:
+
+    @(onChange init r fmm)@ has the following effect:
 
     Whenever the value of @r@ changes (with respect to the given equality),
     @fmm@ is called with the new value @a@.
-    The value of the @fmm a@ action is memoized,
+    The value of the @(fmm a)@ action is memoized,
     but the memoized value is run again and again.
 
-    For example, let @(k :: a -> m b)@ and @(h :: b -> m ())@,
-    and suppose that @r@ will have values @a1@, @a2@, @a3@ = @a1@.
+    The boolean parameter @init@ tells whether the action should
+    be run in the beginning or not.
 
-    @onChange r $ \\a -> k a >>= return . h@
+    For example, let @(k :: a -> m b)@ and @(h :: b -> m ())@,
+    and suppose that @r@ will have values @a1@, @a2@, @a3@ = @a1@, @a4@ = @a2@.
+
+    @onChange True r $ \\a -> k a >>= return . h@
 
     has the effect
 
-    @k a1 >>= \\b1 -> h b1 >> k a2 >>= \\b2 -> h b2 >> h b1@
+    @k a1 >>= \\b1 -> h b1 >> k a2 >>= \\b2 -> h b2 >> h b1 >> h b2@
+
+    and
+
+    @onChange False r $ \\a -> k a >>= return . h@
+
+    has the effect
+
+    @k a2 >>= \\b2 -> h b2 >> k a1 >>= \\b1 -> h b1 >> h b2@
     -}
     onChange :: Eq a => Bool -> ReadRef m a -> (a -> m (m ())) -> m ()
 
@@ -78,7 +90,7 @@ class (EffRef m, SafeIO m, SafeIO (ReadRef m)) => EffIORef m where
     asyncWrite :: Eq a => Int -> (a -> WriteRef m ()) -> a -> m ()
 
     {- |
-    @fileRef path@ returns a reference which holds the actual contents
+    @(fileRef path)@ returns a reference which holds the actual contents
     of the file accessed by @path@.
 
     When the value of the reference changes, the file changes.
@@ -97,7 +109,7 @@ class (EffRef m, SafeIO m, SafeIO (ReadRef m)) => EffIORef m where
     putStr_    :: String -> m ()
 
     {- | Read a line from the standard input device.
-    @getLine_ f@ returns immediately. When the line @s@ is read,
+    @(getLine_ f)@ returns immediately. When the line @s@ is read,
     @f s@ is called.
     -}
     getLine_   :: (String -> WriteRef m ()) -> m ()

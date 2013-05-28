@@ -144,7 +144,7 @@ Gtk widget descriptions.
 Construction of a @(w :: forall m . EffIORef m => Widget m)@ value is side-effect free,
 side-effects happen at running @('runWidget' w)@.
 
-@Widget m@ should be abstract, but it is also safe to keep it as a type synonym because
+@Widget@ should be abstract data type, but it is also safe to keep it as a type synonym because
 the operations of the revealed implementation are hidden.
 -}
 type Widget m = Gtk.Widget (EffectM m) m

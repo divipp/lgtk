@@ -6,6 +6,7 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
+-- | A generic ADT editor defined on top of the main LGtk interface, "LGtk".
 module LGtk.ADTEditor
     ( List (..), Elems(..), ADTLens(..)
     , adtEditor
@@ -24,9 +25,43 @@ data Elems (xs :: List *) where
     ElemsNil :: Elems Nil
     ElemsCons :: ADTLens a => a -> Elems as -> Elems (Cons a as)
 
--- | Lens for editable ADTs
+{- | Lens for editable ADTs with support of shared record fields between constructors.
+
+Suppose we have the data type
+
+@
+data X
+    = X1 { a :: Int, b :: Bool }
+    | X2 { a :: Int, c :: Char }
+@
+
+We can build an editor which can switch between two editor for the constructors.
+If the field @a@ is edited in one editor, it will be updated in the other.
+-}
 class ADTLens a where
+
+    {- | @ADTEls a@ is the list of types of the parts of the ADT.
+
+    For example,
+
+    @ADTEls X = Cons Int (Cons Bool (Cons Char Nil))@
+    -}
     type ADTEls a :: List *
+
+    {- | The lens which defines an abstract editor.
+
+    The first parameter defines the displayed constructor name and the parts of the constructor for each constructor.
+    @Int@ is an index in the @ADTEls@ list.
+
+    For example, in case of @X@,
+
+    @fst3 adtLens = [(\"X1\", [0, 1]), (\"X2\", [0, 2])]@
+
+    The second parameter is the list of default values for each part.
+
+    The third parameter is a lens from the selected constructor index plus
+    the values of the ADT parts to the ADT values.
+    -}
     adtLens :: ([(String, [Int])], Elems (ADTEls a), Lens (Int, Elems (ADTEls a)) a)
 
 -- | A generic ADT editor

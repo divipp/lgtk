@@ -35,12 +35,12 @@ We use @MorphD@ instead of @Morph@ when the morphism is stored inside a data str
 -}
 newtype MorphD m n = MorphD { runMorphD :: Morph m n }
 
--- | @m@ is a monad which has a submonad @ReadPart m@ which is isomorphic to 'Reader'.
+-- | @m@ has a submonad @(ReadPart m)@ which is isomorphic to 'Reader'.
 class (Monad m, Monad (ReadPart m)) => HasReadPart m where
 
     {- | Law: @(ReadPart m)@  ===  @('Reader' x)@ for some @x@.
 
-    Alternative laws which ensures this isomorphism (@r :: ReadPart m a@ is arbitrary):
+    Alternative laws which ensures this isomorphism (@r :: (ReadPart m a)@ is arbitrary):
 
      *  @(r >> return ())@ === @return ()@
 
@@ -50,7 +50,7 @@ class (Monad m, Monad (ReadPart m)) => HasReadPart m where
     -}
     type ReadPart m :: * -> *
 
-    -- | @ReadPart m@ is a submonad of @m@
+    -- | @(ReadPart m)@ is a submonad of @m@
     liftReadPart :: Morph (ReadPart m) m
 
 -- | @ReadPart (StateT s m) = Reader s@ 
@@ -95,7 +95,7 @@ class Monad m => SafeIO m where
     -- | The name of the program as it was invoked.
     getProgName :: m String
 
-    -- | @getEnv var@ returns the value of the environment variable @var@.
+    -- | @(lookupEnv var)@ returns the value of the environment variable @var@.
     lookupEnv   :: String -> m (Maybe String)
 
 -- | This instance is used in the implementation, the end users do not need it.
