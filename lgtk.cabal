@@ -4,8 +4,6 @@ category:           GUI
 synopsis:           lens-based API for Gtk
 description:
     The main interface module of LGtk is "LGtk".
-    .
-    See also <http://www.haskell.org/haskellwiki/LGtk>
 stability:          experimental
 license:            BSD3
 license-file:       LICENSE
