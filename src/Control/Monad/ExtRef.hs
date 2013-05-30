@@ -280,7 +280,7 @@ data EqRef_ r a = forall b . Eq b => EqRef_ (r b) (Lens b a)
 
 {- | References with inherent equivalence.
 
-@EqRef r a@ === @ReadRefMonad r (forall b . Eq b => (Lens b a, r b))@
+@EqRef r a@ === @ReadRefMonad r (exist b . Eq b => (Lens b a, r b))@
 
 As a reference, @(m :: EqRef r a)@ behaves as
 
