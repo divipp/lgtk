@@ -18,22 +18,22 @@ main = runWidget $ notebook
     , (,) "Counters" $ notebook
 
         [ (,) "Unbounded" $ action $ do
-            c <- newRef 0
+            c <- newEqRef 0
             return $ vcat
                 [ label $ liftM show $ readRef c
                 , hcat
-                    [ smartButton (return "+1") (eqRef c) (+1)
-                    , smartButton (return "-1") (eqRef c) (+(-1))
+                    [ smartButton (return "+1") c (+1)
+                    , smartButton (return "-1") c (+(-1))
                     ]
                 ]
 
         , (,) "1..3" $ action $ do
-            c <- newRef 1
+            c <- newEqRef 1
             return $ vcat
                 [ label $ liftM show $ readRef c
                 , hcat
-                    [ smartButton (return "+1") (eqRef c) $ min 3 . (+1)
-                    , smartButton (return "-1") (eqRef c) $ max 1 . (+(-1))
+                    [ smartButton (return "+1") c $ min 3 . (+1)
+                    , smartButton (return "-1") c $ max 1 . (+(-1))
                     ]
                 ]
 

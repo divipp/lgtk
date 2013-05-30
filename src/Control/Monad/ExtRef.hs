@@ -26,10 +26,11 @@ module Control.Monad.ExtRef
     , memoWrite
 
     -- * References with equation
+    , EqReference (..)
     , EqRef
     , eqRef
+    , newEqRef
     , toRef
-    , hasEffect
 
     -- * Auxiliary definitions
     , Morph
@@ -276,6 +277,23 @@ undoTr eq r = do
     redo _ = Nothing
 
 
+{- | References with inherent equivalence.
+
+-}
+class Reference r => EqReference r where
+
+    {- | @hasEffect r f@ returns @False@ iff @(modRef m f)@ === @(return ())@.
+
+    @hasEffect@ is correct only if @eqRef@ is applied on a pure reference (a reference which is a pure lens on the hidden state).
+
+    @hasEffect@ makes defining auto-sensitive buttons easier, for example.
+    -}
+    hasEffect
+        :: r a
+        -> (a -> a)
+        -> ReadRefMonad r Bool
+
+
 data EqRef_ r a = forall b . Eq b => EqRef_ (r b) (Lens b a)
 
 {- | References with inherent equivalence.
@@ -285,17 +303,16 @@ data EqRef_ r a = forall b . Eq b => EqRef_ (r b) (Lens b a)
 As a reference, @(m :: EqRef r a)@ behaves as
 
 @joinRef $ liftM (uncurry lensMap) m@
-
-@EqRef@ makes defining auto-sensitive buttons easier, see later.
 -}
 newtype EqRef r a = EqRef { runEqRef :: ReadRefMonad r (EqRef_ r a) }
 
 {- | @EqRef@ construction.
-
-@hasEffect@ is correct only if @eqRef@ is applied on a pure reference (a reference which is a pure lens on the hidden state).
 -}
 eqRef :: (Reference r, Eq a) => r a -> EqRef r a
 eqRef r = EqRef $ return $ EqRef_ r id
+
+newEqRef :: (ExtRef m, Eq a) => a -> m (EqRef (Ref m) a) 
+newEqRef = liftM eqRef . newRef
 
 {- | An @EqRef@ is a normal reference if we forget about the equality.
 
@@ -304,13 +321,8 @@ eqRef r = EqRef $ return $ EqRef_ r id
 toRef :: Reference r => EqRef r a -> r a
 toRef (EqRef m) = joinRef $ liftM (\(EqRef_ r k) -> k `lensMap` r) m
 
--- | @hasEffect r f@ returns @False@ iff @(modRef m f)@ === @(return ())@.
-hasEffect
-    :: Reference r
-    => EqRef r a
-    -> (a -> a)
-    -> ReadRefMonad r Bool
-hasEffect m f = runEqRef m >>= \(EqRef_ r k) -> liftM (\x -> modL k f x /= x) $ readRef r
+instance Reference r => EqReference (EqRef r) where
+    hasEffect m f = runEqRef m >>= \(EqRef_ r k) -> liftM (\x -> modL k f x /= x) $ readRef r
 
 
 instance Reference r => Reference (EqRef r) where

@@ -1,4 +1,5 @@
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeFamilies #-}
 -- | Main LGtk interface.
 module LGtk
     ( 
@@ -67,10 +68,11 @@ module LGtk
     , memoRead
     , undoTr
 
+    , EqReference (..)
     , EqRef
     , eqRef
+    , newEqRef
     , toRef
-    , hasEffect
 
     -- * Dynamic networks
     , EffRef
@@ -220,13 +222,13 @@ button r fm = button_ r (liftM isJust fm) (liftReadPart fm >>= maybe (return ())
 
 
 smartButton
-    :: EffRef m
+    :: (EffRef m, EqReference r, RefMonad r ~ RefMonad (Ref m)) 
     => ReadRef m String     -- ^ dynamic label of the button
-    -> EqRef (Ref m) a              -- ^ underlying reference
+    -> r a              -- ^ underlying reference
     -> (a -> a)   -- ^ The button is active when this function is not identity on value of the reference. When the button is pressed, the value of the reference is modified with this function.
     -> Widget m
-smartButton s m f
-    = button_ s (hasEffect m f) (modRef m f)
+smartButton s r f
+    = button_ s (hasEffect r f) (modRef r f)
 
 -- | Checkbox.
 checkbox :: EffRef m => Ref m Bool -> Widget m
@@ -237,11 +239,11 @@ combobox :: EffRef m => [String] -> Ref m Int -> Widget m
 combobox ss r = Combobox ss (rEffect True (readRef r), toReceive $ writeRef r)
 
 -- | Text entry.
-entry :: EffRef m => Ref m String -> Widget m
+entry :: (EffRef m, Reference r, RefMonad r ~ RefMonad (Ref m))  => r String -> Widget m
 entry r = Entry (rEffect True (readRef r), toReceive $ writeRef r)
 
 -- | Text entry.
-entryShow :: (EffRef m, Show a, Read a) => Ref m a -> Widget m
+entryShow :: (EffRef m, Show a, Read a, Reference r, RefMonad r ~ RefMonad (Ref m)) => r a -> Widget m
 entryShow r = entry $ showLens `lensMap` r
 
 {- | Notebook (tabs).
