@@ -73,6 +73,11 @@ lift' m = Ext $ do
     r <- ask
     lift $ runMorphD r m
 
+unlift :: Monad m => ((Ext n m a -> m a) -> m b) -> Ext n m b
+unlift f = Ext $ do
+    r <- ask
+    lift $ f $ flip runReaderT r . unExt
+
 runExt :: MorphD n m -> Ext n m a -> m a
 runExt v (Ext m) = runReaderT m v
 
@@ -130,18 +135,17 @@ instance (SafeIO m, Monoid w) => SafeIO (RWST r w s m) where
     lookupEnv   = lift . lookupEnv
 
 class Monad m => NewRef m where
-    newRef' :: forall a . a -> m (MorphD (State a) m)
+    newRef' :: forall a . a -> m (MorphD (StateT a m) m)
 
 instance NewRef IO where
     newRef' x = do
         vx <- liftIO $ newMVar x
-        return $ MorphD $ \m -> liftIO $ modifyMVar vx $ return . swap . runState m
+        return $ MorphD $ \m -> modifyMVar vx $ liftM swap . runStateT m
       where
         swap (a, b) = (b, a)
 
 instance NewRef m => NewRef (Ext n m) where
-    newRef' a = liftM (\m -> MorphD $ lift . runMorphD m) $ lift $ newRef' a
-
+    newRef' = liftM (\m -> MorphD $ \k -> unlift $ runMorphD m . flip mapStateT k) . lift . newRef'
 
 newtype MonadMonoid a = MonadMonoid { runMonadMonoid :: a () }
 

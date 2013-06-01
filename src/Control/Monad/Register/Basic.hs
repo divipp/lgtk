@@ -8,6 +8,7 @@ module Control.Monad.Register.Basic
     ) where
 
 import Control.Monad
+import Control.Monad.State
 import Control.Monad.RWS
 import Data.List
 import Prelude hiding ((.), id)
@@ -45,10 +46,10 @@ instance NewRef m => MonadRegister (Register m) where
                             -- memo table, first item is the newest
         tell $ t1 $ do
             b <- rb
-            join $ runMorphD memoref $ gets $ \memo -> case memo of
-                Left b' | b' == b -> return ()
+            join $ runMorphD memoref $ StateT $ \memo -> case memo of
+                Left b' | b' == b -> return (return (), memo)
                 Right ((b', (_, s1, s2, _, _)): _) | b' == b ->
-                    runMonadMonoid $ s1 `mappend` s2
+                    return (runMonadMonoid $ s1 `mappend` s2, memo)
                 _ -> do
                     case memo of
                         Right ((_, (_, _, _, ureg1, ureg2)): _) ->
@@ -60,9 +61,8 @@ instance NewRef m => MonadRegister (Register m) where
                             return (c, (), (s1, ureg1))
                         _ -> runRWST (fb b) rr ()
                     ((), (s2, ureg2)) <- execRWST c rr ()
-                    runMorphD memoref $ state $ \memo ->
-                        (,) () $ Right $ (:) (b, (c, s1, s2, ureg1, ureg2)) $ filter ((/= b) . fst) $ either (const []) id memo
-                    runMonadMonoid $ s1 `mappend` s2
+                    let memo' = Right $ (:) (b, (c, s1, s2, ureg1, ureg2)) $ filter ((/= b) . fst) $ either (const []) id memo
+                    return (runMonadMonoid $ s1 `mappend` s2, memo')
 
 t1 m = (MonadMonoid m, mempty)
 t2 m = (mempty, MonadMonoid . m)
