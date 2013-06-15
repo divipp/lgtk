@@ -84,7 +84,8 @@ runWidget nio post' post = toWidget
         Entry (r, s) -> do
             w <- liftIO' entryNew
             hd <- reg s $ \re -> on' w entryActivate $ entryGetText w >>= re
-            ger hd r $ entrySetText w
+            hd' <- reg s $ \re -> on' w focusOutEvent $ lift $ entryGetText w >>= re >> return False
+            ger (\x -> hd x >> hd' x) r $ entrySetText w
             return' w
         Checkbox (r, s) -> do
             w <- liftIO' checkButtonNew
