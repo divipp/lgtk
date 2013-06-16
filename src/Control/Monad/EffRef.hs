@@ -61,7 +61,7 @@ class ExtRef m => EffRef m where
     -}
     onChange :: Eq a => Bool -> ReadRef m a -> (a -> m (m ())) -> m ()
 
-    toReceive :: Eq a => (a -> WriteRef m ()) -> ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m (Command -> EffectM m ())
+    toReceive :: (a -> WriteRef m ()) -> ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m (Command -> EffectM m ())
 
     rEffect  :: (EffRef m, Eq a) => Bool -> ReadRef m a -> (a -> EffectM m ()) -> m ()
 
@@ -114,7 +114,7 @@ class (EffRef m, SafeIO m, SafeIO (ReadRef m)) => EffIORef m where
     -}
     getLine_   :: (String -> WriteRef m ()) -> m ()
 
-    registerIO :: Eq a => (a -> WriteRef m ()) -> ((a -> IO ()) -> IO (Command -> IO ())) -> m ()
+    registerIO :: (a -> WriteRef m ()) -> ((a -> IO ()) -> IO (Command -> IO ())) -> m ()
 
 -- | @putStrLn_@ === @putStr_ . (++ "\n")@
 putStrLn_ :: EffIORef m => String -> m ()
