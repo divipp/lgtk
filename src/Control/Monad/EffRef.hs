@@ -7,6 +7,7 @@ module Control.Monad.EffRef
     , SafeIO (..)
     , EffIORef (..)
     , putStrLn_
+    , forkIOs
     ) where
 
 import Control.Concurrent
@@ -116,6 +117,8 @@ class (EffRef m, SafeIO m, SafeIO (ReadRef m)) => EffIORef m where
 
     registerIO :: (a -> WriteRef m ()) -> ((a -> IO ()) -> IO (Command -> IO ())) -> m ()
 
+    liftIO' :: IO a -> m a
+
 -- | @putStrLn_@ === @putStr_ . (++ "\n")@
 putStrLn_ :: EffIORef m => String -> m ()
 putStrLn_ = putStr_ . (++ "\n")
@@ -128,6 +131,8 @@ instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)
     registerIO r fm = do
         _ <- toReceive r $ \x -> unliftIO $ \u -> liftM (fmap liftIO) $ liftIO $ fm $ u . x
         return ()
+
+    liftIO' m = liftEffectM $ liftIO m
 
     asyncWrite t r a
         = registerIO r $ \re -> forkIOs [ threadDelay t, re a ]
@@ -182,9 +187,6 @@ instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)
 
         w = maybe (doesFileExist f >>= \b -> when b (removeFile f)) (writeFile f)
 
-
---liftIO' :: EffIORef_ m => IO a -> m a
-liftIO' m = liftEffectM $ liftIO m
 
 forkForever :: IO () -> IO (Command -> IO ())
 forkForever = forkIOs . repeat
