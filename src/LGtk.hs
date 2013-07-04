@@ -103,7 +103,7 @@ module LGtk
     , label
     , checkbox
     , combobox
-    , entry
+    , entry_
     , vcat
     , hcat
     , button_
@@ -114,6 +114,7 @@ module LGtk
 
     -- ** Derived constructs
     , empty
+    , entry
     , entryShow
     , button
     , smartButton
@@ -241,8 +242,12 @@ combobox :: EffRef m => [String] -> Ref m Int -> Widget m
 combobox ss r = Combobox ss (rEffect True (readRef r), toReceive $ writeRef r)
 
 -- | Text entry.
+entry_ :: EffRef m => ReadRef m String -> (String -> WriteRef m ()) -> (String -> WriteRef m ()) -> (String -> WriteRef m ()) -> ReadRef m Int -> Widget m
+entry_ g s s' s'' g' = Entry (rEffect True g) (toReceive s) (toReceive s') (toReceive s'') (rEffect False g')
+
+-- | Text entry.
 entry :: (EffRef m, Reference r, RefMonad r ~ RefMonad (Ref m))  => r String -> Widget m
-entry r = Entry (rEffect True (readRef r), toReceive $ writeRef r)
+entry r = entry_ (readRef r) (writeRef r) (writeRef r) (const $ return ()) (return 0)
 
 -- | Text entry.
 entryShow :: (EffRef m, Show a, Read a, Reference r, RefMonad r ~ RefMonad (Ref m)) => r a -> Widget m

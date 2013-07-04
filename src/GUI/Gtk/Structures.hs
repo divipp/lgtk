@@ -29,7 +29,7 @@ data Widget n m
              }  -- ^ button
     | Checkbox (SendReceive n m Bool)         -- ^ checkbox
     | Combobox [String] (SendReceive n m Int) -- ^ combo box
-    | Entry (SendReceive n m String)          -- ^ entry field
+    | Entry (Send n m String) (Receive n m String) (Receive n m String) (Receive n m String) (Send n m Int)         -- ^ entry field: automatic update, user input on enter, user input on focus-out event, user input on typing, focus grab
     | List ListLayout [Widget n m]         -- ^ group interfaces into row or column
     | Notebook' (Receive n m Int) [(String, Widget n m)]     -- ^ actual tab index, tabs
     | forall b . Eq b => Cell ((b -> m (m ())) -> m ()) (forall a . (Widget n m -> m a) -> b -> m (m a))

@@ -81,11 +81,15 @@ runWidget nio post' post = toWidget
                 widgetModifyBg w StateNormal c
                 widgetModifyBg w StatePrelight c
             return' w
-        Entry (r, s) -> do
+        Entry r s s' s'' r' -> do
             w <- liftIO' entryNew
+            buf <- liftIO' $ entryGetBuffer w
             hd <- reg s $ \re -> on' w entryActivate $ entryGetText w >>= re
-            hd' <- reg s $ \re -> on' w focusOutEvent $ lift $ entryGetText w >>= re >> return False
-            ger (\x -> hd x >> hd' x) r $ entrySetText w
+            hd' <- reg s' $ \re -> on' w focusOutEvent $ lift $ entryGetText w >>= re >> return False
+            hd'' <- reg s'' $ \re -> on' buf entryBufferDeletedText $ \_ _ -> entryGetText w >>= re
+            hd''' <- reg s'' $ \re -> on' buf entryBufferInsertedText $ \_ _ _ -> entryGetText w >>= re
+            ger (\x -> hd x >> hd' x >> hd'' x >> hd''' x) r $ entrySetText w
+            ger (\x -> hd x >> hd' x >> hd'' x >> hd''' x) r' $ \_ -> widgetGrabFocus w
             return' w
         Checkbox (r, s) -> do
             w <- liftIO' checkButtonNew
