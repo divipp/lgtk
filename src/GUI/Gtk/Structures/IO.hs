@@ -85,6 +85,8 @@ runWidget nio post' post = toWidget
             return' w
         Canvas w h sc_ me r diaFun -> do
 
+          cur <- liftIO $ newMVar Nothing
+
           (canvasDraw, canvas, af, dims) <- liftIO' $ do
             canvas <- drawingAreaNew
             widgetAddEvents canvas [PointerMotionMask]
@@ -101,7 +103,9 @@ runWidget nio post' post = toWidget
 
               tr sc w h dia = translate (r2 (w/2, h/2)) $ dia # scaleY (-1) # scale sc `atop` rect w h # fc white # lw 0
 
-              draw dia = do
+              draw dia_ = do
+                swapMVar cur $ Just dia_
+                let dia = freeze $ clearValue dia_
                 (sc, w, h, wi, he) <- dims
                 win <- widgetGetDrawWindow canvas
                 drawWindowBeginPaintRect win $ Rectangle 0 0 wi he
@@ -110,10 +114,12 @@ runWidget nio post' post = toWidget
 
             return (draw . diaFun, canvas, af, dims)
 
-          let compCoords :: (Double, Double) -> IO (Double, Double)
+          let -- compCoords :: (Double, Double) -> IO (MousePos a)
               compCoords (x,y) = do
                 (sc, w, h, _, _) <- dims
-                return ((x - w / 2) / sc, (h / 2 - y) / sc)
+                d <- readMVar cur
+                let p = ((x - w / 2) / sc, (h / 2 - y) / sc)
+                return $ MousePos p $ maybe mempty (`sample` p2 p) d
 
           reg me $ \re -> do
               on' canvas buttonPressEvent $ tryEvent $ do

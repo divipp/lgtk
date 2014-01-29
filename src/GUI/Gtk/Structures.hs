@@ -9,24 +9,26 @@ module GUI.Gtk.Structures
     , ListLayout (..)
     , MouseEvent (..)
     , ScrollDirection (..)
-    , MousePos
+    , MousePos (..)
     , Color (..)
     , Modifier (..)
     , KeyVal
     , keyName
     , keyToChar
     , Dia
+    , Monoid
+    , Semigroup
     ) where
 
 --import Graphics.UI.Gtk (Color)
 import Graphics.UI.Gtk.Gdk.GC (Color (Color))
-import Diagrams.Prelude (Diagram, R2)
+import Diagrams.Prelude (QDiagram, R2, Monoid, Semigroup)
 import Diagrams.Backend.Cairo (Cairo)
 import Graphics.UI.Gtk (ScrollDirection (..), KeyVal, Modifier, keyName, keyToChar)
 
 import Control.Monad.Register (Command (..))
 
-type Dia = Diagram Cairo R2
+type Dia a = QDiagram Cairo R2 a
 
 type Send n m a = (a -> n ()) -> m ()
 type Receive n m a = ((a -> n ()) -> n (Command -> n ())) -> m (Command -> n ())
@@ -47,7 +49,7 @@ data Widget n m
     | Notebook' (Receive n m Int) [(String, Widget n m)]     -- ^ actual tab index, tabs
     | forall b . Eq b => Cell ((b -> m (m ())) -> m ()) (forall a . (Widget n m -> m a) -> b -> m (m a))
     | Action (m (Widget n m))              -- ^ do an action before giving the interface
-    | forall b . Eq b => Canvas Int Int Double (Receive n m MouseEvent) (Send n m b) (b -> Dia)
+    | forall a b . (Eq b, Eq a, Monoid a) => Canvas Int Int Double (Receive n m (MouseEvent a)) (Send n m b) (b -> Dia a)
     | Scale Double Double Double (SendReceive n m Double)
 
 data ListLayout
@@ -55,15 +57,17 @@ data ListLayout
     | Vertical
         deriving (Eq)
 
-data MouseEvent
-    = MoveTo MousePos
-    | MouseEnter MousePos
-    | MouseLeave MousePos
-    | Click MousePos
-    | DragTo MousePos
-    | Release MousePos
-    | ScrollTo ScrollDirection MousePos
+data MouseEvent a
+    = MoveTo (MousePos a)
+    | MouseEnter (MousePos a)
+    | MouseLeave (MousePos a)
+    | Click (MousePos a)
+    | DragTo (MousePos a)
+    | Release (MousePos a)
+    | ScrollTo ScrollDirection (MousePos a)
     | KeyPress [Modifier] KeyVal
         deriving (Eq)
 
-type MousePos = (Double, Double)
+data MousePos a
+    = MousePos (Double, Double) a
+        deriving (Eq)
