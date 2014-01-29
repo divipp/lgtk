@@ -62,7 +62,7 @@ class ExtRef m => EffRef m where
     -}
     onChange :: Eq a => Bool -> ReadRef m a -> (a -> m (m ())) -> m ()
 
-    toReceive :: (a -> WriteRef m ()) -> ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m (Command -> EffectM m ())
+    toReceive :: Eq a => (a -> WriteRef m ()) -> ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m (Command -> EffectM m ())
 
     rEffect  :: (EffRef m, Eq a) => Bool -> ReadRef m a -> (a -> EffectM m ()) -> m ()
 
@@ -115,9 +115,7 @@ class (EffRef m, SafeIO m, SafeIO (ReadRef m)) => EffIORef m where
     -}
     getLine_   :: (String -> WriteRef m ()) -> m ()
 
-    registerIO :: (a -> WriteRef m ()) -> ((a -> IO ()) -> IO (Command -> IO ())) -> m ()
-
-    liftIO' :: IO a -> m a
+    registerIO :: Eq a => (a -> WriteRef m ()) -> ((a -> IO ()) -> IO (Command -> IO ())) -> m ()
 
 -- | @putStrLn_@ === @putStr_ . (++ "\n")@
 putStrLn_ :: EffIORef m => String -> m ()
@@ -131,8 +129,6 @@ instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)
     registerIO r fm = do
         _ <- toReceive r $ \x -> unliftIO $ \u -> liftM (fmap liftIO) $ liftIO $ fm $ u . x
         return ()
-
-    liftIO' m = liftEffectM $ liftIO m
 
     asyncWrite t r a
         = registerIO r $ \re -> forkIOs [ threadDelay t, re a ]
@@ -187,6 +183,9 @@ instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)
 
         w = maybe (doesFileExist f >>= \b -> when b (removeFile f)) (writeFile f)
 
+
+--liftIO' :: EffIORef_ m => IO a -> m a
+liftIO' m = liftEffectM $ liftIO m
 
 forkForever :: IO () -> IO (Command -> IO ())
 forkForever = forkIOs . repeat

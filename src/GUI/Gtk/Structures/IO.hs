@@ -3,6 +3,7 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 module GUI.Gtk.Structures.IO
     ( runWidget
     , gtkContext
@@ -11,16 +12,25 @@ module GUI.Gtk.Structures.IO
 import Control.Category
 import Control.Monad
 import Control.Monad.Writer
+import Control.Monad.IO.Class
 import Control.Concurrent
+import Control.Concurrent.MVar
 import Data.Maybe
+import Data.List hiding (union)
 import Prelude hiding ((.), id)
 
-import Graphics.UI.Gtk hiding (Widget)
+import Graphics.UI.Gtk hiding (Widget, Release)
 import qualified Graphics.UI.Gtk as Gtk
 
 import Control.Monad.Restricted (Morph)
 import Control.Monad.Register (Command (..))
 import GUI.Gtk.Structures
+
+import Diagrams.Prelude hiding (Widget)
+import Diagrams.Backend.Cairo
+import Diagrams.Backend.Cairo.Internal
+
+-------------------------
 
 gtkContext :: (Morph IO IO -> IO SWidget) -> IO ()
 gtkContext m = do
@@ -72,6 +82,80 @@ runWidget nio post' post = toWidget
             w <- liftIO' $ labelNew Nothing
             ger nhd s $ labelSetLabel w
             return' w
+        Canvas w h sc_ me r diaFun -> do
+
+          (canvasDraw, canvas, af, dims) <- liftIO' $ do
+            canvas <- drawingAreaNew
+            widgetAddEvents canvas [PointerMotionMask]
+            af <- aspectFrameNew 0.5 0.5 (Just $ fromIntegral w / fromIntegral h)
+            canvas `onSizeRequest` return (Requisition w h)
+            containerAdd af canvas
+            let
+              dims = do
+                win <- widgetGetDrawWindow canvas
+                (w, h) <- drawableGetSize win
+                let (w', h') = (fromIntegral w, fromIntegral h)
+                let sc = w' / sc_
+                return (sc, w', h', w, h)
+
+              tr sc w h dia = translate (r2 (w/2, h/2)) $ dia # scaleY (-1) # scale sc `atop` rect w h # fc white # lw 0
+
+              draw dia = do
+                (sc, w, h, wi, he) <- dims
+                win <- widgetGetDrawWindow canvas
+                drawWindowBeginPaintRect win $ Rectangle 0 0 wi he
+                renderWithDrawable win $ snd $ renderDia Cairo (CairoOptions "" (Width w) RenderOnly True) $ tr sc w h dia
+                drawWindowEndPaint win
+
+            return (draw . diaFun, canvas, af, dims)
+
+          let compCoords :: (Double, Double) -> IO (Double, Double)
+              compCoords (x,y) = do
+                (sc, w, h, _, _) <- dims
+                return ((x - w / 2) / sc, (h / 2 - y) / sc)
+
+          reg me $ \re -> do
+              on' canvas buttonPressEvent $ tryEvent $ do
+--                click <- eventClick
+                p <- eventCoordinates >>= liftIO . compCoords
+                liftIO $ re $ Click p
+              on' canvas buttonReleaseEvent $ tryEvent $ do
+--                click <- eventClick
+                p <- eventCoordinates >>= liftIO . compCoords
+                liftIO $ re $ Release p
+              on' canvas enterNotifyEvent $ tryEvent $ do
+                p <- eventCoordinates >>= liftIO . compCoords
+                liftIO $ re $ MouseEnter p
+              on' canvas leaveNotifyEvent $ tryEvent $ do
+                p <- eventCoordinates >>= liftIO . compCoords
+                liftIO $ re $ MouseLeave p
+              on' canvas motionNotifyEvent $ tryEvent $ do
+                p <- eventCoordinates >>= liftIO . compCoords
+                liftIO $ re $ MoveTo p
+              on' canvas scrollEvent $ tryEvent $ do
+                p <- eventCoordinates >>= liftIO . compCoords
+                dir <- eventScrollDirection
+                liftIO $ re $ ScrollTo dir p
+--            on' canvas exposeEvent $ tryEvent $ liftIO $ canvasDraw dia
+
+          canvasDraw' <- liftIO $ do
+            v <- newEmptyMVar
+            v2 <- newMVar False
+            forkIO $ forever $ do
+                threadDelay 20000
+                dia <- takeMVar v
+                swapMVar v2 True
+                post $ canvasDraw dia
+                swapMVar v2 False
+            return $ \dia -> do
+                b <- readMVar v2
+                unless b $ do
+                    _ <- tryTakeMVar v
+                    putMVar v dia
+
+          ger nhd r canvasDraw'
+          return' af
+
         Button s sens col m -> do
             w <- liftIO' buttonNew
             hd <- reg m $ \re -> on' w buttonActivated $ re ()
@@ -81,23 +165,26 @@ runWidget nio post' post = toWidget
                 widgetModifyBg w StateNormal c
                 widgetModifyBg w StatePrelight c
             return' w
-        Entry r s s' s'' r' -> do
+        Entry (r, s) -> do
             w <- liftIO' entryNew
-            buf <- liftIO' $ entryGetBuffer w
             hd <- reg s $ \re -> on' w entryActivate $ entryGetText w >>= re
-            hd' <- reg s' $ \re -> on' w focusOutEvent $ lift $ entryGetText w >>= re >> return False
-            hd'' <- reg s'' $ \re -> on' buf entryBufferDeletedText $ \_ _ -> entryGetText w >>= re
-            hd''' <- reg s'' $ \re -> on' buf entryBufferInsertedText $ \_ _ _ -> entryGetText w >>= re
-            ger (\x -> hd x >> hd' x >> hd'' x >> hd''' x) r $ entrySetText w
-            ger (\x -> hd x >> hd' x >> hd'' x >> hd''' x) r' $ \_ -> widgetGrabFocus w
+            hd' <- reg s $ \re -> on' w focusOutEvent $ lift $ entryGetText w >>= re >> return False
+            ger (\x -> hd x >> hd' x) r $ entrySetText w
             return' w
         Checkbox (r, s) -> do
             w <- liftIO' checkButtonNew
             hd <- reg s $ \re -> on' w toggled $ toggleButtonGetActive w >>= re
             ger hd r $ toggleButtonSetActive w
             return' w
+        Scale a b c (r, s) -> do
+            w <- liftIO' $ hScaleNewWithRange a b c
+            liftIO' $ w `onSizeRequest` return (Requisition 200 40)
+            hd <- reg s $ \re -> on' w valueChanged $ rangeGetValue w >>= re
+            ger hd r $ rangeSetValue w
+            return' w
         Combobox ss (r, s) -> do
             w <- liftIO' comboBoxNewText
+            liftIO' $ w `onSizeRequest` return (Requisition 50 30)
             liftIO' $ flip mapM_ ss $ comboBoxAppendText w
             hd <- reg s $ \re -> on' w changed $ fmap (max 0) (comboBoxGetActive w) >>= re
             ger hd r $ comboBoxSetActive w
