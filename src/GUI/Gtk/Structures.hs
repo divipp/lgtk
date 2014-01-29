@@ -11,6 +11,10 @@ module GUI.Gtk.Structures
     , ScrollDirection (..)
     , MousePos
     , Color (..)
+    , Modifier (..)
+    , KeyVal
+    , keyName
+    , keyToChar
     , Dia
     ) where
 
@@ -18,7 +22,7 @@ module GUI.Gtk.Structures
 import Graphics.UI.Gtk.Gdk.GC (Color (Color))
 import Diagrams.Prelude (Diagram, R2)
 import Diagrams.Backend.Cairo (Cairo)
-import Graphics.UI.Gtk (ScrollDirection (..))
+import Graphics.UI.Gtk (ScrollDirection (..), KeyVal, Modifier, keyName, keyToChar)
 
 import Control.Monad.Register (Command (..))
 
@@ -59,6 +63,7 @@ data MouseEvent
     | DragTo MousePos
     | Release MousePos
     | ScrollTo ScrollDirection MousePos
+    | KeyPress [Modifier] KeyVal
         deriving (Eq)
 
 type MousePos = (Double, Double)

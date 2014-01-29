@@ -21,6 +21,7 @@ import Prelude hiding ((.), id)
 
 import Graphics.UI.Gtk hiding (Widget, Release)
 import qualified Graphics.UI.Gtk as Gtk
+--import Graphics.UI.Gtk.Gdk.Events (eventKeyChar)
 
 import Control.Monad.Restricted (Morph)
 import Control.Monad.Register (Command (..))
@@ -136,6 +137,11 @@ runWidget nio post' post = toWidget
                 p <- eventCoordinates >>= liftIO . compCoords
                 dir <- eventScrollDirection
                 liftIO $ re $ ScrollTo dir p
+              on' canvas keyPressEvent $ tryEvent $ do
+--                p <- eventCoordinates >>= liftIO . compCoords
+                m <- eventModifier
+                c <- eventKeyVal
+                liftIO $ re $ KeyPress m c
 --            on' canvas exposeEvent $ tryEvent $ liftIO $ canvasDraw dia
 
           canvasDraw' <- liftIO $ do

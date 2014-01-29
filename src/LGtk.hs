@@ -114,6 +114,10 @@ module LGtk
     , canvas
     , Dia
     , MouseEvent (..)
+    , Modifier (..)
+    , KeyVal
+    , keyName
+    , keyToChar
     , ScrollDirection (..)
     , hscale
 
