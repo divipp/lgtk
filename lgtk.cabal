@@ -35,6 +35,8 @@ library
                   , mtl
 
                   , gtk
+                  , diagrams-lib
+                  , diagrams-cairo
   exposed-modules:
                     LGtk
                     LGtk.ADTEditor
