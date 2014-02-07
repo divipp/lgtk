@@ -39,6 +39,7 @@ library
                   , diagrams-cairo
   exposed-modules:
                     LGtk
+                    LGtk.Lens
                     LGtk.ADTEditor
 
                     LGtk.Demos.Main
