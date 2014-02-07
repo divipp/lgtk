@@ -86,6 +86,8 @@ runWidget nio post' post = toWidget
         Canvas w h sc_ me r diaFun -> do
 
           cur <- liftIO $ newMVar Nothing
+          cur' <- liftIO $ newMVar Nothing
+          v <- liftIO newEmptyMVar
 
           (canvasDraw, canvas, af, dims) <- liftIO' $ do
             canvas <- drawingAreaNew
@@ -112,7 +114,7 @@ runWidget nio post' post = toWidget
                 renderWithDrawable win $ snd $ renderDia Cairo (CairoOptions "" (Width w) RenderOnly True) $ tr sc w h dia
                 drawWindowEndPaint win
 
-            return (draw . diaFun, canvas, af, dims)
+            return (draw, canvas, af, dims)
 
           let -- compCoords :: (Double, Double) -> IO (MousePos a)
               compCoords (x,y) = do
@@ -121,7 +123,7 @@ runWidget nio post' post = toWidget
                 let p = ((x - w / 2) / sc, (h / 2 - y) / sc)
                 return $ MousePos p $ maybe mempty (`sample` p2 p) d
 
-          reg me $ \re -> do
+          hd <- reg me $ \re -> do
               on' canvas buttonPressEvent $ tryEvent $ do
 --                click <- eventClick
                 p <- eventCoordinates >>= liftIO . compCoords
@@ -148,17 +150,25 @@ runWidget nio post' post = toWidget
                 m <- eventModifier
                 c <- eventKeyVal
                 liftIO $ re $ KeyPress m c
---            on' canvas exposeEvent $ tryEvent $ liftIO $ canvasDraw dia
+          _ <- liftIO $ on canvas exposeEvent $ tryEvent $ liftIO $ do
+                d <- readMVar cur'
+                case d of
+                    Just x -> putMVar v x
+                    _ -> return ()
 
           canvasDraw' <- liftIO $ do
-            v <- newEmptyMVar
             v2 <- newMVar False
-            forkIO $ forever $ do
-                threadDelay 20000
+            forkIO $ do
+              threadDelay 200000
+              forever $ do
+                threadDelay 10000
                 dia <- takeMVar v
+                swapMVar cur' $ Just dia
                 swapMVar v2 True
-                post $ canvasDraw dia
+                let d = diaFun dia
+                post $ canvasDraw d
                 swapMVar v2 False
+                return ()
             return $ \dia -> do
                 b <- readMVar v2
                 unless b $ do
