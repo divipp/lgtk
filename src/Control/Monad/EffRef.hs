@@ -144,7 +144,7 @@ instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)
         ref <- newRef ms
         v <- liftIO' newEmptyMVar
         vman <- liftIO' newEmptyMVar
-        cf <- liftIO' $ canonicalizePath f
+        cf <- liftIO' $ canonicalizePath f   -- FIXME: canonicalizePath may fail if the file does not exsist
         let
             cf' = decodeString cf
             g = (== cf')
