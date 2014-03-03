@@ -3,15 +3,18 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE RankNTypes #-}
 -- | A generic ADT editor defined on top of the main LGtk interface, "LGtk".
 module LGtk.ADTEditor
-    ( List (..), Elems(..), ADTLens(..)
+    ( Lens_ (..), List (..), Elems(..), ADTLens(..)
     , adtEditor
     ) where
 
+import Control.Monad
+import Data.Lens.Common
 import LGtk
 
-import Prelude hiding ((.), id)
+newtype Lens_ a b = Lens_ {unLens_ :: Lens' a b}
 
 -- | Type-level lists
 data List a = Nil | Cons a (List a)
@@ -58,7 +61,7 @@ class ADTLens a where
     The third parameter is a lens from the selected constructor index plus
     the values of the ADT parts to the ADT values.
     -}
-    adtLens :: ([(String, [Int])], Elems (ADTEls a), Lens (Int, Elems (ADTEls a)) a)
+    adtLens :: ([(String, [Int])], Elems (ADTEls a), Lens_ (Int, Elems (ADTEls a)) a)
 
 -- | A generic ADT editor
 adtEditor :: (EffRef m, ADTLens a) => Ref m a -> m (Widget m)
@@ -71,7 +74,7 @@ adtEditor = liftM action . memoRead . editor  where
             , cell (liftM fst $ readRef q) $ \i -> vcat [es !! j | j <- snd $ ss !! i]
             ]
       where
-        (ss, ls, k) = adtLens
+        (ss, ls, Lens_ k) = adtLens
 
     mkEditors :: EffRef m => Elems xs -> Ref m (Elems xs) -> m [Widget m]
     mkEditors ElemsNil _ = return []
@@ -80,16 +83,18 @@ adtEditor = liftM action . memoRead . editor  where
         is <- mkEditors xs $ lTail `lensMap` r
         return $ i : is
       where
+        lHead :: Lens' (Elems (Cons x xs)) x
         lHead = lens get set where
             get :: Elems (Cons x xs) -> x
             get (ElemsCons a _) = a
-            set :: x -> Elems (Cons x xs) -> Elems (Cons x xs)
-            set a (ElemsCons _ as) = ElemsCons a as
+            set :: Elems (Cons x xs) -> x -> Elems (Cons x xs)
+            set (ElemsCons _ as) a = ElemsCons a as
 
+        lTail :: Lens' (Elems (Cons x xs)) (Elems xs)
         lTail = lens get set where
             get :: Elems (Cons x xs) -> Elems xs
             get (ElemsCons _ as) = as
-            set :: Elems xs -> Elems (Cons x xs) -> Elems (Cons x xs)
-            set as (ElemsCons a _) = ElemsCons a as
+            set :: Elems (Cons x xs) -> Elems xs -> Elems (Cons x xs)
+            set (ElemsCons a _) as = ElemsCons a as
 
 

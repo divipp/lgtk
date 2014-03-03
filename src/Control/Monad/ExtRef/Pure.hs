@@ -29,20 +29,21 @@ import System.IO.Unsafe
 import Control.Monad.Restricted
 import Control.Monad.ExtRef
 
+newtype Lens_ a b = Lens_ {unLens_ :: Lens' a b}
 
-instance Reference (Lens a) where
+instance Reference (Lens_ a) where
 
-    type RefMonad (Lens a) = State a
+    type RefMonad (Lens_ a) = State a
 
-    readRef = reader . getL
+    readRef (Lens_ r) = reader $ getL r
 
-    writeRef r = modify . setL r
+    writeRef (Lens_ r) = modify . setL r
 
-    lensMap = (.)
+    lensMap l (Lens_ r) = Lens_ $ r . l
 
-    unitRef = lens (const ()) (const id)
+    unitRef = Lens_ $ lens (const ()) (flip $ const id)
 
-    joinRef = Lens . join . (runLens .) . runReader
+    joinRef m = (\f -> Lens_ $ \g s -> unLens_ (f s) g s) $ runReader m
 
 
 type LSt = Seq CC
@@ -61,22 +62,22 @@ unsafeData (CC _ a) = unsafeCoerce a
 
 instance Monad m => ExtRef (StateT LSt m) where
 
-    type Ref (StateT LSt m) = Lens LSt
+    type Ref (StateT LSt m) = Lens_ LSt
 
     liftWriteRef = mapStateT (return . runIdentity)
 
-    extRef r1 r2 a0 = state extend  where
+    extRef (Lens_ r1) r2 a0 = state extend  where
 
         rk = setL r1 . getL r2
         kr = setL r2 . getL r1
 
-        extend x0 = (lens get set, x0 |> CC kr (kr x0 a0))
+        extend x0 = (Lens_ $ lens get set, x0 |> CC kr (kr x0 a0))
           where
             limit = (id *** toList) . splitAt (length x0)
 
             get = unsafeData . head . snd . limit
 
-            set a x = foldl (\x -> (|>) x . ap_ x) (rk a zs |> CC kr a) ys where
+            set x a = foldl (\x -> (|>) x . ap_ x) (rk a zs |> CC kr a) ys where
                 (zs, _ : ys) = limit x
 
 

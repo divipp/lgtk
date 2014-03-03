@@ -1,14 +1,18 @@
 -- | An integer list editor
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module LGtk.Demos.IntListEditor where
 
-import LGtk
-
+import Control.Monad
 import Data.List (sortBy)
 import Data.Function (on)
-import Prelude hiding ((.), id)
+
+import Data.Lens.Common
+import LGtk
 
 intListEditor
-    :: (EffRef m, Read a, Show a, Integral a)
+    :: forall m a
+    .  (EffRef m, Read a, Show a, Integral a)
     => (a, Bool)            -- ^ default element
     -> Int                  -- ^ maximum number of elements
     -> Ref m [(a, Bool)]    -- ^ state reference
@@ -27,13 +31,13 @@ intListEditor def maxi list_ range = action $ do
                 , button (return "redo") redo
                 ]
             , hcat
-                [ smartButton (return "+1")         list $ map $ first (+1)
-                , smartButton (return "-1")         list $ map $ first (+(-1))
+                [ smartButton (return "+1")         list $ map $ modL fstLens (+1)
+                , smartButton (return "-1")         list $ map $ modL fstLens (+(-1))
                 , smartButton (return "sort")       list $ sortBy (compare `on` fst)
-                , smartButton (return "SelectAll")  list $ map $ second $ const True
+                , smartButton (return "SelectAll")  list $ map $ setL sndLens True
                 , smartButton (return "SelectPos")  list $ map $ \(a,_) -> (a, a>0)
                 , smartButton (return "SelectEven") list $ map $ \(a,_) -> (a, even a)
-                , smartButton (return "InvertSel")  list $ map $ second not
+                , smartButton (return "InvertSel")  list $ map $ modL sndLens not
                 , smartButton (liftM (("DelSel " ++) . show . length) sel) list $ filter $ not . snd
                 , smartButton (return "CopySel") safeList $ concatMap $ \(x,b) -> (x,b): [(x,False) | b]
                 , smartButton (return "+1 Sel")     list $ map $ mapSel (+1)
@@ -62,11 +66,15 @@ intListEditor def maxi list_ range = action $ do
 
     sel = liftM (filter snd) $ readRef list
 
-    len = joinRef $ liftM ((`lensMap` safeList) . lens length . extendList) $ readRef range
-    extendList r n xs = take n $ (reverse . drop 1 . reverse) xs ++
-        (uncurry zip . (iterate (+ if r then 1 else 0) *** repeat)) (head $ reverse xs ++ [def])
+    len = joinRef $ liftM (\r -> ll r `lensMap` safeList) $ readRef range
+    ll :: Bool -> Lens' [(a, Bool)] Int
+    ll r = lens length extendList where
+        extendList xs n = take n $ (reverse . drop 1 . reverse) xs ++
+            (uncurry zip . (iterate (+ if r then 1 else 0) *** repeat)) (head $ reverse xs ++ [def])
 
     mapSel f (x, y) = (if y then f x else x, y)
+
+    (f *** g) (a, b) = (f a, g b)
 
 listEditor :: EffRef m => a -> [Ref m a -> m (Widget m)] -> Ref m [a] -> m (Widget m)
 listEditor def (ed: eds) r = do
@@ -74,7 +82,7 @@ listEditor def (ed: eds) r = do
     return $ cell (liftM fst $ readRef q) $ \b -> case b of
         False -> empty
         True -> action $ do
-            t1 <- ed $ fstLens . sndLens `lensMap` q
+            t1 <- ed $ sndLens . fstLens `lensMap` q
             t2 <- listEditor def eds $ sndLens . sndLens `lensMap` q
             return $ vcat [t1, t2]
 

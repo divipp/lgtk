@@ -4,9 +4,8 @@ the last edited value change.
 -}
 module LGtk.Demos.Tri where
 
+import Data.Lens.Common
 import LGtk
-
-import Prelude hiding ((.), id)
 
 -- | Information pieces: what is known?
 data S = X Int | Y Int | XY Int
@@ -18,10 +17,10 @@ getY s =  head $ [x | Y  x <- s]  ++ [getXY s - getX s]
 getXY s = head $ [x | XY x <- s]  ++ [getX  s + getY s]
 
 -- | Setter
-setX, setY, setXY :: Int -> [S] -> [S]
-setX  x s = take 2 $ X  x : filter (\x-> case x of X  _ -> False; _ -> True) s
-setY  x s = take 2 $ Y  x : filter (\x-> case x of Y  _ -> False; _ -> True) s
-setXY x s = take 2 $ XY x : filter (\x-> case x of XY _ -> False; _ -> True) s
+setX, setY, setXY :: [S] -> Int -> [S]
+setX  s x = take 2 $ X  x : filter (\x-> case x of X  _ -> False; _ -> True) s
+setY  s x = take 2 $ Y  x : filter (\x-> case x of Y  _ -> False; _ -> True) s
+setXY s x = take 2 $ XY x : filter (\x-> case x of XY _ -> False; _ -> True) s
 
 -- | The editor
 tri :: EffRef m => Widget m

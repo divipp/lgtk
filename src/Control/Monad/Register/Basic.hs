@@ -11,7 +11,6 @@ import Control.Monad
 import Control.Monad.State
 import Control.Monad.RWS
 import Data.List
-import Prelude hiding ((.), id)
 
 import Control.Monad.Restricted
 import Control.Monad.Register

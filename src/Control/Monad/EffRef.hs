@@ -19,7 +19,6 @@ import System.Directory
 import System.FSNotify
 import Filesystem.Path hiding (FilePath)
 import Filesystem.Path.CurrentOS hiding (FilePath)
-import Prelude hiding ((.), id)
 
 import Control.Monad.Restricted
 import Control.Monad.Register

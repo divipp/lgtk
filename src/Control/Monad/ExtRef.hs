@@ -36,15 +36,6 @@ module Control.Monad.ExtRef
     , Morph
     , MorphD (..)
     , MonadIO' (..)
-
-    -- * Auxiliary lens definitions
-    , listLens
-    , maybeLens
-    , showLens
-
-    -- * Re-exported
-    , (.)
-    , id
     ) where
 
 import Control.Monad
@@ -52,10 +43,8 @@ import Control.Monad.Reader
 import Control.Monad.Writer
 import Control.Monad.RWS
 import Control.Monad.Trans.Identity
-import Control.Category
 import Data.Maybe
 import Data.Lens.Common
-import Prelude hiding ((.), id)
 
 import Control.Monad.Restricted
 
@@ -98,7 +87,7 @@ class (HasReadPart (RefMonad r)) => Reference r where
 
     @lensMap@ === @(.)@
     -}
-    lensMap :: Lens a b -> r a -> r b
+    lensMap :: Lens' a b -> r a -> r b
 
     {- | @joinRef@ makes possible to define dynamic references, i.e. references which depends on
     values of other references.
@@ -152,14 +141,14 @@ class (Monad m, Reference (Ref m)) => ExtRef m where
 
      *  @(extRef r k a0 >>= readRef)@ === @(readRef r >>= setL k a0)@
     -}
-    extRef :: Ref m b -> Lens a b -> a -> m (Ref m a)
+    extRef :: Ref m b -> Lens' a b -> a -> m (Ref m a)
 
     {- | @newRef@ extends the state @s@ in an independent way.
 
     @newRef@ === @extRef unitRef (lens (const ()) (const id))@
     -}
     newRef :: a -> m (Ref m a)
-    newRef = extRef unitRef $ lens (const ()) (const id)
+    newRef = extRef unitRef $ lens (const ()) (flip $ const id)
 
 
 type WriteRef m = RefMonad (Ref m)
@@ -261,20 +250,21 @@ undoTr
            , ReadRef m (Maybe (WriteRef m ()))
            )  -- ^ undo and redo actions
 undoTr eq r = do
-    ku <- extRef r undoLens ([], [])
+    ku <- extRef r (undoLens eq) ([], [])
     let try f = liftM (liftM (writeRef ku) . f) $ readRef ku
     return (try undo, try redo)
   where
-    undoLens = lens get set where
-        get = head . fst
-        set x (x' : xs, ys) | eq x x' = (x: xs, ys)
-        set x (xs, _) = (x : xs, [])
-
     undo (x: xs@(_:_), ys) = Just (xs, x: ys)
     undo _ = Nothing
 
     redo (xs, y: ys) = Just (y: xs, ys)
     redo _ = Nothing
+
+undoLens :: (a -> a -> Bool) -> Lens' ([a],[a]) a
+undoLens eq = lens get set where
+    get = head . fst
+    set (x' : xs, ys) x | eq x x' = (x: xs, ys)
+    set (xs, _) x = (x : xs, [])
 
 
 {- | References with inherent equivalence.
@@ -294,11 +284,11 @@ class Reference r => EqReference r where
         -> ReadRefMonad r Bool
 
 
-data EqRef_ r a = forall b . Eq b => EqRef_ (r b) (Lens b a)
+data EqRef_ r a = forall b . Eq b => EqRef_ (r b) (Lens' b a)
 
 {- | References with inherent equivalence.
 
-@EqRef r a@ === @ReadRefMonad r (exist b . Eq b => (Lens b a, r b))@
+@EqRef r a@ === @ReadRefMonad r (exist b . Eq b => (Lens' b a, r b))@
 
 As a reference, @(m :: EqRef r a)@ behaves as
 
@@ -333,28 +323,10 @@ instance Reference r => Reference (EqRef r) where
 
     writeRef = writeRef . toRef
 
-    lensMap l (EqRef m) = EqRef $ m >>= \(EqRef_ r k) -> return $ EqRef_ r $ l . k
+    lensMap l (EqRef m) = EqRef $ m >>= \(EqRef_ r k) -> return $ EqRef_ r $ k . l
 
     joinRef = EqRef . join . liftM runEqRef
 
     unitRef = eqRef unitRef
-
-
-
-
-showLens :: (Show a, Read a) => Lens a String
-showLens = lens show $ \s def -> maybe def fst $ listToMaybe $ reads s
-
-listLens :: Lens (Bool, (a, [a])) [a]
-listLens = lens get set where
-    get (False, _) = []
-    get (True, (l, r)) = l: r
-    set [] (_, x) = (False, x)
-    set (l: r) _ = (True, (l, r))
-
-
-maybeLens :: Lens (Bool, a) (Maybe a)
-maybeLens = lens (\(b,a) -> if b then Just a else Nothing)
-              (\x (_,a) -> maybe (False, a) (\a' -> (True, a')) x)
 
 

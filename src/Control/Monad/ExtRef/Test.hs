@@ -239,13 +239,13 @@ mkTests runTest
 
     undoTest = runTest $ do
         r <- newRef 3
-        q <- extRef r (lens head (:)) []
+        q <- extRef r (lens head $ flip (:)) []
         writeRef' r 4
         q ==> [4, 3]
 
     undoTest2 = runTest $ do
         r <- newRef 3
-        q <- extRef r (lens head (:)) []
+        q <- extRef r (lens head $ flip (:)) []
         q ==> [3]
 
     undoTest3 = runTest $ do

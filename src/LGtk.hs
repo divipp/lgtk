@@ -2,44 +2,9 @@
 {-# LANGUAGE TypeFamilies #-}
 -- | Main LGtk interface.
 module LGtk
-    ( 
-    -- * Re-export
-
-    -- ** Category
-      Category (..)
-
-    -- ** Tensor
-    , Tensor (..)
-
-    -- ** Monad
-    , liftM
-    , liftM2
-    , liftM3
-    , when
-
-    -- * Lenses
-    -- ** Construction
-    , Lens (Lens)
-    , lens
-    , iso
-
-    -- ** Deconstruction
-    , runLens
-    , getL
-    , setL
-    , modL
-
-    -- ** Pure lenses
-    , fstLens
-    , sndLens
-    , listLens
-    , maybeLens
-
-    -- ** Impure lenses
-    , showLens
-
+    (
     -- * Monad morphisms
-    , Morph
+      Morph
     , HasReadPart (..)
 
     -- * References
@@ -136,13 +101,10 @@ module LGtk
     ) where
 
 import Data.Maybe
-import Control.Category
-import Control.Category.Product
 import Control.Concurrent
 import Control.Monad
 import Control.Monad.State
 import Control.Monad.Trans.Identity
-import Prelude hiding ((.), id)
 import Data.Lens.Common
 
 import Control.Monad.ExtRef

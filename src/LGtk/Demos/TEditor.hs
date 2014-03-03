@@ -3,8 +3,8 @@
 {-# LANGUAGE DataKinds #-}
 module LGtk.Demos.TEditor where
 
-import Prelude hiding ((.), id)
-
+import Data.Lens.Common
+import Control.Monad
 import LGtk
 import LGtk.ADTEditor
 
@@ -15,23 +15,23 @@ data T
         deriving Show
 
 -- | Lens for @T@
-tLens :: Lens (Bool, (T, T)) T
+tLens :: Lens' (Bool, (T, T)) T
 tLens = lens get set where
     get (False, _)     = Leaf
     get (True, (l, r)) = Node l r
-    set Leaf (_, x)   = (False, x)
-    set (Node l r) _ = (True, (l, r))
+    set (_, x) Leaf  = (False, x)
+    set _ (Node l r) = (True, (l, r))
 
 -- | @ADTLens@ instance for @T@
 instance ADTLens T where
     type ADTEls T = Cons T (Cons T Nil)
-    adtLens = ([("Leaf",[]),("Node",[0,1])], ElemsCons Leaf (ElemsCons Leaf ElemsNil), lens get set) where
+    adtLens = ([("Leaf",[]),("Node",[0,1])], ElemsCons Leaf (ElemsCons Leaf ElemsNil), Lens_ $ lens get set) where
         get :: (Int, Elems (ADTEls T)) -> T
         get (0, _)     = Leaf
         get (1, ElemsCons l (ElemsCons r ElemsNil)) = Node l r
-        set :: T -> (Int, Elems (ADTEls T)) -> (Int, Elems (ADTEls T))
-        set Leaf (_, x)   = (0, x)
-        set (Node l r) _ = (1, ElemsCons l (ElemsCons r ElemsNil))
+        set :: (Int, Elems (ADTEls T)) -> T -> (Int, Elems (ADTEls T))
+        set (_, x) Leaf  = (0, x)
+        set _ (Node l r) = (1, ElemsCons l (ElemsCons r ElemsNil))
 
 -- | @T@ editor with comboboxes, as an ADTEditor
 tEditor1 :: EffRef m => Widget m
@@ -46,7 +46,7 @@ tEditor3 r = do
         , cell (liftM fst $ readRef q) $ \b -> case b of
             False -> empty
             True -> action $ do
-                t1 <- tEditor3 $ fstLens . sndLens `lensMap` q
+                t1 <- tEditor3 $ sndLens . fstLens `lensMap` q
                 t2 <- tEditor3 $ sndLens . sndLens `lensMap` q
                 return $ vcat [t1, t2]
         ]

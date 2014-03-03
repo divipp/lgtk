@@ -30,7 +30,6 @@ library
                   , system-filepath
                   , fsnotify
 
-                  , data-lens
                   , transformers
                   , mtl
 
@@ -39,7 +38,7 @@ library
                   , diagrams-cairo
   exposed-modules:
                     LGtk
-                    LGtk.Lens
+
                     LGtk.ADTEditor
 
                     LGtk.Demos.Main
@@ -47,6 +46,8 @@ library
                     LGtk.Demos.IntListEditor
                     LGtk.Demos.TEditor
   other-modules:
+                    Data.Lens.Common
+
                     Control.Monad.Restricted
 
                     Control.Monad.ExtRef

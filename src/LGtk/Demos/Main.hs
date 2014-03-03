@@ -1,9 +1,12 @@
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module LGtk.Demos.Main
     ( main
     ) where
 
 import Data.Maybe (isJust)
-import Prelude hiding (id, (.))
+import Data.Lens.Common
+import Control.Monad
 
 import LGtk
 
@@ -142,19 +145,20 @@ main = runWidget $ notebook
 
     ]
 
-justLens :: a -> Lens (Maybe a) a
-justLens a = lens (maybe a id) (const . Just)
+justLens :: a -> Lens' (Maybe a) a
+justLens a = lens (maybe a id) (flip $ const . Just)
 
-counter :: (EffRef m, Ord a) => a -> Ref m (a, a) -> m (EqRef (Ref m) a)
+counter :: forall m a . (EffRef m, Ord a) => a -> Ref m (a, a) -> m (EqRef (Ref m) a)
 counter x ab = do
-    c <- extRef ab (sndLens . fix) (x, (x, x))
-    return $ fstLens . fix `lensMap` eqRef c
+    c <- extRef ab (fix . sndLens) (x, (x, x))
+    return $ fix . fstLens `lensMap` eqRef c
   where
-    fix = iso id $ \(x, ab@(a, b)) -> (min b $ max a x, ab)
+    fix :: Lens' (a, (a,a)) (a, (a,a))
+    fix = lens id $ \_ (x, ab@(a, b)) -> (min b $ max a x, ab)
 
 interval :: (Reference r, Ord a) => r (a, a) -> (r a, r a)
 interval ab = (lens fst set1 `lensMap` ab, lens snd set2 `lensMap` ab) where
-    set1 a (_, b) = (min b a, b)
-    set2 b (a, _) = (a, max a b)
+    set1 (_, b) a = (min b a, b)
+    set2 (a, _) b = (a, max a b)
 
 
