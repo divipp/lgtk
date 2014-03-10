@@ -2,6 +2,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE ConstraintKinds #-}
 module Control.Monad.EffRef
     ( EffRef (..)
     , SafeIO (..)
@@ -13,6 +14,8 @@ module Control.Monad.EffRef
 import Control.Concurrent
 import Control.Exception (evaluate)
 import Control.Monad
+import Control.Monad.Base
+import Control.Monad.Trans.Control
 import Control.Monad.Trans
 import Control.Monad.Trans.Identity
 import System.Directory
@@ -123,10 +126,10 @@ putStrLn_ = putStr_ . (++ "\n")
 
 
 -- | This instance is used in the implementation, the end users do not need it.
-instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m), MonadIO' (EffectM m), SafeIO (ReadRef m), SafeIO m) => EffIORef (IdentityT m) where
+instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m), MonadBaseControl IO (EffectM m), SafeIO (ReadRef m), SafeIO m) => EffIORef (IdentityT m) where
 
     registerIO r fm = do
-        _ <- toReceive r $ \x -> unliftIO $ \u -> liftM (fmap liftIO) $ liftIO $ fm $ u . x
+        _ <- toReceive r $ \x -> unliftIO $ \u -> liftM (fmap liftBase) $ fm $ void . u . x
         return ()
 
     asyncWrite t r a
@@ -165,7 +168,7 @@ instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)
 
         liftIO' startm
         registerIO (writeRef ref) $ \re -> forkForever $ takeMVar v >> r >>= re
-        rEffect False (readRef ref) $ \x -> liftIO $ do
+        rEffect False (readRef ref) $ \x -> liftBase $ do
             join $ takeMVar vman
             _ <- tryTakeMVar v
             w x
@@ -184,7 +187,7 @@ instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)
 
 
 --liftIO' :: EffIORef_ m => IO a -> m a
-liftIO' m = liftEffectM $ liftIO m
+liftIO' m = liftEffectM $ liftBase m
 
 forkForever :: IO () -> IO (Command -> IO ())
 forkForever = forkIOs . repeat

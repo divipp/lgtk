@@ -4,19 +4,27 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE ConstraintKinds #-}
 module Control.Monad.Restricted
     ( -- * Auxiliary definitions
       Morph
     , MorphD (..)
     , Ext (..), lift', runExt
     , HasReadPart (..)
-    , MonadIO' (..)
+    , unliftIO, unliftIO'
     , SafeIO (..)
     , NewRef (..)
     , MonadMonoid (..)
     ) where
 
 import Data.Monoid
+--import Control.Monad.Layer hiding (MonadTrans, lift)
+--import qualified Control.Monad.Layer as L
+import Control.Applicative
+import Control.Monad.Base
+import Control.Monad.Trans.Control
 import Control.Concurrent
 import Control.Monad.State
 import Control.Monad.Reader
@@ -52,45 +60,63 @@ class (Monad m, Monad (ReadPart m)) => HasReadPart m where
     type ReadPart m :: * -> *
 
     -- | @(ReadPart m)@ is a submonad of @m@
-    liftReadPart :: Morph (ReadPart m) m
+    liftReadPart :: ReadPart m a -> m a
 
 -- | @ReadPart (StateT s m) = Reader s@ 
 instance Monad m => HasReadPart (StateT s m) where
     type ReadPart (StateT s m) = Reader s
     liftReadPart = gets . runReader
 
+------------------
 
 newtype Ext n m a = Ext { unExt :: ReaderT (MorphD n m) m a }
-    deriving (Monad, MonadIO)
-
-deriving instance MonadIO' (Ext n IO)
+    deriving (Monad, MonadIO, Functor, Applicative)
 
 instance MonadTrans (Ext n) where
     lift = Ext . lift
+
+deriving instance (MonadBase b m) => MonadBase b (Ext n m)
+{-
+instance MonadTransControl (Ext n) where
+    data StT (Ext n) a = StTExt { unStTExt :: a }
+--    liftWith     = defaultLiftWith Ext
+--    restoreT     = defaultRestoreT   unExt
+
+instance (MonadBaseControl b m) => MonadBaseControl b (Ext n m) where
+    data StM (Ext n m) a = StMExt { unStMExt :: ComposeSt (Ext n) m a }
+    liftBaseWith = defaultLiftBaseWith StMExt
+    restoreM     = defaultRestoreM   unStMExt
+-}
+
+instance (MonadBase m m) => MonadBaseControl m (Ext n m) where
+    data StM (Ext n m) a = StMExt { unStMExt :: a }
+    liftBaseWith f = Ext $ do
+        r <- ask
+        lift $ f $ liftM StMExt . flip runReaderT r . unExt
+    restoreM = return . unStMExt
 
 lift' :: Monad m => n a -> Ext n m a
 lift' m = Ext $ do
     r <- ask
     lift $ runMorphD r m
 
-unlift :: Monad m => ((Ext n m a -> m a) -> m b) -> Ext n m b
-unlift f = Ext $ do
-    r <- ask
-    lift $ f $ flip runReaderT r . unExt
+unlift :: (MonadBase m m) => ((Ext n m a -> m a) -> m b) -> Ext n m b
+unlift f = liftBaseWith $ \m -> f (liftM (unStMExt) . m)
 
 runExt :: MorphD n m -> Ext n m a -> m a
 runExt v (Ext m) = runReaderT m v
 
-class MonadIO m => MonadIO' m where
-    unliftIO :: (Morph m IO -> m b) -> m b
+------------------
 
-instance MonadIO' IO where
-    unliftIO f = f id
+--type MonadIO' m = (MonadIO m, MonadBaseControl IO m)
 
-instance MonadIO' (ReaderT r IO) where
-    unliftIO f = do
-        x <- ask
-        f $ \m -> runReaderT m x
+unliftIO' :: MonadBaseControl n m => ((m () -> n ()) -> m a) -> m a
+unliftIO' f = liftBaseWith (\m -> m $ f $ void . m) >>= restoreM
+
+unliftIO :: MonadBaseControl n m => ((m () -> n ()) -> n a) -> m a
+unliftIO f = liftBaseWith (\m -> f $ void . m)
+
+-------------------
 
 -- | Type class for effectless, synchronous @IO@ actions.
 class Monad m => SafeIO m where
@@ -134,8 +160,10 @@ instance (SafeIO m, Monoid w) => SafeIO (RWST r w s m) where
     getProgName = lift getProgName
     lookupEnv   = lift . lookupEnv
 
-class Monad m => NewRef m where
-    newRef' :: forall a . a -> m (MorphD (StateT a m) m)
+-------------------
+
+class (Monad m) => NewRef m where
+    newRef' :: a -> m (MorphD (StateT a m) m)
 
 instance NewRef IO where
     newRef' x = do
@@ -144,8 +172,10 @@ instance NewRef IO where
       where
         swap (a, b) = (b, a)
 
-instance NewRef m => NewRef (Ext n m) where
+instance (MonadBase m m, NewRef m) => NewRef (Ext n m) where
     newRef' = liftM (\m -> MorphD $ \k -> unlift $ runMorphD m . flip mapStateT k) . lift . newRef'
+
+-------------------
 
 newtype MonadMonoid a = MonadMonoid { runMonadMonoid :: a () }
 

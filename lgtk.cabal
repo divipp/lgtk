@@ -31,7 +31,9 @@ library
                   , fsnotify
 
                   , transformers
+                  , transformers-base
                   , mtl
+                  , monad-control
 
                   , gtk
                   , diagrams-lib

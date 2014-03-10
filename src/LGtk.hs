@@ -80,7 +80,7 @@ module LGtk
     , Dia
     , MouseEvent (..)
     , MousePos (..)
-    , Modifier (..)
+    , Modifier
     , KeyVal
     , keyName
     , keyToChar
@@ -103,6 +103,7 @@ module LGtk
 import Data.Maybe
 import Control.Concurrent
 import Control.Monad
+import Control.Monad.Base
 import Control.Monad.State
 import Control.Monad.Trans.Identity
 import Data.Lens.Common
@@ -144,10 +145,10 @@ runWidget desc = do
         join $ readChan actionChannel
         runPostActions
     Gtk.gtkContext $ \postGUISync -> do
-        widget <- runExtRef_ $ unliftIO $ \unlift ->
+        widget <- runExtRef_ $ unliftIO' $ \unlift ->
             evalRegister
                 (runIdentityT $ Gtk.runWidget unlift addPostAction postGUISync desc)
-                (liftIO . writeChan actionChannel . unlift)
+                (liftIO . writeChan actionChannel . void . unlift)
         runPostActions
         return widget
 

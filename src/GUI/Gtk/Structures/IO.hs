@@ -11,6 +11,7 @@ module GUI.Gtk.Structures.IO
 
 import Control.Category
 import Control.Monad
+import Control.Monad.Trans.Control
 import Control.Monad.Writer
 import Control.Monad.IO.Class
 import Control.Concurrent
@@ -53,7 +54,7 @@ type SWidget = (IO (), Gtk.Widget)
 -- | Run an @IO@ parametrized interface description with Gtk backend
 runWidget
     :: forall n m . (MonadIO m, MonadIO n)
-    => Morph n IO
+    => (n () -> IO ())
     -> (IO () -> IO ())
     -> Morph IO IO
     -> Widget n m

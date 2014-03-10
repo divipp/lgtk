@@ -3,6 +3,8 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE UndecidableInstances #-}
 {- |
 Pure reference implementation for the @ExtRef@ interface.
 
@@ -13,6 +15,8 @@ module Control.Monad.ExtRef.Pure
     , runExtRef_
     ) where
 
+import Control.Monad.Base
+import Control.Monad.Trans.Control
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Identity
@@ -104,8 +108,8 @@ runSafeIO = return . unsafePerformIO
 
 -- | Advanced running of the @ExtRef@ monad.
 runExtRef_
-    :: forall m a . NewRef m
-    => (forall t . (MonadTrans t, ExtRef (t m), NewRef (t m), MonadIO' (t IO), SafeIO (ReadRef (t IO)), SafeIO (t IO)) => t m a)
+    :: forall m a . (MonadBase m m, NewRef m)
+    => (forall t . (MonadTrans t, ExtRef (t m), NewRef (t m), MonadIO (t IO), MonadBaseControl IO (t IO), SafeIO (ReadRef (t IO)), SafeIO (t IO)) => t m a)
     -> m a
 --    -> (Morph (Ext (State LSt) m) m -> Ext (State LSt) m a) -> m a
 runExtRef_ f = newRef' initLSt >>= flip runExt f

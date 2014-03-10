@@ -35,7 +35,7 @@ module Control.Monad.ExtRef
     -- * Auxiliary definitions
     , Morph
     , MorphD (..)
-    , MonadIO' (..)
+--    , MonadIO' (..)
     ) where
 
 import Control.Monad
