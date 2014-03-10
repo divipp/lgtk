@@ -6,7 +6,7 @@ module Data.Lens.Common
   -- * Lens construction
   , lens -- build a lens from a getter and setter
   -- * Functional API
-  , getL  -- ^.
+  , getL  -- (^.)
   , setL  -- set
   , modL  -- over
   -- * Stock lenses
