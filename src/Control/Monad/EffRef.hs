@@ -7,6 +7,7 @@ module Control.Monad.EffRef
     ( EffRef (..)
     , SafeIO (..)
     , EffIORef (..)
+    , asyncWrite
     , putStrLn_
     , forkIOs
     ) where
@@ -90,7 +91,8 @@ class (EffRef m, SafeIO m, SafeIO (ReadRef m)) => EffIORef m where
     the current computation.
     Although @(asyncWrite 0)@ is safe, code using it has a bad small.
     -}
-    asyncWrite :: Eq a => Int -> (a -> WriteRef m ()) -> a -> m ()
+    asyncWrite_ :: Eq a => Int -> (a -> WriteRef m ()) -> a -> m ()
+    asyncWrite' :: Int -> WriteRef m () -> m ()
 
     {- |
     @(fileRef path)@ returns a reference which holds the actual contents
@@ -123,7 +125,8 @@ class (EffRef m, SafeIO m, SafeIO (ReadRef m)) => EffIORef m where
 putStrLn_ :: EffIORef m => String -> m ()
 putStrLn_ = putStr_ . (++ "\n")
 
-
+asyncWrite :: EffIORef m => Int -> (a -> WriteRef m ()) -> a -> m ()
+asyncWrite t f a = asyncWrite' t $ f a
 
 -- | This instance is used in the implementation, the end users do not need it.
 instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m), MonadBaseControl IO (EffectM m), SafeIO (ReadRef m), SafeIO m) => EffIORef (IdentityT m) where
@@ -132,8 +135,9 @@ instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)
         _ <- toReceive r $ \x -> unliftIO $ \u -> liftM (fmap liftBase) $ fm $ void . u . x
         return ()
 
-    asyncWrite t r a
+    asyncWrite_ t r a
         = registerIO r $ \re -> forkIOs [ threadDelay t, re a ]
+    asyncWrite' t r = asyncWrite_ t (const r) ()
 
     putStr_ = liftIO' . putStr
 
@@ -157,21 +161,24 @@ instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)
             filt (Modified x _) = g x
             filt (Removed x _) = g x
 
-            act (Added _ _) = h
-            act (Modified _ _) = h
-            act (Removed _ _) = h
+            act (Added _ _) = putStrLn "added" >> h
+            act (Modified _ _) = putStrLn "mod" >> h
+            act (Removed _ _) = putStrLn "rem" >> h
 
             startm = do
+                putStrLn " start" 
                 man <- startManager
+                putMVar vman $ putStrLn " stop" >> stopManager man
                 watchDir man (directory cf') filt act
-                putMVar vman $ stopManager man
 
         liftIO' startm
         registerIO (writeRef ref) $ \re -> forkForever $ takeMVar v >> r >>= re
         rEffect False (readRef ref) $ \x -> liftBase $ do
             join $ takeMVar vman
             _ <- tryTakeMVar v
+            putStrLn "  write"
             w x
+            threadDelay 10000
             startm
         return ref
      where

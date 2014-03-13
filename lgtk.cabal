@@ -1,5 +1,5 @@
 name:               lgtk
-version:            0.5.3
+version:            0.5.4
 category:           GUI
 synopsis:           lens-based API for Gtk
 description:
@@ -36,8 +36,15 @@ library
                   , monad-control
 
                   , gtk
+
+--                  , threepenny-gui == 0.4.1.*
+
                   , diagrams-lib
                   , diagrams-cairo
+                  , SVGFonts
+                  , groups
+
+                  , lens
   exposed-modules:
                     LGtk
 

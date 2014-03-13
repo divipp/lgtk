@@ -105,6 +105,7 @@ instance SafeIO (Reader (Seq CC)) where
 runSafeIO :: Monad m => IO a -> m a
 runSafeIO = return . unsafePerformIO
 
+--instance (MonadBaseControl IO m) => SafeIO m where
 
 -- | Advanced running of the @ExtRef@ monad.
 runExtRef_

@@ -63,6 +63,7 @@ module LGtk
     -- ** Running
     , Widget
     , runWidget
+--    , runWidget'
 
     -- ** GUI descriptions
     , label
@@ -115,6 +116,7 @@ import Control.Monad.EffRef
 import GUI.Gtk.Structures hiding (Send, Receive, SendReceive, Widget)
 import qualified GUI.Gtk.Structures as Gtk
 import qualified GUI.Gtk.Structures.IO as Gtk
+--import qualified GUI.Gtk.Structures.ThreePenny as TP
 import Control.Monad.ExtRef.Pure
 import Control.Monad.Restricted
 
@@ -151,7 +153,26 @@ runWidget desc = do
                 (liftIO . writeChan actionChannel . void . unlift)
         runPostActions
         return widget
+{-
+runWidget' :: (forall m . EffIORef m => Widget m) -> IO ()
+runWidget' desc = do
 
+    postActionsRef <- newRef' $ return ()
+    let addPostAction  = runMorphD postActionsRef . modify . flip (>>)
+        runPostActions = join $ runMorphD postActionsRef $ state $ \m -> (m, return ())
+    actionChannel <- newChan
+    _ <- forkIO $ forever $ do
+        join $ readChan actionChannel
+        runPostActions
+
+    TP.gtkContext $ \w -> do
+        widget <- runExtRef_ $ unliftIO' $ \unlift ->
+            evalRegister
+                (runIdentityT $ TP.runWidget unlift addPostAction w desc)
+                (liftBase . writeChan actionChannel . void . unlift)
+--        runPostActions
+        return widget
+-}
 -- | Vertical composition of widgets.
 vcat :: [Widget m] -> Widget m
 vcat = List Vertical

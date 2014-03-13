@@ -64,6 +64,9 @@ runWidget nio post' post = toWidget
     liftIO' :: MonadIO k => IO a -> k a
     liftIO' = liftIO . post
 
+--    nio = undefined
+
+    -- type Receive n m a = ((a -> n ()) -> n (Command -> n ())) -> m (Command -> n ())
     reg :: Receive n m a -> Receive IO m a
     reg s f = liftM (nio .) $ s $ liftM (fmap liftIO) . liftIO' . f . (nio .)
 
