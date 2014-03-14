@@ -1,5 +1,5 @@
 name:               lgtk
-version:            0.5.4
+version:            0.5.4.1
 category:           GUI
 synopsis:           lens-based API for Gtk
 description:
@@ -79,21 +79,5 @@ library
                     -fno-warn-orphans
                     -fno-warn-type-defaults
 
-executable lgtkdemo
 
-  build-depends:
-                    base < 5
-                  , lgtk
-  main-is:
-                    Main.hs
-  hs-source-dirs:
-                    main
-  ghc-options: 
-                    -threaded
-                    -Wall 
-                    -fno-warn-incomplete-patterns 
-                    -fno-warn-name-shadowing 
-                    -fno-warn-missing-signatures 
-                    -fno-warn-orphans
-                    -fno-warn-type-defaults
 
