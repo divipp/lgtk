@@ -3,10 +3,9 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ExistentialQuantification #-}
 module Control.Monad.ExtRef
-    ( module Data.Lens.Common
-
+    (
     -- * Restricted monads
-    , HasReadPart (..)
+      HasReadPart (..)
 
     -- * Reference class
     , Reference (..)
