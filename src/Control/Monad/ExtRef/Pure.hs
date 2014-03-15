@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE GADTs #-}
 {- |
 Pure reference implementation for the @ExtRef@ interface.
 
@@ -20,18 +21,18 @@ import Control.Monad.Trans.Control
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Identity
-import Control.Category
 import Control.Arrow ((***))
 import Data.Sequence
 import Data.Lens.Common
 import Data.Foldable (toList)
-import Prelude hiding ((.), id, splitAt, length)
+import Prelude hiding (splitAt, length)
 
 import Unsafe.Coerce
 import System.IO.Unsafe
 
 import Control.Monad.Restricted
 import Control.Monad.ExtRef
+import Control.Monad.Operational
 
 newtype Lens_ a b = Lens_ {unLens_ :: Lens' a b}
 
@@ -84,6 +85,34 @@ instance Monad m => ExtRef (StateT LSt m) where
             set x a = foldl (\x -> (|>) x . ap_ x) (rk a zs |> CC kr a) ys where
                 (zs, _ : ys) = limit x
 
+---------------
+
+type X = Lens_ LSt
+
+runSyntRefReader :: SyntRefReader X a -> Reader LSt a
+runSyntRefReader = interpretWithMonad eval where
+    eval :: RefReaderI X a -> Reader LSt a
+    eval (SyntReadRef r) = readRef $ runSyntRef r
+
+runSyntRef :: SyntRef X a -> Lens_ LSt a
+runSyntRef SyntUnitRef = unitRef
+runSyntRef (SyntLensMap l r) = lensMap l $ runSyntRef r
+runSyntRef (SyntJoinRef m) = joinRef $ liftM runSyntRef $ runSyntRefReader m
+runSyntRef (SyntCreatedRef l) = l
+
+runExtRef'' :: Monad m => SyntExtRef X a -> StateT LSt m a
+runExtRef'' = interpretWithMonad eval where
+    eval :: Monad m => ExtRefI X a -> StateT LSt m a
+    eval (SyntExtRef r l a) = liftM SyntCreatedRef $ extRef (runSyntRef r) l a
+    eval (SyntNewRef a) = liftM SyntCreatedRef $ newRef a
+
+runSyntRefState :: SyntRefState X a -> State LSt a
+runSyntRefState = interpretWithMonad eval where
+    eval :: RefStateI X a -> State LSt a
+    eval (SyntLiftRefReader r) = liftRefStateReader $ runSyntRefReader r
+    eval (SyntWriteRef r a) = writeRef (runSyntRef r) a
+
+---------------
 
 instance (ExtRef n, Monad m) => ExtRef (Ext n m) where
     type Ref (Ext n m) = Ref n

@@ -34,6 +34,7 @@ library
                   , transformers-base
                   , mtl
                   , monad-control
+                  , operational
 
                   , gtk
 

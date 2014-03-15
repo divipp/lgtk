@@ -2,36 +2,11 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ExistentialQuantification #-}
-module Control.Monad.ExtRef
-    (
-    -- * Restricted monads
-      MonadRefState (..)
-
-    -- * Reference class
-    , Reference (..)
-    , RefReader
-
-    -- * Ref construction class
-    , ExtRef (..)
-    , ReadRef
-    , WriteRef
-
-    -- * Derived constructs
-    , modRef
-    , liftReadRef
-    , readRef'
-    , undoTr
-    , memoRead
-    , memoWrite
-
-    -- * References with equality
-    , EqReference (..)
-    , EqRef
-    , eqRef
-    , newEqRef
-    , toRef
-
-    ) where
+{-# LANGUAGE EmptyDataDecls #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
+module Control.Monad.ExtRef where
 
 import Control.Monad
 import Control.Monad.Reader
@@ -39,6 +14,7 @@ import Control.Monad.Writer
 import Control.Monad.State
 import Control.Monad.RWS
 import Control.Monad.Trans.Identity
+import Control.Monad.Operational
 import Data.Lens.Common
 
 -- | @m@ has a submonad @(RefStateReader m)@ which is isomorphic to 'Reader'.
@@ -63,6 +39,7 @@ class (Monad m, Monad (RefStateReader m)) => MonadRefState m where
 instance Monad m => MonadRefState (StateT s m) where
     type RefStateReader (StateT s m) = Reader s
     liftRefStateReader = gets . runReader
+
 
 {- |
 A reference @(r a)@ is isomorphic to @('Lens' s a)@ for some fixed state @s@.
@@ -119,6 +96,7 @@ class (MonadRefState (RefState r)) => Reference r where
 type RefReader m = RefStateReader (RefState m)
 
 infixr 8 `lensMap`
+
 
 -- | @modRef r f@ === @liftRefStateReader (readRef r) >>= writeRef r . f@
 modRef :: Reference r => r a -> (a -> a) -> RefState r ()
@@ -345,4 +323,42 @@ instance Reference r => Reference (EqRef r) where
 
     unitRef = eqRef unitRef
 
+----------------- synthetic data types and instances
+
+type SyntRefReader x = Program (RefReaderI x)
+data RefReaderI x a where
+    SyntReadRef :: SyntRef x a -> RefReaderI x a
+
+type SyntRefState x = Program (RefStateI x)
+data RefStateI x a where
+    SyntLiftRefReader :: SyntRefReader x a -> RefStateI x a
+    SyntWriteRef :: SyntRef x a -> a -> RefStateI x ()
+
+instance MonadRefState (SyntRefState x) where
+    type RefStateReader (SyntRefState x) = SyntRefReader x
+    liftRefStateReader = singleton . SyntLiftRefReader
+
+data SyntRef x a where
+    SyntUnitRef :: SyntRef x ()
+    SyntLensMap :: Lens' a b -> SyntRef x a -> SyntRef x b
+    SyntJoinRef :: SyntRefReader x (SyntRef x a) -> SyntRef x a
+    SyntCreatedRef :: x a -> SyntRef x a
+
+instance Reference (SyntRef x) where
+    type RefState (SyntRef x) = SyntRefState x
+    readRef = singleton . SyntReadRef
+    writeRef r = singleton . SyntWriteRef r
+    lensMap = SyntLensMap
+    joinRef = SyntJoinRef
+    unitRef = SyntUnitRef
+
+type SyntExtRef x = Program (ExtRefI x)
+data ExtRefI x a where
+    SyntExtRef :: SyntRef x b -> Lens' a b -> a -> ExtRefI x (SyntRef x a)
+    SyntNewRef :: a -> ExtRefI x (SyntRef x a)
+
+instance ExtRef (SyntExtRef x) where
+    type Ref (SyntExtRef x) = SyntRef x
+    extRef r l = singleton . SyntExtRef r l
+    newRef = singleton . SyntNewRef
 
