@@ -3,11 +3,11 @@
 -- | Main LGtk interface.
 module LGtk
     (
-    -- * Monad morphisms
-      Morph
-    , HasReadPart (..)
-
     -- * References
+
+    -- ** Inner reader monad
+      HasReadPart (..)
+
     -- ** Basic operations
     , Reference
     , RefMonad

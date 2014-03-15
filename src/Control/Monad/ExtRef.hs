@@ -160,7 +160,7 @@ type ReadRef m = ReadRefMonad (Ref m)
 Note that we do not lift @WriteRef@ to the reference creation class, which a crucial restriction
 in the LGtk interface; this is a feature.
 -}
-liftReadRef :: ExtRef m => Morph (ReadRef m) m
+liftReadRef :: ExtRef m => ReadRef m a -> m a
 liftReadRef = liftWriteRef . liftReadPart
 
 {- | @readRef@ lifted to the reference creation class.
