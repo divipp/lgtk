@@ -25,7 +25,7 @@ module Control.Monad.ExtRef
     , memoRead
     , memoWrite
 
-    -- * References with equation
+    -- * References with equality
     , EqReference (..)
     , EqRef
     , eqRef
