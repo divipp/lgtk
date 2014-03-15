@@ -251,7 +251,7 @@ mkTests runTest
 
     undoTest3 = runTest $ do
         r <- newRef 3
-        (undo, redo) <- liftM (liftReadPart *** liftReadPart) $ undoTr (==) r
+        (undo, redo) <- liftM (liftRefStateReader *** liftRefStateReader) $ undoTr (==) r
         r ==> 3
         redo === False
         undo === False

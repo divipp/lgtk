@@ -5,11 +5,11 @@
 module Control.Monad.ExtRef
     (
     -- * Restricted monads
-      HasReadPart (..)
+      MonadRefState (..)
 
     -- * Reference class
     , Reference (..)
-    , ReadRefMonad
+    , RefReader
 
     -- * Ref construction class
     , ExtRef (..)
@@ -41,12 +41,12 @@ import Control.Monad.RWS
 import Control.Monad.Trans.Identity
 import Data.Lens.Common
 
--- | @m@ has a submonad @(ReadPart m)@ which is isomorphic to 'Reader'.
-class (Monad m, Monad (ReadPart m)) => HasReadPart m where
+-- | @m@ has a submonad @(RefStateReader m)@ which is isomorphic to 'Reader'.
+class (Monad m, Monad (RefStateReader m)) => MonadRefState m where
 
-    {- | Law: @(ReadPart m)@  ===  @('Reader' x)@ for some @x@.
+    {- | Law: @(RefStateReader m)@  ===  @('Reader' x)@ for some @x@.
 
-    Alternative laws which ensures this isomorphism (@r :: (ReadPart m a)@ is arbitrary):
+    Alternative laws which ensures this isomorphism (@r :: (RefStateReader m a)@ is arbitrary):
 
      *  @(r >> return ())@ === @return ()@
 
@@ -54,38 +54,38 @@ class (Monad m, Monad (ReadPart m)) => HasReadPart m where
 
     See also <http://stackoverflow.com/questions/16123588/what-is-this-special-functor-structure-called>
     -}
-    type ReadPart m :: * -> *
+    type RefStateReader m :: * -> *
 
-    -- | @(ReadPart m)@ is a submonad of @m@
-    liftReadPart :: ReadPart m a -> m a
+    -- | @(RefStateReader m)@ is a submonad of @m@
+    liftRefStateReader :: RefStateReader m a -> m a
 
--- | @ReadPart (StateT s m) = Reader s@ 
-instance Monad m => HasReadPart (StateT s m) where
-    type ReadPart (StateT s m) = Reader s
-    liftReadPart = gets . runReader
+-- | @RefStateReader (StateT s m) = Reader s@ 
+instance Monad m => MonadRefState (StateT s m) where
+    type RefStateReader (StateT s m) = Reader s
+    liftRefStateReader = gets . runReader
 
 {- |
 A reference @(r a)@ is isomorphic to @('Lens' s a)@ for some fixed state @s@.
 
 @r@  ===  @Lens s@
 -}
-class (HasReadPart (RefMonad r)) => Reference r where
+class (MonadRefState (RefState r)) => Reference r where
 
     {- | @Refmonad r@  ===  @State s@
 
-    Property derived from the 'HasReadPart' instance:
+    Property derived from the 'MonadRefState' instance:
 
-    @ReadRefMonad r@ = @ReadPart (Refmonad r)@  ===  @Reader s@
+    @RefReader r@ = @RefStateReader (Refmonad r)@  ===  @Reader s@
     -}
-    type RefMonad r :: * -> *
+    type RefState r :: * -> *
 
     {- | @readRef@ === @reader . getL@
 
-    Properties derived from the 'HasReadPart' instance:
+    Properties derived from the 'MonadRefState' instance:
 
     @(readRef r >> return ())@ === @return ()@
     -}
-    readRef  :: r a -> ReadRefMonad r a
+    readRef  :: r a -> RefReader r a
 
     {- | @writeRef r@ === @modify . setL r@
 
@@ -97,7 +97,7 @@ class (HasReadPart (RefMonad r)) => Reference r where
 
      *  @(writeRef r a >> writeRef r a')@ === @writeRef r a'@
     -}
-    writeRef :: r a -> a -> RefMonad r ()
+    writeRef :: r a -> a -> RefState r ()
 
     {- | Apply a lens on a reference.
 
@@ -111,18 +111,18 @@ class (HasReadPart (RefMonad r)) => Reference r where
 
     @joinRef@ === @Lens . join . (runLens .) . runReader@
     -}
-    joinRef :: ReadRefMonad r (r a) -> r a
+    joinRef :: RefReader r (r a) -> r a
 
     -- | @unitRef@ === @lens (const ()) (const id)@
     unitRef :: r ()
 
-type ReadRefMonad m = ReadPart (RefMonad m)
+type RefReader m = RefStateReader (RefState m)
 
 infixr 8 `lensMap`
 
--- | @modRef r f@ === @liftReadPart (readRef r) >>= writeRef r . f@
-modRef :: Reference r => r a -> (a -> a) -> RefMonad r ()
-r `modRef` f = liftReadPart (readRef r) >>= writeRef r . f
+-- | @modRef r f@ === @liftRefStateReader (readRef r) >>= writeRef r . f@
+modRef :: Reference r => r a -> (a -> a) -> RefState r ()
+r `modRef` f = liftRefStateReader (readRef r) >>= writeRef r . f
 
 
 {- | Monad for reference creation. Reference creation is not a method
@@ -167,9 +167,9 @@ class (Monad m, Reference (Ref m)) => ExtRef m where
     newRef = extRef unitRef $ lens (const ()) (flip $ const id)
 
 
-type WriteRef m = RefMonad (Ref m)
+type WriteRef m = RefState (Ref m)
 
-type ReadRef m = ReadRefMonad (Ref m)
+type ReadRef m = RefReader (Ref m)
 
 {- | @ReadRef@ lifted to the reference creation class.
 
@@ -177,7 +177,7 @@ Note that we do not lift @WriteRef@ to the reference creation class, which a cru
 in the LGtk interface; this is a feature.
 -}
 liftReadRef :: ExtRef m => ReadRef m a -> m a
-liftReadRef = liftWriteRef . liftReadPart
+liftReadRef = liftWriteRef . liftRefStateReader
 
 {- | @readRef@ lifted to the reference creation class.
 
@@ -297,20 +297,20 @@ class Reference r => EqReference r where
     hasEffect
         :: r a
         -> (a -> a)
-        -> ReadRefMonad r Bool
+        -> RefReader r Bool
 
 
 data EqRef_ r a = forall b . Eq b => EqRef_ (r b) (Lens' b a)
 
 {- | References with inherent equivalence.
 
-@EqRef r a@ === @ReadRefMonad r (exist b . Eq b => (Lens' b a, r b))@
+@EqRef r a@ === @RefReader r (exist b . Eq b => (Lens' b a, r b))@
 
 As a reference, @(m :: EqRef r a)@ behaves as
 
 @joinRef $ liftM (uncurry lensMap) m@
 -}
-newtype EqRef r a = EqRef { runEqRef :: ReadRefMonad r (EqRef_ r a) }
+newtype EqRef r a = EqRef { runEqRef :: RefReader r (EqRef_ r a) }
 
 {- | @EqRef@ construction.
 -}
@@ -333,7 +333,7 @@ instance Reference r => EqReference (EqRef r) where
 
 instance Reference r => Reference (EqRef r) where
 
-    type (RefMonad (EqRef r)) = RefMonad r
+    type (RefState (EqRef r)) = RefState r
 
     readRef = readRef . toRef
 

@@ -37,7 +37,7 @@ newtype Lens_ a b = Lens_ {unLens_ :: Lens' a b}
 
 instance Reference (Lens_ a) where
 
-    type RefMonad (Lens_ a) = State a
+    type RefState (Lens_ a) = State a
 
     readRef (Lens_ r) = reader $ getL r
 
