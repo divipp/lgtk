@@ -3,8 +3,9 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Control.Monad.EffRef
-    ( EffRef (..)
+    ( EffRef, onChange, toReceive, rEffect
     , SafeIO (..)
     , EffIORef (..)
     , asyncWrite
@@ -23,15 +24,14 @@ import System.Directory
 import System.FSNotify
 import Filesystem.Path hiding (FilePath)
 import Filesystem.Path.CurrentOS hiding (FilePath)
+import Control.Monad.Operational
 
 import Control.Monad.Restricted
 import Control.Monad.Register
 import Control.Monad.ExtRef
 
 -- | Monad for dynamic actions
-class ExtRef m => EffRef m where
-
-    liftEffectM' :: Morph (EffectM m) m
+type EffRef m = (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m))
 
     {- |
     Let @r@ be an effectless action (@ReadRef@ guarantees this).
@@ -63,22 +63,15 @@ class ExtRef m => EffRef m where
 
     @k a2 >>= \\b2 -> h b2 >> k a1 >>= \\b1 -> h b1 >> h b2@
     -}
-    onChange :: Eq a => Bool -> ReadRef m a -> (a -> m (m ())) -> m ()
+onChange :: (EffRef m, Eq a) => Bool -> ReadRef m a -> (a -> m (m ())) -> m ()
+onChange init = toSend_ init . liftReadRef
 
-    toReceive :: Eq a => (a -> WriteRef m ()) -> ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m (Command -> EffectM m ())
+toReceive :: (EffRef m, Eq a) => (a -> WriteRef m ()) -> ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m (Command -> EffectM m ())
+toReceive fm = toReceive_ (liftWriteRef . fm)
 
-    rEffect  :: (EffRef m, Eq a) => Bool -> ReadRef m a -> (a -> EffectM m ()) -> m ()
+rEffect  :: (EffRef m, Eq a) => Bool -> ReadRef m a -> (a -> EffectM m ()) -> m ()
+rEffect init r f = onChange init r $ return . liftEffectM . f
 
--- | This instance is used in the implementation, the end users do not need it.
-instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)) => EffRef (IdentityT m) where
-
-    liftEffectM' = liftEffectM
-
-    onChange init = toSend_ init . liftReadRef
-
-    toReceive fm = toReceive_ (liftWriteRef . fm)
-
-    rEffect init r f = onChange init r $ return . liftEffectM' . f
 
 -- | Type class for IO actions.
 class (EffRef m, SafeIO m, SafeIO (ReadRef m)) => EffIORef m where
@@ -129,7 +122,7 @@ asyncWrite :: EffIORef m => Int -> (a -> WriteRef m ()) -> a -> m ()
 asyncWrite t f a = asyncWrite' t $ f a
 
 -- | This instance is used in the implementation, the end users do not need it.
-instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m), MonadBaseControl IO (EffectM m), SafeIO (ReadRef m), SafeIO m) => EffIORef (IdentityT m) where
+instance (EffRef m, MonadBaseControl IO (EffectM m), SafeIO (ReadRef m), SafeIO m) => EffIORef (IdentityT m) where
 
     registerIO r fm = do
         _ <- toReceive r $ \x -> unliftIO $ \u -> liftM (fmap liftBase) $ fm $ void . u . x
