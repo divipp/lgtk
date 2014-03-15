@@ -4,8 +4,6 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
 -- | A generic ADT editor defined on top of the main LGtk interface, "LGtk".
 module LGtk.ADTEditor
     ( Lens_ (..), List (..), Elems(..), ADTLens(..)

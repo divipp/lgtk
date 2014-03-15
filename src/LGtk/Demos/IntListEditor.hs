@@ -1,9 +1,6 @@
 -- | An integer list editor
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TypeFamilies #-}
 module LGtk.Demos.IntListEditor where
 
 import Control.Monad

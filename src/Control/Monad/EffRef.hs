@@ -31,9 +31,11 @@ import Control.Monad.Register
 import Control.Monad.ExtRef
 
 -- | Monad for dynamic actions
-type EffRef m = (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m))
+class ExtRef m => EffRef m where
 
-{- |
+    liftEffectM' :: Morph (EffectM m) m
+
+    {- |
     Let @r@ be an effectless action (@ReadRef@ guarantees this).
 
     @(onChange init r fmm)@ has the following effect:
@@ -62,16 +64,23 @@ type EffRef m = (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (Eff
     has the effect
 
     @k a2 >>= \\b2 -> h b2 >> k a1 >>= \\b1 -> h b1 >> h b2@
--}
-onChange :: (EffRef m, Eq a) => Bool -> ReadRef m a -> (a -> m (m ())) -> m ()
-onChange init = toSend_ init . liftReadRef
+    -}
+    onChange :: Eq a => Bool -> ReadRef m a -> (a -> m (m ())) -> m ()
 
-toReceive :: (EffRef m, Eq a) => (a -> WriteRef m ()) -> ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m (Command -> EffectM m ())
-toReceive fm = toReceive_ (liftWriteRef . fm)
+    toReceive :: Eq a => (a -> WriteRef m ()) -> ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m (Command -> EffectM m ())
 
-rEffect  :: (EffRef m, Eq a) => Bool -> ReadRef m a -> (a -> EffectM m ()) -> m ()
-rEffect init r f = onChange init r $ return . liftEffectM . f
+    rEffect  :: (EffRef m, Eq a) => Bool -> ReadRef m a -> (a -> EffectM m ()) -> m ()
 
+-- | This instance is used in the implementation, the end users do not need it.
+instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)) => EffRef (IdentityT m) where
+
+    liftEffectM' = liftEffectM
+
+    onChange init = toSend_ init . liftReadRef
+
+    toReceive fm = toReceive_ (liftWriteRef . fm)
+
+    rEffect init r f = onChange init r $ return . liftEffectM' . f
 
 -- | Type class for IO actions.
 class (EffRef m, SafeIO m, SafeIO (ReadRef m)) => EffIORef m where
@@ -122,7 +131,7 @@ asyncWrite :: EffIORef m => Int -> (a -> WriteRef m ()) -> a -> m ()
 asyncWrite t f a = asyncWrite' t $ f a
 
 -- | This instance is used in the implementation, the end users do not need it.
-instance (EffRef m, MonadBaseControl IO (EffectM m), SafeIO (ReadRef m), SafeIO m) => EffIORef (IdentityT m) where
+instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m), MonadBaseControl IO (EffectM m), SafeIO (ReadRef m), SafeIO m) => EffIORef (IdentityT m) where
 
     registerIO r fm = do
         _ <- toReceive r $ \x -> unliftIO $ \u -> liftM (fmap liftBase) $ fm $ void . u . x
