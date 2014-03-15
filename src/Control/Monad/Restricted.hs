@@ -12,7 +12,6 @@ module Control.Monad.Restricted
       Morph
     , MorphD (..)
     , Ext (..), lift', runExt
-    , HasReadPart (..)
     , unliftIO, unliftIO'
     , SafeIO (..)
     , NewRef (..)
@@ -43,29 +42,6 @@ The @MorphD@ type is needed only to avoid impredicative types.
 We use @MorphD@ instead of @Morph@ when the morphism is stored inside a data structure.
 -}
 newtype MorphD m n = MorphD { runMorphD :: Morph m n }
-
--- | @m@ has a submonad @(ReadPart m)@ which is isomorphic to 'Reader'.
-class (Monad m, Monad (ReadPart m)) => HasReadPart m where
-
-    {- | Law: @(ReadPart m)@  ===  @('Reader' x)@ for some @x@.
-
-    Alternative laws which ensures this isomorphism (@r :: (ReadPart m a)@ is arbitrary):
-
-     *  @(r >> return ())@ === @return ()@
-
-     *  @liftM2 (,) r r@ === @liftM (\a -> (a, a)) r@
-
-    See also <http://stackoverflow.com/questions/16123588/what-is-this-special-functor-structure-called>
-    -}
-    type ReadPart m :: * -> *
-
-    -- | @(ReadPart m)@ is a submonad of @m@
-    liftReadPart :: ReadPart m a -> m a
-
--- | @ReadPart (StateT s m) = Reader s@ 
-instance Monad m => HasReadPart (StateT s m) where
-    type ReadPart (StateT s m) = Reader s
-    liftReadPart = gets . runReader
 
 ------------------
 

@@ -32,21 +32,38 @@ module Control.Monad.ExtRef
     , newEqRef
     , toRef
 
-    -- * Auxiliary definitions
-    , Morph
-    , MorphD (..)
---    , MonadIO' (..)
     ) where
 
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.Writer
+import Control.Monad.State
 import Control.Monad.RWS
 import Control.Monad.Trans.Identity
-import Data.Maybe
 import Data.Lens.Common
 
-import Control.Monad.Restricted
+-- | @m@ has a submonad @(ReadPart m)@ which is isomorphic to 'Reader'.
+class (Monad m, Monad (ReadPart m)) => HasReadPart m where
+
+    {- | Law: @(ReadPart m)@  ===  @('Reader' x)@ for some @x@.
+
+    Alternative laws which ensures this isomorphism (@r :: (ReadPart m a)@ is arbitrary):
+
+     *  @(r >> return ())@ === @return ()@
+
+     *  @liftM2 (,) r r@ === @liftM (\a -> (a, a)) r@
+
+    See also <http://stackoverflow.com/questions/16123588/what-is-this-special-functor-structure-called>
+    -}
+    type ReadPart m :: * -> *
+
+    -- | @(ReadPart m)@ is a submonad of @m@
+    liftReadPart :: ReadPart m a -> m a
+
+-- | @ReadPart (StateT s m) = Reader s@ 
+instance Monad m => HasReadPart (StateT s m) where
+    type ReadPart (StateT s m) = Reader s
+    liftReadPart = gets . runReader
 
 {- |
 A reference @(r a)@ is isomorphic to @('Lens' s a)@ for some fixed state @s@.
@@ -122,7 +139,7 @@ class (Monad m, Reference (Ref m)) => ExtRef m where
     type Ref m :: * -> *
 
     -- | @'WriteRef' m@ is a submonad of @m@.
-    liftWriteRef :: Morph (WriteRef m) m
+    liftWriteRef :: WriteRef m a -> m a
 
     {- | Reference creation by extending the state of an existing reference.
 
