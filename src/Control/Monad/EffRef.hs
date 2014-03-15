@@ -33,7 +33,7 @@ import Control.Monad.ExtRef
 -- | Monad for dynamic actions
 type EffRef m = (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m))
 
-    {- |
+{- |
     Let @r@ be an effectless action (@ReadRef@ guarantees this).
 
     @(onChange init r fmm)@ has the following effect:
@@ -62,7 +62,7 @@ type EffRef m = (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (Eff
     has the effect
 
     @k a2 >>= \\b2 -> h b2 >> k a1 >>= \\b1 -> h b1 >> h b2@
-    -}
+-}
 onChange :: (EffRef m, Eq a) => Bool -> ReadRef m a -> (a -> m (m ())) -> m ()
 onChange init = toSend_ init . liftReadRef
 
