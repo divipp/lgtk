@@ -32,26 +32,26 @@ type Dia a = QDiagram Cairo R2 a
 
 type Send n m a = (a -> n ()) -> m ()
 --type Receive n m a = ((a -> n ()) -> n (Command -> n ())) -> m (Command -> n ())
-type Receive n m a = (Command -> n ()) -> m (a -> n ())
-type SendReceive n m a = (Send n m a, Receive n m a)
+type Receive n m k a = (Command -> n ()) -> m (a -> k ())
+type SendReceive n m k a = (Send n m a, Receive n m k a)
 
 -- | Widget descriptions
-data Widget n m
+data Widget n m k
     = Label (Send n m String)     -- ^ label
     | Button { label_  :: Send n m String
              , sensitive_ :: Send n m Bool
              , color_ :: Send n m Color
-             , action_ :: Receive n m ()
+             , action_ :: Receive n m k ()
              }  -- ^ button
-    | Checkbox (SendReceive n m Bool)         -- ^ checkbox
-    | Combobox [String] (SendReceive n m Int) -- ^ combo box
-    | Entry (SendReceive n m String)          -- ^ entry field
-    | List ListLayout [Widget n m]         -- ^ group interfaces into row or column
-    | Notebook' (Receive n m Int) [(String, Widget n m)]     -- ^ actual tab index, tabs
-    | forall b . Eq b => Cell ((b -> m (m ())) -> m ()) (forall a . (Widget n m -> m a) -> b -> m (m a))
-    | Action (m (Widget n m))              -- ^ do an action before giving the interface
-    | forall a b . (Eq b, Eq a, Monoid a) => Canvas Int Int Double (Receive n m (MouseEvent a)) (Send n m b) (b -> Dia a)
-    | Scale Double Double Double (SendReceive n m Double)
+    | Checkbox (SendReceive n m k Bool)         -- ^ checkbox
+    | Combobox [String] (SendReceive n m k Int) -- ^ combo box
+    | Entry (SendReceive n m k String)          -- ^ entry field
+    | List ListLayout [Widget n m k]         -- ^ group interfaces into row or column
+    | Notebook' (Receive n m k Int) [(String, Widget n m k)]     -- ^ actual tab index, tabs
+    | forall b . Eq b => Cell ((b -> m (m ())) -> m ()) (forall a . (Widget n m k -> m a) -> b -> m (m a))
+    | Action (m (Widget n m k))              -- ^ do an action before giving the interface
+    | forall a b . (Eq b, Eq a, Monoid a) => Canvas Int Int Double (Receive n m k (MouseEvent a)) (Send n m b) (b -> Dia a)
+    | Scale Double Double Double (SendReceive n m k Double)
 
 data ListLayout
     = Horizontal

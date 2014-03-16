@@ -53,24 +53,22 @@ type SWidget = (IO (), Gtk.Widget)
 
 -- | Run an @IO@ parametrized interface description with Gtk backend
 runWidget
-    :: forall n m . (MonadIO m, MonadIO n)
-    => (n () -> IO ())
+    :: forall n m k . (MonadIO m, MonadIO n)
+    => (k () -> IO ())
     -> (IO () -> IO ())
     -> Morph IO IO
-    -> Widget n m
+    -> Widget n m k
     -> m SWidget
 runWidget nio post' post = toWidget
  where
-    liftIO' :: MonadIO k => IO a -> k a
+    liftIO' :: MonadIO l => IO a -> l a
     liftIO' = liftIO . post
 
---    nio = undefined
-
-    -- type Receive n m a = (Command -> n ()) -> m (a -> n ())
-    reg_ :: Receive n m a -> Receive IO m a
+    -- type Receive n m k a = (Command -> n ()) -> m (a -> k ())
+    reg_ :: Receive n m k a -> Receive IO m IO a
     reg_ s f = liftM (nio .) $ s $ liftIO' . f
 
-    reg :: Receive n m a -> ((a -> IO ()) -> IO (Command -> IO ())) -> m (Command -> IO ())
+    reg :: Receive n m k a -> ((a -> IO ()) -> IO (Command -> IO ())) -> m (Command -> IO ())
     reg s f = do
         rer <- liftIO newEmptyMVar
         u <- liftIO $ f $ \x -> do
@@ -89,7 +87,7 @@ runWidget nio post' post = toWidget
     nhd :: Command -> IO ()
     nhd = const $ return ()
 
-    toWidget :: Widget n m -> m SWidget
+    toWidget :: Widget n m k -> m SWidget
     toWidget i = case i of
 
         Action m -> m >>= toWidget

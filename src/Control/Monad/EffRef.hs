@@ -7,15 +7,9 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
-module Control.Monad.EffRef
-    ( EffRef, onChange, toReceive, rEffect
-    , SafeIO (..)
-    , EffIORef, putStr_, getLine_, registerIO, fileRef
-    , asyncWrite
-    , putStrLn_
-    , forkIOs
-    ) where
+module Control.Monad.EffRef where
 
+import Control.Applicative
 import Control.Concurrent
 import Control.Exception (evaluate)
 import Control.Monad
@@ -35,6 +29,8 @@ import Control.Monad.ExtRef
 
 -- | Monad for dynamic actions
 class ExtRef m => EffRef m where
+
+    type CallbackM m :: * -> *
 
     liftEffectM' :: Morph (EffectM m) m
 
@@ -71,15 +67,71 @@ class ExtRef m => EffRef m where
     onChange :: Eq a => Bool -> ReadRef m a -> (a -> m (m ())) -> m ()
 
 --    toReceive :: Eq a => (a -> WriteRef m ()) -> ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m (Command -> EffectM m ())
-    toReceive :: Eq a => (a -> WriteRef m ()) -> (Command -> EffectM m ()) -> m (a -> EffectM m ())
+    toReceive :: Eq a => (a -> WriteRef m ()) -> (Command -> EffectM m ()) -> m (a -> CallbackM m ())
 
 rEffect  :: (EffRef m, Eq a) => Bool -> ReadRef m a -> (a -> EffectM m ()) -> m ()
 rEffect init r f = onChange init r $ return . liftEffectM' . f
 
 
+type SyntEffRef m x = Program (EffRefI m x)
+data EffRefI m x a where
+    SyntLiftEffect :: m a -> EffRefI m x a
+    SyntLiftExtRef :: SyntExtRef x a -> EffRefI m x a
+    SyntOnChange :: Eq a => Bool -> SyntRefReader x a -> (a -> SyntEffRef m x (SyntEffRef m x ())) -> EffRefI m x ()
+    SyntReceive  :: Eq a => (a -> SyntRefState x ()) -> (Command -> m ()) -> EffRefI m x (a -> CompEffRef m x ())
+
+instance ExtRef (SyntEffRef m x) where
+    type Ref (SyntEffRef m x) = SyntRef x
+    extRef r l a = singleton $ SyntLiftExtRef $ extRef r l a
+    newRef a = singleton $ SyntLiftExtRef $ newRef a
+
+type CompEffRef m x = Program (CompEffRefI m x)
+data CompEffRefI m x a where
+    CompEffect :: m a -> CompEffRefI m x a
+    CompLiftEffRef :: SyntEffRef m x a -> CompEffRefI m x a
+    CompAtomically :: CompEffRef m x a -> CompEffRefI m x a
+
+instance Monad m => MonadRegister (SyntEffRef m x) where
+    type EffectM (SyntEffRef m x) = m
+
+instance EffRef (SyntEffRef m x) where
+    type CallbackM (SyntEffRef m x) = CompEffRef m x
+    liftEffectM' = singleton . SyntLiftEffect
+    onChange b r f = singleton $ SyntOnChange b r f
+    toReceive f g = singleton $ SyntReceive f g
+
+type SyntIORef x = Program (SyntIORefI x)
+data SyntIORefI x a where
+    SyntAsyncWrite :: Eq a => Int -> (a -> SyntRefState x ()) -> a -> SyntIORefI x ()
+    SyntFileRef :: FilePath -> SyntIORefI x (SyntRef x (Maybe String))
+    SyntGetLine :: (String -> SyntRefState x ()) -> SyntIORefI x ()
+    SyntPutStr :: String -> SyntIORefI x ()
+
+type SyntEffIORef x = SyntEffRef (SyntIORef x) x
+
+instance SafeIO (SyntRefReader x) where
+instance SafeIO (SyntEffIORef x) where
+
+instance EffIORef (SyntEffIORef x) where
+    asyncWrite_ d w a = singleton $ SyntLiftEffect $ singleton $ SyntAsyncWrite d w a
+    fileRef f = singleton $ SyntLiftEffect $ singleton $ SyntFileRef f
+    getLine_ r = singleton $ SyntLiftEffect $ singleton $ SyntGetLine r
+    putStr_ s = singleton $ SyntLiftEffect $ singleton $ SyntPutStr s
+
+runn :: SyntEffIORef x () -> CompEffRef (SyntIORef x) x ()
+runn = undefined
+
+{-
+instance MonadRegister (SyntMonadRegister x) where
+    type EffectM (SyntMonadRegister x) = SyntExtRef x
+-}
+
+
 
 -- | This instance is used in the implementation, the end users do not need it.
 instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)) => EffRef (IdentityT m) where
+
+    type CallbackM (IdentityT m) = EffectM m
 
     liftEffectM' = liftEffectM
 
@@ -91,9 +143,6 @@ instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)
 -- | Type class for IO actions.
 class (EffRef m, SafeIO m, SafeIO (ReadRef m)) => EffIORef m where
 
-    registerIO :: Eq a => (a -> WriteRef m ()) -> (Command -> IO ()) -> m (a -> IO ())
-
-    liftIO' :: IO a -> m a
 
     {- |
     @(asyncWrite t f a)@ has the effect of doing @(f a)@ after waiting @t@ milliseconds.
@@ -104,7 +153,6 @@ class (EffRef m, SafeIO m, SafeIO (ReadRef m)) => EffIORef m where
     Although @(asyncWrite 0)@ is safe, code using it has a bad small.
     -}
     asyncWrite_ :: Eq a => Int -> (a -> WriteRef m ()) -> a -> m ()
-    asyncWrite' :: Int -> WriteRef m () -> m ()
 
     {- |
     @(fileRef path)@ returns a reference which holds the actual contents
@@ -129,9 +177,8 @@ class (EffRef m, SafeIO m, SafeIO (ReadRef m)) => EffIORef m where
     -}
     getLine_   :: (String -> WriteRef m ()) -> m ()
 
--- | Write a string to the standard output device.
-putStr_    :: EffIORef m => String -> m ()
-putStr_ = liftIO' . putStr
+    -- | Write a string to the standard output device.
+    putStr_    :: EffIORef m => String -> m ()
 
 -- | @putStrLn_@ === @putStr_ . (++ "\n")@
 putStrLn_ :: EffIORef m => String -> m ()
@@ -140,19 +187,24 @@ putStrLn_ = putStr_ . (++ "\n")
 asyncWrite :: EffIORef m => Int -> (a -> WriteRef m ()) -> a -> m ()
 asyncWrite t f a = asyncWrite' t $ f a
 
+--registerIO :: Eq a => (a -> WriteRef m ()) -> (Command -> IO ()) -> m (a -> IO ())
+registerIO r fm = do
+        f <- toReceive r $ liftBase . fm -- $ \x -> unliftIO $ \u -> liftM (fmap liftBase) $ fm $ void . u . x
+        liftEffectM' $ unliftIO' $ \u -> return $ u . f
+
+asyncWrite' :: EffIORef m => Int -> WriteRef m () -> m ()
+asyncWrite' t r = asyncWrite_ t (const r) ()
+
+
 -- | This instance is used in the implementation, the end users do not need it.
 instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m), MonadBaseControl IO (EffectM m), SafeIO (ReadRef m), SafeIO m) => EffIORef (IdentityT m) where
 
-    registerIO r fm = do
-        f <- toReceive r $ liftBase . fm -- $ \x -> unliftIO $ \u -> liftM (fmap liftBase) $ fm $ void . u . x
-        liftEffectM' $ unliftIO' $ \u -> return $ u . f
+    putStr_ = liftIO' . putStr
 
     asyncWrite_ t r a = do
         (u, f) <- liftIO' forkIOs'
         x <- registerIO r u
         liftIO' $ f [ threadDelay t, x a ]
-    asyncWrite' t r = asyncWrite_ t (const r) ()
-
 
     getLine_ w = do
         (u, f) <- liftIO' forkIOs'
@@ -211,7 +263,8 @@ instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)
         w = maybe (doesFileExist f >>= \b -> when b (removeFile f)) (writeFile f)
 
 
-    liftIO' m = liftEffectM $ liftBase m
+--liftIO' :: EffIORef m => IO a -> m a
+liftIO' m = liftEffectM $ liftBase m
 
 forkForever :: IO () -> IO (Command -> IO ())
 forkForever = forkIOs . repeat
