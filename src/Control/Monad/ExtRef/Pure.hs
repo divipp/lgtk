@@ -13,7 +13,8 @@ The implementation uses @unsafeCoerce@ internally, but its effect cannot escape.
 -}
 module Control.Monad.ExtRef.Pure
     ( runExtRef
-    , runExtRef_
+    , runExtRef_, runExtRef''
+    , X, LSt, initLSt
     ) where
 
 import Control.Monad.Base
@@ -103,6 +104,7 @@ runSyntRef (SyntCreatedRef l) = l
 runExtRef'' :: Monad m => SyntExtRef X a -> StateT LSt m a
 runExtRef'' = interpretWithMonad eval where
     eval :: Monad m => ExtRefI X a -> StateT LSt m a
+    eval (SyntLiftRefState w) = liftWriteRef $ runSyntRefState w
     eval (SyntExtRef r l a) = liftM SyntCreatedRef $ extRef (runSyntRef r) l a
     eval (SyntNewRef a) = liftM SyntCreatedRef $ newRef a
 

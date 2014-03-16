@@ -354,11 +354,13 @@ instance Reference (SyntRef x) where
 
 type SyntExtRef x = Program (ExtRefI x)
 data ExtRefI x a where
+    SyntLiftRefState :: SyntRefState x a -> ExtRefI x a
     SyntExtRef :: SyntRef x b -> Lens' a b -> a -> ExtRefI x (SyntRef x a)
     SyntNewRef :: a -> ExtRefI x (SyntRef x a)
 
 instance ExtRef (SyntExtRef x) where
     type Ref (SyntExtRef x) = SyntRef x
+    liftWriteRef w = singleton $ SyntLiftRefState w
     extRef r l = singleton . SyntExtRef r l
     newRef = singleton . SyntNewRef
 

@@ -7,16 +7,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ConstraintKinds #-}
-module Control.Monad.Restricted
-    ( -- * Auxiliary definitions
-      Morph
-    , MorphD (..)
-    , Ext (..), lift', runExt
-    , unliftIO, unliftIO'
-    , SafeIO (..)
-    , NewRef (..)
-    , MonadMonoid (..)
-    ) where
+module Control.Monad.Restricted where
 
 import Data.Monoid
 --import Control.Monad.Layer hiding (MonadTrans, lift)
@@ -147,6 +138,15 @@ instance NewRef IO where
         return $ MorphD $ \m -> modifyMVar vx $ liftM swap . runStateT m
       where
         swap (a, b) = (b, a)
+
+newRef'_ :: (MonadIO m, MonadIO n) => String -> a -> m (MorphD (StateT a n) n)
+newRef'_ msg x = do
+        vx <- liftIO $ newMVar x
+        return $ MorphD $ \m -> do
+            st <- liftIO $ takeMVar vx
+            (a, st') <- runStateT m st
+            liftIO $ putMVar vx st'
+            return a
 
 instance (MonadBase m m, NewRef m) => NewRef (Ext n m) where
     newRef' = liftM (\m -> MorphD $ \k -> unlift $ runMorphD m . flip mapStateT k) . lift . newRef'

@@ -13,6 +13,10 @@ import Control.Applicative
 import Control.Concurrent
 import Control.Exception (evaluate)
 import Control.Monad
+import Control.Monad.RWS
+import Control.Monad.Writer
+
+import Control.Monad.State
 import Control.Monad.Base
 import Control.Monad.Trans.Control
 import Control.Monad.Trans
@@ -25,7 +29,9 @@ import Control.Monad.Operational
 
 import Control.Monad.Restricted
 import Control.Monad.Register
+import Control.Monad.Register.Basic
 import Control.Monad.ExtRef
+import Control.Monad.ExtRef.Pure
 
 -- | Monad for dynamic actions
 class ExtRef m => EffRef m where
@@ -73,7 +79,7 @@ rEffect  :: (EffRef m, Eq a) => Bool -> ReadRef m a -> (a -> EffectM m ()) -> m 
 rEffect init r f = onChange init r $ return . liftEffectM' . f
 
 
-type SyntEffRef m x = Program (EffRefI m x)
+type SyntEffRef m x = ProgramT (EffRefI m x) IO
 data EffRefI m x a where
     SyntLiftEffect :: m a -> EffRefI m x a
     SyntLiftExtRef :: SyntExtRef x a -> EffRefI m x a
@@ -82,30 +88,43 @@ data EffRefI m x a where
 
 instance ExtRef (SyntEffRef m x) where
     type Ref (SyntEffRef m x) = SyntRef x
+    liftWriteRef w = singleton $ SyntLiftExtRef $ liftWriteRef w
     extRef r l a = singleton $ SyntLiftExtRef $ extRef r l a
     newRef a = singleton $ SyntLiftExtRef $ newRef a
 
-type CompEffRef m x = Program (CompEffRefI m x)
-data CompEffRefI m x a where
-    CompEffect :: m a -> CompEffRefI m x a
-    CompLiftEffRef :: SyntEffRef m x a -> CompEffRefI m x a
-    CompAtomically :: CompEffRef m x a -> CompEffRefI m x a
+type CompEffRef m x = SyntEffRef m x
 
 instance Monad m => MonadRegister (SyntEffRef m x) where
     type EffectM (SyntEffRef m x) = m
+    toSend_ = error "toSend_ wwwww"
+    toReceive_ = error "toReceive_ wwwww"
+    liftEffectM = error "liftEffectM wwwww"
 
 instance EffRef (SyntEffRef m x) where
-    type CallbackM (SyntEffRef m x) = CompEffRef m x
+    type CallbackM (SyntEffRef m x) = SyntEffRef m x
     liftEffectM' = singleton . SyntLiftEffect
     onChange b r f = singleton $ SyntOnChange b r f
     toReceive f g = singleton $ SyntReceive f g
 
-type SyntIORef x = Program (SyntIORefI x)
+type SyntIORef x = ProgramT (SyntIORefI x) IO
 data SyntIORefI x a where
     SyntAsyncWrite :: Eq a => Int -> (a -> SyntRefState x ()) -> a -> SyntIORefI x ()
     SyntFileRef :: FilePath -> SyntIORefI x (SyntRef x (Maybe String))
     SyntGetLine :: (String -> SyntRefState x ()) -> SyntIORefI x ()
     SyntPutStr :: String -> SyntIORefI x ()
+
+runSyntIORef :: (MorphD CO IO) -> SyntIORef X a -> CO a
+runSyntIORef moo m = eval =<< liftIO (viewT m) where
+    eval :: ProgramViewT (SyntIORefI X) IO a -> CO a
+    eval (Return a) = return a
+    eval (SyntPutStr s :>>= k) = liftIO (putStr s) >>= runSyntIORef moo . k
+    eval (SyntAsyncWrite t r a :>>= k) = do
+        (u, f) <- liftIO forkIOs'
+        ff <- toReceive r $ liftIO . u -- $ \x -> unliftIO $ \u -> liftM (fmap liftBase) $ fm $ void . u . x
+--        let x = 
+        liftIO $ f [ threadDelay t, runMorphD moo $ ff a ]
+        runSyntIORef moo $ k ()
+    eval _ = error "wwwwwwwwwwwwww"
 
 type SyntEffIORef x = SyntEffRef (SyntIORef x) x
 
@@ -118,15 +137,48 @@ instance EffIORef (SyntEffIORef x) where
     getLine_ r = singleton $ SyntLiftEffect $ singleton $ SyntGetLine r
     putStr_ s = singleton $ SyntLiftEffect $ singleton $ SyntPutStr s
 
-runn :: SyntEffIORef x () -> CompEffRef (SyntIORef x) x ()
-runn = undefined
+instance NewRef (CompEffRef m x) where
+    newRef' a = newRef'_ "cer" a
+
+
+type CO = CompEffRef (SyntIORef X) X
 
 {-
-instance MonadRegister (SyntMonadRegister x) where
-    type EffectM (SyntMonadRegister x) = SyntExtRef x
+data WI w a where
+    Tell :: w -> WI w ()
+type WT w = ProgramT (WI w)
+evalWT :: (Monad m, Monoid w) => WT w m a -> m (a, w)
+evalWT = viewT >=> eval where
+    eval :: (Monad m, Monoid w) => ProgramViewT (WI w) m a -> m (a, w)
+    eval (Return x) = return (x, mempty)
+    eval (Tell w :>>= k) = evalWT (k ()) >>= \(a, w') -> return (a, w `mappend` w')
+
+instance (Monad m, Monoid w) => MonadWriter w (WT w m) where
+    tell = singleton . Tell
+
+evalWT' mo m = evalWT m >>= \(a, w) -> runMorphD mo (tell w) >> return a
+
+type Register'' m
+    = WT (WR m) m
 -}
+evalWT'' mo m = runWriterT m >>= \(a, w) -> runMorphD mo (get >>= \w' -> put $ w `mappend` w') >> return a
 
+evalRegister' :: (CO () -> CO ()) -> (MorphD (StateT LSt IO) IO) -> (MorphD (StateT (WR CO) CO) CO) -> CompEffRef (SyntIORef X) X a -> IO a
+evalRegister' ff moo mo = viewT >=> eval
+  where
+    eval :: ProgramViewT (EffRefI (SyntIORef X) X) IO a -> IO a
+    eval (Return x) = return x
+    eval (SyntLiftEffect m :>>= k) = evalRegister' ff moo mo $ runSyntIORef (MorphD $ evalRegister' ff moo mo) m >>= k
+    eval (SyntLiftExtRef m :>>= k) = runMorphD moo (runExtRef'' m) >>= evalRegister' ff moo mo . k
+    eval (SyntOnChange b r f :>>= k) = evalRegister' ff moo mo $ evalWT'' mo (toSend__ ff b (liftReadRef r) $ liftM lift . lift . f) >>= k
+    eval (SyntReceive f g :>>= k) = evalRegister' ff moo mo $ evalWT'' mo (r2r ff $ toReceive__ (liftWriteRef . f) (singleton . SyntLiftEffect . g)) >>= k
 
+pu :: MonadIO m => Int -> m a -> m a
+pu i m = do
+    liftIO (putStrLn $ show i)
+    a <- m
+    liftIO (putStrLn $ "    " ++ show i)
+    return a
 
 -- | This instance is used in the implementation, the end users do not need it.
 instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)) => EffRef (IdentityT m) where

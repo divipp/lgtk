@@ -59,7 +59,7 @@ runWidget
     -> Morph IO IO
     -> Morph m o
     -> Morph o m
-    -> Morph IO n
+    -> (IO () -> n ())
     -> Widget n m k
     -> o SWidget
 runWidget nio post' post liftO liftOBack liftION = toWidget
