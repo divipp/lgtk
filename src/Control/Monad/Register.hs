@@ -16,7 +16,7 @@ class (Monad m, Monad (EffectM m)) => MonadRegister m where
 
     type EffectM m :: * -> *
 
-    liftEffectM :: Morph (EffectM m) m
+    liftEffectM :: EffectM m a -> m a
 
     toSend_ :: Eq b => Bool -> EffectM m b -> (b -> m (m ())) -> m ()
 
