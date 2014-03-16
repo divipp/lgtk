@@ -25,11 +25,11 @@ instance NewRef m => MonadRegister (Register m) where
 
     liftEffectM = lift
 
-    toReceive_ r int = do
+    toReceive_ r unreg = do
         rr <- ask
-        unreg <- lift $ int $ rr . r
+--        unreg <- lift $ int $ rr . r
         tell $ t2 unreg
-        return unreg
+        return $ rr . r
 
     toSend_ init rb fb = do
         rr <- ask

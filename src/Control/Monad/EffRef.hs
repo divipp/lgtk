@@ -4,10 +4,13 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 module Control.Monad.EffRef
     ( EffRef, onChange, toReceive, rEffect
     , SafeIO (..)
-    , EffIORef (..)
+    , EffIORef, putStr_, getLine_, registerIO, fileRef
     , asyncWrite
     , putStrLn_
     , forkIOs
@@ -67,9 +70,13 @@ class ExtRef m => EffRef m where
     -}
     onChange :: Eq a => Bool -> ReadRef m a -> (a -> m (m ())) -> m ()
 
-    toReceive :: Eq a => (a -> WriteRef m ()) -> ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m (Command -> EffectM m ())
+--    toReceive :: Eq a => (a -> WriteRef m ()) -> ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m (Command -> EffectM m ())
+    toReceive :: Eq a => (a -> WriteRef m ()) -> (Command -> EffectM m ()) -> m (a -> EffectM m ())
 
-    rEffect  :: (EffRef m, Eq a) => Bool -> ReadRef m a -> (a -> EffectM m ()) -> m ()
+rEffect  :: (EffRef m, Eq a) => Bool -> ReadRef m a -> (a -> EffectM m ()) -> m ()
+rEffect init r f = onChange init r $ return . liftEffectM' . f
+
+
 
 -- | This instance is used in the implementation, the end users do not need it.
 instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)) => EffRef (IdentityT m) where
@@ -80,10 +87,13 @@ instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)
 
     toReceive fm = toReceive_ (liftWriteRef . fm)
 
-    rEffect init r f = onChange init r $ return . liftEffectM' . f
 
 -- | Type class for IO actions.
 class (EffRef m, SafeIO m, SafeIO (ReadRef m)) => EffIORef m where
+
+    registerIO :: Eq a => (a -> WriteRef m ()) -> (Command -> IO ()) -> m (a -> IO ())
+
+    liftIO' :: IO a -> m a
 
     {- |
     @(asyncWrite t f a)@ has the effect of doing @(f a)@ after waiting @t@ milliseconds.
@@ -112,8 +122,6 @@ class (EffRef m, SafeIO m, SafeIO (ReadRef m)) => EffIORef m where
     -}
     fileRef    :: FilePath -> m (Ref m (Maybe String))
 
-    -- | Write a string to the standard output device.
-    putStr_    :: String -> m ()
 
     {- | Read a line from the standard input device.
     @(getLine_ f)@ returns immediately. When the line @s@ is read,
@@ -121,7 +129,9 @@ class (EffRef m, SafeIO m, SafeIO (ReadRef m)) => EffIORef m where
     -}
     getLine_   :: (String -> WriteRef m ()) -> m ()
 
-    registerIO :: Eq a => (a -> WriteRef m ()) -> ((a -> IO ()) -> IO (Command -> IO ())) -> m ()
+-- | Write a string to the standard output device.
+putStr_    :: EffIORef m => String -> m ()
+putStr_ = liftIO' . putStr
 
 -- | @putStrLn_@ === @putStr_ . (++ "\n")@
 putStrLn_ :: EffIORef m => String -> m ()
@@ -134,18 +144,20 @@ asyncWrite t f a = asyncWrite' t $ f a
 instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m), MonadBaseControl IO (EffectM m), SafeIO (ReadRef m), SafeIO m) => EffIORef (IdentityT m) where
 
     registerIO r fm = do
-        _ <- toReceive r $ \x -> unliftIO $ \u -> liftM (fmap liftBase) $ fm $ void . u . x
-        return ()
+        f <- toReceive r $ liftBase . fm -- $ \x -> unliftIO $ \u -> liftM (fmap liftBase) $ fm $ void . u . x
+        liftEffectM' $ unliftIO' $ \u -> return $ u . f
 
-    asyncWrite_ t r a
-        = registerIO r $ \re -> forkIOs [ threadDelay t, re a ]
+    asyncWrite_ t r a = do
+        (u, f) <- liftIO' forkIOs'
+        x <- registerIO r u
+        liftIO' $ f [ threadDelay t, x a ]
     asyncWrite' t r = asyncWrite_ t (const r) ()
 
-    putStr_ = liftIO' . putStr
 
-    getLine_ w = registerIO w $ \re -> do
-        _ <- forkIO $ getLine >>= re
-        return $ const $ return ()  -- TODO
+    getLine_ w = do
+        (u, f) <- liftIO' forkIOs'
+        x <- registerIO w u
+        liftIO' $ f [ getLine >>= x ]   -- TODO
 
     fileRef f = do
         ms <- liftIO' r
@@ -174,7 +186,11 @@ instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)
                 watchDir man (directory cf') filt act
 
         liftIO' startm
-        registerIO (writeRef ref) $ \re -> forkForever $ takeMVar v >> r >>= re
+
+        (u, ff) <- liftIO' forkIOs'
+        re <- registerIO (writeRef ref) u
+        liftIO' $ ff $ repeat $ takeMVar v >> r >>= re
+
         rEffect False (readRef ref) $ \x -> liftBase $ do
             join $ takeMVar vman
             _ <- tryTakeMVar v
@@ -195,8 +211,7 @@ instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)
         w = maybe (doesFileExist f >>= \b -> when b (removeFile f)) (writeFile f)
 
 
---liftIO' :: EffIORef_ m => IO a -> m a
-liftIO' m = liftEffectM $ liftBase m
+    liftIO' m = liftEffectM $ liftBase m
 
 forkForever :: IO () -> IO (Command -> IO ())
 forkForever = forkIOs . repeat
@@ -216,5 +231,23 @@ forkIOs ios = do
 
     liftM f $ forkIO $ g ios
 
+forkIOs' :: IO (Command -> IO (), [IO ()] -> IO ())
+forkIOs' = do
+    x <- newMVar ()
+    s <- newEmptyMVar
+    let g = do
+            readMVar x
+            is <- takeMVar s
+            case is of
+                [] -> return ()
+                (i:is) -> do
+                    putMVar s is
+                    i
+                    g
+        f i Kill = killThread i
+        f _ Block = takeMVar x
+        f _ Unblock = putMVar x ()
 
+    i <- forkIO g
+    return (f i, putMVar s)
 
