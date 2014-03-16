@@ -62,7 +62,7 @@ intListEditor def maxi list_ range = action $ do
         , button_ (return "Copy") (return True) $ modRef list $ \xs -> take (i+1) xs ++ drop i xs
         ]
 
-    safeList = lens id (const . take maxi) `lensMap` list
+    safeList = lens id (const $ take maxi) `lensMap` list
 
     sel = liftM (filter snd) $ readRef list
 
