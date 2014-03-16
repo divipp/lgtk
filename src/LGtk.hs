@@ -149,10 +149,28 @@ runWidget desc = do
     Gtk.gtkContext $ \postGUISync -> do
         widget <- runExtRef_ $ unliftIO' $ \unlift ->
             evalRegister
-                (runIdentityT $ Gtk.runWidget unlift addPostAction postGUISync desc)
+                (runIdentityT $ Gtk.runWidget unlift addPostAction postGUISync id id liftIO desc)
                 (liftIO . writeChan actionChannel . void . unlift)
         runPostActions
         return widget
+
+runWidget' :: (forall m . EffIORef m => Widget m) -> IO ()
+runWidget' desc = do
+    postActionsRef <- newRef' $ return ()
+    let addPostAction  = runMorphD postActionsRef . modify . flip (>>)
+        runPostActions = join $ runMorphD postActionsRef $ state $ \m -> (m, return ())
+    actionChannel <- newChan
+    _ <- forkIO $ forever $ do
+        join $ readChan actionChannel
+        runPostActions
+    Gtk.gtkContext $ \postGUISync -> do
+        widget <- runExtRef_ $ unliftIO' $ \unlift ->
+            evalRegister
+                (runIdentityT $ Gtk.runWidget unlift addPostAction postGUISync id id liftIO desc)
+                (liftIO . writeChan actionChannel . void . unlift)
+        runPostActions
+        return widget
+
 {-
 runWidget' :: (forall m . EffIORef m => Widget m) -> IO ()
 runWidget' desc = do

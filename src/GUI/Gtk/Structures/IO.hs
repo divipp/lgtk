@@ -53,33 +53,36 @@ type SWidget = (IO (), Gtk.Widget)
 
 -- | Run an @IO@ parametrized interface description with Gtk backend
 runWidget
-    :: forall n m k . (MonadIO m, MonadIO n)
+    :: forall n m k o . (Monad m, MonadIO o)
     => (k () -> IO ())
     -> (IO () -> IO ())
     -> Morph IO IO
+    -> Morph m o
+    -> Morph o m
+    -> Morph IO n
     -> Widget n m k
-    -> m SWidget
-runWidget nio post' post = toWidget
+    -> o SWidget
+runWidget nio post' post liftO liftOBack liftION = toWidget
  where
     liftIO' :: MonadIO l => IO a -> l a
     liftIO' = liftIO . post
 
     -- type Receive n m k a = (Command -> n ()) -> m (a -> k ())
     reg_ :: Receive n m k a -> Receive IO m IO a
-    reg_ s f = liftM (nio .) $ s $ liftIO' . f
+    reg_ s f = liftM (nio .) $ s $ liftION . liftIO' . f
 
-    reg :: Receive n m k a -> ((a -> IO ()) -> IO (Command -> IO ())) -> m (Command -> IO ())
+    reg :: Receive n m k a -> ((a -> IO ()) -> IO (Command -> IO ())) -> o (Command -> IO ())
     reg s f = do
         rer <- liftIO newEmptyMVar
         u <- liftIO $ f $ \x -> do
             re <- readMVar rer
             re x
-        re <- reg_ s u
+        re <- liftO $ reg_ s u
         liftIO $ putMVar rer re
         return u
 
-    ger :: (Command -> IO ()) -> Send n m a -> Send IO m a
-    ger hd s f = s $ \a -> liftIO' $ do
+    ger :: (Command -> IO ()) -> Send n m a -> Send IO o a
+    ger hd s f = liftO $ s $ \a -> liftION $ liftIO' $ do
         hd Block
         f a
         hd Unblock
@@ -87,14 +90,15 @@ runWidget nio post' post = toWidget
     nhd :: Command -> IO ()
     nhd = const $ return ()
 
-    toWidget :: Widget n m k -> m SWidget
+    toWidget :: Widget n m k -> o SWidget
     toWidget i = case i of
 
-        Action m -> m >>= toWidget
+        Action m -> liftO m >>= toWidget
         Label s -> do
             w <- liftIO' $ labelNew Nothing
             ger nhd s $ labelSetLabel w
             return' w
+
         Canvas w h sc_ me r diaFun -> do
 
           cur <- liftIO $ newMVar Nothing
@@ -243,9 +247,9 @@ runWidget nio post' post = toWidget
                 True -> fmap castToContainer $ hBoxNew False 1
                 False -> fmap castToContainer $ alignmentNew 0 0 1 1
             sh <- liftIO $ newMVar $ return ()
-            onCh $ \bv -> do
-                mx <- f toWidget bv
-                return $ mx >>= \(x, y) -> liftIO' $ do 
+            liftO $ onCh $ \bv -> do
+                mx <- f (liftOBack . toWidget) bv
+                return $ mx >>= \(x, y) -> liftOBack $ liftIO' $ do 
                     _ <- swapMVar sh x
                     containerForeach w $ if b then widgetHideAll else containerRemove w 
                     post' $ post $ do
