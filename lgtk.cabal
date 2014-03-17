@@ -64,9 +64,6 @@ library
                     Control.Monad.ExtRef.Pure
                     Control.Monad.ExtRef.Test
 
-                    Control.Monad.Register
-                    Control.Monad.Register.Basic
-
                     Control.Monad.EffRef
 
                     GUI.Gtk.Structures

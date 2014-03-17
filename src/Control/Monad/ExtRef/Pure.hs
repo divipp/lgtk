@@ -132,12 +132,10 @@ type X = Lens_ LSt
 
 runSyntRefReader :: SyntRefReader (Lens_ x) a -> Reader x a
 runSyntRefReader = interpretWithMonad eval where
---    eval :: RefReaderI (Lens_ x) a -> Reader x a
     eval (SyntReadRef r) = readRef $ runSyntRef r
 
 runSyntRefState :: SyntRefState (Lens_ x) a -> State x a
 runSyntRefState = interpretWithMonad eval where
---    eval :: RefStateI (Lens_ x) a -> State x a
     eval (SyntLiftRefReader r) = liftRefStateReader $ runSyntRefReader r
     eval (SyntWriteRef r a) = writeRef (runSyntRef r) a
 
@@ -149,44 +147,7 @@ runSyntRef (SyntCreatedRef l) = l
 
 runExtRef'' :: Monad m => SyntExtRef (Lens_ LSt) a -> StateT LSt m a
 runExtRef'' = interpretWithMonad eval where
---    eval :: (Monad m, ExtRef (StateT x m), Ref (StateT x m) ~ Lens_ x) => ExtRefI (Lens_ x) a -> StateT x m a
     eval (SyntLiftRefState w) = liftWriteRef $ runSyntRefState w
     eval (SyntExtRef r l a) = liftM SyntCreatedRef $ extRef (runSyntRef r) l a
     eval (SyntNewRef a) = liftM SyntCreatedRef $ newRef a
-
----------------
-
-instance (ExtRef n, Monad m) => ExtRef (Ext n m) where
-    type Ref (Ext n m) = Ref n
-    liftWriteRef = lift' . liftWriteRef
-    extRef r1 r2 = lift' . extRef r1 r2
-
-
--- | Basic running of the @ExtRef@ monad.
-runExtRef :: Monad m => (forall t . (MonadTrans t, ExtRef (t m)) => t m a) -> m a
-runExtRef s = evalStateT s initLSt
-
-
-instance SafeIO (Reader (Seq CC)) where
-
-    getArgs     = runSafeIO getArgs
-    getProgName = runSafeIO getProgName
-    lookupEnv   = runSafeIO . lookupEnv
-
-runSafeIO :: Monad m => IO a -> m a
-runSafeIO = return . unsafePerformIO
-
---instance (MonadBaseControl IO m) => SafeIO m where
-
--- | Advanced running of the @ExtRef@ monad.
-runExtRef_
-    :: forall m a . (MonadBase m m, NewRef m)
-    => (forall t . (MonadTrans t, ExtRef (t m), NewRef (t m), MonadIO (t IO), MonadBaseControl IO (t IO), SafeIO (ReadRef (t IO)), SafeIO (t IO)) => t m a)
-    -> m a
---    -> (Morph (Ext (State LSt) m) m -> Ext (State LSt) m a) -> m a
-runExtRef_ f = newRef' initLSt >>= flip runExt f
-
-
-
-
 

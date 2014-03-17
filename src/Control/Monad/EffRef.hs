@@ -28,8 +28,6 @@ import Filesystem.Path.CurrentOS hiding (FilePath)
 import Control.Monad.Operational
 
 import Control.Monad.Restricted
-import Control.Monad.Register
-import Control.Monad.Register.Basic
 import Control.Monad.ExtRef
 import Control.Monad.ExtRef.Pure
 
@@ -37,6 +35,8 @@ import Control.Monad.ExtRef.Pure
 class ExtRef m => EffRef m where
 
     type CallbackM m :: * -> *
+
+    type EffectM m :: * -> *
 
     liftEffectM' :: Morph (EffectM m) m
 
@@ -74,6 +74,8 @@ class ExtRef m => EffRef m where
 
     toReceive :: Eq a => (a -> WriteRef m ()) -> (Command -> EffectM m ()) -> m (a -> CallbackM m ())
 
+data Command = Kill | Block | Unblock deriving (Eq, Ord, Show)
+
 rEffect  :: (EffRef m, Eq a) => Bool -> ReadRef m a -> (a -> EffectM m ()) -> m ()
 rEffect init r f = onChange init r $ return . liftEffectM' . f
 
@@ -91,13 +93,10 @@ instance ExtRef (SyntEffRef n m x) where
     extRef r l a = singleton $ SyntLiftExtRef $ extRef r l a
     newRef a = singleton $ SyntLiftExtRef $ newRef a
 
-instance Monad m => MonadRegister (SyntEffRef n m x) where
-    type EffectM (SyntEffRef n m x) = m
-    toSend_ = error "toSend_ wwwww"
-    toReceive_ = error "toReceive_ wwwww"
-    liftEffectM = singleton . SyntLiftEffect
+liftEffectM = singleton . SyntLiftEffect
 
 instance EffRef (SyntEffRef n m x) where
+    type EffectM (SyntEffRef n m x) = m
     type CallbackM (SyntEffRef n m x) = n
     liftEffectM' = singleton . SyntLiftEffect
     onChange b r f = singleton $ SyntOnChange b r f
@@ -190,16 +189,43 @@ evalRegister' ff = eval . view
     eval (SyntReceive f g :>>= k) = tell (t2 g) >> evalRegister' ff (k $ ff . runExtRef'' . liftWriteRef . f)
 
 
--- | This instance is used in the implementation, the end users do not need it.
-instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)) => EffRef (IdentityT m) where
+type Register' m = WriterT (WR m) m
+type WR m    = (MonadMonoid m, Command -> MonadMonoid m)
 
-    type CallbackM (IdentityT m) = EffectM m
+toSend__ :: (Eq b, NewRef m) => Bool -> m b -> (b -> Register' m (Register' m ())) -> Register' m ()
+toSend__ init rb fb = do
+        b <- lift rb
+        v <- case init of
+            False -> return $ Left b
+            True -> lift $ do
+                (c, (s1, ureg1)) <- runWriterT (fb b)
+                (s2, ureg2) <- execWriterT c
+                runMonadMonoid $ s1 `mappend` s2
+                return $ Right [(b, (c, s1, s2, ureg1, ureg2))]
+        memoref <- lift $ newRef' v
+                            -- memo table, first item is the newest
+        tell $ t1 $ do
+            b <- rb
+            join $ runMorphD memoref $ StateT $ \memo -> case memo of
+                Left b' | b' == b -> return (return (), memo)
+                Right ((b', (_, s1, s2, _, _)): _) | b' == b ->
+                    return (runMonadMonoid $ s1 `mappend` s2, memo)
+                _ -> do
+                    case memo of
+                        Right ((_, (_, _, _, ureg1, ureg2)): _) ->
+                            runMonadMonoid $ ureg1 Block `mappend` ureg2 Kill
+                        _ -> return ()
+                    (c, (s1, ureg1)) <- case filter ((== b) . fst) $ either (const []) id memo of
+                        ((_, (c, s1, _, ureg1, _)): _) -> do
+                            runMonadMonoid $ ureg1 Unblock
+                            return (c, (s1, ureg1))
+                        _ -> runWriterT (fb b)
+                    (s2, ureg2) <- execWriterT c
+                    let memo' = Right $ (:) (b, (c, s1, s2, ureg1, ureg2)) $ filter ((/= b) . fst) $ either (const []) id memo
+                    return (runMonadMonoid $ s1 `mappend` s2, memo')
 
-    liftEffectM' = liftEffectM
-
-    onChange init = toSend_ init . liftReadRef
-
-    toReceive fm = toReceive_ (liftWriteRef . fm)
+t1 m = (MonadMonoid m, mempty)
+t2 m = (mempty, MonadMonoid . m)
 
 
 -- | Type class for IO actions.
@@ -249,102 +275,12 @@ putStrLn_ = putStr_ . (++ "\n")
 asyncWrite :: EffIORef m => Int -> (a -> WriteRef m ()) -> a -> m ()
 asyncWrite t f a = asyncWrite' t $ f a
 
---registerIO :: Eq a => (a -> WriteRef m ()) -> (Command -> IO ()) -> m (a -> IO ())
-registerIO r fm = do
-        f <- toReceive r $ liftBase . fm -- $ \x -> unliftIO $ \u -> liftM (fmap liftBase) $ fm $ void . u . x
-        liftEffectM' $ unliftIO' $ \u -> return $ u . f
-
 asyncWrite' :: EffIORef m => Int -> WriteRef m () -> m ()
 asyncWrite' t r = asyncWrite_ t (const r) ()
-
-
--- | This instance is used in the implementation, the end users do not need it.
-instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m), MonadBaseControl IO (EffectM m), SafeIO (ReadRef m), SafeIO m) => EffIORef (IdentityT m) where
-
-    putStr_ = liftIO' . putStr
-
-    asyncWrite_ t r a = do
-        (u, f) <- liftIO' forkIOs'
-        x <- registerIO r u
-        liftIO' $ f [ threadDelay t, x a ]
-
-    getLine_ w = do
-        (u, f) <- liftIO' forkIOs'
-        x <- registerIO w u
-        liftIO' $ f [ getLine >>= x ]   -- TODO
-
-    fileRef f = do
-        ms <- liftIO' r
-        ref <- newRef ms
-        v <- liftIO' newEmptyMVar
-        vman <- liftIO' newEmptyMVar
-        cf <- liftIO' $ canonicalizePath f   -- FIXME: canonicalizePath may fail if the file does not exsist
-        let
-            cf' = decodeString cf
-            g = (== cf')
-
-            h = tryPutMVar v () >> return ()
-
-            filt (Added x _) = g x
-            filt (Modified x _) = g x
-            filt (Removed x _) = g x
-
-            act (Added _ _) = putStrLn "added" >> h
-            act (Modified _ _) = putStrLn "mod" >> h
-            act (Removed _ _) = putStrLn "rem" >> h
-
-            startm = do
-                putStrLn " start" 
-                man <- startManager
-                putMVar vman $ putStrLn " stop" >> stopManager man
-                watchDir man (directory cf') filt act
-
-        liftIO' startm
-
-        (u, ff) <- liftIO' forkIOs'
-        re <- registerIO (writeRef ref) u
-        liftIO' $ ff $ repeat $ takeMVar v >> r >>= re
-
-        rEffect False (readRef ref) $ \x -> liftBase $ do
-            join $ takeMVar vman
-            _ <- tryTakeMVar v
-            putStrLn "  write"
-            w x
-            threadDelay 10000
-            startm
-        return ref
-     where
-        r = do
-            b <- doesFileExist f
-            if b then do
-                xs <- readFile f
-                _ <- evaluate (length xs)
-                return (Just xs)
-             else return Nothing
-
-        w = maybe (doesFileExist f >>= \b -> when b (removeFile f)) (writeFile f)
-
 
 --liftIO' :: EffIORef m => IO a -> m a
 liftIO' m = liftEffectM $ liftBase m
 
-forkForever :: IO () -> IO (Command -> IO ())
-forkForever = forkIOs . repeat
-
-forkIOs :: [IO ()] -> IO (Command -> IO ())
-forkIOs ios = do
-    x <- newMVar ()
-    let g [] = return ()
-        g (i:is) = do
-            () <- takeMVar x
-            putMVar x ()
-            i
-            g is
-        f i Kill = killThread i
-        f _ Block = takeMVar x
-        f _ Unblock = putMVar x ()
-
-    liftM f $ forkIO $ g ios
 
 forkIOs' :: IO (Command -> IO (), [IO ()] -> IO ())
 forkIOs' = do

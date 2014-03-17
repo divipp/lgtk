@@ -113,8 +113,8 @@ import Control.Monad.Trans.Identity
 import Data.Lens.Common
 
 import Control.Monad.ExtRef
-import Control.Monad.Register
-import Control.Monad.Register.Basic
+--import Control.Monad.Register
+--import Control.Monad.Register.Basic
 import Control.Monad.EffRef
 import GUI.Gtk.Structures hiding (Send, Receive, SendReceive, Widget)
 import qualified GUI.Gtk.Structures as Gtk
@@ -142,25 +142,7 @@ Run a Gtk widget description.
 The widget is shown in a window and the thread enters into the Gtk event cycle.
 It leaves the event cycle when the window is closed.
 -}
-runWidget' :: (forall m . EffIORef m => Widget m) -> IO ()
 runWidget :: (forall m . EffIORef m => Widget m) -> IO ()
-
-runWidget' desc = do
-    postActionsRef <- newRef' $ return ()
-    let addPostAction  = runMorphD postActionsRef . modify . flip (>>)
-        runPostActions = join $ runMorphD postActionsRef $ state $ \m -> (m, return ())
-    actionChannel <- newChan
-    _ <- forkIO $ forever $ do
-        join $ readChan actionChannel
-        runPostActions
-    Gtk.gtkContext $ \postGUISync -> do
-        widget <- runExtRef_ $ unliftIO' $ \unlift ->
-            evalRegister
-                (runIdentityT $ Gtk.runWidget unlift addPostAction postGUISync id id liftIO liftIO desc)
-                (liftIO . writeChan actionChannel . void . unlift)
-        runPostActions
-        return widget
-
 runWidget desc = Gtk.gtkContext $ \postGUISync -> mdo
     postActionsRef <- newRef' $ return ()
     let addPostAction  = runMorphD postActionsRef . modify . flip (>>)
@@ -175,26 +157,6 @@ runWidget desc = Gtk.gtkContext $ \postGUISync -> mdo
     runPostActions
     return widget
 
-{-
-runWidget' :: (forall m . EffIORef m => Widget m) -> IO ()
-runWidget' desc = do
-
-    postActionsRef <- newRef' $ return ()
-    let addPostAction  = runMorphD postActionsRef . modify . flip (>>)
-        runPostActions = join $ runMorphD postActionsRef $ state $ \m -> (m, return ())
-    actionChannel <- newChan
-    _ <- forkIO $ forever $ do
-        join $ readChan actionChannel
-        runPostActions
-
-    TP.gtkContext $ \w -> do
-        widget <- runExtRef_ $ unliftIO' $ \unlift ->
-            evalRegister
-                (runIdentityT $ TP.runWidget unlift addPostAction w desc)
-                (liftBase . writeChan actionChannel . void . unlift)
---        runPostActions
-        return widget
--}
 -- | Vertical composition of widgets.
 vcat :: [Widget m] -> Widget m
 vcat = List Vertical

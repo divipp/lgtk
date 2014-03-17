@@ -12,6 +12,7 @@ module Control.Monad.ExtRef.Test
 --    , testExtIORef
     ) where
 
+import Control.Monad.State
 import Control.Monad.Writer
 import Control.Monad.Identity
 import Control.Category
@@ -28,7 +29,7 @@ import qualified Control.Monad.ExtRef.Pure as Pure
 
 -- | Consistency tests for the pure implementation of @Ext@, should give an empty list of errors.
 testExtPure :: [String]
-testExtPure = mkTests $ \t -> runIdentity $ Pure.runExtRef $ execWriterT t
+testExtPure = mkTests $ \t -> flip evalState Pure.initLSt $ Pure.runExtRef'' $ execWriterT t
 
 {-
 -- | Consistency tests for the @IORef@-based implementation of @Ext@, should give an empty list of errors.

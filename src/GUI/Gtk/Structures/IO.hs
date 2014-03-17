@@ -25,7 +25,7 @@ import qualified Graphics.UI.Gtk as Gtk
 --import Graphics.UI.Gtk.Gdk.Events (eventKeyChar)
 
 import Control.Monad.Restricted (Morph)
-import Control.Monad.Register (Command (..))
+import Control.Monad.EffRef (Command (..))
 import GUI.Gtk.Structures
 
 import Diagrams.Prelude hiding (Widget)

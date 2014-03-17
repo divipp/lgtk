@@ -26,7 +26,7 @@ import Diagrams.Prelude (QDiagram, R2, Monoid, Semigroup)
 import Diagrams.Backend.Cairo (Cairo)
 import Graphics.UI.Gtk (ScrollDirection (..), KeyVal, Modifier, keyName, keyToChar)
 
-import Control.Monad.Register (Command (..))
+import Control.Monad.EffRef (Command (..))
 
 type Dia a = QDiagram Cairo R2 a
 
