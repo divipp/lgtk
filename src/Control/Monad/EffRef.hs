@@ -17,8 +17,8 @@ import Control.Monad.RWS
 import Control.Monad.Writer
 
 import Control.Monad.State
-import Control.Monad.Base
-import Control.Monad.Trans.Control
+--import Control.Monad.Base
+--import Control.Monad.Trans.Control
 import Control.Monad.Trans
 import Control.Monad.Trans.Identity
 import System.Directory
@@ -146,7 +146,7 @@ instance EffIORef (SyntEffIORef x) where
         re <- toReceive (writeRef ref) $ liftIO . u
         liftIO' $ ff $ repeat $ takeMVar v >> r >>= re
 
-        rEffect False (readRef ref) $ \x -> liftBase $ do
+        rEffect False (readRef ref) $ \x -> liftIO $ do
             join $ takeMVar vman
             _ <- tryTakeMVar v
             putStrLn "  write"
@@ -279,7 +279,7 @@ asyncWrite' :: EffIORef m => Int -> WriteRef m () -> m ()
 asyncWrite' t r = asyncWrite_ t (const r) ()
 
 --liftIO' :: EffIORef m => IO a -> m a
-liftIO' m = liftEffectM $ liftBase m
+liftIO' m = liftEffectM $ liftIO m
 
 
 forkIOs' :: IO (Command -> IO (), [IO ()] -> IO ())

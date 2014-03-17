@@ -12,14 +12,14 @@ module Control.Monad.Restricted where
 import Data.Monoid
 --import Control.Monad.Layer hiding (MonadTrans, lift)
 --import qualified Control.Monad.Layer as L
-import Control.Applicative
-import Control.Monad.Base
-import Control.Monad.Trans.Control
+--import Control.Applicative
+--import Control.Monad.Base
+--import Control.Monad.Trans.Control
 import Control.Concurrent
 import Control.Monad.State
-import Control.Monad.Reader
-import Control.Monad.RWS
-import Control.Monad.Trans.Identity
+--import Control.Monad.Reader
+--import Control.Monad.RWS
+--import Control.Monad.Trans.Identity
 import qualified System.Environment as Env
 import System.IO.Error (catchIOError, isDoesNotExistError)
 
@@ -70,7 +70,7 @@ instance NewRef IO where
         swap (a, b) = (b, a)
 
 newRef'_ :: (MonadIO m, MonadIO n) => String -> a -> m (MorphD (StateT a n) n)
-newRef'_ msg x = do
+newRef'_ _ x = do
         vx <- liftIO $ newMVar x
         return $ MorphD $ \m -> do
             st <- liftIO $ takeMVar vx

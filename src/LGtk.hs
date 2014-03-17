@@ -106,10 +106,10 @@ import Data.Maybe
 import Data.Monoid
 import Control.Concurrent
 import Control.Monad
-import Control.Monad.Base
+--import Control.Monad.Base
 import Control.Monad.State
 import Control.Monad.Writer
-import Control.Monad.Trans.Identity
+--import Control.Monad.Trans.Identity
 import Data.Lens.Common
 
 import Control.Monad.ExtRef
@@ -134,7 +134,7 @@ the operations of the revealed implementation are hidden.
 -}
 type Widget m = Gtk.Widget (EffectM m) m (CallbackM m)
 
-type SyntWidget = Widget (SyntEffIORef X)
+--type SyntWidget = Widget (SyntEffIORef X)
 
 {- |
 Run a Gtk widget description.

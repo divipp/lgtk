@@ -13,8 +13,8 @@ The implementation uses @unsafeCoerce@ internally, but its effect cannot escape.
 -}
 module Control.Monad.ExtRef.Pure where
 
-import Control.Monad.Base
-import Control.Monad.Trans.Control
+--import Control.Monad.Base
+--import Control.Monad.Trans.Control
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Identity
@@ -25,9 +25,9 @@ import Data.Foldable (toList)
 import Prelude hiding (splitAt, length)
 
 import Unsafe.Coerce
-import System.IO.Unsafe
+--import System.IO.Unsafe
 
-import Control.Monad.Restricted
+--import Control.Monad.Restricted
 import Control.Monad.ExtRef
 import Control.Monad.Operational
 

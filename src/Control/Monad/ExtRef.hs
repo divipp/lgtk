@@ -12,9 +12,9 @@ import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.Writer
 import Control.Monad.State
-import Control.Monad.RWS
-import Control.Monad.Trans.Identity
-import Control.Monad.Operational
+--import Control.Monad.RWS
+--import Control.Monad.Trans.Identity
+--import Control.Monad.Operational
 import Data.Lens.Common
 
 -- | @m@ has a submonad @(RefStateReader m)@ which is isomorphic to 'Reader'.
@@ -206,33 +206,6 @@ instance (ExtRef m, Monoid w) => ExtRef (WriterT w m) where
     liftWriteRef = lift . liftWriteRef
 
     extRef x y a = lift $ extRef x y a
-{-
-instance (ExtRef m) => ExtRef (ReaderT s m) where
-
-    type Ref (ReaderT s m) = Ref m
-
-    liftWriteRef = lift . liftWriteRef
-
-    extRef r k a = lift $ extRef r k a
--}
-
--- | This instance is used in the implementation, end users do not need it.
-instance (ExtRef m) => ExtRef (IdentityT m) where
-
-    type Ref (IdentityT m) = Ref m
-
-    liftWriteRef = lift . liftWriteRef
-
-    extRef r k a = lift $ extRef r k a
-
--- | This instance is used in the implementation, end users do not need it.
-instance (ExtRef m, Monoid w) => ExtRef (RWST r w s m) where
-
-    type Ref (RWST r w s m) = Ref m
-
-    liftWriteRef = lift . liftWriteRef
-
-    extRef r k a = lift $ extRef r k a
 
 
 -- | Undo-redo state transformation.

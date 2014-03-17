@@ -14,7 +14,7 @@ module Control.Monad.ExtRef.Test
 
 import Control.Monad.State
 import Control.Monad.Writer
-import Control.Monad.Identity
+--import Control.Monad.Identity
 import Control.Category
 import Control.Arrow ((***))
 import Data.Maybe

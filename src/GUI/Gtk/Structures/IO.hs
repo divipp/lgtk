@@ -11,11 +11,11 @@ module GUI.Gtk.Structures.IO
 
 import Control.Category
 import Control.Monad
-import Control.Monad.Trans.Control
+-- import Control.Monad.Trans.Control
 import Control.Monad.Writer
-import Control.Monad.IO.Class
+-- import Control.Monad.IO.Class
 import Control.Concurrent
-import Control.Concurrent.MVar
+-- import Control.Concurrent.MVar
 import Data.Maybe
 import Data.List hiding (union)
 import Prelude hiding ((.), id)
@@ -28,7 +28,7 @@ import Control.Monad.Restricted (Morph)
 import Control.Monad.EffRef (Command (..))
 import GUI.Gtk.Structures
 
-import Diagrams.Prelude hiding (Widget)
+import Diagrams.Prelude
 import Diagrams.Backend.Cairo
 import Diagrams.Backend.Cairo.Internal
 
@@ -107,8 +107,8 @@ runWidget nio post' post liftO liftOBack liftIO_ liftION = toWidget
             canvas <- drawingAreaNew
             widgetAddEvents canvas [PointerMotionMask]
             af <- aspectFrameNew 0.5 0.5 (Just $ fromIntegral w / fromIntegral h)
-            canvas `onSizeRequest` return (Requisition w h)
-            containerAdd af canvas
+            _ <- canvas `onSizeRequest` return (Requisition w h)
+            _ <- containerAdd af canvas
             let
               dims = do
                 win <- widgetGetDrawWindow canvas
@@ -120,7 +120,7 @@ runWidget nio post' post liftO liftOBack liftIO_ liftION = toWidget
               tr sc w h dia = translate (r2 (w/2, h/2)) $ dia # scaleY (-1) # scale sc `atop` rect w h # fc white # lw 0
 
               draw dia_ = do
-                swapMVar cur $ Just dia_
+                _ <- swapMVar cur $ Just dia_
                 let dia = freeze $ clearValue dia_
                 (sc, w, h, wi, he) <- dims
                 win <- widgetGetDrawWindow canvas
@@ -138,24 +138,24 @@ runWidget nio post' post liftO liftOBack liftIO_ liftION = toWidget
                 return $ MousePos p $ maybe mempty (`sample` p2 p) d
 
           _ <- reg me $ \re -> do
-              on' canvas buttonPressEvent $ tryEvent $ do
+              _ <- on' canvas buttonPressEvent $ tryEvent $ do
 --                click <- eventClick
                 p <- eventCoordinates >>= liftIO . compCoords
                 liftIO $ re $ Click p
-              on' canvas buttonReleaseEvent $ tryEvent $ do
+              _ <- on' canvas buttonReleaseEvent $ tryEvent $ do
 --                click <- eventClick
                 p <- eventCoordinates >>= liftIO . compCoords
                 liftIO $ re $ Release p
-              on' canvas enterNotifyEvent $ tryEvent $ do
+              _ <- on' canvas enterNotifyEvent $ tryEvent $ do
                 p <- eventCoordinates >>= liftIO . compCoords
                 liftIO $ re $ MouseEnter p
-              on' canvas leaveNotifyEvent $ tryEvent $ do
+              _ <- on' canvas leaveNotifyEvent $ tryEvent $ do
                 p <- eventCoordinates >>= liftIO . compCoords
                 liftIO $ re $ MouseLeave p
-              on' canvas motionNotifyEvent $ tryEvent $ do
+              _ <- on' canvas motionNotifyEvent $ tryEvent $ do
                 p <- eventCoordinates >>= liftIO . compCoords
                 liftIO $ re $ MoveTo p
-              on' canvas scrollEvent $ tryEvent $ do
+              _ <- on' canvas scrollEvent $ tryEvent $ do
                 p <- eventCoordinates >>= liftIO . compCoords
                 dir <- eventScrollDirection
                 liftIO $ re $ ScrollTo dir p
@@ -172,16 +172,16 @@ runWidget nio post' post liftO liftOBack liftIO_ liftION = toWidget
 
           canvasDraw' <- liftIO_ $ do
             v2 <- newMVar False
-            forkIO $ do
+            _ <- forkIO $ do
               threadDelay 200000
               forever $ do
                 threadDelay 10000
                 dia <- takeMVar v
-                swapMVar cur' $ Just dia
-                swapMVar v2 True
+                _ <- swapMVar cur' $ Just dia
+                _ <- swapMVar v2 True
                 let d = diaFun dia
                 post $ canvasDraw d
-                swapMVar v2 False
+                _ <- swapMVar v2 False
                 return ()
             return $ \dia -> do
                 b <- readMVar v2
@@ -214,13 +214,13 @@ runWidget nio post' post liftO liftOBack liftIO_ liftION = toWidget
             return' w
         Scale a b c (r, s) -> do
             w <- liftIO' $ hScaleNewWithRange a b c
-            liftIO' $ w `onSizeRequest` return (Requisition 200 40)
+            _ <- liftIO' $ w `onSizeRequest` return (Requisition 200 40)
             hd <- reg s $ \re -> on' w valueChanged $ rangeGetValue w >>= re
             ger hd r $ rangeSetValue w
             return' w
         Combobox ss (r, s) -> do
             w <- liftIO' comboBoxNewText
-            liftIO' $ w `onSizeRequest` return (Requisition 50 30)
+            _ <- liftIO' $ w `onSizeRequest` return (Requisition 50 30)
             liftIO' $ flip mapM_ ss $ comboBoxAppendText w
             hd <- reg s $ \re -> on' w changed $ fmap (max 0) (comboBoxGetActive w) >>= re
             ger hd r $ comboBoxSetActive w
