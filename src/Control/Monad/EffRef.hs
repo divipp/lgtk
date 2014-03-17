@@ -17,8 +17,6 @@ import Control.Monad.RWS
 import Control.Monad.Writer
 
 import Control.Monad.State
---import Control.Monad.Base
---import Control.Monad.Trans.Control
 import Control.Monad.Trans
 import Control.Monad.Trans.Identity
 import System.Directory
@@ -102,97 +100,21 @@ instance EffRef (SyntEffRef n m x) where
     onChange b r f = singleton $ SyntOnChange b r f
     toReceive f g = singleton $ SyntReceive f g
 
-type SyntEffIORef x = SyntEffRef IO (StateT LSt IO) x
-
-instance SafeIO (SyntRefReader x) where
-instance SafeIO (SyntEffIORef x) where
-
-instance EffIORef (SyntEffIORef x) where
-
-    asyncWrite_ t r a = do
-        (u, f) <- liftIO' forkIOs'
-        x <- toReceive r $ liftIO . u
-        liftIO' $ f [ threadDelay t, x a ]
-
-    fileRef f = do
-        ms <- liftIO' r
-        ref <- newRef ms
-        v <- liftIO' newEmptyMVar
-        vman <- liftIO' newEmptyMVar
-        cf <- liftIO' $ canonicalizePath f   -- FIXME: canonicalizePath may fail if the file does not exsist
-        let
-            cf' = decodeString cf
-            g = (== cf')
-
-            h = tryPutMVar v () >> return ()
-
-            filt (Added x _) = g x
-            filt (Modified x _) = g x
-            filt (Removed x _) = g x
-
-            act (Added _ _) = putStrLn "added" >> h
-            act (Modified _ _) = putStrLn "mod" >> h
-            act (Removed _ _) = putStrLn "rem" >> h
-
-            startm = do
-                putStrLn " start" 
-                man <- startManager
-                putMVar vman $ putStrLn " stop" >> stopManager man
-                watchDir man (directory cf') filt act
-
-        liftIO' startm
-
-        (u, ff) <- liftIO' forkIOs'
-        re <- toReceive (writeRef ref) $ liftIO . u
-        liftIO' $ ff $ repeat $ takeMVar v >> r >>= re
-
-        rEffect False (readRef ref) $ \x -> liftIO $ do
-            join $ takeMVar vman
-            _ <- tryTakeMVar v
-            putStrLn "  write"
-            w x
-            threadDelay 10000
-            startm
-        return ref
-     where
-        r = do
-            b <- doesFileExist f
-            if b then do
-                xs <- readFile f
-                _ <- evaluate (length xs)
-                return (Just xs)
-             else return Nothing
-
-        w = maybe (doesFileExist f >>= \b -> when b (removeFile f)) (writeFile f)
-
-    getLine_ w = do
-        (u, f) <- liftIO' forkIOs'
-        x <- toReceive w $ liftIO . u
-        liftIO' $ f [ getLine >>= x ]   -- TODO
-    putStr_ s = liftIO' $ putStr s
-
-liftIO__ :: IO a -> SyntEffIORef (Lens_ LSt) a
-liftIO__ m = singleton $ SyntLiftEffect $ lift m
-
+type WR m    = (MonadMonoid m, Command -> MonadMonoid m)
 type CO m = WriterT (WR (StateT LSt m)) (StateT LSt m)
 
-instance NewRef (StateT LSt IO) where
-    newRef' a = lift $ newRef'_ "sli" a
-
-evalRegister' :: (StateT LSt IO () -> IO ()) -> SyntEffIORef (Lens_ LSt) a -> CO IO a
+evalRegister' :: (NewRef m) => (StateT LSt m () -> m ()) -> SyntEffRef m (StateT LSt m) (Lens_ LSt) a -> CO m a
 evalRegister' ff = eval . view
   where
     eval (Return x) = return x
     eval (SyntLiftEffect m :>>= k) = lift m >>= evalRegister' ff . k
     eval (SyntLiftExtRef m :>>= k) = lift (runExtRef m) >>= evalRegister' ff . k
-    eval (SyntOnChange b r f :>>= k) = toSend__ b (runExtRef $ liftReadRef r) (liftM (evalRegister' ff) . evalRegister' ff . f) >>= evalRegister' ff . k
     eval (SyntReceive f g :>>= k) = tell (t2 g) >> evalRegister' ff (k $ ff . runExtRef . liftWriteRef . f)
+    eval (SyntOnChange b r f :>>= k) = toSend__ b (runExtRef $ liftReadRef r) (liftM (evalRegister' ff) . evalRegister' ff . f) >>= evalRegister' ff . k
 
+newRef'' x = liftM (\r -> MorphD $ \m -> StateT $ \s -> runMorphD r $ mapStateT (\k -> runStateT k s >>= \((x, w), s) -> return ((x, s), w)) m) $ newRef' x
 
-type Register' m = WriterT (WR m) m
-type WR m    = (MonadMonoid m, Command -> MonadMonoid m)
-
-toSend__ :: (Eq b, NewRef m) => Bool -> m b -> (b -> Register' m (Register' m ())) -> Register' m ()
+--toSend__ :: (Eq b, NewRef m) => Bool -> m b -> (b -> Register' m (Register' m ())) -> Register' m ()
 toSend__ init rb fb = do
         b <- lift rb
         v <- case init of
@@ -202,7 +124,7 @@ toSend__ init rb fb = do
                 (s2, ureg2) <- execWriterT c
                 runMonadMonoid $ s1 `mappend` s2
                 return $ Right [(b, (c, s1, s2, ureg1, ureg2))]
-        memoref <- lift $ newRef' v
+        memoref <- lift $ lift $ newRef'' v
                             -- memo table, first item is the newest
         tell $ t1 $ do
             b <- rb
@@ -278,11 +200,83 @@ asyncWrite t f a = asyncWrite' t $ f a
 asyncWrite' :: EffIORef m => Int -> WriteRef m () -> m ()
 asyncWrite' t r = asyncWrite_ t (const r) ()
 
+type SyntEffIORef m x = SyntEffRef m (StateT LSt m) x
+
+instance SafeIO (SyntRefReader x) where
+instance SafeIO (SyntEffIORef m x) where
+
+instance EffIORef (SyntEffIORef IO x) where
+
+    asyncWrite_ t r a = do
+        (u, f) <- liftIO' forkIOs'
+        x <- toReceive r $ liftIO . u
+        liftIO' $ f [ threadDelay t, x a ]
+
+    fileRef f = do
+        ms <- liftIO' r
+        ref <- newRef ms
+        v <- liftIO' newEmptyMVar
+        vman <- liftIO' newEmptyMVar
+        cf <- liftIO' $ canonicalizePath f   -- FIXME: canonicalizePath may fail if the file does not exsist
+        let
+            cf' = decodeString cf
+            g = (== cf')
+
+            h = tryPutMVar v () >> return ()
+
+            filt (Added x _) = g x
+            filt (Modified x _) = g x
+            filt (Removed x _) = g x
+
+            act (Added _ _) = putStrLn "added" >> h
+            act (Modified _ _) = putStrLn "mod" >> h
+            act (Removed _ _) = putStrLn "rem" >> h
+
+            startm = do
+                putStrLn " start" 
+                man <- startManager
+                putMVar vman $ putStrLn " stop" >> stopManager man
+                watchDir man (directory cf') filt act
+
+        liftIO' startm
+
+        (u, ff) <- liftIO' forkIOs'
+        re <- toReceive (writeRef ref) $ liftIO . u
+        liftIO' $ ff $ repeat $ takeMVar v >> r >>= re
+
+        rEffect False (readRef ref) $ \x -> liftIO $ do
+            join $ takeMVar vman
+            _ <- tryTakeMVar v
+            putStrLn "  write"
+            w x
+            threadDelay 10000
+            startm
+        return ref
+     where
+        r = do
+            b <- doesFileExist f
+            if b then do
+                xs <- readFile f
+                _ <- evaluate (length xs)
+                return (Just xs)
+             else return Nothing
+
+        w = maybe (doesFileExist f >>= \b -> when b (removeFile f)) (writeFile f)
+
+    getLine_ w = do
+        (u, f) <- liftIO' forkIOs'
+        x <- toReceive w $ liftIO . u
+        liftIO' $ f [ getLine >>= x ]   -- TODO
+    putStr_ s = liftIO' $ putStr s
+
+liftIO__ :: Monad m => m a -> SyntEffIORef m (Lens_ LSt) a
+liftIO__ m = singleton $ SyntLiftEffect $ lift m
+
 --liftIO' :: EffIORef m => IO a -> m a
 liftIO' m = liftEffectM $ liftIO m
 
 
-forkIOs' :: IO (Command -> IO (), [IO ()] -> IO ())
+--forkIOs' :: IO (Command -> IO (), [IO ()] -> IO ())
 forkIOs' = do
     x <- newMVar ()
     s <- newEmptyMVar

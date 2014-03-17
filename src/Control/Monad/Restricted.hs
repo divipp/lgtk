@@ -69,15 +69,6 @@ instance NewRef IO where
       where
         swap (a, b) = (b, a)
 
-newRef'_ :: (MonadIO m, MonadIO n) => String -> a -> m (MorphD (StateT a n) n)
-newRef'_ _ x = do
-        vx <- liftIO $ newMVar x
-        return $ MorphD $ \m -> do
-            st <- liftIO $ takeMVar vx
-            (a, st') <- runStateT m st
-            liftIO $ putMVar vx st'
-            return a
-
 -------------------
 
 newtype MonadMonoid a = MonadMonoid { runMonadMonoid :: a () }
