@@ -171,7 +171,7 @@ instance EffIORef (SyntEffIORef x) where
         liftIO' $ f [ getLine >>= x ]   -- TODO
     putStr_ s = liftIO' $ putStr s
 
-liftIO__ :: IO a -> SyntEffIORef X a
+liftIO__ :: IO a -> SyntEffIORef (Lens_ LSt) a
 liftIO__ m = singleton $ SyntLiftEffect $ lift m
 
 type CO m = WriterT (WR (StateT LSt m)) (StateT LSt m)
@@ -179,14 +179,14 @@ type CO m = WriterT (WR (StateT LSt m)) (StateT LSt m)
 instance NewRef (StateT LSt IO) where
     newRef' a = lift $ newRef'_ "sli" a
 
-evalRegister' :: (StateT LSt IO () -> IO ()) -> SyntEffIORef X a -> CO IO a
+evalRegister' :: (StateT LSt IO () -> IO ()) -> SyntEffIORef (Lens_ LSt) a -> CO IO a
 evalRegister' ff = eval . view
   where
     eval (Return x) = return x
     eval (SyntLiftEffect m :>>= k) = lift m >>= evalRegister' ff . k
-    eval (SyntLiftExtRef m :>>= k) = lift (runExtRef'' m) >>= evalRegister' ff . k
-    eval (SyntOnChange b r f :>>= k) = toSend__ b (runExtRef'' $ liftReadRef r) (liftM (evalRegister' ff) . evalRegister' ff . f) >>= evalRegister' ff . k
-    eval (SyntReceive f g :>>= k) = tell (t2 g) >> evalRegister' ff (k $ ff . runExtRef'' . liftWriteRef . f)
+    eval (SyntLiftExtRef m :>>= k) = lift (runExtRef m) >>= evalRegister' ff . k
+    eval (SyntOnChange b r f :>>= k) = toSend__ b (runExtRef $ liftReadRef r) (liftM (evalRegister' ff) . evalRegister' ff . f) >>= evalRegister' ff . k
+    eval (SyntReceive f g :>>= k) = tell (t2 g) >> evalRegister' ff (k $ ff . runExtRef . liftWriteRef . f)
 
 
 type Register' m = WriterT (WR m) m

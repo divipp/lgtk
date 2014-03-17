@@ -18,6 +18,7 @@ module Control.Monad.ExtRef.Pure where
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Identity
+import Control.Monad.Operational
 import Control.Arrow ((***))
 import Data.Sequence hiding (singleton)
 import Data.Lens.Common
@@ -25,11 +26,8 @@ import Data.Foldable (toList)
 import Prelude hiding (splitAt, length)
 
 import Unsafe.Coerce
---import System.IO.Unsafe
 
---import Control.Monad.Restricted
 import Control.Monad.ExtRef
-import Control.Monad.Operational
 
 ----------------- synthetic data types and instances
 
@@ -64,60 +62,53 @@ type SyntExtRef x = Program (ExtRefI x)
 data ExtRefI x a where
     SyntLiftRefState :: SyntRefState x a -> ExtRefI x a
     SyntExtRef :: SyntRef x b -> Lens' a b -> a -> ExtRefI x (SyntRef x a)
-    SyntNewRef :: a -> ExtRefI x (SyntRef x a)
+--    SyntNewRef :: a -> ExtRefI x (SyntRef x a)
 
 instance ExtRef (SyntExtRef x) where
     type Ref (SyntExtRef x) = SyntRef x
     liftWriteRef w = singleton $ SyntLiftRefState w
     extRef r l = singleton . SyntExtRef r l
-    newRef = singleton . SyntNewRef
+--    newRef = singleton . SyntNewRef
 
 
-
+----------------------
 
 newtype Lens_ a b = Lens_ {unLens_ :: Lens' a b}
 
-instance Reference (Lens_ a) where
-
-    type RefState (Lens_ a) = State a
-
-    readRef (Lens_ r) = reader $ getL r
-
-    writeRef (Lens_ r) = modify . setL r
-
-    lensMap l (Lens_ r) = Lens_ $ r . l
-
-    unitRef = Lens_ $ lens (const ()) (flip $ const id)
-
-    joinRef m = (\f -> Lens_ $ \g s -> unLens_ (f s) g s) $ runReader m
-
-
 type LSt = Seq CC
+
+data CC = forall a . CC (LSt -> a -> a) a
 
 initLSt :: LSt
 initLSt = empty
 
-data CC = forall a . CC (LSt -> a -> a) a
 
-ap_ :: LSt -> CC -> CC
-ap_ x (CC f a) = CC f (f x a)
+runSyntRefReader :: SyntRefReader (Lens_ x) a -> Reader x a
+runSyntRefReader = interpretWithMonad eval where
+    eval (SyntReadRef r) = reader $ getL $ unLens_ $ runSyntRef r
 
-unsafeData :: CC -> a
-unsafeData (CC _ a) = unsafeCoerce a
+runSyntRefState :: SyntRefState (Lens_ x) a -> State x a
+runSyntRefState = interpretWithMonad eval where
+    eval (SyntLiftRefReader r) = liftRefStateReader $ runSyntRefReader r
+    eval (SyntWriteRef r a) = modify $ setL (unLens_ $ runSyntRef r) a
 
+runSyntRef :: SyntRef (Lens_ x) a -> Lens_ x a
+runSyntRef SyntUnitRef = Lens_ $ lens (const ()) $ const . id
+runSyntRef (SyntLensMap l r) = Lens_ $ (unLens_ $ runSyntRef r) . l
+runSyntRef (SyntJoinRef m) = (\f -> Lens_ $ \g s -> unLens_ (f s) g s) $ runReader $ liftM runSyntRef $ runSyntRefReader m
+runSyntRef (SyntCreatedRef l) = l
 
-instance Monad m => ExtRef (StateT LSt m) where
+runExtRef :: Monad m => SyntExtRef (Lens_ LSt) a -> StateT LSt m a
+runExtRef = interpretWithMonad eval where
+    eval (SyntLiftRefState w) = mapStateT (return . runIdentity) $ runSyntRefState w
+    eval (SyntExtRef r r2 a0) = state extend
+     where
+        r1 = runSyntRef r
 
-    type Ref (StateT LSt m) = Lens_ LSt
+        rk = setL (unLens_ r1) . getL r2
+        kr = setL r2 . getL (unLens_ r1)
 
-    liftWriteRef = mapStateT (return . runIdentity)
-
-    extRef (Lens_ r1) r2 a0 = state extend  where
-
-        rk = setL r1 . getL r2
-        kr = setL r2 . getL r1
-
-        extend x0 = (Lens_ $ lens get set, x0 |> CC kr (kr x0 a0))
+        extend x0 = (SyntCreatedRef $ Lens_ $ lens get set, x0 |> CC kr (kr x0 a0))
           where
             limit = (id *** toList) . splitAt (length x0)
 
@@ -126,28 +117,11 @@ instance Monad m => ExtRef (StateT LSt m) where
             set x a = foldl (\x -> (|>) x . ap_ x) (rk a zs |> CC kr a) ys where
                 (zs, _ : ys) = limit x
 
----------------
+        ap_ :: LSt -> CC -> CC
+        ap_ x (CC f a) = CC f (f x a)
 
-type X = Lens_ LSt
+        unsafeData :: CC -> a
+        unsafeData (CC _ a) = unsafeCoerce a
 
-runSyntRefReader :: SyntRefReader (Lens_ x) a -> Reader x a
-runSyntRefReader = interpretWithMonad eval where
-    eval (SyntReadRef r) = readRef $ runSyntRef r
-
-runSyntRefState :: SyntRefState (Lens_ x) a -> State x a
-runSyntRefState = interpretWithMonad eval where
-    eval (SyntLiftRefReader r) = liftRefStateReader $ runSyntRefReader r
-    eval (SyntWriteRef r a) = writeRef (runSyntRef r) a
-
-runSyntRef :: SyntRef (Lens_ x) a -> Lens_ x a
-runSyntRef SyntUnitRef = unitRef
-runSyntRef (SyntLensMap l r) = lensMap l $ runSyntRef r
-runSyntRef (SyntJoinRef m) = joinRef $ liftM runSyntRef $ runSyntRefReader m
-runSyntRef (SyntCreatedRef l) = l
-
-runExtRef'' :: Monad m => SyntExtRef (Lens_ LSt) a -> StateT LSt m a
-runExtRef'' = interpretWithMonad eval where
-    eval (SyntLiftRefState w) = liftWriteRef $ runSyntRefState w
-    eval (SyntExtRef r l a) = liftM SyntCreatedRef $ extRef (runSyntRef r) l a
-    eval (SyntNewRef a) = liftM SyntCreatedRef $ newRef a
+--    eval (SyntNewRef a) = newRef a
 

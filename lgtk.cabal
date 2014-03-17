@@ -31,9 +31,7 @@ library
                   , fsnotify
 
                   , transformers
---                  , transformers-base
                   , mtl
---                  , monad-control
                   , operational
 
                   , gtk
