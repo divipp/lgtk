@@ -72,113 +72,123 @@ class ExtRef m => EffRef m where
     -}
     onChange :: Eq a => Bool -> ReadRef m a -> (a -> m (m ())) -> m ()
 
---    toReceive :: Eq a => (a -> WriteRef m ()) -> ((a -> EffectM m ()) -> EffectM m (Command -> EffectM m ())) -> m (Command -> EffectM m ())
     toReceive :: Eq a => (a -> WriteRef m ()) -> (Command -> EffectM m ()) -> m (a -> CallbackM m ())
 
 rEffect  :: (EffRef m, Eq a) => Bool -> ReadRef m a -> (a -> EffectM m ()) -> m ()
 rEffect init r f = onChange init r $ return . liftEffectM' . f
 
 
-type SyntEffRef m x = ProgramT (EffRefI m x) IO
-data EffRefI m x a where
-    SyntLiftEffect :: m a -> EffRefI m x a
-    SyntLiftExtRef :: SyntExtRef x a -> EffRefI m x a
-    SyntOnChange :: Eq a => Bool -> SyntRefReader x a -> (a -> SyntEffRef m x (SyntEffRef m x ())) -> EffRefI m x ()
-    SyntReceive  :: Eq a => (a -> SyntRefState x ()) -> (Command -> m ()) -> EffRefI m x (a -> CompEffRef m x ())
+type SyntEffRef n m x = Program (EffRefI n m x)
+data EffRefI n m x a where
+    SyntLiftEffect :: m a -> EffRefI n m x a
+    SyntLiftExtRef :: SyntExtRef x a -> EffRefI n m x a
+    SyntOnChange :: Eq a => Bool -> SyntRefReader x a -> (a -> SyntEffRef n m x (SyntEffRef n m x ())) -> EffRefI n m x ()
+    SyntReceive  :: Eq a => (a -> SyntRefState x ()) -> (Command -> m ()) -> EffRefI n m x (a -> n ())
 
-instance ExtRef (SyntEffRef m x) where
-    type Ref (SyntEffRef m x) = SyntRef x
+instance ExtRef (SyntEffRef n m x) where
+    type Ref (SyntEffRef n m x) = SyntRef x
     liftWriteRef w = singleton $ SyntLiftExtRef $ liftWriteRef w
     extRef r l a = singleton $ SyntLiftExtRef $ extRef r l a
     newRef a = singleton $ SyntLiftExtRef $ newRef a
 
-type CompEffRef m x = SyntEffRef m x
-
-instance Monad m => MonadRegister (SyntEffRef m x) where
-    type EffectM (SyntEffRef m x) = m
+instance Monad m => MonadRegister (SyntEffRef n m x) where
+    type EffectM (SyntEffRef n m x) = m
     toSend_ = error "toSend_ wwwww"
     toReceive_ = error "toReceive_ wwwww"
-    liftEffectM = error "liftEffectM wwwww"
+    liftEffectM = singleton . SyntLiftEffect
 
-instance EffRef (SyntEffRef m x) where
-    type CallbackM (SyntEffRef m x) = SyntEffRef m x
+instance EffRef (SyntEffRef n m x) where
+    type CallbackM (SyntEffRef n m x) = n
     liftEffectM' = singleton . SyntLiftEffect
     onChange b r f = singleton $ SyntOnChange b r f
     toReceive f g = singleton $ SyntReceive f g
 
-type SyntIORef x = ProgramT (SyntIORefI x) IO
-data SyntIORefI x a where
-    SyntAsyncWrite :: Eq a => Int -> (a -> SyntRefState x ()) -> a -> SyntIORefI x ()
-    SyntFileRef :: FilePath -> SyntIORefI x (SyntRef x (Maybe String))
-    SyntGetLine :: (String -> SyntRefState x ()) -> SyntIORefI x ()
-    SyntPutStr :: String -> SyntIORefI x ()
-
-runSyntIORef :: (MorphD CO IO) -> SyntIORef X a -> CO a
-runSyntIORef moo m = eval =<< liftIO (viewT m) where
-    eval :: ProgramViewT (SyntIORefI X) IO a -> CO a
-    eval (Return a) = return a
-    eval (SyntPutStr s :>>= k) = liftIO (putStr s) >>= runSyntIORef moo . k
-    eval (SyntAsyncWrite t r a :>>= k) = do
-        (u, f) <- liftIO forkIOs'
-        ff <- toReceive r $ liftIO . u -- $ \x -> unliftIO $ \u -> liftM (fmap liftBase) $ fm $ void . u . x
---        let x = 
-        liftIO $ f [ threadDelay t, runMorphD moo $ ff a ]
-        runSyntIORef moo $ k ()
-    eval _ = error "wwwwwwwwwwwwww"
-
-type SyntEffIORef x = SyntEffRef (SyntIORef x) x
+type SyntEffIORef x = SyntEffRef IO (StateT LSt IO) x
 
 instance SafeIO (SyntRefReader x) where
 instance SafeIO (SyntEffIORef x) where
 
 instance EffIORef (SyntEffIORef x) where
-    asyncWrite_ d w a = singleton $ SyntLiftEffect $ singleton $ SyntAsyncWrite d w a
-    fileRef f = singleton $ SyntLiftEffect $ singleton $ SyntFileRef f
-    getLine_ r = singleton $ SyntLiftEffect $ singleton $ SyntGetLine r
-    putStr_ s = singleton $ SyntLiftEffect $ singleton $ SyntPutStr s
 
-instance NewRef (CompEffRef m x) where
-    newRef' a = newRef'_ "cer" a
+    asyncWrite_ t r a = do
+        (u, f) <- liftIO' forkIOs'
+        x <- toReceive r $ liftIO . u
+        liftIO' $ f [ threadDelay t, x a ]
 
+    fileRef f = do
+        ms <- liftIO' r
+        ref <- newRef ms
+        v <- liftIO' newEmptyMVar
+        vman <- liftIO' newEmptyMVar
+        cf <- liftIO' $ canonicalizePath f   -- FIXME: canonicalizePath may fail if the file does not exsist
+        let
+            cf' = decodeString cf
+            g = (== cf')
 
-type CO = CompEffRef (SyntIORef X) X
+            h = tryPutMVar v () >> return ()
 
-{-
-data WI w a where
-    Tell :: w -> WI w ()
-type WT w = ProgramT (WI w)
-evalWT :: (Monad m, Monoid w) => WT w m a -> m (a, w)
-evalWT = viewT >=> eval where
-    eval :: (Monad m, Monoid w) => ProgramViewT (WI w) m a -> m (a, w)
-    eval (Return x) = return (x, mempty)
-    eval (Tell w :>>= k) = evalWT (k ()) >>= \(a, w') -> return (a, w `mappend` w')
+            filt (Added x _) = g x
+            filt (Modified x _) = g x
+            filt (Removed x _) = g x
 
-instance (Monad m, Monoid w) => MonadWriter w (WT w m) where
-    tell = singleton . Tell
+            act (Added _ _) = putStrLn "added" >> h
+            act (Modified _ _) = putStrLn "mod" >> h
+            act (Removed _ _) = putStrLn "rem" >> h
 
-evalWT' mo m = evalWT m >>= \(a, w) -> runMorphD mo (tell w) >> return a
+            startm = do
+                putStrLn " start" 
+                man <- startManager
+                putMVar vman $ putStrLn " stop" >> stopManager man
+                watchDir man (directory cf') filt act
 
-type Register'' m
-    = WT (WR m) m
--}
-evalWT'' mo m = runWriterT m >>= \(a, w) -> runMorphD mo (get >>= \w' -> put $ w `mappend` w') >> return a
+        liftIO' startm
 
-evalRegister' :: (CO () -> CO ()) -> (MorphD (StateT LSt IO) IO) -> (MorphD (StateT (WR CO) CO) CO) -> CompEffRef (SyntIORef X) X a -> IO a
-evalRegister' ff moo mo = viewT >=> eval
+        (u, ff) <- liftIO' forkIOs'
+        re <- toReceive (writeRef ref) $ liftIO . u
+        liftIO' $ ff $ repeat $ takeMVar v >> r >>= re
+
+        rEffect False (readRef ref) $ \x -> liftBase $ do
+            join $ takeMVar vman
+            _ <- tryTakeMVar v
+            putStrLn "  write"
+            w x
+            threadDelay 10000
+            startm
+        return ref
+     where
+        r = do
+            b <- doesFileExist f
+            if b then do
+                xs <- readFile f
+                _ <- evaluate (length xs)
+                return (Just xs)
+             else return Nothing
+
+        w = maybe (doesFileExist f >>= \b -> when b (removeFile f)) (writeFile f)
+
+    getLine_ w = do
+        (u, f) <- liftIO' forkIOs'
+        x <- toReceive w $ liftIO . u
+        liftIO' $ f [ getLine >>= x ]   -- TODO
+    putStr_ s = liftIO' $ putStr s
+
+liftIO__ :: IO a -> SyntEffIORef X a
+liftIO__ m = singleton $ SyntLiftEffect $ lift m
+
+type CO m = WriterT (WR (StateT LSt m)) (StateT LSt m)
+
+instance NewRef (StateT LSt IO) where
+    newRef' a = lift $ newRef'_ "sli" a
+
+evalRegister' :: (StateT LSt IO () -> IO ()) -> SyntEffIORef X a -> CO IO a
+evalRegister' ff = eval . view
   where
-    eval :: ProgramViewT (EffRefI (SyntIORef X) X) IO a -> IO a
     eval (Return x) = return x
-    eval (SyntLiftEffect m :>>= k) = evalRegister' ff moo mo $ runSyntIORef (MorphD $ evalRegister' ff moo mo) m >>= k
-    eval (SyntLiftExtRef m :>>= k) = runMorphD moo (runExtRef'' m) >>= evalRegister' ff moo mo . k
-    eval (SyntOnChange b r f :>>= k) = evalRegister' ff moo mo $ evalWT'' mo (toSend__ ff b (liftReadRef r) $ liftM lift . lift . f) >>= k
-    eval (SyntReceive f g :>>= k) = evalRegister' ff moo mo $ evalWT'' mo (r2r ff $ toReceive__ (liftWriteRef . f) (singleton . SyntLiftEffect . g)) >>= k
+    eval (SyntLiftEffect m :>>= k) = lift m >>= evalRegister' ff . k
+    eval (SyntLiftExtRef m :>>= k) = lift (runExtRef'' m) >>= evalRegister' ff . k
+    eval (SyntOnChange b r f :>>= k) = toSend__ b (runExtRef'' $ liftReadRef r) (liftM (evalRegister' ff) . evalRegister' ff . f) >>= evalRegister' ff . k
+    eval (SyntReceive f g :>>= k) = tell (t2 g) >> evalRegister' ff (k $ ff . runExtRef'' . liftWriteRef . f)
 
-pu :: MonadIO m => Int -> m a -> m a
-pu i m = do
-    liftIO (putStrLn $ show i)
-    a <- m
-    liftIO (putStrLn $ "    " ++ show i)
-    return a
 
 -- | This instance is used in the implementation, the end users do not need it.
 instance (ExtRef m, MonadRegister m, ExtRef (EffectM m), Ref m ~ Ref (EffectM m)) => EffRef (IdentityT m) where

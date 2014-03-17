@@ -11,11 +11,7 @@ Pure reference implementation for the @ExtRef@ interface.
 
 The implementation uses @unsafeCoerce@ internally, but its effect cannot escape.
 -}
-module Control.Monad.ExtRef.Pure
-    ( runExtRef
-    , runExtRef_, runExtRef''
-    , X, LSt, initLSt
-    ) where
+module Control.Monad.ExtRef.Pure where
 
 import Control.Monad.Base
 import Control.Monad.Trans.Control
@@ -90,29 +86,29 @@ instance Monad m => ExtRef (StateT LSt m) where
 
 type X = Lens_ LSt
 
-runSyntRefReader :: SyntRefReader X a -> Reader LSt a
+runSyntRefReader :: SyntRefReader (Lens_ x) a -> Reader x a
 runSyntRefReader = interpretWithMonad eval where
-    eval :: RefReaderI X a -> Reader LSt a
+--    eval :: RefReaderI (Lens_ x) a -> Reader x a
     eval (SyntReadRef r) = readRef $ runSyntRef r
 
-runSyntRef :: SyntRef X a -> Lens_ LSt a
+runSyntRefState :: SyntRefState (Lens_ x) a -> State x a
+runSyntRefState = interpretWithMonad eval where
+--    eval :: RefStateI (Lens_ x) a -> State x a
+    eval (SyntLiftRefReader r) = liftRefStateReader $ runSyntRefReader r
+    eval (SyntWriteRef r a) = writeRef (runSyntRef r) a
+
+runSyntRef :: SyntRef (Lens_ x) a -> Lens_ x a
 runSyntRef SyntUnitRef = unitRef
 runSyntRef (SyntLensMap l r) = lensMap l $ runSyntRef r
 runSyntRef (SyntJoinRef m) = joinRef $ liftM runSyntRef $ runSyntRefReader m
 runSyntRef (SyntCreatedRef l) = l
 
-runExtRef'' :: Monad m => SyntExtRef X a -> StateT LSt m a
+runExtRef'' :: Monad m => SyntExtRef (Lens_ LSt) a -> StateT LSt m a
 runExtRef'' = interpretWithMonad eval where
-    eval :: Monad m => ExtRefI X a -> StateT LSt m a
+--    eval :: (Monad m, ExtRef (StateT x m), Ref (StateT x m) ~ Lens_ x) => ExtRefI (Lens_ x) a -> StateT x m a
     eval (SyntLiftRefState w) = liftWriteRef $ runSyntRefState w
     eval (SyntExtRef r l a) = liftM SyntCreatedRef $ extRef (runSyntRef r) l a
     eval (SyntNewRef a) = liftM SyntCreatedRef $ newRef a
-
-runSyntRefState :: SyntRefState X a -> State LSt a
-runSyntRefState = interpretWithMonad eval where
-    eval :: RefStateI X a -> State LSt a
-    eval (SyntLiftRefReader r) = liftRefStateReader $ runSyntRefReader r
-    eval (SyntWriteRef r a) = writeRef (runSyntRef r) a
 
 ---------------
 

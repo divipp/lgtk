@@ -26,11 +26,14 @@ instance NewRef m => MonadRegister (Register m) where
 
     liftEffectM = lift
 
-    toReceive_ = toReceive__
+    toReceive_ r u = do
+        tell $ t2 u
+        rr <- ask
+        return $ rr . r
 
     toSend_ b m f = do
         rr <- ask
-        r2r' $ toSend__ rr b m $ liftM (r2r rr) . r2r rr . f
+        r2r' $ toSend__ b m $ liftM (r2r rr) . r2r rr . f
 
 r2r :: Monad m => r -> RWST r w () m a -> WriterT w m a
 r2r r m = WriterT $ liftM (\(a, (), w) -> (a, w)) $ runRWST m r ()
@@ -38,14 +41,8 @@ r2r r m = WriterT $ liftM (\(a, (), w) -> (a, w)) $ runRWST m r ()
 r2r' :: Monad m => WriterT w m a -> RWST r w () m a
 r2r' m = RWST $ \r () -> liftM (\(a, w) -> (a, (), w)) $ runWriterT m
 
-toReceive__ :: Monad m => (a -> m ()) -> (Command -> m ()) -> Register m (a -> m ())
-toReceive__ r unreg = do
-        rr <- ask
-        tell $ t2 unreg
-        return $ rr . r
-
-toSend__ :: (Eq b, NewRef m) => (m () -> m ()) -> Bool -> m b -> (b -> Register' m (Register' m ())) -> Register' m ()
-toSend__ rr init rb fb = do
+toSend__ :: (Eq b, NewRef m) => Bool -> m b -> (b -> Register' m (Register' m ())) -> Register' m ()
+toSend__ init rb fb = do
         b <- lift rb
         v <- case init of
             False -> return $ Left b

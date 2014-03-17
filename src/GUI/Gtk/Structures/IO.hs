@@ -53,36 +53,34 @@ type SWidget = (IO (), Gtk.Widget)
 
 -- | Run an @IO@ parametrized interface description with Gtk backend
 runWidget
-    :: forall n m k o . (Monad m, MonadIO o)
+    :: forall n m k o . (Monad m, Monad o)
     => (k () -> IO ())
     -> (IO () -> IO ())
     -> Morph IO IO
     -> Morph m o
     -> Morph o m
+    -> Morph IO o
     -> (IO () -> n ())
     -> Widget n m k
     -> o SWidget
-runWidget nio post' post liftO liftOBack liftION = toWidget
+runWidget nio post' post liftO liftOBack liftIO_ liftION = toWidget
  where
-    liftIO' :: MonadIO l => IO a -> l a
-    liftIO' = liftIO . post
+    liftIO' :: IO a -> o a
+    liftIO' = liftIO_ . post
 
     -- type Receive n m k a = (Command -> n ()) -> m (a -> k ())
-    reg_ :: Receive n m k a -> Receive IO m IO a
-    reg_ s f = liftM (nio .) $ s $ liftION . liftIO' . f
-
     reg :: Receive n m k a -> ((a -> IO ()) -> IO (Command -> IO ())) -> o (Command -> IO ())
     reg s f = do
-        rer <- liftIO newEmptyMVar
-        u <- liftIO $ f $ \x -> do
+        rer <- liftIO_ newEmptyMVar
+        u <- liftIO_ $ f $ \x -> do
             re <- readMVar rer
-            re x
-        re <- liftO $ reg_ s u
-        liftIO $ putMVar rer re
+            nio $ re x
+        re <- liftO $ s $ liftION . post . u
+        liftIO_ $ putMVar rer re
         return u
 
     ger :: (Command -> IO ()) -> Send n m a -> Send IO o a
-    ger hd s f = liftO $ s $ \a -> liftION $ liftIO' $ do
+    ger hd s f = liftO $ s $ \a -> liftION $ post $ do
         hd Block
         f a
         hd Unblock
@@ -101,9 +99,9 @@ runWidget nio post' post liftO liftOBack liftION = toWidget
 
         Canvas w h sc_ me r diaFun -> do
 
-          cur <- liftIO $ newMVar Nothing
-          cur' <- liftIO $ newMVar Nothing
-          v <- liftIO newEmptyMVar
+          cur <- liftIO_ $ newMVar Nothing
+          cur' <- liftIO_ $ newMVar Nothing
+          v <- liftIO_ newEmptyMVar
 
           (canvasDraw, canvas, af, dims) <- liftIO' $ do
             canvas <- drawingAreaNew
@@ -166,13 +164,13 @@ runWidget nio post' post liftO liftOBack liftION = toWidget
                 m <- eventModifier
                 c <- eventKeyVal
                 liftIO $ re $ KeyPress m c
-          _ <- liftIO $ on canvas exposeEvent $ tryEvent $ liftIO $ do
+          _ <- liftIO_ $ on canvas exposeEvent $ tryEvent $ liftIO $ do
                 d <- readMVar cur'
                 case d of
                     Just x -> putMVar v x
                     _ -> return ()
 
-          canvasDraw' <- liftIO $ do
+          canvasDraw' <- liftIO_ $ do
             v2 <- newMVar False
             forkIO $ do
               threadDelay 200000
@@ -246,7 +244,7 @@ runWidget nio post' post liftO liftOBack liftION = toWidget
             w <- liftIO' $ case b of
                 True -> fmap castToContainer $ hBoxNew False 1
                 False -> fmap castToContainer $ alignmentNew 0 0 1 1
-            sh <- liftIO $ newMVar $ return ()
+            sh <- liftIO_ $ newMVar $ return ()
             liftO $ onCh $ \bv -> do
                 mx <- f (liftOBack . toWidget) bv
                 return $ mx >>= \(x, y) -> liftOBack $ liftIO' $ do 

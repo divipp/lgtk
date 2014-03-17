@@ -1,5 +1,6 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE RecursiveDo #-}
 -- | Main LGtk interface.
 module LGtk
     (
@@ -107,6 +108,7 @@ import Control.Concurrent
 import Control.Monad
 import Control.Monad.Base
 import Control.Monad.State
+import Control.Monad.Writer
 import Control.Monad.Trans.Identity
 import Data.Lens.Common
 
@@ -154,42 +156,24 @@ runWidget' desc = do
     Gtk.gtkContext $ \postGUISync -> do
         widget <- runExtRef_ $ unliftIO' $ \unlift ->
             evalRegister
-                (runIdentityT $ Gtk.runWidget unlift addPostAction postGUISync id id liftIO desc)
+                (runIdentityT $ Gtk.runWidget unlift addPostAction postGUISync id id liftIO liftIO desc)
                 (liftIO . writeChan actionChannel . void . unlift)
         runPostActions
         return widget
 
-runWidget desc = do
+runWidget desc = Gtk.gtkContext $ \postGUISync -> mdo
     postActionsRef <- newRef' $ return ()
     let addPostAction  = runMorphD postActionsRef . modify . flip (>>)
         runPostActions = join $ runMorphD postActionsRef $ state $ \m -> (m, return ())
     actionChannel <- newChan
+    lst <- newRef' s
     _ <- forkIO $ forever $ do
-        join $ readChan actionChannel
+        readChan actionChannel >>= \m -> runMorphD lst $ m >> runMonadMonoid act
         runPostActions
-    lst <- newRef' initLSt
-    vx <- newRef'_ "vx" $ error "evalRegister__"
-    moo <- newRef'_ "moo" mempty
-    let get' :: (Monad m, Monoid s) => StateT s m s
-        get' = get >>= \x -> put mempty >> return x
-
-        unlift :: Morph CO IO
-        unlift = evalRegister' ff lst moo
-
-        unlift' :: CO a -> IO (IO (), a)
-        unlift' m = unlift $ do
-            a <- m
-            reg <- runMorphD moo get'
-            return (unlift $ runMonadMonoid $ fst reg, a)
-
-        ff m = liftIO $ writeChan actionChannel $ unlift m >> join (runMorphD vx get)
-    Gtk.gtkContext $ \postGUISync -> do
-        (act, widget) <- unlift' $ Gtk.runWidget unlift addPostAction postGUISync id id liftIO desc
---        reg <- unlift $ runMorphD moo get'
-        runMorphD vx $ put act -- $ unlift $ runMonadMonoid $ fst reg
---        writeChan actionChannel $ act
-        runPostActions
-        return widget
+    ((widget, (act, _)), s) <- flip runStateT initLSt $ runWriterT $ evalRegister' (writeChan actionChannel) $
+        Gtk.runWidget id addPostAction postGUISync id id liftIO__ liftIO desc
+    runPostActions
+    return widget
 
 {-
 runWidget' :: (forall m . EffIORef m => Widget m) -> IO ()
