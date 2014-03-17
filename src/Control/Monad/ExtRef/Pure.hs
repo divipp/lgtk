@@ -19,7 +19,7 @@ import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Identity
 import Control.Arrow ((***))
-import Data.Sequence
+import Data.Sequence hiding (singleton)
 import Data.Lens.Common
 import Data.Foldable (toList)
 import Prelude hiding (splitAt, length)
@@ -30,6 +30,50 @@ import System.IO.Unsafe
 import Control.Monad.Restricted
 import Control.Monad.ExtRef
 import Control.Monad.Operational
+
+----------------- synthetic data types and instances
+
+type SyntRefReader x = Program (RefReaderI x)
+data RefReaderI x a where
+    SyntReadRef :: SyntRef x a -> RefReaderI x a
+
+type SyntRefState x = Program (RefStateI x)
+data RefStateI x a where
+    SyntLiftRefReader :: SyntRefReader x a -> RefStateI x a
+    SyntWriteRef :: SyntRef x a -> a -> RefStateI x ()
+
+instance MonadRefState (SyntRefState x) where
+    type RefStateReader (SyntRefState x) = SyntRefReader x
+    liftRefStateReader = singleton . SyntLiftRefReader
+
+data SyntRef x a where
+    SyntUnitRef :: SyntRef x ()
+    SyntLensMap :: Lens' a b -> SyntRef x a -> SyntRef x b
+    SyntJoinRef :: SyntRefReader x (SyntRef x a) -> SyntRef x a
+    SyntCreatedRef :: x a -> SyntRef x a
+
+instance Reference (SyntRef x) where
+    type RefState (SyntRef x) = SyntRefState x
+    readRef = singleton . SyntReadRef
+    writeRef r = singleton . SyntWriteRef r
+    lensMap = SyntLensMap
+    joinRef = SyntJoinRef
+    unitRef = SyntUnitRef
+
+type SyntExtRef x = Program (ExtRefI x)
+data ExtRefI x a where
+    SyntLiftRefState :: SyntRefState x a -> ExtRefI x a
+    SyntExtRef :: SyntRef x b -> Lens' a b -> a -> ExtRefI x (SyntRef x a)
+    SyntNewRef :: a -> ExtRefI x (SyntRef x a)
+
+instance ExtRef (SyntExtRef x) where
+    type Ref (SyntExtRef x) = SyntRef x
+    liftWriteRef w = singleton $ SyntLiftRefState w
+    extRef r l = singleton . SyntExtRef r l
+    newRef = singleton . SyntNewRef
+
+
+
 
 newtype Lens_ a b = Lens_ {unLens_ :: Lens' a b}
 
