@@ -138,19 +138,7 @@ The widget is shown in a window and the thread enters into the Gtk event cycle.
 It leaves the event cycle when the window is closed.
 -}
 runWidget :: (forall m . EffIORef m => Widget m) -> IO ()
-runWidget desc = Gtk.gtkContext $ \postGUISync -> mdo
-    postActionsRef <- newRef' $ return ()
-    let addPostAction  = runMorphD postActionsRef . modify . flip (>>)
-        runPostActions = join $ runMorphD postActionsRef $ state $ \m -> (m, return ())
-    actionChannel <- newChan
-    ((widget, (act, _)), s) <- flip runStateT initLSt $ runWriterT $ evalRegister' (writeChan actionChannel) $
-        Gtk.runWidget id addPostAction postGUISync id id liftIO__ liftIO desc
-    runPostActions
-    _ <- forkIO $ void $ flip execStateT s $  forever $ do
-            join $ lift $ readChan actionChannel
-            runMonadMonoid act
-            lift $ runPostActions
-    return widget
+runWidget = Gtk.runWidget
 
 -- | Vertical composition of widgets.
 vcat :: [Widget m] -> Widget m

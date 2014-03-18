@@ -4,18 +4,16 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE RecursiveDo #-}
 module GUI.Gtk.Structures.IO
     ( runWidget
-    , gtkContext
     ) where
 
 import Control.Category
 import Control.Monad
--- import Control.Monad.Trans.Control
+import Control.Monad.State
 import Control.Monad.Writer
--- import Control.Monad.IO.Class
 import Control.Concurrent
--- import Control.Concurrent.MVar
 import Data.Maybe
 import Data.List hiding (union)
 import Prelude hiding ((.), id)
@@ -24,8 +22,10 @@ import Graphics.UI.Gtk hiding (Widget, Release)
 import qualified Graphics.UI.Gtk as Gtk
 --import Graphics.UI.Gtk.Gdk.Events (eventKeyChar)
 
-import Control.Monad.Restricted (Morph)
-import Control.Monad.EffRef (Command (..))
+import Control.Monad.Restricted
+import Control.Monad.ExtRef
+import Control.Monad.ExtRef.Pure
+import Control.Monad.EffRef
 import GUI.Gtk.Structures
 
 import Diagrams.Prelude
@@ -33,6 +33,28 @@ import Diagrams.Backend.Cairo
 import Diagrams.Backend.Cairo.Internal
 
 -------------------------
+
+{- |
+Run a Gtk widget description.
+
+The widget is shown in a window and the thread enters into the Gtk event cycle.
+It leaves the event cycle when the window is closed.
+-}
+runWidget :: (forall m . EffIORef m => Widget (EffectM m) m (CallbackM m)) -> IO ()
+runWidget desc = gtkContext $ \postGUISync -> mdo
+    postActionsRef <- newRef' $ return ()
+    let addPostAction  = runMorphD postActionsRef . modify . flip (>>)
+        runPostActions = join $ runMorphD postActionsRef $ state $ \m -> (m, return ())
+    actionChannel <- newChan
+    ((widget, (act, _)), s) <- flip runStateT initLSt $ runWriterT $ evalRegister' (writeChan actionChannel) $
+        runWidget_ id addPostAction postGUISync id id liftIO__ liftIO desc
+    runPostActions
+    _ <- forkIO $ void $ flip execStateT s $  forever $ do
+            join $ lift $ readChan actionChannel
+            runMonadMonoid act
+            lift $ runPostActions
+    return widget
+
 
 gtkContext :: (Morph IO IO -> IO SWidget) -> IO ()
 gtkContext m = do
@@ -52,7 +74,7 @@ gtkContext m = do
 type SWidget = (IO (), Gtk.Widget)
 
 -- | Run an @IO@ parametrized interface description with Gtk backend
-runWidget
+runWidget_
     :: forall n m k o . (Monad m, Monad o)
     => (k () -> IO ())
     -> (IO () -> IO ())
@@ -63,7 +85,7 @@ runWidget
     -> (IO () -> n ())
     -> Widget n m k
     -> o SWidget
-runWidget nio post' post liftO liftOBack liftIO_ liftION = toWidget
+runWidget_ nio post' post liftO liftOBack liftIO_ liftION = toWidget
  where
     liftIO' :: IO a -> o a
     liftIO' = liftIO_ . post
