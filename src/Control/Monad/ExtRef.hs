@@ -62,7 +62,7 @@ class (MonadRefState (RefState r)) => Reference r where
 
     @(readRef r >> return ())@ === @return ()@
     -}
-    readRef  :: RR r a -> RefReader r a
+    readRef  :: r a -> RefReader r a
 
     {- | @writeRef r@ === @modify . setL r@
 
@@ -74,13 +74,13 @@ class (MonadRefState (RefState r)) => Reference r where
 
      *  @(writeRef r a >> writeRef r a')@ === @writeRef r a'@
     -}
-    writeRef :: RR r a -> a -> RefState r ()
+    writeRef :: r a -> a -> RefState r ()
 
     {- | Apply a lens on a reference.
 
     @lensMap@ === @(.)@
     -}
-    lensMap :: Lens' a b -> RR r a -> RR r b
+    lensMap :: Lens' a b -> r a -> r b
 
     {- | @joinRef@ makes possible to define dynamic references, i.e. references which depends on
     values of other references.
@@ -88,16 +88,10 @@ class (MonadRefState (RefState r)) => Reference r where
 
     @joinRef@ === @Lens . join . (runLens .) . runReader@
     -}
---    joinRef :: RefReader r (r a) -> r a
+    joinRef :: RefReader r (r a) -> r a
 
     -- | @unitRef@ === @lens (const ()) (const id)@
-    unitRef :: RR r ()
-
-type RR r a = RefReader r (r a)
-type Ref m a = RefReader (RefCore m) (RefCore m a)
-
-joinRef :: Reference r => RefReader r (RR r a) -> RR r a
-joinRef = join
+    unitRef :: r ()
 
 type RefReader m = RefStateReader (RefState m)
 
@@ -105,7 +99,7 @@ infixr 8 `lensMap`
 
 
 -- | @modRef r f@ === @liftRefStateReader (readRef r) >>= writeRef r . f@
-modRef :: Reference r => RR r a -> (a -> a) -> RefState r ()
+modRef :: Reference r => r a -> (a -> a) -> RefState r ()
 r `modRef` f = liftRefStateReader (readRef r) >>= writeRef r . f
 
 
@@ -117,9 +111,9 @@ create the same type of references in multiple monads.
 
 For basic usage examples, look into the source of @Control.Monad.ExtRef.Pure.Test@.
 -}
-class (Monad m, Reference (RefCore m)) => ExtRef m where
+class (Monad m, Reference (Ref m)) => ExtRef m where
 
-    type RefCore m :: * -> *
+    type Ref m :: * -> *
 
     -- | @'WriteRef' m@ is a submonad of @m@.
     liftWriteRef :: WriteRef m a -> m a
@@ -151,9 +145,9 @@ class (Monad m, Reference (RefCore m)) => ExtRef m where
     newRef = extRef unitRef $ lens (const ()) (flip $ const id)
 
 
-type WriteRef m = RefState (RefCore m)
+type WriteRef m = RefState (Ref m)
 
-type ReadRef m = RefReader (RefCore m)
+type ReadRef m = RefReader (Ref m)
 
 {- | @ReadRef@ lifted to the reference creation class.
 
@@ -207,7 +201,7 @@ memoWrite g = do
 -- | This instance is used in the implementation, end users do not need it.
 instance (ExtRef m, Monoid w) => ExtRef (WriterT w m) where
 
-    type RefCore (WriterT w m) = RefCore m
+    type Ref (WriterT w m) = Ref m
 
     liftWriteRef = lift . liftWriteRef
 
@@ -252,12 +246,12 @@ class Reference r => EqReference r where
     @hasEffect@ makes defining auto-sensitive buttons easier, for example.
     -}
     hasEffect
-        :: RR r a
+        :: r a
         -> (a -> a)
         -> RefReader r Bool
 
 
-data EqRefCore r a = forall b . Eq b => EqRefCore (r b) (Lens' b a)
+data EqRef_ r a = forall b . Eq b => EqRef_ (r b) (Lens' b a)
 
 {- | References with inherent equivalence.
 
@@ -267,38 +261,38 @@ As a reference, @(m :: EqRef r a)@ behaves as
 
 @joinRef $ liftM (uncurry lensMap) m@
 -}
-type EqRef r a = RefReader r (EqRefCore r a)
+newtype EqRef r a = EqRef { runEqRef :: RefReader r (EqRef_ r a) }
 
 {- | @EqRef@ construction.
 -}
-eqRef :: (Reference r, Eq a) => RR r a -> EqRef r a
-eqRef m = m >>= \r -> return $ EqRefCore r id
+eqRef :: (Reference r, Eq a) => r a -> EqRef r a
+eqRef r = EqRef $ return $ EqRef_ r id
 
-newEqRef :: (ExtRef m, Eq a) => a -> m (EqRef (RefCore m) a) 
+newEqRef :: (ExtRef m, Eq a) => a -> m (EqRef (Ref m) a) 
 newEqRef = liftM eqRef . newRef
 
 {- | An @EqRef@ is a normal reference if we forget about the equality.
 
 @toRef m@ === @joinRef $ liftM (uncurry lensMap) m@
 -}
-toRef :: Reference r => EqRef r a -> RR r a
-toRef m = join $ liftM (\(EqRefCore r k) -> k `lensMap` return r) m
+toRef :: Reference r => EqRef r a -> r a
+toRef (EqRef m) = joinRef $ liftM (\(EqRef_ r k) -> k `lensMap` r) m
 
-instance Reference r => EqReference (EqRefCore r) where
-    hasEffect m f = m >>= \(EqRefCore r k) -> liftM (\x -> modL k f x /= x) $ readRef $ return r
+instance Reference r => EqReference (EqRef r) where
+    hasEffect m f = runEqRef m >>= \(EqRef_ r k) -> liftM (\x -> modL k f x /= x) $ readRef r
 
 
-instance Reference r => Reference (EqRefCore r) where
+instance Reference r => Reference (EqRef r) where
 
-    type (RefState (EqRefCore r)) = RefState r
+    type (RefState (EqRef r)) = RefState r
 
     readRef = readRef . toRef
 
     writeRef = writeRef . toRef
 
-    lensMap l m = m >>= \(EqRefCore r k) -> return $ EqRefCore r $ k . l
+    lensMap l (EqRef m) = EqRef $ m >>= \(EqRef_ r k) -> return $ EqRef_ r $ k . l
 
---    joinRef = EqRef . join . liftM runEqRef
+    joinRef = EqRef . join . liftM runEqRef
 
     unitRef = eqRef unitRef
 
