@@ -1,12 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE ConstraintKinds #-}
 module Control.Monad.Restricted where
 
 import Data.Monoid
@@ -25,6 +17,18 @@ The @MorphD@ type is needed only to avoid impredicative types.
 We use @MorphD@ instead of @Morph@ when the morphism is stored inside a data structure.
 -}
 newtype MorphD m n = MorphD { runMorphD :: Morph m n }
+
+-------------------
+
+class (Monad m) => NewRef m where
+    newRef' :: a -> m (MorphD (StateT a m) m)
+
+instance NewRef IO where
+    newRef' x = do
+        vx <- liftIO $ newMVar x
+        return $ MorphD $ \m -> modifyMVar vx $ liftM swap . runStateT m
+      where
+        swap (a, b) = (b, a)
 
 -------------------
 
@@ -48,18 +52,6 @@ instance SafeIO IO where
 --    lookupEnv   = Env.lookupEnv -- does not work with Haskell Platform 2013.2.0.0
     lookupEnv v = catchIOError (liftM Just $ Env.getEnv v) $ \e ->
         if isDoesNotExistError e then return Nothing else ioError e
-
--------------------
-
-class (Monad m) => NewRef m where
-    newRef' :: a -> m (MorphD (StateT a m) m)
-
-instance NewRef IO where
-    newRef' x = do
-        vx <- liftIO $ newMVar x
-        return $ MorphD $ \m -> modifyMVar vx $ liftM swap . runStateT m
-      where
-        swap (a, b) = (b, a)
 
 -------------------
 
