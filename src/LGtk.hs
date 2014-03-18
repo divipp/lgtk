@@ -106,20 +106,15 @@ import Data.Maybe
 import Data.Monoid
 import Control.Concurrent
 import Control.Monad
---import Control.Monad.Base
 import Control.Monad.State
 import Control.Monad.Writer
---import Control.Monad.Trans.Identity
 import Data.Lens.Common
 
 import Control.Monad.ExtRef
---import Control.Monad.Register
---import Control.Monad.Register.Basic
 import Control.Monad.EffRef
 import GUI.Gtk.Structures hiding (Send, Receive, SendReceive, Widget)
 import qualified GUI.Gtk.Structures as Gtk
 import qualified GUI.Gtk.Structures.IO as Gtk
---import qualified GUI.Gtk.Structures.ThreePenny as TP
 import Control.Monad.ExtRef.Pure
 import Control.Monad.Restricted
 
@@ -148,13 +143,13 @@ runWidget desc = Gtk.gtkContext $ \postGUISync -> mdo
     let addPostAction  = runMorphD postActionsRef . modify . flip (>>)
         runPostActions = join $ runMorphD postActionsRef $ state $ \m -> (m, return ())
     actionChannel <- newChan
-    lst <- newRef' s
-    _ <- forkIO $ forever $ do
-        readChan actionChannel >>= \m -> runMorphD lst $ m >> runMonadMonoid act
-        runPostActions
     ((widget, (act, _)), s) <- flip runStateT initLSt $ runWriterT $ evalRegister' (writeChan actionChannel) $
         Gtk.runWidget id addPostAction postGUISync id id liftIO__ liftIO desc
     runPostActions
+    _ <- forkIO $ void $ flip execStateT s $  forever $ do
+            join $ lift $ readChan actionChannel
+            runMonadMonoid act
+            lift $ runPostActions
     return widget
 
 -- | Vertical composition of widgets.

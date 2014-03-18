@@ -100,10 +100,10 @@ instance EffRef (SyntEffRef n m x) where
     onChange b r f = singleton $ SyntOnChange b r f
     toReceive f g = singleton $ SyntReceive f g
 
-type WR m    = (MonadMonoid m, Command -> MonadMonoid m)
-type CO m = WriterT (WR (StateT LSt m)) (StateT LSt m)
 
-evalRegister' :: (NewRef m) => (StateT LSt m () -> m ()) -> SyntEffRef m (StateT LSt m) (Lens_ LSt) a -> CO m a
+type CO m = WriterT (MonadMonoid m, Command -> MonadMonoid m) m
+
+evalRegister' :: (NewRef m) => (StateT LSt m () -> m ()) -> SyntEffRef m (StateT LSt m) (Lens_ LSt) a -> CO (StateT LSt m) a
 evalRegister' ff = eval . view
   where
     eval (Return x) = return x

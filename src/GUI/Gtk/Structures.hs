@@ -2,25 +2,11 @@
 {-# LANGUAGE RankNTypes #-}
 -- | Lens-based Gtk interface
 module GUI.Gtk.Structures
-    ( Send
-    , Receive
-    , SendReceive
-    , Widget (..)
-    , ListLayout (..)
-    , MouseEvent (..)
-    , ScrollDirection (..)
-    , MousePos (..)
+    ( module GUI.Gtk.Structures
+    , module Graphics.UI.Gtk
     , Color (..)
-    , Modifier (..)
-    , KeyVal
-    , keyName
-    , keyToChar
-    , Dia
-    , Monoid
-    , Semigroup
     ) where
 
---import Graphics.UI.Gtk (Color)
 import Graphics.UI.Gtk.Gdk.GC (Color (Color))
 import Diagrams.Prelude (QDiagram, R2, Monoid, Semigroup)
 import Diagrams.Backend.Cairo (Cairo)
@@ -31,7 +17,6 @@ import Control.Monad.EffRef (Command (..))
 type Dia a = QDiagram Cairo R2 a
 
 type Send n m a = (a -> n ()) -> m ()
---type Receive n m a = ((a -> n ()) -> n (Command -> n ())) -> m (Command -> n ())
 type Receive n m k a = (Command -> n ()) -> m (a -> k ())
 type SendReceive n m k a = (Send n m a, Receive n m k a)
 
