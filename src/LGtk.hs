@@ -1,6 +1,5 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE RecursiveDo #-}
 -- | Main LGtk interface.
 module LGtk
     (
@@ -104,10 +103,7 @@ module LGtk
 
 import Data.Maybe
 import Data.Monoid
-import Control.Concurrent
 import Control.Monad
-import Control.Monad.State
-import Control.Monad.Writer
 import Data.Lens.Common
 
 import Control.Monad.ExtRef
@@ -115,7 +111,6 @@ import Control.Monad.EffRef
 import GUI.Gtk.Structures hiding (Send, Receive, SendReceive, Widget)
 import qualified GUI.Gtk.Structures as Gtk
 import qualified GUI.Gtk.Structures.IO as Gtk
-import Control.Monad.ExtRef.Pure
 import Control.Monad.Restricted
 
 

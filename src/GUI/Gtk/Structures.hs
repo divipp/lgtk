@@ -8,7 +8,7 @@ module GUI.Gtk.Structures
     ) where
 
 import Graphics.UI.Gtk.Gdk.GC (Color (Color))
-import Diagrams.Prelude (QDiagram, R2, Monoid, Semigroup)
+import Diagrams.Prelude (QDiagram, R2, Monoid)
 import Diagrams.Backend.Cairo (Cairo)
 import Graphics.UI.Gtk (ScrollDirection (..), KeyVal, Modifier, keyName, keyToChar)
 
