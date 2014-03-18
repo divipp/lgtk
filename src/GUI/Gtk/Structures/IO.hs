@@ -111,9 +111,9 @@ runWidget_ nio post' post liftO liftOBack liftIO_ liftION = toWidget
     nhd = const $ return ()
 
     toWidget :: Widget n m k -> o SWidget
-    toWidget i = case i of
+    toWidget m = liftO m >>= \i -> case i of
 
-        Action m -> liftO m >>= toWidget
+--        Action m -> liftO m >>= toWidget
         Label s -> do
             w <- liftIO' $ labelNew Nothing
             ger nhd s $ labelSetLabel w

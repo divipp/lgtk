@@ -141,20 +141,20 @@ runWidget :: (forall m . EffIORef m => Widget m) -> IO ()
 runWidget = Gtk.runWidget
 
 -- | Vertical composition of widgets.
-vcat :: [Widget m] -> Widget m
-vcat = List Vertical
+vcat :: Monad m => [Widget m] -> Widget m
+vcat = return . List Vertical
 
 -- | Horizontal composition of widgets.
-hcat :: [Widget m] -> Widget m
-hcat = List Horizontal
+hcat :: Monad m => [Widget m] -> Widget m
+hcat = return . List Horizontal
 
 -- | Empty widget.
-empty :: Widget m
+empty :: Monad m => Widget m
 empty = hcat []
 
 -- | Dynamic label.
 label :: EffRef m => ReadRef m String -> Widget m
-label = Label . rEffect True
+label = return . Label . rEffect True
 
 -- | Low-level button with changeable background color.
 button__
@@ -164,7 +164,7 @@ button__
     -> ReadRef m Color      -- ^ dynamic background color
     -> WriteRef m ()        -- ^ the action to do when the button is pressed
     -> Widget m
-button__ r x c y = Button (rEffect True r) (rEffect True x) (rEffect True c) (toReceive $ \() -> y)
+button__ r x c y = return $ Button (rEffect True r) (rEffect True x) (rEffect True c) (toReceive $ \() -> y)
 
 -- | Low-level button.
 button_
@@ -173,7 +173,7 @@ button_
     -> ReadRef m Bool       -- ^ the button is active when this returns @True@
     -> WriteRef m ()        -- ^ the action to do when the button is pressed
     -> Widget m
-button_ r x y = Button (rEffect True r) (rEffect True x) (const $ return ()) (toReceive $ \() -> y)
+button_ r x y = return $ Button (rEffect True r) (rEffect True x) (const $ return ()) (toReceive $ \() -> y)
 
 button
     :: EffRef m
@@ -195,15 +195,15 @@ smartButton s r f
 
 -- | Checkbox.
 checkbox :: EffRef m => Ref m Bool -> Widget m
-checkbox r = Checkbox (rEffect True (readRef r), toReceive $ writeRef r)
+checkbox r = return $ Checkbox (rEffect True (readRef r), toReceive $ writeRef r)
 
 -- | Simple combo box.
 combobox :: EffRef m => [String] -> Ref m Int -> Widget m
-combobox ss r = Combobox ss (rEffect True (readRef r), toReceive $ writeRef r)
+combobox ss r = return $ Combobox ss (rEffect True (readRef r), toReceive $ writeRef r)
 
 -- | Text entry.
 entry :: (EffRef m, Reference r, RefState r ~ RefState (Ref m))  => r String -> Widget m
-entry r = Entry (rEffect True (readRef r), toReceive $ writeRef r)
+entry r = return $ Entry (rEffect True (readRef r), toReceive $ writeRef r)
 
 -- | Text entry.
 entryShow :: (EffRef m, Show a, Read a, Reference r, RefState r ~ RefState (Ref m)) => r a -> Widget m
@@ -214,7 +214,7 @@ entryShow r = entry $ showLens `lensMap` r
 The tabs are created lazily.
 -}
 notebook :: EffRef m => [(String, Widget m)] -> Widget m
-notebook xs = Action $ do
+notebook xs = do
     currentPage <- newRef 0
     let f index (title, w) = (,) title $ cell (liftM (== index) $ readRef currentPage) $ \b -> case b of
            False -> hcat []
@@ -226,7 +226,7 @@ notebook xs = Action $ do
 The monadic action for inner widget creation is memoised in the first monad layer.
 -}
 cell_ :: (EffRef m, Eq a) => ReadRef m a -> (forall x . (Widget m -> m x) -> a -> m (m x)) -> Widget m
-cell_ = Cell . onChange True
+cell_ r = return . Cell (onChange True r)
 
 {- | Dynamic cell.
 
@@ -244,12 +244,12 @@ cellNoMemo r m = cell_ r $ \mk -> return . mk . m
 
 -- | @action@ makes possible to do any 'EffRef' action while creating the widget.
 action :: EffRef m => m (Widget m) -> Widget m
-action = Action
+action = join
 
 canvas :: (EffRef m, Eq b, Eq a, Monoid a) => Int -> Int -> Double -> (MouseEvent a -> WriteRef m ()) -> ReadRef m b -> (b -> Dia a) -> Widget m
-canvas w h sc me r f = Canvas w h sc (toReceive me) (rEffect True r) f
+canvas w h sc me r f = return $ Canvas w h sc (toReceive me) (rEffect True r) f
  -- = cellNoMemo r $ Canvas_ w h sc . f  -- Canvas f $ rEffect True r
 
 hscale :: (EffRef m) => Double -> Double -> Double -> Ref m Double -> Widget m
-hscale a b c r = Scale a b c (rEffect True $ readRef r, toReceive $ writeRef r)
+hscale a b c r = return $ Scale a b c (rEffect True $ readRef r, toReceive $ writeRef r)
 
