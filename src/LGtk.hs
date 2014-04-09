@@ -221,7 +221,7 @@ notebook xs = do
 The monadic action for inner widget creation is memoised in the first monad layer.
 -}
 cell_ :: (EffRef m, Eq a) => ReadRef m a -> (forall x . (Widget m -> m x) -> a -> m (m x)) -> Widget m
-cell_ r = return . Cell (onChange True r)
+cell_ r f = return $ Cell (onChange True r) f
 
 {- | Dynamic cell.
 

@@ -36,7 +36,7 @@ data RefReaderI x a where
     SyntReadRef :: SyntRef x a -> RefReaderI x a
 
 type SyntRefState x = Program (RefStateI x)
-data RefStateI x a where
+data RefStateI (x :: * -> *) a where
     SyntLiftRefReader :: SyntRefReader x a -> RefStateI x a
     SyntWriteRef :: SyntRef x a -> a -> RefStateI x ()
 
@@ -89,6 +89,7 @@ runSyntRefReader = interpretWithMonad eval where
 
 runSyntRefState :: SyntRefState (Lens_ x) a -> State x a
 runSyntRefState = interpretWithMonad eval where
+    eval :: RefStateI (Lens_ x) a -> State x a
     eval (SyntLiftRefReader r) = liftRefStateReader $ runSyntRefReader r
     eval (SyntWriteRef r a) = modify $ setL (unLens_ $ runSyntRef r) a
 
@@ -100,6 +101,7 @@ runSyntRef (SyntCreatedRef l) = l
 
 runExtRef :: Monad m => SyntExtRef (Lens_ LSt) a -> StateT LSt m a
 runExtRef = interpretWithMonad eval where
+    eval :: Monad m => ExtRefI (Lens_ LSt) a -> StateT LSt m a
     eval (SyntLiftRefState w) = mapStateT (return . runIdentity) $ runSyntRefState w
     eval (SyntExtRef r r2 a0) = state extend
      where
