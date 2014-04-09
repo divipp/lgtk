@@ -151,7 +151,7 @@ t2 m = (mempty, MonadMonoid . m)
 
 
 -- | Type class for IO actions.
-class (EffRef m, SafeIO m, SafeIO (ReadRef m)) => EffIORef m where
+class (EffRef m, SafeIO m) => EffIORef m where
 
 
     {- |

@@ -106,9 +106,12 @@ main = runWidget $ notebook
 
         , (,) "Env" $ action $ do
             v <- newRef "HOME"
+            lv <- newRef ""
+            onChange True (readRef v) $ \s -> return $
+                asyncWrite 0 (writeRef lv) =<< liftM (maybe "Not in env." show) (lookupEnv s)
             return $ vcat
                 [ entry v
-                , label $ readRef v >>= liftM (maybe "Not in env." show) . lookupEnv 
+                , label $ readRef lv
                 ]
 
         , (,) "Std I/O" $ let
