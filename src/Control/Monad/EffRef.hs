@@ -202,8 +202,10 @@ asyncWrite' t r = asyncWrite_ t (const r) ()
 
 type SyntEffIORef m x = SyntEffRef m (StateT LSt m) x
 
-instance SafeIO (SyntRefReader x) where
-instance SafeIO (SyntEffIORef m x) where
+instance SafeIO (SyntEffIORef IO x) where
+    getArgs = liftIO' getArgs
+    getProgName = liftIO' getProgName
+    lookupEnv = liftIO' . lookupEnv
 
 instance EffIORef (SyntEffIORef IO x) where
 
