@@ -228,14 +228,13 @@ instance EffIORef (SyntEffIORef IO x) where
             filt (Modified x _) = g x
             filt (Removed x _) = g x
 
-            act (Added _ _) = putStrLn "added" >> h
-            act (Modified _ _) = putStrLn "mod" >> h
-            act (Removed _ _) = putStrLn "rem" >> h
+            act (Added _ _) = h
+            act (Modified _ _) = h
+            act (Removed _ _) = h
 
             startm = do
-                putStrLn " start" 
                 man <- startManager
-                putMVar vman $ putStrLn " stop" >> stopManager man
+                putMVar vman $ stopManager man
                 watchDir man (directory cf') filt act
 
         liftIO' startm
@@ -247,7 +246,6 @@ instance EffIORef (SyntEffIORef IO x) where
         rEffect False (readRef ref) $ \x -> liftIO $ do
             join $ takeMVar vman
             _ <- tryTakeMVar v
-            putStrLn "  write"
             w x
             threadDelay 10000
             startm
