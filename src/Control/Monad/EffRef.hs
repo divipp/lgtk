@@ -9,7 +9,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 module Control.Monad.EffRef where
 
-import Control.Applicative
 import Control.Concurrent
 import Control.Exception (evaluate)
 import Control.Monad
@@ -17,8 +16,6 @@ import Control.Monad.RWS
 import Control.Monad.Writer
 
 import Control.Monad.State
-import Control.Monad.Trans
-import Control.Monad.Trans.Identity
 import System.Directory
 import System.FSNotify
 import Filesystem.Path hiding (FilePath)
@@ -289,7 +286,7 @@ forkIOs' = do
                 [] -> return ()
                 (i:is) -> do
                     putMVar s is
-                    i
+                    _ <- i
                     g
         f i Kill = killThread i
         f _ Block = takeMVar x
