@@ -17,6 +17,7 @@ import Control.Monad.Writer
 
 import Control.Monad.State
 import System.Directory
+import qualified System.FilePath as F
 import System.FSNotify
 import Filesystem.Path hiding (FilePath)
 import Filesystem.Path.CurrentOS hiding (FilePath)
@@ -216,7 +217,7 @@ instance EffIORef (SyntEffIORef IO x) where
         ref <- newRef ms
         v <- liftIO' newEmptyMVar
         vman <- liftIO' newEmptyMVar
-        cf <- liftIO' $ canonicalizePath f   -- FIXME: canonicalizePath may fail if the file does not exsist
+        cf <- liftIO' $ canonicalizePath' f
         let
             cf' = decodeString cf
             g = (== cf')
@@ -267,6 +268,10 @@ instance EffIORef (SyntEffIORef IO x) where
         x <- toReceive w $ liftIO . u
         liftIO' $ f [ getLine >>= x ]   -- TODO
     putStr_ s = liftIO' $ putStr s
+
+-- canonicalizePath may fail if the file does not exsist
+canonicalizePath' p = liftM (F.</> f) $ canonicalizePath d 
+  where (d,f) = F.splitFileName p
 
 liftIO__ :: Monad m => m a -> SyntEffIORef m (Lens_ LSt) a
 liftIO__ m = singleton $ SyntLiftEffect $ lift m

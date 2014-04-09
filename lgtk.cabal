@@ -27,6 +27,7 @@ library
                     base < 5
                   , containers
                   , directory
+                  , filepath
                   , system-filepath
                   , fsnotify
 
