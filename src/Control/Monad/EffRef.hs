@@ -68,7 +68,7 @@ class ExtRef m => EffRef m where
     -}
     onChange :: Eq a => Bool -> ReadRef m a -> (a -> m (m ())) -> m ()
 
-    toReceive :: Eq a => (a -> WriteRef m ()) -> (Command -> EffectM m ()) -> m (a -> CallbackM m ())
+    toReceive :: (a -> WriteRef m ()) -> (Command -> EffectM m ()) -> m (a -> CallbackM m ())
 
 data Command = Kill | Block | Unblock deriving (Eq, Ord, Show)
 
@@ -81,7 +81,7 @@ data EffRefI n m x a where
     SyntLiftEffect :: m a -> EffRefI n m x a
     SyntLiftExtRef :: SyntExtRef x a -> EffRefI n m x a
     SyntOnChange :: Eq a => Bool -> SyntRefReader x a -> (a -> SyntEffRef n m x (SyntEffRef n m x ())) -> EffRefI n m x ()
-    SyntReceive  :: Eq a => (a -> SyntRefState x ()) -> (Command -> m ()) -> EffRefI n m x (a -> n ())
+    SyntReceive  :: (a -> SyntRefState x ()) -> (Command -> m ()) -> EffRefI n m x (a -> n ())
 
 instance ExtRef (SyntEffRef n m x) where
     type Ref (SyntEffRef n m x) = SyntRef x

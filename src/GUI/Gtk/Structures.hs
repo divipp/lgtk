@@ -36,7 +36,7 @@ data WidgetCore n m k
     | List ListLayout [Widget n m k]         -- ^ group interfaces into row or column
     | Notebook' (Receive n m k Int) [(String, Widget n m k)]     -- ^ actual tab index, tabs
     | forall b . Eq b => Cell ((b -> m (m ())) -> m ()) (forall a . (Widget n m k -> m a) -> b -> m (m a))
-    | forall a b . (Eq b, Eq a, Monoid a) => Canvas Int Int Double (Receive n m k (MouseEvent a)) (Send n m b) (b -> Dia a)
+    | forall a b . (Eq b, Monoid a) => Canvas Int Int Double (Receive n m k (MouseEvent a)) (Send n m b) (b -> Dia a)
     | Scale Double Double Double (SendReceive n m k Double)
 
 data ListLayout

@@ -241,7 +241,7 @@ cellNoMemo r m = cell_ r $ \mk -> return . mk . m
 action :: EffRef m => m (Widget m) -> Widget m
 action = join
 
-canvas :: (EffRef m, Eq b, Eq a, Monoid a) => Int -> Int -> Double -> (MouseEvent a -> WriteRef m ()) -> ReadRef m b -> (b -> Dia a) -> Widget m
+canvas :: (EffRef m, Eq b, Monoid a) => Int -> Int -> Double -> (MouseEvent a -> WriteRef m ()) -> ReadRef m b -> (b -> Dia a) -> Widget m
 canvas w h sc me r f = return $ Canvas w h sc (toReceive me) (rEffect True r) f
  -- = cellNoMemo r $ Canvas_ w h sc . f  -- Canvas f $ rEffect True r
 
