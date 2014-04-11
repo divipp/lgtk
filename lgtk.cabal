@@ -49,6 +49,7 @@ library
                     LGtk
 
                     LGtk.ADTEditor
+                    LGtk.Canvas
 
                     LGtk.Demos.Main
                     LGtk.Demos.Tri
