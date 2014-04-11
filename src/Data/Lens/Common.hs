@@ -1,28 +1,14 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 module Data.Lens.Common
-  ( Lens
-  , Lens'
-  -- * Lens construction
-  , lens -- build a lens from a getter and setter
-  -- * Functional API
-  , getL  -- (^.)
-  , set  -- set
-  , over  -- over
-  -- * Stock lenses
-  , _1
-  , _2
+  ( module Control.Lens
   , showLens
   , listLens
   , maybeLens
   ) where
 
 import Data.Maybe
-import Control.Lens
-
--- | Gets the getter function from a lens.
-getL :: Lens' a b -> a -> b
-getL l a = a ^. l
+import Control.Lens hiding (Cons)
 
 showLens :: (Show a, Read a) => Lens' a String
 showLens = lens show $ \def s -> maybe def fst $ listToMaybe $ reads s

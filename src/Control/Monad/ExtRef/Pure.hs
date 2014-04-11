@@ -21,7 +21,7 @@ import Control.Monad.Identity
 import Control.Monad.Operational
 import Control.Arrow ((***))
 import Data.Sequence hiding (singleton)
-import Data.Lens.Common
+import Data.Lens.Common hiding ((|>))
 import Data.Foldable (toList)
 import Prelude hiding (splitAt, length)
 
@@ -85,7 +85,7 @@ initLSt = empty
 
 runSyntRefReader :: SyntRefReader (Lens_ x) a -> Reader x a
 runSyntRefReader = interpretWithMonad eval where
-    eval (SyntReadRef r) = reader $ getL $ unLens_ $ runSyntRef r
+    eval (SyntReadRef r) = reader (^. unLens_ (runSyntRef r))
 
 runSyntRefState :: SyntRefState (Lens_ x) a -> State x a
 runSyntRefState = interpretWithMonad eval where
@@ -107,8 +107,8 @@ runExtRef = interpretWithMonad eval where
      where
         r1 = runSyntRef r
 
-        rk = set (unLens_ r1) . getL r2
-        kr = set r2 . getL (unLens_ r1)
+        rk = set (unLens_ r1) . (^. r2)
+        kr = set r2 . (^. unLens_ r1)
 
         extend x0 = (SyntCreatedRef $ Lens_ $ lens get set, x0 |> CC kr (kr x0 a0))
           where
