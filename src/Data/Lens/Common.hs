@@ -10,8 +10,8 @@ module Data.Lens.Common
   , setL  -- set
   , modL  -- over
   -- * Stock lenses
-  , fstLens
-  , sndLens
+  , _1
+  , _2
   , showLens
   , listLens
   , maybeLens
@@ -45,11 +45,11 @@ modL :: Lens s t a b -> (a -> b) -> s -> t
 modL l f = runIdentity . l (Identity . f)
 
 -- * Stock lenses
-fstLens :: Lens (x,b) (y,b) x y
-fstLens = lens fst $ \(a,b) x -> (x,b)
+_1 :: Lens (x,b) (y,b) x y
+_1 = lens fst $ \(a,b) x -> (x,b)
 
-sndLens :: Lens (a,x) (a,y) x y
-sndLens = lens snd $ \(a,b) x -> (a,x)
+_2 :: Lens (a,x) (a,y) x y
+_2 = lens snd $ \(a,b) x -> (a,x)
 
 showLens :: (Show a, Read a) => Lens' a String
 showLens = lens show $ \def s -> maybe def fst $ listToMaybe $ reads s

@@ -42,12 +42,12 @@ tEditor3 :: EffRef m => Ref m T -> m (Widget m)
 tEditor3 r = do
     q <- extRef r tLens (False, (Leaf, Leaf))
     return $ hcat
-        [ checkbox $ fstLens `lensMap` q
+        [ checkbox $ _1 `lensMap` q
         , cell (liftM fst $ readRef q) $ \b -> case b of
             False -> empty
             True -> action $ do
-                t1 <- tEditor3 $ sndLens . fstLens `lensMap` q
-                t2 <- tEditor3 $ sndLens . sndLens `lensMap` q
+                t1 <- tEditor3 $ _2 . _1 `lensMap` q
+                t2 <- tEditor3 $ _2 . _2 `lensMap` q
                 return $ vcat [t1, t2]
         ]
 

@@ -68,9 +68,9 @@ adtEditor :: (EffRef m, ADTLens a) => Ref m a -> m (Widget m)
 adtEditor = liftM action . memoRead . editor  where
     editor r = do
         q <- extRef r k (0, ls)
-        es <- mkEditors ls $ sndLens `lensMap` q
+        es <- mkEditors ls $ _2 `lensMap` q
         return $ hcat
-            [ combobox (map fst ss) $ fstLens `lensMap` q
+            [ combobox (map fst ss) $ _1 `lensMap` q
             , cell (liftM fst $ readRef q) $ \i -> vcat [es !! j | j <- snd $ ss !! i]
             ]
       where

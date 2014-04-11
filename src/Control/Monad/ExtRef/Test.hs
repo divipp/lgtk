@@ -94,8 +94,8 @@ mkTests runTest
     extRefTest = runTest $ do
         r <- newRef $ Just 3
         q <- extRef r maybeLens (False, 0)
-        let q1 = fstLens `lensMap` q
-            q2 = sndLens `lensMap` q
+        let q1 = _1 `lensMap` q
+            q2 = _2 `lensMap` q
         r ==> Just 3
         q ==> (True, 3)
         writeRef' r Nothing
@@ -185,23 +185,23 @@ mkTests runTest
         r ==> Nothing
         q ==> (False, 2)
         s ==> (False, 2)
-        writeRef' (fstLens `lensMap` q) True
+        writeRef' (_1 `lensMap` q) True
         r ==> Just 2
         q ==> (True, 2)
         s ==> (True, 2)
-        writeRef' (sndLens `lensMap` q) 3
+        writeRef' (_2 `lensMap` q) 3
         r ==> Just 3
         q ==> (True, 3)
         s ==> (True, 3)
-        writeRef' (fstLens `lensMap` q) False
+        writeRef' (_1 `lensMap` q) False
         r ==> Nothing
         q ==> (False, 3)
         s ==> (False, 3)
-        writeRef' (sndLens `lensMap` q) 4
+        writeRef' (_2 `lensMap` q) 4
         r ==> Nothing
         q ==> (False, 4)
         s ==> (False, 3)
-        writeRef' (fstLens `lensMap` q) True
+        writeRef' (_1 `lensMap` q) True
         r ==> Just 4
         q ==> (True, 4)
         s ==> (True, 4)
@@ -209,7 +209,7 @@ mkTests runTest
         r ==> Nothing
         q ==> (False, 5)
         s ==> (False, 4)
-        writeRef' (fstLens `lensMap` s) True
+        writeRef' (_1 `lensMap` s) True
         r ==> Just 4
         q ==> (True, 4)
         s ==> (True, 4)
@@ -217,23 +217,23 @@ mkTests runTest
     chainTest = runTest $ do
         r <- newRef $ Just $ Just 3
         q <- extRef r maybeLens (False, Nothing)
-        s <- extRef (sndLens `lensMap` q) maybeLens (False, 0)
+        s <- extRef (_2 `lensMap` q) maybeLens (False, 0)
         r ==> Just (Just 3)
         q ==> (True, Just 3)
         s ==> (True, 3)
-        writeRef' (fstLens `lensMap` s) False
+        writeRef' (_1 `lensMap` s) False
         r ==> Just Nothing
         q ==> (True, Nothing)
         s ==> (False, 3)
-        writeRef' (fstLens `lensMap` q) False
+        writeRef' (_1 `lensMap` q) False
         r ==> Nothing
         q ==> (False, Nothing)
         s ==> (False, 3)
-        writeRef' (fstLens `lensMap` s) True
+        writeRef' (_1 `lensMap` s) True
         r ==> Nothing
         q ==> (False, Just 3)
         s ==> (True, 3)
-        writeRef' (fstLens `lensMap` q) True
+        writeRef' (_1 `lensMap` q) True
         r ==> Just (Just 3)
         q ==> (True, Just 3)
         s ==> (True, 3)

@@ -31,13 +31,13 @@ intListEditor def maxi list_ range = action $ do
                 , button (return "redo") redo
                 ]
             , hcat
-                [ smartButton (return "+1")         list $ map $ modL fstLens (+1)
-                , smartButton (return "-1")         list $ map $ modL fstLens (+(-1))
+                [ smartButton (return "+1")         list $ map $ modL _1 (+1)
+                , smartButton (return "-1")         list $ map $ modL _1 (+(-1))
                 , smartButton (return "sort")       list $ sortBy (compare `on` fst)
-                , smartButton (return "SelectAll")  list $ map $ setL sndLens True
+                , smartButton (return "SelectAll")  list $ map $ setL _2 True
                 , smartButton (return "SelectPos")  list $ map $ \(a,_) -> (a, a>0)
                 , smartButton (return "SelectEven") list $ map $ \(a,_) -> (a, even a)
-                , smartButton (return "InvertSel")  list $ map $ modL sndLens not
+                , smartButton (return "InvertSel")  list $ map $ modL _2 not
                 , smartButton (liftM (("DelSel " ++) . show . length) sel) list $ filter $ not . snd
                 , smartButton (return "CopySel") safeList $ concatMap $ \(x,b) -> (x,b): [(x,False) | b]
                 , smartButton (return "+1 Sel")     list $ map $ mapSel (+1)
@@ -56,8 +56,8 @@ intListEditor def maxi list_ range = action $ do
 
     itemEditor i r = return $ hcat
         [ label $ return $ show (i+1) ++ "."
-        , entryShow $ fstLens `lensMap` r
-        , checkbox $ sndLens `lensMap` r
+        , entryShow $ _1 `lensMap` r
+        , checkbox $ _2 `lensMap` r
         , button_ (return "Del")  (return True) $ modRef list $ \xs -> take i xs ++ drop (i+1) xs
         , button_ (return "Copy") (return True) $ modRef list $ \xs -> take (i+1) xs ++ drop i xs
         ]
@@ -82,8 +82,8 @@ listEditor def (ed: eds) r = do
     return $ cell (liftM fst $ readRef q) $ \b -> case b of
         False -> empty
         True -> action $ do
-            t1 <- ed $ sndLens . fstLens `lensMap` q
-            t2 <- listEditor def eds $ sndLens . sndLens `lensMap` q
+            t1 <- ed $ _2 . _1 `lensMap` q
+            t2 <- listEditor def eds $ _2 . _2 `lensMap` q
             return $ vcat [t1, t2]
 
 
