@@ -5,7 +5,7 @@ module LGtk.Demos.Main
     ) where
 
 import Data.Maybe (isJust)
-import Data.Lens.Common
+import Control.Lens
 import Control.Monad
 
 import LGtk

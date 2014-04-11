@@ -4,7 +4,7 @@ the last edited value change.
 -}
 module LGtk.Demos.Tri where
 
-import Data.Lens.Common
+import Control.Lens
 import LGtk
 
 -- | Information pieces: what is known?

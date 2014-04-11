@@ -11,7 +11,7 @@ module LGtk.ADTEditor
     ) where
 
 import Control.Monad
-import Data.Lens.Common
+import Control.Lens hiding (Cons)
 import LGtk
 
 newtype Lens_ a b = Lens_ {unLens_ :: Lens' a b}

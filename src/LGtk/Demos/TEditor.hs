@@ -3,7 +3,7 @@
 {-# LANGUAGE DataKinds #-}
 module LGtk.Demos.TEditor where
 
-import Data.Lens.Common
+import Control.Lens hiding (Cons)
 import Control.Monad
 import LGtk
 import LGtk.ADTEditor

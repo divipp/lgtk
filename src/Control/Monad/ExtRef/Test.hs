@@ -19,7 +19,7 @@ import Control.Arrow ((***))
 import Data.Maybe
 import Prelude hiding ((.), id)
 
-import Data.Lens.Common
+import Control.Lens
 import Control.Monad.ExtRef
 import qualified Control.Monad.ExtRef.Pure as Pure
 --import qualified Control.Monad.ExtRef.IORef as IORef
@@ -46,6 +46,10 @@ rv ==? v = when (rv /= v) $ tell . return $ "runTest failed: " ++ show rv ++ " /
 r ==> v = readRef' r >>= (==? v)
 
 infix 0 ==>, ==?
+
+maybeLens :: Lens' (Bool, a) (Maybe a)
+maybeLens = lens (\(b,a) -> if b then Just a else Nothing)
+              (\(_,a) x -> maybe (False, a) (\a' -> (True, a')) x)
 
 {- | 
 @mkTests@ generates a list of error messages which should be emtpy.

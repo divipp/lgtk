@@ -21,7 +21,7 @@ import Control.Monad.Identity
 import Control.Monad.Operational
 import Control.Arrow ((***))
 import Data.Sequence hiding (singleton)
-import Data.Lens.Common hiding ((|>))
+import Control.Lens hiding ((|>))
 import Data.Foldable (toList)
 import Prelude hiding (splitAt, length)
 

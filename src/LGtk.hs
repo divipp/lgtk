@@ -99,12 +99,16 @@ module LGtk
     -- ** Experimental
     , button__
 
+    -- ** Utils
+    , showLens
+    , listLens
+
     ) where
 
 import Data.Maybe
 import Data.Monoid
 import Control.Monad
-import Data.Lens.Common
+import Control.Lens
 
 import Control.Monad.ExtRef
 import Control.Monad.EffRef
@@ -248,3 +252,12 @@ canvas w h sc me r f = return $ Canvas w h sc (toReceive me) (rEffect True r) f
 hscale :: (EffRef m) => Double -> Double -> Double -> Ref m Double -> Widget m
 hscale a b c r = return $ Scale a b c (rEffect True $ readRef r, toReceive $ writeRef r)
 
+showLens :: (Show a, Read a) => Lens' a String
+showLens = lens show $ \def s -> maybe def fst $ listToMaybe $ reads s
+
+listLens :: Lens' (Bool, (a, [a])) [a]
+listLens = lens get set where
+    get (False, _) = []
+    get (True, (l, r)) = l: r
+    set (_, x) [] = (False, x)
+    set _ (l: r) = (True, (l, r))

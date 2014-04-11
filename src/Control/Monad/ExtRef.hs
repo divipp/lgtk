@@ -15,7 +15,7 @@ import Control.Monad.State
 --import Control.Monad.RWS
 --import Control.Monad.Trans.Identity
 --import Control.Monad.Operational
-import Data.Lens.Common
+import Control.Lens
 
 -- | @m@ has a submonad @(RefStateReader m)@ which is isomorphic to 'Reader'.
 class (Monad m, Monad (RefStateReader m)) => MonadRefState m where

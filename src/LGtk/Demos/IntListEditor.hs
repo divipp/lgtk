@@ -7,7 +7,7 @@ import Control.Monad
 import Data.List (sortBy)
 import Data.Function (on)
 
-import Data.Lens.Common
+import Control.Lens
 import LGtk
 
 intListEditor

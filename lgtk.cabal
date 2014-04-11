@@ -56,8 +56,6 @@ library
                     LGtk.Demos.IntListEditor
                     LGtk.Demos.TEditor
   other-modules:
-                    Data.Lens.Common
-
                     Control.Monad.Restricted
 
                     Control.Monad.ExtRef
