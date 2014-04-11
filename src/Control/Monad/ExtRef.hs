@@ -64,7 +64,7 @@ class (MonadRefState (RefState r)) => Reference r where
     -}
     readRef  :: r a -> RefReader r a
 
-    {- | @writeRef r@ === @modify . setL r@
+    {- | @writeRef r@ === @modify . set r@
 
     Properties derived from the set-get, get-set and set-set laws for lenses:
 
@@ -133,7 +133,7 @@ class (Monad m, Reference (Ref m)) => ExtRef m where
 
     Law 3: Proper initialization of newly defined reference with @a0@:
 
-     *  @(extRef r k a0 >>= readRef)@ === @(readRef r >>= setL k a0)@
+     *  @(extRef r k a0 >>= readRef)@ === @(readRef r >>= set k a0)@
     -}
     extRef :: Ref m b -> Lens' a b -> a -> m (Ref m a)
 
@@ -279,7 +279,7 @@ toRef :: Reference r => EqRef r a -> r a
 toRef (EqRef m) = joinRef $ liftM (\(EqRef_ r k) -> k `lensMap` r) m
 
 instance Reference r => EqReference (EqRef r) where
-    hasEffect m f = runEqRef m >>= \(EqRef_ r k) -> liftM (\x -> modL k f x /= x) $ readRef r
+    hasEffect m f = runEqRef m >>= \(EqRef_ r k) -> liftM (\x -> over k f x /= x) $ readRef r
 
 
 instance Reference r => Reference (EqRef r) where

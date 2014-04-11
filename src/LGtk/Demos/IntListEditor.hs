@@ -31,13 +31,13 @@ intListEditor def maxi list_ range = action $ do
                 , button (return "redo") redo
                 ]
             , hcat
-                [ smartButton (return "+1")         list $ map $ modL _1 (+1)
-                , smartButton (return "-1")         list $ map $ modL _1 (+(-1))
+                [ smartButton (return "+1")         list $ map $ over _1 (+1)
+                , smartButton (return "-1")         list $ map $ over _1 (+(-1))
                 , smartButton (return "sort")       list $ sortBy (compare `on` fst)
-                , smartButton (return "SelectAll")  list $ map $ setL _2 True
+                , smartButton (return "SelectAll")  list $ map $ set _2 True
                 , smartButton (return "SelectPos")  list $ map $ \(a,_) -> (a, a>0)
                 , smartButton (return "SelectEven") list $ map $ \(a,_) -> (a, even a)
-                , smartButton (return "InvertSel")  list $ map $ modL _2 not
+                , smartButton (return "InvertSel")  list $ map $ over _2 not
                 , smartButton (liftM (("DelSel " ++) . show . length) sel) list $ filter $ not . snd
                 , smartButton (return "CopySel") safeList $ concatMap $ \(x,b) -> (x,b): [(x,False) | b]
                 , smartButton (return "+1 Sel")     list $ map $ mapSel (+1)

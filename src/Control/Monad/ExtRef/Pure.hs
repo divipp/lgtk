@@ -91,7 +91,7 @@ runSyntRefState :: SyntRefState (Lens_ x) a -> State x a
 runSyntRefState = interpretWithMonad eval where
     eval :: RefStateI (Lens_ x) a -> State x a
     eval (SyntLiftRefReader r) = liftRefStateReader $ runSyntRefReader r
-    eval (SyntWriteRef r a) = modify $ setL (unLens_ $ runSyntRef r) a
+    eval (SyntWriteRef r a) = modify $ set (unLens_ $ runSyntRef r) a
 
 runSyntRef :: SyntRef (Lens_ x) a -> Lens_ x a
 runSyntRef SyntUnitRef = Lens_ $ lens (const ()) $ const . id
@@ -107,8 +107,8 @@ runExtRef = interpretWithMonad eval where
      where
         r1 = runSyntRef r
 
-        rk = setL (unLens_ r1) . getL r2
-        kr = setL r2 . getL (unLens_ r1)
+        rk = set (unLens_ r1) . getL r2
+        kr = set r2 . getL (unLens_ r1)
 
         extend x0 = (SyntCreatedRef $ Lens_ $ lens get set, x0 |> CC kr (kr x0 a0))
           where
