@@ -66,7 +66,7 @@ intListEditor def maxi list_ range = action $ do
 
     sel = liftM (filter snd) $ readRef list
 
-    len = joinRef $ liftM (\r -> ll r `lensMap` safeList) $ readRef range
+    len = readRef range >>= \r -> ll r `lensMap` safeList
     ll :: Bool -> Lens' [(a, Bool)] Int
     ll r = lens length extendList where
         extendList xs n = take n $ (reverse . drop 1 . reverse) xs ++

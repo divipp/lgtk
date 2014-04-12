@@ -15,7 +15,7 @@ module LGtk
     , readRef
     , writeRef
     , lensMap
-    , joinRef
+    , join
     , unitRef
 
     -- ** Reference creation

@@ -92,15 +92,6 @@ type RefReader m = RefStateReader (RefState m)
 
 infixr 8 `lensMap`
 
-{- | @joinRef@ makes possible to define dynamic references, i.e. references which depends on
-values of other references.
-It is not possible to create new reference dynamically with @joinRef@; for that, see 'onChange'.
-
-@joinRef@ === @Lens . join . (runLens .) . runReader@
--}
-joinRef :: Reference r => RefReader r (MRef r a) -> MRef r a
-joinRef = join
-
 
 -- | @modRef r f@ === @liftRefStateReader (readRef r) >>= writeRef r . f@
 modRef :: Reference r => MRef r a -> (a -> a) -> RefState r ()
@@ -264,7 +255,7 @@ data EqRefCore r a = forall b . Eq b => EqRefCore (r b) (Lens' b a)
 
 As a reference, @(m :: EqRef r a)@ behaves as
 
-@joinRef $ liftM (uncurry lensMap) m@
+@join $ liftM (uncurry lensMap) m@
 -}
 type EqRef r a = RefReader r (EqRefCore r a)
 
@@ -278,7 +269,7 @@ newEqRef = liftM eqRef . newRef
 
 {- | An @EqRef@ is a normal reference if we forget about the equality.
 
-@toRef m@ === @joinRef $ liftM (uncurry lensMap) m@
+@toRef m@ === @join $ liftM (uncurry lensMap) m@
 -}
 toRef :: Reference r => EqRef r a -> MRef r a
 toRef m = join $ liftM (\(EqRefCore r k) -> k `lensMap` return r) m

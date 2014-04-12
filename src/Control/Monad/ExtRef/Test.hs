@@ -116,7 +116,7 @@ mkTests runTest
         r1 <- newRef 3
         rr <- newRef r1
         r1 ==> 3
-        let r = joinRef' rr
+        let r = join' rr
         r ==> 3
         writeRef' r1 4
         r ==> 4
@@ -132,7 +132,7 @@ mkTests runTest
         rr <- newRef r1
         r2 <- newRef 5
         writeRef' rr r2
-        joinRef' rr ==> 5
+        join' rr ==> 5
 
     chainTest0 = runTest $ do
         r <- newRef 1
@@ -287,7 +287,7 @@ mkTests runTest
         push m = liftWriteRef m >>= \x -> maybe (return ()) liftWriteRef x
         m === t = liftWriteRef m >>= \x -> isJust x ==? t
 
-    joinRef' r = joinRef $ readRef r
+    join' r = join $ readRef r
 
     writeRef' r a = liftWriteRef $ writeRef r a
 

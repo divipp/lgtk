@@ -47,7 +47,6 @@ instance MonadRefState (SyntRefState x) where
 data SyntRef x a where
     SyntUnitRef :: SyntRef x ()
     SyntLensMap :: Lens' a b -> SyntRef x a -> SyntRef x b
---    SyntJoinRef :: SyntRefReader x (SyntRef x a) -> SyntRef x a
     SyntCreatedRef :: x a -> SyntRef x a
 
 instance Reference (SyntRef x) where
@@ -55,7 +54,6 @@ instance Reference (SyntRef x) where
     readRef = join . liftM (singleton . SyntReadRef)
     writeRef r a = join $ singleton $ SyntLiftRefReader $ liftM (singleton . (`SyntWriteRef` a)) r
     lensMap l = liftM (SyntLensMap l)
---    joinRef = SyntJoinRef
     unitRef = return SyntUnitRef
 
 type SyntExtRef x = Program (ExtRefI x)
@@ -98,7 +96,6 @@ runSyntRefState = interpretWithMonad eval where
 runSyntRef :: SyntRef (Lens_ x) a -> Lens_ x a
 runSyntRef SyntUnitRef = Lens_ $ lens (const ()) $ const . id
 runSyntRef (SyntLensMap l r) = Lens_ $ (unLens_ $ runSyntRef r) . l
---runSyntRef (SyntJoinRef m) = (\f -> Lens_ $ \g s -> unLens_ (f s) g s) $ runReader $ liftM runSyntRef $ runSyntRefReader m
 runSyntRef (SyntCreatedRef l) = l
 
 runExtRef :: Monad m => SyntExtRef (Lens_ LSt) a -> StateT LSt m a
