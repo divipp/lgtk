@@ -84,7 +84,7 @@ data EffRefI n m x a where
     SyntReceive  :: (a -> SyntRefState x ()) -> (Command -> m ()) -> EffRefI n m x (a -> n ())
 
 instance ExtRef (SyntEffRef n m x) where
-    type Ref (SyntEffRef n m x) = SyntRef x
+    type RefCore (SyntEffRef n m x) = SyntRef x
     liftWriteRef w = singleton $ SyntLiftExtRef $ liftWriteRef w
     extRef r l a = singleton $ SyntLiftExtRef $ extRef r l a
     newRef a = singleton $ SyntLiftExtRef $ newRef a

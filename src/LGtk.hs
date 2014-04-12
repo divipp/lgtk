@@ -9,7 +9,7 @@ module LGtk
       MonadRefState (..)
 
     -- ** Reference operations
-    , Reference
+    , Reference, MRef
     , RefState
     , RefReader
     , readRef
@@ -20,7 +20,7 @@ module LGtk
 
     -- ** Reference creation
     , ExtRef
-    , Ref
+    , Ref, RefCore
     , extRef
     , newRef
     , ReadRef
@@ -184,9 +184,9 @@ button r fm = button_ r (liftM isJust fm) (liftRefStateReader fm >>= maybe (retu
 
 
 smartButton
-    :: (EffRef m, EqReference r, RefState r ~ RefState (Ref m)) 
+    :: (EffRef m, EqReference r, RefState r ~ RefState (RefCore m)) 
     => ReadRef m String     -- ^ dynamic label of the button
-    -> r a              -- ^ underlying reference
+    -> MRef r a              -- ^ underlying reference
     -> (a -> a)   -- ^ The button is active when this function is not identity on value of the reference. When the button is pressed, the value of the reference is modified with this function.
     -> Widget m
 smartButton s r f
@@ -201,11 +201,11 @@ combobox :: EffRef m => [String] -> Ref m Int -> Widget m
 combobox ss r = return $ Combobox ss (rEffect True (readRef r), toReceive $ writeRef r)
 
 -- | Text entry.
-entry :: (EffRef m, Reference r, RefState r ~ RefState (Ref m))  => r String -> Widget m
+entry :: (EffRef m, Reference r, RefState r ~ RefState (RefCore m))  => MRef r String -> Widget m
 entry r = return $ Entry (rEffect True (readRef r), toReceive $ writeRef r)
 
 -- | Text entry.
-entryShow :: (EffRef m, Show a, Read a, Reference r, RefState r ~ RefState (Ref m)) => r a -> Widget m
+entryShow :: (EffRef m, Show a, Read a, Reference r, RefState r ~ RefState (RefCore m)) => MRef r a -> Widget m
 entryShow r = entry $ showLens `lensMap` r
 
 {- | Notebook (tabs).

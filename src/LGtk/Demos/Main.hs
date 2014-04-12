@@ -151,7 +151,7 @@ main = runWidget $ notebook
 justLens :: a -> Lens' (Maybe a) a
 justLens a = lens (maybe a id) (flip $ const . Just)
 
-counter :: forall m a . (EffRef m, Ord a) => a -> Ref m (a, a) -> m (EqRef (Ref m) a)
+counter :: forall m a . (EffRef m, Ord a) => a -> Ref m (a, a) -> m (EqRef (RefCore m) a)
 counter x ab = do
     c <- extRef ab (fix . _2) (x, (x, x))
     return $ fix . _1 `lensMap` eqRef c
@@ -159,7 +159,7 @@ counter x ab = do
     fix :: Lens' (a, (a,a)) (a, (a,a))
     fix = lens id $ \_ (x, ab@(a, b)) -> (min b $ max a x, ab)
 
-interval :: (Reference r, Ord a) => r (a, a) -> (r a, r a)
+interval :: (Reference r, Ord a) => MRef r (a, a) -> (MRef r a, MRef r a)
 interval ab = (lens fst set1 `lensMap` ab, lens snd set2 `lensMap` ab) where
     set1 (_, b) a = (min b a, b)
     set2 (a, _) b = (a, max a b)
