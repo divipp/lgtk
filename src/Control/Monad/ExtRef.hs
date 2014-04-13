@@ -106,7 +106,7 @@ create the same type of references in multiple monads.
 
 For basic usage examples, look into the source of @Control.Monad.ExtRef.Pure.Test@.
 -}
-class (Monad m, Reference (RefCore m)) => ExtRef m where
+class (Monad m, EqReference (RefCore m)) => ExtRef m where
 
     type RefCore m :: * -> *
 
@@ -285,7 +285,7 @@ toRef m = m >>= \(EqRefCore r _) -> return r
 
 instance Reference r => EqReference (EqRefCore r) where
     valueIsChanging m = do
-        EqRefCore r k <- m
+        EqRefCore _r k <- m
         return k
 
 instance Reference r => Reference (EqRefCore r) where

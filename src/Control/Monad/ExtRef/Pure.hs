@@ -44,16 +44,22 @@ instance Reference (Lens_ LSt) where
     unitRef = return $ Lens_ united
 
 instance ExtRef (State LSt) where
-    type RefCore (State LSt) = Lens_ LSt
+    type RefCore (State LSt) = EqRefCore (Lens_ LSt)
 
     liftWriteRef = id
 
-    extRef r r2 a0 = state extend
-      where
-        rk = set (runLens_ r) . (^. r2)
-        kr = set r2 . (^. runLens_ r)
+    extRef r1_ r2 a0 = do
+        EqRefCore r1 _k <- liftReadRef r1_
+        q <- extRef' (cloneLens $ unLens_ r1) r2 a0
+        return $ return $ EqRefCore (Lens_ q) $ const True
+     where
+      extRef' :: Lens' LSt b -> Lens' a b -> a -> State LSt (ALens' LSt a)
+      extRef' r1 r2 a0 = state extend
+       where
+        rk = set r1 . (^. r2)
+        kr = set r2 . (^. r1)
 
-        extend x0 = (return $ Lens_ $ lens get set, x0 |> CC kr (kr x0 a0))
+        extend x0 = (lens get set, x0 |> CC kr (kr x0 a0))
           where
             limit = (id *** toList) . splitAt (length x0)
 
