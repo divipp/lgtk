@@ -247,7 +247,7 @@ class Reference r => EqReference r where
         -> RefReader r Bool
 
 
-data EqRefCore r a = forall b . Eq b => EqRefCore (r b) (Lens' b a)
+data EqRefCore r a = EqRefCore (r a) (a -> Bool{-changed-})
 
 {- | References with inherent equivalence.
 
@@ -262,7 +262,10 @@ type EqRef r a = RefReader r (EqRefCore r a)
 {- | @EqRef@ construction.
 -}
 eqRef :: (Reference r, Eq a) => MRef r a -> EqRef r a
-eqRef m = liftM (`EqRefCore` id) m
+eqRef r = do
+    a <- readRef r
+    r_ <- r
+    return $ EqRefCore r_ $ (/= a)
 
 newEqRef :: (ExtRef m, Eq a) => a -> m (EqRef (RefCore m) a) 
 newEqRef = liftM eqRef . newRef
@@ -272,11 +275,13 @@ newEqRef = liftM eqRef . newRef
 @toRef m@ === @join $ liftM (uncurry lensMap) m@
 -}
 toRef :: Reference r => EqRef r a -> MRef r a
-toRef m = join $ liftM (\(EqRefCore r k) -> k `lensMap` return r) m
+toRef m = m >>= \(EqRefCore r _) -> return r
 
 instance Reference r => EqReference (EqRefCore r) where
-    hasEffect m f = m >>= \(EqRefCore r k) -> liftM (\x -> over k f x /= x) $ readRef $ return r
-
+    hasEffect m f = do
+        a <- readRef m
+        EqRefCore r k <- m
+        return $ k $ f a
 
 instance Reference r => Reference (EqRefCore r) where
 
@@ -286,7 +291,37 @@ instance Reference r => Reference (EqRefCore r) where
 
     writeRef = writeRef . toRef
 
-    lensMap l m = m >>= \(EqRefCore r k) -> return $ EqRefCore r $ k . l
+    lensMap l m = do
+        a <- readRef m
+        EqRefCore r k <- m
+        lr <- lensMap l $ return r
+        return $ EqRefCore lr $ \b -> k $ set l b a
 
     unitRef = eqRef unitRef
 
+{-
+data CorrRefCore r a = CorrRefCore (r a) (a -> Maybe a{-corrected-})
+
+instance Reference r => Reference (CorrRefCore r) where
+
+    type (RefState (CorrRefCore r)) = RefState r
+
+    readRef = readRef . fromCorrRef
+
+    writeRef = writeRef . fromCorrRef
+
+    lensMap l m = do
+        a <- readRef m
+        CorrRefCore r k <- m
+        lr <- lensMap l $ return r
+        return $ CorrRefCore lr $ \b -> fmap (^. l) $ k $ set l b a
+
+    unitRef = corrRef unitRef
+
+fromCorrRef m = m >>= \(CorrRefCore r _) -> return r
+
+corrRef r = do
+    a <- readRef r
+    r_ <- r
+    return $ CorrRefCore r_ $ \a' -> Nothing
+-}
