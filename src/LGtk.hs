@@ -76,7 +76,6 @@ module LGtk
     , Color (..)
     , notebook
     , cell_
-    , action
     , canvas
     , Dia
     , MouseEvent (..)
@@ -240,10 +239,6 @@ The inner widgets are not memoised.
 -}
 cellNoMemo :: (EffRef m, Eq a) => ReadRef m a -> (a -> Widget m) -> Widget m
 cellNoMemo r m = cell_ r $ \mk -> return . mk . m
-
--- | @action@ makes possible to do any 'EffRef' action while creating the widget.
-action :: EffRef m => m (Widget m) -> Widget m
-action = join
 
 canvas :: (EffRef m, Eq b, Monoid a) => Int -> Int -> Double -> (MouseEvent a -> WriteRef m ()) -> ReadRef m b -> (b -> Dia a) -> Widget m
 canvas w h sc me r f = return $ Canvas w h sc (toReceive me) (rEffect True r) f

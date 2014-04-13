@@ -24,9 +24,9 @@ setXY s x = take 2 $ XY x : filter (\x-> case x of XY _ -> False; _ -> True) s
 
 -- | The editor
 tri :: EffRef m => Widget m
-tri = action $ do
+tri = do
     s <- newRef [X 0, Y 0]
-    return $ vcat
+    vcat
         [ hcat [entryShow $ lens getX  setX  `lensMap` s, label $ return "x"]
         , hcat [entryShow $ lens getY  setY  `lensMap` s, label $ return "y"]
         , hcat [entryShow $ lens getXY setXY `lensMap` s, label $ return "x + y"]

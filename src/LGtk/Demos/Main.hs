@@ -20,9 +20,9 @@ main = runWidget $ notebook
 
     , (,) "Counters" $ notebook
 
-        [ (,) "Unbounded" $ action $ do
+        [ (,) "Unbounded" $ do
             c <- newEqRef 0
-            return $ vcat
+            vcat
                 [ label $ liftM show $ readRef c
                 , hcat
                     [ smartButton (return "+1") c (+1)
@@ -30,9 +30,9 @@ main = runWidget $ notebook
                     ]
                 ]
 
-        , (,) "1..3" $ action $ do
+        , (,) "1..3" $ do
             c <- newEqRef 1
-            return $ vcat
+            vcat
                 [ label $ liftM show $ readRef c
                 , hcat
                     [ smartButton (return "+1") c $ min 3 . (+1)
@@ -40,11 +40,11 @@ main = runWidget $ notebook
                     ]
                 ]
 
-        , (,) "a..b" $ action $ do
+        , (,) "a..b" $ do
             ab <- newRef (1, 3)
             let (a, b) = interval ab
             c <- counter 0 ab
-            return $ vcat
+            vcat
                 [ label $ liftM show $ readRef c
                 , hcat
                     [ smartButton (return "+1") c (+1)
@@ -56,26 +56,26 @@ main = runWidget $ notebook
 
         ]
 
-    , (,) "Buttons" $ action $ do
+    , (,) "Buttons" $ do
         x <- newRef 0
         let is = [0, 65535 `div` 2, 65535]
             colorlist = liftM3 Color is is is
             f n = colorlist !! (n `mod` length colorlist)
-        return $ button__ (return "Push") (return True) (liftM f $ readRef x) $ modRef x (+1)
+        button__ (return "Push") (return True) (liftM f $ readRef x) $ modRef x (+1)
 
     , (,) "Tabs" $ notebook
 
-        [ (,) "TabSwitch" $ action $ do
+        [ (,) "TabSwitch" $ do
             x <- newRef "a"
             let w = vcat [ label $ readRef x, entry x ]
-            return $ notebook
+            notebook
                 [ (,) "T1" w
                 , (,) "T2" w
                 ]
 
         ]
 
-    , (,) "Async" $ action $ do
+    , (,) "Async" $ do
         ready <- newRef True
         delay <- newRef 1.0
         onChange False (readRef ready) $ \b -> return $ case b of
@@ -83,7 +83,7 @@ main = runWidget $ notebook
             False -> do
                 d <- readRef' delay
                 asyncWrite (ceiling $ 10^6 * d) (writeRef ready) True
-        return $ vcat
+        vcat
             [ hcat [ entryShow delay, label $ return "sec" ]
             , button_ (readRef delay >>= \d -> return $ "Start " ++ show d ++ " sec computation")
                       (readRef ready)
@@ -91,60 +91,60 @@ main = runWidget $ notebook
             , label $ liftM (\b -> if b then "Ready." else "Computing...") $ readRef ready
             ]
 
-    , (,) "Timer" $ action $ do
+    , (,) "Timer" $ do
         t <- newRef 0
         onChange True (readRef t) $ \ti -> return $ asyncWrite (10^6) (writeRef t) (1 + ti) 
-        return $ vcat
+        vcat
             [ label $ liftM show $ readRef t
             ]
 
     , (,) "System" $ notebook
 
-        [ (,) "Args" $ action $ getArgs >>= \args -> return $ label $ return $ unlines args
+        [ (,) "Args" $ getArgs >>= \args -> label $ return $ unlines args
 
-        , (,) "ProgName" $ action $ getProgName >>= \args -> return $ label $ return args
+        , (,) "ProgName" $ getProgName >>= \args -> label $ return args
 
-        , (,) "Env" $ action $ do
+        , (,) "Env" $ do
             v <- newRef "HOME"
             lv <- newRef ""
             onChange True (readRef v) $ \s -> return $
                 asyncWrite 0 (writeRef lv) =<< liftM (maybe "Not in env." show) (lookupEnv s)
-            return $ vcat
+            vcat
                 [ entry v
                 , label $ readRef lv
                 ]
 
         , (,) "Std I/O" $ let
-            put = action $ do
+            put = do
                 x <- newRef ""
                 onChange False (readRef x) $ return . putStrLn_
-                return $ hcat 
+                hcat 
                     [ label $ return "putStrLn"
                     , entry x
                     ]
-            get = action $ do
+            get = do
                 ready <- newRef $ Just ""
                 onChange False (liftM isJust $ readRef ready) $ \b -> 
                     return $ when (not b) $ getLine_ $ writeRef ready . Just
-                return $ hcat 
+                hcat 
                     [ button_ (return "getLine") (liftM isJust $ readRef ready) $ writeRef ready Nothing
                     , label $ liftM (maybe "<<<waiting for input>>>" id) $ readRef ready
                     ]
            in vcat [ put, put, put, get, get, get ]
         ]
 
-    , (,) "IntListEditor" $ action $ do
+    , (,) "IntListEditor" $ do
         state <- fileRef "intListEditorState.txt"
         list <- extRef (justLens "" `lensMap` state) showLens []
         settings <- fileRef "intListEditorSettings.txt"
         range <- extRef (justLens "" `lensMap` settings) showLens True
-        return $ intListEditor (0, True) 15 list range
+        intListEditor (0, True) 15 list range
 
     , (,) "Tri" tri
 
     , (,) "T-Editor1" tEditor1
 
-    , (,) "T-Editor3" $ action $ newRef (iterate (Node Leaf) Leaf !! 10) >>= tEditor3
+    , (,) "T-Editor3" $ newRef (iterate (Node Leaf) Leaf !! 10) >>= tEditor3
 
     ]
 

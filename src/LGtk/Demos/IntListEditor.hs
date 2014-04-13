@@ -18,9 +18,9 @@ intListEditor
     -> Ref m [(a, Bool)]    -- ^ state reference
     -> Ref m Bool           -- ^ settings reference
     -> Widget m
-intListEditor def maxi list_ range = action $ do
+intListEditor def maxi list_ range = do
     (undo, redo)  <- undoTr ((==) `on` map fst) list_
-    return $ notebook
+    notebook
         [ (,) "Editor" $ vcat
             [ hcat
                 [ entryShow len
@@ -44,7 +44,7 @@ intListEditor def maxi list_ range = action $ do
                 , smartButton (return "-1 Sel")     list $ map $ mapSel (+(-1))
                 ]
             , label $ liftM (("Sum: " ++) . show . sum . map fst) sel
-            , action $ listEditor def (map itemEditor [0..]) list_
+            , listEditor def (map itemEditor [0..]) list_
             ]
         , (,) "Settings" $ hcat
             [ label $ return "Create range"
@@ -54,7 +54,7 @@ intListEditor def maxi list_ range = action $ do
  where
     list = eqRef list_
 
-    itemEditor i r = return $ hcat
+    itemEditor i r = hcat
         [ label $ return $ show (i+1) ++ "."
         , entryShow $ _1 `lensMap` r
         , checkbox $ _2 `lensMap` r
@@ -76,15 +76,15 @@ intListEditor def maxi list_ range = action $ do
 
     (f *** g) (a, b) = (f a, g b)
 
-listEditor :: EffRef m => a -> [Ref m a -> m (Widget m)] -> Ref m [a] -> m (Widget m)
+listEditor :: EffRef m => a -> [Ref m a -> Widget m] -> Ref m [a] -> Widget m
 listEditor def (ed: eds) r = do
     q <- extRef r listLens (False, (def, []))
-    return $ cell (liftM fst $ readRef q) $ \b -> case b of
+    cell (liftM fst $ readRef q) $ \b -> case b of
         False -> empty
-        True -> action $ do
-            t1 <- ed $ _2 . _1 `lensMap` q
-            t2 <- listEditor def eds $ _2 . _2 `lensMap` q
-            return $ vcat [t1, t2]
+        True -> vcat 
+            [ ed $ _2 . _1 `lensMap` q
+            , listEditor def eds $ _2 . _2 `lensMap` q
+            ]
 
 
 

@@ -35,20 +35,20 @@ instance ADTLens T where
 
 -- | @T@ editor with comboboxes, as an ADTEditor
 tEditor1 :: EffRef m => Widget m
-tEditor1 = action $ newRef Leaf >>= adtEditor
+tEditor1 = join $ newRef Leaf >>= adtEditor
 
 -- | @T@ editor with checkboxes, given directly
-tEditor3 :: EffRef m => Ref m T -> m (Widget m)
+tEditor3 :: EffRef m => Ref m T -> Widget m
 tEditor3 r = do
     q <- extRef r tLens (False, (Leaf, Leaf))
-    return $ hcat
+    hcat
         [ checkbox $ _1 `lensMap` q
         , cell (liftM fst $ readRef q) $ \b -> case b of
             False -> empty
-            True -> action $ do
-                t1 <- tEditor3 $ _2 . _1 `lensMap` q
-                t2 <- tEditor3 $ _2 . _2 `lensMap` q
-                return $ vcat [t1, t2]
+            True -> do
+                let t1 = tEditor3 $ _2 . _1 `lensMap` q
+                let t2 = tEditor3 $ _2 . _2 `lensMap` q
+                vcat [t1, t2]
         ]
 
 
