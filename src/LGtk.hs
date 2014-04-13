@@ -42,6 +42,11 @@ module LGtk
     , newEqRef
     , toRef
 
+    , CorrRef
+    , corrRef
+    , fromCorrRef
+    , correction
+
     -- * Dynamic networks
     , EffRef
     , onChange

@@ -285,7 +285,7 @@ toRef m = m >>= \(EqRefCore r _) -> return r
 
 instance Reference r => EqReference (EqRefCore r) where
     valueIsChanging m = do
-        EqRefCore r k <- m
+        EqRefCore _r k <- m
         return k
 
 instance Reference r => Reference (EqRefCore r) where
@@ -304,8 +304,10 @@ instance Reference r => Reference (EqRefCore r) where
 
     unitRef = eqRef unitRef
 
-{-
+
 data CorrRefCore r a = CorrRefCore (r a) (a -> Maybe a{-corrected-})
+
+type CorrRef r a = RefReader r (CorrRefCore r a)
 
 instance Reference r => Reference (CorrRefCore r) where
 
@@ -321,12 +323,17 @@ instance Reference r => Reference (CorrRefCore r) where
         lr <- lensMap l $ return r
         return $ CorrRefCore lr $ \b -> fmap (^. l) $ k $ set l b a
 
-    unitRef = corrRef unitRef
+    unitRef = corrRef (const Nothing) unitRef
 
+fromCorrRef :: Reference r => CorrRef r a -> MRef r a
 fromCorrRef m = m >>= \(CorrRefCore r _) -> return r
 
-corrRef r = do
-    a <- readRef r
+corrRef :: Reference r => (a -> Maybe a) -> MRef r a -> CorrRef r a
+corrRef f r = do
     r_ <- r
-    return $ CorrRefCore r_ $ \a' -> Nothing
--}
+    return $ CorrRefCore r_ f
+
+correction :: Reference r => CorrRef r a -> RefReader r (a -> Maybe a)
+correction r = do
+    CorrRefCore _ f <- r
+    return f
