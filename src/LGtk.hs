@@ -1,5 +1,8 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 -- | Main LGtk interface.
 module LGtk
     (
@@ -104,6 +107,7 @@ module LGtk
 
     ) where
 
+import Data.String
 import Data.Maybe
 import Data.Monoid
 import Control.Monad
@@ -137,7 +141,10 @@ It leaves the event cycle when the window is closed.
 -}
 runWidget :: (forall m . EffIORef m => Widget m) -> IO ()
 runWidget = Gtk.runWidget
-
+{-
+instance MonadRefState m => IsString (RefStateReader m String) where
+    fromString = return
+-}
 -- | Vertical composition of widgets.
 vcat :: Monad m => [Widget m] -> Widget m
 vcat = return . List Vertical
