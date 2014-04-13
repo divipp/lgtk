@@ -28,7 +28,7 @@ import qualified Control.Monad.ExtRef.Pure as Pure
 
 -- | Consistency tests for the pure implementation of @Ext@, should give an empty list of errors.
 testExtPure :: [String]
-testExtPure = mkTests $ \t -> flip evalState Pure.initLSt $ Pure.runExtRef $ execWriterT t
+testExtPure = mkTests $ \t -> flip evalState Pure.initLSt $ execWriterT t
 
 {-
 -- | Consistency tests for the @IORef@-based implementation of @Ext@, should give an empty list of errors.

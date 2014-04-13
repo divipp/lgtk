@@ -16,6 +16,7 @@ import Control.Monad.RWS
 import Control.Monad.Writer
 
 import Control.Monad.State
+import Control.Monad.Reader
 import System.Directory
 import qualified System.FilePath as F
 import System.FSNotify
@@ -74,6 +75,20 @@ data Command = Kill | Block | Unblock deriving (Eq, Ord, Show)
 
 rEffect  :: (EffRef m, Eq a) => Bool -> ReadRef m a -> (a -> EffectM m ()) -> m ()
 rEffect init r f = onChange init r $ return . liftEffectM' . f
+
+
+type SyntRefReader (x :: * -> *) = Reader LSt
+type SyntRefState (x :: * -> *) = State LSt
+type SyntRef (x :: * -> *) = Lens_ LSt
+type SyntExtRef (x :: * -> *) = State LSt
+
+runSyntRefReader = id
+runSyntRefState = id
+runSyntRef = id
+
+runExtRef :: Monad m => State LSt a -> StateT LSt m a
+runExtRef = state . runState
+
 
 
 type SyntEffRef n m x = Program (EffRefI n m x)
