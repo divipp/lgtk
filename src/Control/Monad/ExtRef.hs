@@ -234,17 +234,23 @@ undoLens eq = lens get set where
 
 -}
 class Reference r => EqReference r where
+    valueIsChanging :: MRef r a -> RefReader r (a -> Bool)
 
-    {- | @hasEffect r f@ returns @False@ iff @(modRef m f)@ === @(return ())@.
+{- | @hasEffect r f@ returns @False@ iff @(modRef m f)@ === @(return ())@.
 
-    @hasEffect@ is correct only if @eqRef@ is applied on a pure reference (a reference which is a pure lens on the hidden state).
+@hasEffect@ is correct only if @eqRef@ is applied on a pure reference (a reference which is a pure lens on the hidden state).
 
-    @hasEffect@ makes defining auto-sensitive buttons easier, for example.
-    -}
-    hasEffect
-        :: MRef r a
-        -> (a -> a)
-        -> RefReader r Bool
+@hasEffect@ makes defining auto-sensitive buttons easier, for example.
+-}
+hasEffect
+    :: EqReference r
+    => MRef r a
+    -> (a -> a)
+    -> RefReader r Bool
+hasEffect r f = do
+    a <- readRef r
+    ch <- valueIsChanging r
+    return $ ch $ f a
 
 
 data EqRefCore r a = EqRefCore (r a) (a -> Bool{-changed-})
@@ -278,10 +284,9 @@ toRef :: Reference r => EqRef r a -> MRef r a
 toRef m = m >>= \(EqRefCore r _) -> return r
 
 instance Reference r => EqReference (EqRefCore r) where
-    hasEffect m f = do
-        a <- readRef m
+    valueIsChanging m = do
         EqRefCore r k <- m
-        return $ k $ f a
+        return k
 
 instance Reference r => Reference (EqRefCore r) where
 
