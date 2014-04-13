@@ -94,19 +94,19 @@ runExtRef = state . runState
 type SyntEffRef n m x = Program (EffRefI n m x)
 data EffRefI n m x a where
     SyntLiftEffect :: m a -> EffRefI n m x a
-    SyntLiftExtRef :: SyntExtRef x a -> EffRefI n m x a
-    SyntOnChange :: Eq a => Bool -> SyntRefReader x a -> (a -> SyntEffRef n m x (SyntEffRef n m x ())) -> EffRefI n m x ()
-    SyntReceive  :: (a -> SyntRefState x ()) -> (Command -> m ()) -> EffRefI n m x (a -> n ())
+    SyntLiftExtRef :: x a -> EffRefI n m x a
+    SyntOnChange :: Eq a => Bool -> ReadRef x a -> (a -> SyntEffRef n m x (SyntEffRef n m x ())) -> EffRefI n m x ()
+    SyntReceive  :: (a -> WriteRef x ()) -> (Command -> m ()) -> EffRefI n m x (a -> n ())
 
-instance ExtRef (SyntEffRef n m x) where
-    type RefCore (SyntEffRef n m x) = SyntRef x
+instance ExtRef x => ExtRef (SyntEffRef n m x) where
+    type RefCore (SyntEffRef n m x) = RefCore x
     liftWriteRef w = singleton $ SyntLiftExtRef $ liftWriteRef w
     extRef r l a = singleton $ SyntLiftExtRef $ extRef r l a
     newRef a = singleton $ SyntLiftExtRef $ newRef a
 
 liftEffectM = singleton . SyntLiftEffect
 
-instance EffRef (SyntEffRef n m x) where
+instance ExtRef x => EffRef (SyntEffRef n m x) where
     type EffectM (SyntEffRef n m x) = m
     type CallbackM (SyntEffRef n m x) = n
     liftEffectM' = singleton . SyntLiftEffect
@@ -116,7 +116,7 @@ instance EffRef (SyntEffRef n m x) where
 
 type CO m = WriterT (MonadMonoid m, Command -> MonadMonoid m) m
 
-evalRegister' :: (NewRef m) => (StateT LSt m () -> m ()) -> SyntEffRef m (StateT LSt m) (Lens_ LSt) a -> CO (StateT LSt m) a
+evalRegister' :: (NewRef m) => (StateT LSt m () -> m ()) -> SyntEffRef m (StateT LSt m) (SyntExtRef (Lens_ LSt)) a -> CO (StateT LSt m) a
 evalRegister' ff = eval . view
   where
     eval (Return x) = return x
@@ -220,7 +220,7 @@ instance SafeIO (SyntEffIORef IO x) where
     getProgName = liftIO' getProgName
     lookupEnv = liftIO' . lookupEnv
 
-instance EffIORef (SyntEffIORef IO x) where
+instance ExtRef x => EffIORef (SyntEffIORef IO x) where
 
     asyncWrite_ t r a = do
         (u, f) <- liftIO' forkIOs'
@@ -286,7 +286,7 @@ instance EffIORef (SyntEffIORef IO x) where
 canonicalizePath' p = liftM (F.</> f) $ canonicalizePath d 
   where (d,f) = F.splitFileName p
 
-liftIO__ :: Monad m => m a -> SyntEffIORef m (Lens_ LSt) a
+liftIO__ :: Monad m => m a -> SyntEffIORef m (SyntExtRef (Lens_ LSt)) a
 liftIO__ m = singleton $ SyntLiftEffect $ lift m
 
 --liftIO' :: EffIORef m => IO a -> m a
