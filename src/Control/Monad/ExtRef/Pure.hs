@@ -26,7 +26,7 @@ import Control.Monad.ExtRef
 newtype Lens_ a b = Lens_ {unLens_ :: ALens' a b}
 
 runLens_ :: Reader a (Lens_ a b) -> Lens' a b
-runLens_ r f a = cloneLens (unLens $ runReader r a) f a
+runLens_ r f a = cloneLens (unLens_ $ runReader r a) f a
 
 type LSt = Seq CC
 
