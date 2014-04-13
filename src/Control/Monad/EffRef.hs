@@ -4,6 +4,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -12,11 +13,8 @@ module Control.Monad.EffRef where
 import Control.Concurrent
 import Control.Exception (evaluate)
 import Control.Monad
-import Control.Monad.RWS
 import Control.Monad.Writer
-
 import Control.Monad.State
-import Control.Monad.Reader
 import System.Directory
 import qualified System.FilePath as F
 import System.FSNotify
@@ -26,7 +24,6 @@ import Control.Monad.Operational
 
 import Control.Monad.Restricted
 import Control.Monad.ExtRef
-import Control.Monad.ExtRef.Pure
 
 -- | Monad for dynamic actions
 class ExtRef m => EffRef m where
@@ -100,21 +97,36 @@ instance ExtRef x => EffRef (SyntEffRef n m x) where
     toReceive f g = singleton $ SyntReceive f g
 
 
-type CO m = WriterT (MonadMonoid m, Command -> MonadMonoid m) m
+type Register m = WriterT (MonadMonoid m, Command -> MonadMonoid m) m
 
-evalRegister' :: (NewRef m) => (StateT LSt m () -> m ()) -> SyntEffRef m (StateT LSt m) (State LSt) a -> CO (StateT LSt m) a
-evalRegister' ff = eval . view
+evalRegister
+    :: forall n m x a
+    .  (Monad n, NewRef m, ExtRef x)
+    => MorphD x m
+    -> (m () -> n ())
+    -> SyntEffRef n m x a
+    -> Register m a
+evalRegister run ff = evalR
   where
+    evalR :: SyntEffRef n m x b -> Register m b
+    evalR = eval . view
+
+    eval :: ProgramView (EffRefI n m x) b -> Register m b
     eval (Return x) = return x
-    eval (SyntLiftEffect m :>>= k) = lift m >>= evalRegister' ff . k
-    eval (SyntLiftExtRef m :>>= k) = lift (state $ runState m) >>= evalRegister' ff . k
-    eval (SyntReceive f g :>>= k) = tell (t2 g) >> evalRegister' ff (k $ ff . state . runState . liftWriteRef . f)
-    eval (SyntOnChange b r f :>>= k) = toSend__ b (state . runState $ liftReadRef r) (liftM (evalRegister' ff) . evalRegister' ff . f) >>= evalRegister' ff . k
+    eval (SyntLiftEffect m :>>= k) = lift m >>= evalR . k
+    eval (SyntLiftExtRef m :>>= k) = lift (runMorphD run m) >>= evalR . k
+    eval (SyntReceive f g :>>= k) = tell w >> evalR (k $ ff . runMorphD run . liftWriteRef . f)
+      where w = (mempty, MonadMonoid . g)
+    eval (SyntOnChange b r f :>>= k)
+        = toSend b (runMorphD run $ liftReadRef r) (liftM evalR . evalR . f) >>= evalR . k
 
-newRef'' x = liftM (\r -> MorphD $ \m -> StateT $ \s -> runMorphD r $ mapStateT (\k -> runStateT k s >>= \((x, w), s) -> return ((x, s), w)) m) $ newRef' x
-
---toSend__ :: (Eq b, NewRef m) => Bool -> m b -> (b -> Register' m (Register' m ())) -> Register' m ()
-toSend__ init rb fb = do
+toSend
+    :: (Eq b, NewRef m)
+    => Bool
+    -> m b
+    -> (b -> Register m (Register m ()))
+    -> Register m ()
+toSend init rb fb = do
         b <- lift rb
         v <- case init of
             False -> return $ Left b
@@ -123,7 +135,7 @@ toSend__ init rb fb = do
                 (s2, ureg2) <- execWriterT c
                 runMonadMonoid $ s1 `mappend` s2
                 return $ Right [(b, (c, s1, s2, ureg1, ureg2))]
-        memoref <- lift $ lift $ newRef'' v
+        memoref <- lift $ newRef' v
                             -- memo table, first item is the newest
         tell $ t1 $ do
             b <- rb
@@ -144,9 +156,8 @@ toSend__ init rb fb = do
                     (s2, ureg2) <- execWriterT c
                     let memo' = Right $ (:) (b, (c, s1, s2, ureg1, ureg2)) $ filter ((/= b) . fst) $ either (const []) id memo
                     return (runMonadMonoid $ s1 `mappend` s2, memo')
-
-t1 m = (MonadMonoid m, mempty)
-t2 m = (mempty, MonadMonoid . m)
+  where
+    t1 m = (MonadMonoid m, mempty)
 
 
 -- | Type class for IO actions.
@@ -199,14 +210,12 @@ asyncWrite t f a = asyncWrite' t $ f a
 asyncWrite' :: EffIORef m => Int -> WriteRef m () -> m ()
 asyncWrite' t r = asyncWrite_ t (const r) ()
 
-type SyntEffIORef m x = SyntEffRef m (StateT LSt m) x
-
-instance SafeIO (SyntEffIORef IO x) where
+instance MonadIO m => SafeIO (SyntEffRef IO m x) where
     getArgs = liftIO' getArgs
     getProgName = liftIO' getProgName
     lookupEnv = liftIO' . lookupEnv
 
-instance ExtRef x => EffIORef (SyntEffIORef IO x) where
+instance (ExtRef x, MonadIO m) => EffIORef (SyntEffRef IO m x) where
 
     asyncWrite_ t r a = do
         (u, f) <- liftIO' forkIOs'
@@ -272,7 +281,7 @@ instance ExtRef x => EffIORef (SyntEffIORef IO x) where
 canonicalizePath' p = liftM (F.</> f) $ canonicalizePath d 
   where (d,f) = F.splitFileName p
 
-liftIO__ :: Monad m => m a -> SyntEffIORef m (State LSt) a
+--liftIO__ :: Monad m => m a -> SyntEffIORef m (State LSt) a
 liftIO__ m = singleton $ SyntLiftEffect $ lift m
 
 --liftIO' :: EffIORef m => IO a -> m a

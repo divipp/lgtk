@@ -23,8 +23,8 @@ import qualified Graphics.UI.Gtk as Gtk
 --import Graphics.UI.Gtk.Gdk.Events (eventKeyChar)
 
 import Control.Monad.Restricted
-import Control.Monad.ExtRef
-import Control.Monad.ExtRef.Pure
+import Control.Monad.ExtRef ()
+import Control.Monad.ExtRef.Pure (initLSt)
 import Control.Monad.EffRef
 import GUI.Gtk.Structures
 
@@ -46,8 +46,9 @@ runWidget desc = gtkContext $ \postGUISync -> mdo
     let addPostAction  = runMorphD postActionsRef . modify . flip (>>)
         runPostActions = join $ runMorphD postActionsRef $ state $ \m -> (m, return ())
     actionChannel <- newChan
-    ((widget, (act, _)), s) <- flip runStateT initLSt $ runWriterT $ evalRegister' (writeChan actionChannel) $
-        runWidget_ id addPostAction postGUISync id id liftIO__ liftIO desc
+    ((widget, (act, _)), s) <- flip runStateT initLSt $ runWriterT $
+        evalRegister (MorphD $ state . runState) (writeChan actionChannel) $
+            runWidget_ id addPostAction postGUISync id id liftIO__ liftIO desc
     runPostActions
     _ <- forkIO $ void $ flip execStateT s $  forever $ do
             join $ lift $ readChan actionChannel

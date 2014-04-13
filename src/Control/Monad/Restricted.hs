@@ -30,6 +30,10 @@ instance NewRef IO where
       where
         swap (a, b) = (b, a)
 
+instance NewRef m => NewRef (StateT x m) where
+    newRef' x = lift $ liftM (\r -> MorphD $ \m -> StateT $ \s -> runMorphD r $ mapStateT (\k -> runStateT k s >>= \((x, w), s) -> return ((x, s), w)) m) $ newRef' x
+
+
 -------------------
 
 -- | Type class for effectless, synchronous @IO@ actions.
