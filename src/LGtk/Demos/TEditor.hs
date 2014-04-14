@@ -45,10 +45,10 @@ tEditor3 r = do
         [ checkbox $ _1 `lensMap` q
         , cell (liftM fst $ readRef q) $ \b -> case b of
             False -> empty
-            True -> do
-                let t1 = tEditor3 $ _2 . _1 `lensMap` q
-                let t2 = tEditor3 $ _2 . _2 `lensMap` q
-                vcat [t1, t2]
+            True -> vcat
+                [ tEditor3 $ _2 . _1 `lensMap` q
+                , tEditor3 $ _2 . _2 `lensMap` q
+                ]
         ]
 
 
