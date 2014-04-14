@@ -23,10 +23,10 @@ import Filesystem.Path.CurrentOS hiding (FilePath)
 import Control.Monad.Operational
 
 import Control.Monad.Restricted
-import Control.Monad.ExtRef
+import Control.Monad.ExtRef -- (ExtRef, extRef, newRef, Ref, WriteRef, ReadRef, liftWriteRef, liftReadRef, writeRef, readRef)
 
 -- | Monad for dynamic actions
-class ExtRef m => EffRef m where
+class (ExtRef m) => EffRef m where
 
     type CallbackM m :: * -> *
 
@@ -64,9 +64,15 @@ class ExtRef m => EffRef m where
 
     @k a2 >>= \\b2 -> h b2 >> k a1 >>= \\b1 -> h b1 >> h b2@
     -}
-    onChange :: Eq a => Bool -> ReadRef m a -> (a -> m (m ())) -> m ()
+    onChange_ :: Eq a => Bool -> WriteRef m a -> (a -> m (m ())) -> m ()
 
-    toReceive :: (a -> WriteRef m ()) -> (Command -> EffectM m ()) -> m (a -> CallbackM m ())
+    toReceive_ :: (a -> WriteRef m ()) -> (Command -> EffectM m ()) -> m (a -> CallbackM m ())
+
+onChange :: (EffRef m, Eq a) => Bool -> ReadRef m a -> (a -> m (m ())) -> m ()
+onChange b r = onChange_ b (liftRefStateReader r)
+
+toReceive :: EffRef m => (a -> WriteRef m ()) -> (Command -> EffectM m ()) -> m (a -> CallbackM m ())
+toReceive = toReceive_
 
 data Command = Kill | Block | Unblock deriving (Eq, Ord, Show)
 
@@ -78,8 +84,8 @@ type SyntEffRef n m x = Program (EffRefI n m x)
 data EffRefI n m x a where
     SyntLiftEffect :: m a -> EffRefI n m x a
     SyntLiftExtRef :: x a -> EffRefI n m x a
-    SyntOnChange :: Eq a => Bool -> ReadRef x a -> (a -> SyntEffRef n m x (SyntEffRef n m x ())) -> EffRefI n m x ()
-    SyntReceive  :: (a -> WriteRef x ()) -> (Command -> m ()) -> EffRefI n m x (a -> n ())
+    SyntOnChange :: Eq a => Bool -> x a -> (a -> SyntEffRef n m x (SyntEffRef n m x ())) -> EffRefI n m x ()
+    SyntReceive  :: (a -> x ()) -> (Command -> m ()) -> EffRefI n m x (a -> n ())
 
 instance ExtRef x => ExtRef (SyntEffRef n m x) where
     type RefCore (SyntEffRef n m x) = RefCore x
@@ -93,15 +99,15 @@ instance ExtRef x => EffRef (SyntEffRef n m x) where
     type EffectM (SyntEffRef n m x) = m
     type CallbackM (SyntEffRef n m x) = n
     liftEffectM' = singleton . SyntLiftEffect
-    onChange b r f = singleton $ SyntOnChange b r f
-    toReceive f g = singleton $ SyntReceive f g
+    onChange_ b r f = singleton $ SyntOnChange b (liftWriteRef r) f
+    toReceive_ f g = singleton $ SyntReceive (liftWriteRef . f) g
 
 
 type Register m = WriterT (MonadMonoid m, Command -> MonadMonoid m) m
 
 evalRegister
     :: forall n m x a
-    .  (Monad n, NewRef m, ExtRef x)
+    .  (Monad n, NewRef m, Monad x)
     => MorphD x m
     -> (m () -> n ())
     -> SyntEffRef n m x a
@@ -115,10 +121,10 @@ evalRegister run ff = evalR
     eval (Return x) = return x
     eval (SyntLiftEffect m :>>= k) = lift m >>= evalR . k
     eval (SyntLiftExtRef m :>>= k) = lift (runMorphD run m) >>= evalR . k
-    eval (SyntReceive f g :>>= k) = tell w >> evalR (k $ ff . runMorphD run . liftWriteRef . f)
+    eval (SyntReceive f g :>>= k) = tell w >> evalR (k $ ff . runMorphD run . f)
       where w = (mempty, MonadMonoid . g)
     eval (SyntOnChange b r f :>>= k)
-        = toSend b (runMorphD run $ liftReadRef r) (liftM evalR . evalR . f) >>= evalR . k
+        = toSend b (runMorphD run r) (liftM evalR . evalR . f) >>= evalR . k
 
 toSend
     :: (Eq b, NewRef m)
