@@ -25,24 +25,14 @@ import Control.Monad.Operational
 import Control.Monad.Restricted
 import Control.Monad.ExtRef -- (ExtRef, extRef, newRef, Ref, WriteRef, ReadRef, liftWriteRef, liftReadRef, writeRef, readRef)
 
-
 -- | Monad for dynamic actions
-class () => EffRef_ m where
-
-    type RefM m :: * -> *
+class (ExtRef m) => EffRef m where
 
     type CallbackM m :: * -> *
 
     type EffectM m :: * -> *
 
     liftEffectM' :: Morph (EffectM m) m
-
-    onChange_ :: Eq a => Bool -> RefM m a -> (a -> m (m ())) -> m ()
-
-    toReceive_ :: (a -> RefM m ()) -> (Command -> EffectM m ()) -> m (a -> CallbackM m ())
-
-
-class (EffRef_ m, ExtRef m, ExtRef (RefM m), WriteRef (RefM m) ~ WriteRef m) => EffRef m where
 
     {- |
     Let @r@ be an effectless action (@ReadRef@ guarantees this).
@@ -74,10 +64,15 @@ class (EffRef_ m, ExtRef m, ExtRef (RefM m), WriteRef (RefM m) ~ WriteRef m) => 
 
     @k a2 >>= \\b2 -> h b2 >> k a1 >>= \\b1 -> h b1 >> h b2@
     -}
-    onChange :: (Eq a) => Bool -> ReadRef m a -> (a -> m (m ())) -> m ()
+    onChange_ :: Eq a => Bool -> WriteRef m a -> (a -> m (m ())) -> m ()
 
-    toReceive :: (a -> WriteRef m ()) -> (Command -> EffectM m ()) -> m (a -> CallbackM m ())
+    toReceive_ :: (a -> WriteRef m ()) -> (Command -> EffectM m ()) -> m (a -> CallbackM m ())
 
+onChange :: (EffRef m, Eq a) => Bool -> ReadRef m a -> (a -> m (m ())) -> m ()
+onChange b r = onChange_ b (liftRefStateReader r)
+
+toReceive :: EffRef m => (a -> WriteRef m ()) -> (Command -> EffectM m ()) -> m (a -> CallbackM m ())
+toReceive = toReceive_
 
 data Command = Kill | Block | Unblock deriving (Eq, Ord, Show)
 
@@ -100,18 +95,12 @@ instance ExtRef x => ExtRef (SyntEffRef n m x) where
 
 liftEffectM = singleton . SyntLiftEffect
 
-instance EffRef_ (SyntEffRef n m x) where
-    type RefM (SyntEffRef n m x) = x
+instance ExtRef x => EffRef (SyntEffRef n m x) where
     type EffectM (SyntEffRef n m x) = m
     type CallbackM (SyntEffRef n m x) = n
     liftEffectM' = singleton . SyntLiftEffect
-    onChange_ b r f = singleton $ SyntOnChange b r f
-    toReceive_ f g = singleton $ SyntReceive f g
-
-instance ExtRef x => EffRef (SyntEffRef n m x)  where
-    onChange b r = onChange_ b (liftWriteRef $ liftRefStateReader r)
-    toReceive f = toReceive_ (liftWriteRef . f)
-
+    onChange_ b r f = singleton $ SyntOnChange b (liftWriteRef r) f
+    toReceive_ f g = singleton $ SyntReceive (liftWriteRef . f) g
 
 
 type Register m = WriterT (MonadMonoid m, Command -> MonadMonoid m) m
