@@ -1,5 +1,6 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE KindSignatures #-}
 -- | Lens-based Gtk interface
 module GUI.Gtk.Structures
     ( module GUI.Gtk.Structures
@@ -7,37 +8,53 @@ module GUI.Gtk.Structures
     , Color (..)
     ) where
 
+import Data.Semigroup
 import Graphics.UI.Gtk.Gdk.GC (Color (Color))
 import Diagrams.Prelude (QDiagram, R2, Monoid)
 import Diagrams.Backend.Cairo (Cairo)
 import Graphics.UI.Gtk (ScrollDirection (..), KeyVal, Modifier, keyName, keyToChar)
 
-import Control.Monad.EffRef (Command (..))
+import Control.Monad.ExtRef
+import Control.Monad.EffRef
 
 type Dia a = QDiagram Cairo R2 a
 
-type Send n m a = (a -> n ()) -> m ()
-type Receive n m k a = (Command -> n ()) -> m (a -> k ())
-type SendReceive n m k a = (Send n m a, Receive n m k a)
+data Send m a
+    = Eq a => Send (ReadRef m a)
+    | SendNothing
 
-type Widget n m k = m (WidgetCore n m k)
+type Receive m a = a -> WriteRef m ()
+
+runSend :: (EffRef m) => Send m a -> (a -> EffectM m ()) -> m ()
+runSend SendNothing = const $ return ()
+runSend (Send r) = rEffect True r
+
+noREffect = SendNothing
+
+runReceive :: EffRef m => Receive m a -> (Command -> EffectM m ()) -> m (a -> CallbackM m ())
+runReceive = toReceive
+
+type SendReceive m a = (Send m a, Receive m a)
+
+type Widget m = m (WidgetCore m)
 
 -- | Widget descriptions
-data WidgetCore n m k
-    = Label (Send n m String)     -- ^ label
-    | Button { label_  :: Send n m String
-             , sensitive_ :: Send n m Bool
-             , color_ :: Send n m Color
-             , action_ :: Receive n m k ()
+data WidgetCore m
+    = Label (Send m String)     -- ^ label
+    | Button { label_  :: Send m String
+             , sensitive_ :: Send m Bool
+             , color_ :: Send m Color
+             , action_ :: Receive m ()
              }  -- ^ button
-    | Checkbox (SendReceive n m k Bool)         -- ^ checkbox
-    | Combobox [String] (SendReceive n m k Int) -- ^ combo box
-    | Entry (SendReceive n m k String)          -- ^ entry field
-    | List ListLayout [Widget n m k]         -- ^ group interfaces into row or column
-    | Notebook' (Receive n m k Int) [(String, Widget n m k)]     -- ^ actual tab index, tabs
-    | forall b . Eq b => Cell ((b -> m (m ())) -> m ()) (forall a . (Widget n m k -> m a) -> b -> m (m a))
-    | forall a b . (Eq b, Monoid a) => Canvas Int Int Double (Receive n m k (MouseEvent a)) (Send n m b) (b -> Dia a)
-    | Scale Double Double Double (SendReceive n m k Double)
+    | Checkbox (SendReceive m Bool)         -- ^ checkbox
+    | Combobox [String] (SendReceive m Int) -- ^ combo box
+    | Entry (SendReceive m String)          -- ^ entry field
+    | List ListLayout [Widget m]         -- ^ group interfaces into row or column
+    | Notebook' (Receive m Int) [(String, Widget m)]     -- ^ actual tab index, tabs
+    | forall b . Eq b => Cell (Send m b) (forall x . (Widget m -> m x) -> b -> m (m x))
+    | forall a b . (Eq b, Monoid a, Semigroup a) => Canvas Int Int Double (Receive m (MouseEvent a)) (Send m b) (b -> Dia a)
+    | Scale Double Double Double (SendReceive m Double)
+
 
 data ListLayout
     = Horizontal

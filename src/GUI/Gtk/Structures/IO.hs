@@ -40,7 +40,7 @@ Run a Gtk widget description.
 The widget is shown in a window and the thread enters into the Gtk event cycle.
 It leaves the event cycle when the window is closed.
 -}
-runWidget :: (forall m . EffIORef m => Widget (EffectM m) m (CallbackM m)) -> IO ()
+runWidget :: (forall m . EffIORef m => Widget m) -> IO ()
 runWidget desc = gtkContext $ \postGUISync -> mdo
     postActionsRef <- newRef' $ return ()
     let addPostAction  = runMorphD postActionsRef . modify . flip (>>)
@@ -76,7 +76,7 @@ type SWidget = (IO (), Gtk.Widget)
 
 -- | Run an @IO@ parametrized interface description with Gtk backend
 runWidget_
-    :: forall n m k o . (Monad m, Monad o)
+    :: forall n m k o . (EffRef m, Monad o, n ~ EffectM m, k ~ CallbackM m)
     => (k () -> IO ())
     -> (IO () -> IO ())
     -> Morph IO IO
@@ -84,7 +84,7 @@ runWidget_
     -> Morph o m
     -> Morph IO o
     -> (IO () -> n ())
-    -> Widget n m k
+    -> Widget m
     -> o SWidget
 runWidget_ nio post' post liftO liftOBack liftIO_ liftION = toWidget
  where
@@ -92,18 +92,18 @@ runWidget_ nio post' post liftO liftOBack liftIO_ liftION = toWidget
     liftIO' = liftIO_ . post
 
     -- type Receive n m k a = (Command -> n ()) -> m (a -> k ())
-    reg :: Receive n m k a -> ((a -> IO ()) -> IO (Command -> IO ())) -> o (Command -> IO ())
+    reg :: Receive m a -> ((a -> IO ()) -> IO (Command -> IO ())) -> o (Command -> IO ())
     reg s f = do
         rer <- liftIO_ newEmptyMVar
         u <- liftIO_ $ f $ \x -> do
             re <- readMVar rer
             nio $ re x
-        re <- liftO $ s $ liftION . post . u
+        re <- liftO $ runReceive s $ liftION . post . u
         liftIO_ $ putMVar rer re
         return u
 
-    ger :: (Command -> IO ()) -> Send n m a -> Send IO o a
-    ger hd s f = liftO $ s $ \a -> liftION $ post $ do
+    ger :: (Command -> IO ()) -> Send m a -> (a -> IO ()) -> o ()
+    ger hd s f = liftO $ runSend s $ \a -> liftION $ post $ do
         hd Block
         f a
         hd Unblock
@@ -111,7 +111,7 @@ runWidget_ nio post' post liftO liftOBack liftIO_ liftION = toWidget
     nhd :: Command -> IO ()
     nhd = const $ return ()
 
-    toWidget :: Widget n m k -> o SWidget
+    toWidget :: Widget m -> o SWidget
     toWidget m = liftO m >>= \i -> case i of
 
 --        Action m -> liftO m >>= toWidget
@@ -265,13 +265,13 @@ runWidget_ nio post' post liftO liftOBack liftIO_ liftION = toWidget
                 liftIO' . flip (notebookAppendPage w) s $ snd $ ww
             _ <- reg s $ \re -> on' w switchPage $ re
             return'' ws w
-        Cell onCh f -> do
+        Cell (Send onCh) f -> do
             let b = False
             w <- liftIO' $ case b of
                 True -> fmap castToContainer $ hBoxNew False 1
                 False -> fmap castToContainer $ alignmentNew 0 0 1 1
             sh <- liftIO_ $ newMVar $ return ()
-            liftO $ onCh $ \bv -> do
+            liftO $ onChange True onCh $ \bv -> do
                 mx <- f (liftOBack . toWidget) bv
                 return $ mx >>= \(x, y) -> liftOBack $ liftIO' $ do 
                     _ <- swapMVar sh x

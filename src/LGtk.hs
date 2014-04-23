@@ -1,3 +1,4 @@
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -113,16 +114,16 @@ module LGtk
 
     ) where
 
-import Data.String
+--import Data.String
 import Data.Maybe
 import Data.Monoid
+import Data.Semigroup
 import Control.Monad
 import Control.Lens
 
 import Control.Monad.ExtRef
 import Control.Monad.EffRef
-import GUI.Gtk.Structures hiding (Send, Receive, SendReceive, Widget)
-import qualified GUI.Gtk.Structures as Gtk
+import GUI.Gtk.Structures
 import qualified GUI.Gtk.Structures.IO as Gtk
 import Control.Monad.Restricted
 
@@ -135,9 +136,6 @@ side-effects happen at running @('runWidget' w)@.
 @Widget@ should be abstract data type, but it is also safe to keep it as a type synonym because
 the operations of the revealed implementation are hidden.
 -}
-type Widget m = Gtk.Widget (EffectM m) m (CallbackM m)
-
---type SyntWidget = Widget (SyntEffIORef X)
 
 {- |
 Run a Gtk widget description.
@@ -165,7 +163,7 @@ empty = hcat []
 
 -- | Dynamic label.
 label :: EffRef m => ReadRef m String -> Widget m
-label = return . Label . rEffect True
+label = return . Label . Send
 
 -- | Low-level button with changeable background color.
 button__
@@ -175,7 +173,7 @@ button__
     -> ReadRef m Color      -- ^ dynamic background color
     -> WriteRef m ()        -- ^ the action to do when the button is pressed
     -> Widget m
-button__ r x c y = return $ Button (rEffect True r) (rEffect True x) (rEffect True c) (toReceive $ \() -> y)
+button__ r x c y = return $ Button (Send r) (Send x) (Send c) (\() -> y)
 
 -- | Low-level button.
 button_
@@ -184,7 +182,7 @@ button_
     -> ReadRef m Bool       -- ^ the button is active when this returns @True@
     -> WriteRef m ()        -- ^ the action to do when the button is pressed
     -> Widget m
-button_ r x y = return $ Button (rEffect True r) (rEffect True x) (const $ return ()) (toReceive $ \() -> y)
+button_ r x y = return $ Button (Send r) (Send x) noREffect (\() -> y)
 
 button
     :: EffRef m
@@ -206,15 +204,15 @@ smartButton s r f
 
 -- | Checkbox.
 checkbox :: EffRef m => Ref m Bool -> Widget m
-checkbox r = return $ Checkbox (rEffect True (readRef r), toReceive $ writeRef r)
+checkbox r = return $ Checkbox (Send (readRef r), writeRef r)
 
 -- | Simple combo box.
 combobox :: EffRef m => [String] -> Ref m Int -> Widget m
-combobox ss r = return $ Combobox ss (rEffect True (readRef r), toReceive $ writeRef r)
+combobox ss r = return $ Combobox ss (Send (readRef r), writeRef r)
 
 -- | Text entry.
 entry :: (EffRef m, Reference r, RefState r ~ RefState (RefCore m))  => MRef r String -> Widget m
-entry r = return $ Entry (rEffect True (readRef r), toReceive $ writeRef r)
+entry r = return $ Entry (Send (readRef r), writeRef r)
 
 -- | Text entry.
 entryShow :: (EffRef m, Show a, Read a, Reference r, RefState r ~ RefState (RefCore m)) => MRef r a -> Widget m
@@ -230,14 +228,14 @@ notebook xs = do
     let f index (title, w) = (,) title $ cell (liftM (== index) $ readRef currentPage) $ \b -> case b of
            False -> hcat []
            True -> w
-    return $ Notebook' (toReceive $ writeRef currentPage) $ zipWith f [0..] xs
+    return $ Notebook' (writeRef currentPage) $ zipWith f [0..] xs
 
 {- | Dynamic cell.
 
 The monadic action for inner widget creation is memoised in the first monad layer.
 -}
 cell_ :: (EffRef m, Eq a) => ReadRef m a -> (forall x . (Widget m -> m x) -> a -> m (m x)) -> Widget m
-cell_ r f = return $ Cell (onChange True r) f
+cell_ r f = return $ Cell (Send r) f
 
 {- | Dynamic cell.
 
@@ -253,12 +251,19 @@ The inner widgets are not memoised.
 cellNoMemo :: (EffRef m, Eq a) => ReadRef m a -> (a -> Widget m) -> Widget m
 cellNoMemo r m = cell_ r $ \mk -> return . mk . m
 
-canvas :: (EffRef m, Eq b, Monoid a) => Int -> Int -> Double -> (MouseEvent a -> WriteRef m ()) -> ReadRef m b -> (b -> Dia a) -> Widget m
-canvas w h sc me r f = return $ Canvas w h sc (toReceive me) (rEffect True r) f
- -- = cellNoMemo r $ Canvas_ w h sc . f  -- Canvas f $ rEffect True r
+canvas
+    :: (EffRef m, Eq b, Monoid a, Semigroup a)
+    => Int   -- ^ width
+    -> Int   -- ^ height
+    -> Double  -- ^ scale
+    -> (MouseEvent a -> WriteRef m ())
+    -> ReadRef m b
+    -> (b -> Dia a)
+    -> Widget m
+canvas w h sc me r f = return $ Canvas w h sc me (Send r) f
 
 hscale :: (EffRef m) => Double -> Double -> Double -> Ref m Double -> Widget m
-hscale a b c r = return $ Scale a b c (rEffect True $ readRef r, toReceive $ writeRef r)
+hscale a b c r = return $ Scale a b c (Send $ readRef r, writeRef r)
 
 showLens :: (Show a, Read a) => Lens' a String
 showLens = lens show $ \def s -> maybe def fst $ listToMaybe $ reads s
