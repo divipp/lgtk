@@ -37,8 +37,8 @@ class (Monad m, Monad (RefStateReader m)) => MonadRefState m where
 
 -- | @RefStateReader (StateT s m) = Reader s@ 
 instance Monad m => MonadRefState (StateT s m) where
-    type RefStateReader (StateT s m) = Reader s
-    liftRefStateReader = gets . runReader
+    type RefStateReader (StateT s m) = State s
+    liftRefStateReader = state . runState
 
 
 {- |
@@ -139,6 +139,10 @@ class (Monad m, Reference (RefCore m)) => ExtRef m where
     newRef :: a -> m (Ref m a)
     newRef = extRef unitRef $ lens (const ()) (flip $ const id)
 
+    lazyExtRef :: (Eq a) => ReadRef m a -> (a -> PureExt m b) -> m (ReadRef m b)
+
+type PureExt (m :: * -> *) = m
+
 type Ref m a = RefReader (RefCore m) (RefCore m a)
 
 type WriteRef m = RefState (RefCore m)
@@ -202,6 +206,10 @@ instance (ExtRef m, Monoid w) => ExtRef (WriterT w m) where
     liftWriteRef = lift . liftWriteRef
 
     extRef x y a = lift $ extRef x y a
+
+--    type PureExt (WriterT w m) = PureExt m
+
+    lazyExtRef r f = lift $ lazyExtRef r $ \x -> liftM fst $ runWriterT $ f x
 
 
 -- | Undo-redo state transformation.

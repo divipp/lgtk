@@ -93,6 +93,24 @@ instance ExtRef x => ExtRef (SyntEffRef n m x) where
     extRef r l a = singleton $ SyntLiftExtRef $ extRef r l a
     newRef a = singleton $ SyntLiftExtRef $ newRef a
 
+--    type PureExt (SyntEffRef n m x) = PureExt x
+    lazyExtRef r f = singleton $ SyntLiftExtRef $ lazyExtRef r $ evalRegister' . f
+
+evalRegister'
+    :: forall n m x a
+    .  (Monad x)
+    => SyntEffRef n m x a
+    -> x a
+evalRegister' = evalR
+  where
+    evalR :: SyntEffRef n m x b -> x b
+    evalR = eval . view
+
+    eval :: ProgramView (EffRefI n m x) b -> x b
+    eval (Return x) = return x
+    eval (SyntLiftExtRef m :>>= k) = m >>= evalR . k
+
+
 liftEffectM = singleton . SyntLiftEffect
 
 instance ExtRef x => EffRef (SyntEffRef n m x) where
@@ -216,7 +234,7 @@ asyncWrite t f a = asyncWrite' t $ f a
 asyncWrite' :: EffIORef m => Int -> WriteRef m () -> m ()
 asyncWrite' t r = asyncWrite_ t (const r) ()
 
-instance MonadIO m => SafeIO (SyntEffRef IO m x) where
+instance MonadIO m => SafeIO (SyntEffRef n m x) where
     getArgs = liftIO' getArgs
     getProgName = liftIO' getProgName
     lookupEnv = liftIO' . lookupEnv

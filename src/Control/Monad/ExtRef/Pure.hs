@@ -25,8 +25,8 @@ import Control.Monad.ExtRef
 
 newtype Lens_ a b = Lens_ {unLens_ :: ALens' a b}
 
-runLens_ :: Reader a (Lens_ a b) -> Lens' a b
-runLens_ r f a = cloneLens (unLens_ $ runReader r a) f a
+runLens_ :: Lens_ a b -> Lens' a b
+runLens_ r = cloneLens $ unLens_ r
 
 type LSt = Seq CC
 
@@ -38,9 +38,15 @@ initLSt = empty
 instance Reference (Lens_ LSt) where
     type RefState (Lens_ LSt) = State LSt
 
-    readRef = view . runLens_
-    writeRef r a = runLens_ r .= a
-    lensMap l r = return $ Lens_ $ runLens_ r . l
+    readRef m = do
+        r <- m
+        gets $ runReader $ view $ runLens_ r
+    writeRef m a = do
+        r <- m
+        runLens_ r .= a
+    lensMap l m = do
+        r <- m
+        return $ Lens_ $ runLens_ r . l
     unitRef = return $ Lens_ united
 
 instance ExtRef (State LSt) where
@@ -48,7 +54,11 @@ instance ExtRef (State LSt) where
 
     liftWriteRef = id
 
-    extRef r r2 a0 = state extend
+    extRef mr r2 a0 = do
+     r <- mr
+     er r where
+
+     er r =state extend
       where
         rk = set (runLens_ r) . (^. r2)
         kr = set r2 . (^. runLens_ r)
@@ -67,3 +77,17 @@ instance ExtRef (State LSt) where
 
         unsafeData :: CC -> a
         unsafeData (CC _ a) = unsafeCoerce a
+
+--    type PureExt (State LSt) = State LSt
+
+    lazyExtRef m f = do
+        s <- newRef []
+        return $ do
+            v <- readRef s
+            x <- m
+            case lookup x v of
+                Just y -> return y
+                Nothing -> do
+                    y <- f x
+                    writeRef s $ (x,y): v
+                    return y
