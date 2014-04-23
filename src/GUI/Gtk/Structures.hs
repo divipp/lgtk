@@ -5,14 +5,14 @@
 module GUI.Gtk.Structures
     ( module GUI.Gtk.Structures
     , module Graphics.UI.Gtk
-    , Color (..)
+    , Color (..), Modifier (..)
     ) where
 
 import Data.Semigroup
 import Graphics.UI.Gtk.Gdk.GC (Color (Color))
 import Diagrams.Prelude (QDiagram, R2, Monoid)
 import Diagrams.Backend.Cairo (Cairo)
-import Graphics.UI.Gtk (ScrollDirection (..), KeyVal, Modifier, keyName, keyToChar)
+import Graphics.UI.Gtk (ScrollDirection (..), KeyVal, Modifier (Shift, Control), keyName, keyToChar)
 
 import Control.Monad.ExtRef
 import Control.Monad.EffRef
