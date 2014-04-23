@@ -94,7 +94,7 @@ instance ExtRef x => ExtRef (SyntEffRef n m x) where
     newRef a = singleton $ SyntLiftExtRef $ newRef a
 
 --    type PureExt (SyntEffRef n m x) = PureExt x
-    lazyExtRef r f = singleton $ SyntLiftExtRef $ lazyExtRef r $ evalRegister' . f
+    lazyExtRef r f = singleton $ SyntLiftExtRef $ lazyExtRef r $ liftM evalRegister' . evalRegister' . f
 
 evalRegister'
     :: forall n m x a

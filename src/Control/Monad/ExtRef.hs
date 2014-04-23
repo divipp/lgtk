@@ -139,7 +139,7 @@ class (Monad m, Reference (RefCore m)) => ExtRef m where
     newRef :: a -> m (Ref m a)
     newRef = extRef unitRef $ lens (const ()) (flip $ const id)
 
-    lazyExtRef :: (Eq a) => ReadRef m a -> (a -> PureExt m b) -> m (ReadRef m b)
+    lazyExtRef :: (Eq a) => ReadRef m a -> (a -> PureExt m (PureExt m b)) -> m (ReadRef m b)
 
 type PureExt (m :: * -> *) = m
 
@@ -209,7 +209,7 @@ instance (ExtRef m, Monoid w) => ExtRef (WriterT w m) where
 
 --    type PureExt (WriterT w m) = PureExt m
 
-    lazyExtRef r f = lift $ lazyExtRef r $ \x -> liftM fst $ runWriterT $ f x
+    lazyExtRef r f = lift $ lazyExtRef r $ \x -> liftM (liftM fst . runWriterT . fst) $ runWriterT $ f x
 
 
 -- | Undo-redo state transformation.

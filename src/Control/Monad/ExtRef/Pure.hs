@@ -81,13 +81,20 @@ instance ExtRef (State LSt) where
 --    type PureExt (State LSt) = State LSt
 
     lazyExtRef m f = do
-        s <- newRef []
+        s <- newRef (Nothing, [])
         return $ do
-            v <- readRef s
             x <- m
-            case lookup x v of
-                Just y -> return y
-                Nothing -> do
-                    y <- f x
-                    writeRef s $ (x,y): v
+            (la, ms) <- readRef s
+            case (la, lookup x ms) of
+                (Just (x', y), _) | x' == x -> return y
+                (_, Just m) -> do
+                    y <- m
+                    writeRef s (Just (x, y), ms)
                     return y
+                _ -> do
+                    m <- f x
+                    y <- m
+                    writeRef s (Just (x, y), (x, m): ms)
+                    return y
+
+
