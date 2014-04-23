@@ -52,7 +52,7 @@ data MouseEvent a
     | DragTo (MousePos a)
     | Release (MousePos a)
     | ScrollTo ScrollDirection (MousePos a)
-    | KeyPress [Modifier] KeyVal
+    | KeyPress [Modifier] KeyVal String (Maybe Char)
         deriving (Eq)
 
 data MousePos a

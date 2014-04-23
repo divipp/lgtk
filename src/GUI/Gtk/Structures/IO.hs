@@ -128,7 +128,8 @@ runWidget_ nio post' post liftO liftOBack liftIO_ liftION = toWidget
 
           (canvasDraw, canvas, af, dims) <- liftIO' $ do
             canvas <- drawingAreaNew
-            widgetAddEvents canvas [PointerMotionMask]
+            widgetAddEvents canvas [PointerMotionMask, KeyPressMask]
+            widgetSetCanFocus canvas True
             af <- aspectFrameNew 0.5 0.5 (Just $ fromIntegral w / fromIntegral h)
             _ <- canvas `onSizeRequest` return (Requisition w h)
             _ <- containerAdd af canvas
@@ -186,7 +187,9 @@ runWidget_ nio post' post liftO liftOBack liftIO_ liftION = toWidget
 --                p <- eventCoordinates >>= liftIO . compCoords
                 m <- eventModifier
                 c <- eventKeyVal
-                liftIO $ re $ KeyPress m c
+                kn <- lift $ keyvalName c
+                kc <- lift $ keyvalToChar c
+                liftIO $ re $ KeyPress m c kn kc
           _ <- liftIO_ $ on canvas exposeEvent $ tryEvent $ liftIO $ do
                 d <- readMVar cur'
                 case d of
