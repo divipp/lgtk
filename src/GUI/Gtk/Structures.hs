@@ -70,6 +70,7 @@ data MouseEvent a
     | Release (MousePos a)
     | ScrollTo ScrollDirection (MousePos a)
     | KeyPress [Modifier] KeyVal String (Maybe Char)
+    | LostFocus
         deriving (Eq)
 
 data MousePos a
