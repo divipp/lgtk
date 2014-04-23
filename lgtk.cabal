@@ -41,6 +41,7 @@ library
 
                   , diagrams-lib
                   , diagrams-cairo
+                  , colour
                   , SVGFonts
                   , groups
 
