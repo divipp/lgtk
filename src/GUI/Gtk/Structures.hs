@@ -27,7 +27,7 @@ type Receive m a = a -> WriteRef m ()
 
 runSend :: (EffRef m) => Send m a -> (a -> EffectM m ()) -> m ()
 runSend SendNothing = const $ return ()
-runSend (Send r) = rEffect True r
+runSend (Send r) = rEffect r
 
 noREffect = SendNothing
 

@@ -30,6 +30,8 @@ instance Monad Maybe' where
     Just' x >>= f = f x
     _ >>= _ = Nothing'
 
+
+
 --------------------
 
 data Cache a b = Cache a b

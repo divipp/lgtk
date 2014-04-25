@@ -271,7 +271,7 @@ runWidget_ nio post' post liftO liftOBack liftIO_ liftION = toWidget
                 True -> fmap castToContainer $ hBoxNew False 1
                 False -> fmap castToContainer $ alignmentNew 0 0 1 1
             sh <- liftIO_ $ newMVar $ return ()
-            liftO $ onChange True onCh $ \bv -> do
+            liftO $ onChange onCh $ \bv -> do
                 mx <- f (liftOBack . toWidget) bv
                 return $ mx >>= \(x, y) -> liftOBack $ liftIO' $ do 
                     _ <- swapMVar sh x

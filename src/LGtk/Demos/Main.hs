@@ -78,7 +78,7 @@ main = runWidget $ notebook
     , (,) "Async" $ do
         ready <- newRef True
         delay <- newRef 1.0
-        onChange False (readRef ready) $ \b -> return $ case b of
+        onChange (readRef ready) $ \b -> return $ case b of
             True -> return ()
             False -> do
                 d <- readRef' delay
@@ -93,7 +93,7 @@ main = runWidget $ notebook
 
     , (,) "Timer" $ do
         t <- newRef 0
-        onChange True (readRef t) $ \ti -> return $ asyncWrite (10^6) (writeRef t) (1 + ti) 
+        onChange (readRef t) $ \ti -> return $ asyncWrite (10^6) (writeRef t) (1 + ti) 
         vcat
             [ label $ liftM show $ readRef t
             ]
@@ -107,7 +107,7 @@ main = runWidget $ notebook
         , (,) "Env" $ do
             v <- newRef "HOME"
             lv <- newRef ""
-            onChange True (readRef v) $ \s -> return $
+            onChange (readRef v) $ \s -> return $
                 asyncWrite 0 (writeRef lv) =<< liftM (maybe "Not in env." show) (lookupEnv s)
             vcat
                 [ entry v
@@ -116,15 +116,15 @@ main = runWidget $ notebook
 
         , (,) "Std I/O" $ let
             put = do
-                x <- newRef ""
-                onChange False (readRef x) $ return . putStrLn_
+                x <- newRef Nothing
+                onChange (readRef x) $ return . maybe (return ()) putStrLn_
                 hcat 
                     [ label $ return "putStrLn"
-                    , entry x
+                    , entry $ iso (maybe "" id) Just `lensMap` x
                     ]
             get = do
                 ready <- newRef $ Just ""
-                onChange False (liftM isJust $ readRef ready) $ \b -> 
+                onChange (liftM isJust $ readRef ready) $ \b -> 
                     return $ when (not b) $ getLine_ $ writeRef ready . Just
                 hcat 
                     [ button_ (return "getLine") (liftM isJust $ readRef ready) $ writeRef ready Nothing

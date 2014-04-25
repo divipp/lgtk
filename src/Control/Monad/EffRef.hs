@@ -64,27 +64,27 @@ class (ExtRef m) => EffRef m where
 
     @k a2 >>= \\b2 -> h b2 >> k a1 >>= \\b1 -> h b1 >> h b2@
     -}
-    onChange_ :: Eq a => Bool -> WriteRef m a -> (a -> m (m ())) -> m ()
+    onChange_ :: Eq a => WriteRef m a -> (a -> m (m ())) -> m ()
 
     toReceive_ :: (a -> WriteRef m ()) -> (Command -> EffectM m ()) -> m (a -> CallbackM m ())
 
-onChange :: (EffRef m, Eq a) => Bool -> ReadRef m a -> (a -> m (m ())) -> m ()
-onChange b r = onChange_ b (liftRefStateReader r)
+onChange :: (EffRef m, Eq a) => ReadRef m a -> (a -> m (m ())) -> m ()
+onChange r = onChange_ (liftRefStateReader r)
 
 toReceive :: EffRef m => (a -> WriteRef m ()) -> (Command -> EffectM m ()) -> m (a -> CallbackM m ())
 toReceive = toReceive_
 
 data Command = Kill | Block | Unblock deriving (Eq, Ord, Show)
 
-rEffect  :: (EffRef m, Eq a) => Bool -> ReadRef m a -> (a -> EffectM m ()) -> m ()
-rEffect init r f = onChange init r $ return . liftEffectM' . f
+rEffect  :: (EffRef m, Eq a) => ReadRef m a -> (a -> EffectM m ()) -> m ()
+rEffect r f = onChange r $ return . liftEffectM' . f
 
 
 type SyntEffRef n m x = Program (EffRefI n m x)
 data EffRefI n m x a where
     SyntLiftEffect :: m a -> EffRefI n m x a
     SyntLiftExtRef :: x a -> EffRefI n m x a
-    SyntOnChange :: Eq a => Bool -> x a -> (a -> SyntEffRef n m x (SyntEffRef n m x ())) -> EffRefI n m x ()
+    SyntOnChange :: Eq a => x a -> (a -> SyntEffRef n m x (SyntEffRef n m x ())) -> EffRefI n m x ()
     SyntReceive  :: (a -> x ()) -> (Command -> m ()) -> EffRefI n m x (a -> n ())
 
 instance ExtRef x => ExtRef (SyntEffRef n m x) where
@@ -117,7 +117,7 @@ instance ExtRef x => EffRef (SyntEffRef n m x) where
     type EffectM (SyntEffRef n m x) = m
     type CallbackM (SyntEffRef n m x) = n
     liftEffectM' = singleton . SyntLiftEffect
-    onChange_ b r f = singleton $ SyntOnChange b (liftWriteRef r) f
+    onChange_ r f = singleton $ SyntOnChange (liftWriteRef r) f
     toReceive_ f g = singleton $ SyntReceive (liftWriteRef . f) g
 
 
@@ -141,8 +141,8 @@ evalRegister run ff = evalR
     eval (SyntLiftExtRef m :>>= k) = lift (runMorphD run m) >>= evalR . k
     eval (SyntReceive f g :>>= k) = tell w >> evalR (k $ ff . runMorphD run . f)
       where w = (mempty, MonadMonoid . g)
-    eval (SyntOnChange b r f :>>= k)
-        = toSend b (runMorphD run r) (liftM evalR . evalR . f) >>= evalR . k
+    eval (SyntOnChange r f :>>= k)
+        = toSend True (runMorphD run r) (liftM evalR . evalR . f) >>= evalR . k
 
 toSend
     :: (Eq b, NewRef m)
@@ -250,7 +250,7 @@ instance (ExtRef x, MonadIO m) => EffIORef (SyntEffRef IO m x) where
         ms <- liftIO' r
         ref <- newRef ms
         v <- liftIO' newEmptyMVar
-        vman <- liftIO' newEmptyMVar
+        vman <- liftIO' $ newMVar $ return ()
         cf <- liftIO' $ canonicalizePath' f
         let
             cf' = decodeString cf
@@ -271,13 +271,11 @@ instance (ExtRef x, MonadIO m) => EffIORef (SyntEffRef IO m x) where
                 putMVar vman $ stopManager man
                 watchDir man (directory cf') filt act
 
-        liftIO' startm
-
         (u, ff) <- liftIO' forkIOs'
         re <- toReceive (writeRef ref) $ liftIO . u
         liftIO' $ ff $ repeat $ takeMVar v >> r >>= re
 
-        rEffect False (readRef ref) $ \x -> liftIO $ do
+        rEffect (readRef ref) $ \x -> liftIO $ do
             join $ takeMVar vman
             _ <- tryTakeMVar v
             w x
