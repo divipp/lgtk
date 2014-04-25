@@ -1,18 +1,13 @@
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
 module Control.Monad.EffRef where
 
 import Control.Concurrent
 import Control.Exception (evaluate)
+import Control.Applicative
 import Control.Monad
+import Control.Monad.Reader
 import Control.Monad.Writer
 import Control.Monad.State
 import System.Directory
@@ -20,7 +15,6 @@ import qualified System.FilePath as F
 import System.FSNotify
 import Filesystem.Path hiding (FilePath)
 import Filesystem.Path.CurrentOS hiding (FilePath)
-import Control.Monad.Operational
 
 import Control.Monad.Restricted
 import Control.Monad.ExtRef -- (ExtRef, extRef, newRef, Ref, WriteRef, ReadRef, liftWriteRef, liftReadRef, writeRef, readRef)
@@ -32,7 +26,7 @@ class (ExtRef m) => EffRef m where
 
     type EffectM m :: * -> *
 
-    liftEffectM' :: Morph (EffectM m) m
+    liftEffectM :: Morph (EffectM m) m
 
     {- |
     Let @r@ be an effectless action (@ReadRef@ guarantees this).
@@ -64,76 +58,47 @@ class (ExtRef m) => EffRef m where
 
     @k a2 >>= \\b2 -> h b2 >> k a1 >>= \\b1 -> h b1 >> h b2@
     -}
-    onChange_ :: Eq a => WriteRef m a -> (a -> m (m b)) -> m (ReadRef m b)
+    onChange :: Eq a => ReadRef m a -> (a -> m (m b)) -> m (ReadRef m b)
 
-    toReceive_ :: (a -> WriteRef m ()) -> (Command -> EffectM m ()) -> m (a -> CallbackM m ())
-
-onChange :: (EffRef m, Eq a) => ReadRef m a -> (a -> m (m b)) -> m (ReadRef m b)
-onChange r = onChange_ (liftRefStateReader r)
-
-toReceive :: EffRef m => (a -> WriteRef m ()) -> (Command -> EffectM m ()) -> m (a -> CallbackM m ())
-toReceive = toReceive_
+    toReceive :: Functor f => f (WriteRef m ()) -> (Command -> EffectM m ()) -> m (f (CallbackM m ()))
 
 data Command = Kill | Block | Unblock deriving (Eq, Ord, Show)
 
 rEffect  :: (EffRef m, Eq a) => ReadRef m a -> (a -> EffectM m b) -> m (ReadRef m b)
-rEffect r f = onChange r $ return . liftEffectM' . f
-
-
-type SyntEffRef n m x = Program (EffRefI n m x)
-data EffRefI n m x a where
-    SyntLiftEffect :: m a -> EffRefI n m x a
-    SyntLiftExtRef :: x a -> EffRefI n m x a
-    SyntOnChange :: Eq a => x a -> (a -> SyntEffRef n m x (SyntEffRef n m x b)) -> EffRefI n m x (ReadRef x b)
-    SyntReceive  :: (a -> x ()) -> (Command -> m ()) -> EffRefI n m x (a -> n ())
-
-instance ExtRef x => ExtRef (SyntEffRef n m x) where
-    type RefCore (SyntEffRef n m x) = RefCore x
-    liftWriteRef w = singleton $ SyntLiftExtRef $ liftWriteRef w
-    extRef r l a = singleton $ SyntLiftExtRef $ extRef r l a
-    newRef a = singleton $ SyntLiftExtRef $ newRef a
-
-
-liftEffectM = singleton . SyntLiftEffect
-
-instance ExtRef x => EffRef (SyntEffRef n m x) where
-    type EffectM (SyntEffRef n m x) = m
-    type CallbackM (SyntEffRef n m x) = n
-    liftEffectM' = singleton . SyntLiftEffect
-    onChange_ r f = singleton $ SyntOnChange (liftWriteRef r) f
-    toReceive_ f g = singleton $ SyntReceive (liftWriteRef . f) g
-
+rEffect r f = onChange r $ return . liftEffectM . f
 
 type Register m = WriterT (MonadMonoid m, Command -> MonadMonoid m) m
 
-evalRegister
-    :: forall n m x a
-    .  (Monad n, NewRef m, ExtRef x)
-    => MorphD x m
-    -> (m () -> n ())
-    -> SyntEffRef n m x a
-    -> Register m a
-evalRegister run ff = evalR
-  where
-    evalR :: SyntEffRef n m x b -> Register m b
-    evalR = eval . view
+newtype Reg n m a = Reg (ReaderT (m () -> n ()) (Register m) a) deriving (Monad, Applicative, Functor)
 
-    eval :: ProgramView (EffRefI n m x) b -> Register m b
-    eval (Return x) = return x
-    eval (SyntLiftEffect m :>>= k) = lift m >>= evalR . k
-    eval (SyntLiftExtRef m :>>= k) = lift (runMorphD run m) >>= evalR . k
-    eval (SyntReceive f g :>>= k) = tell w >> evalR (k $ ff . runMorphD run . f)
+instance (ExtRef m) => ExtRef (Reg n m) where
+    type RefCore (Reg n m) = RefCore m
+    liftWriteRef w = Reg $ lift $ lift $ liftWriteRef w
+    extRef rr l a = Reg $ lift $ lift $ extRef rr l a
+    newRef a = Reg $ lift $ lift $ newRef a
+
+instance (ExtRef m, Monad n, NewRef m) => EffRef (Reg n m) where
+    type EffectM (Reg n m) = m
+    type CallbackM (Reg n m) = n
+    liftEffectM m = Reg $ lift $ lift $ m
+    onChange r f = Reg $ ReaderT $ \ff ->
+      toSend (liftReadRef r) (evalRegister ff . liftM (evalRegister ff) . f)
+    toReceive f g = Reg $ ReaderT $ \ff -> tell w >> return (fmap (ff . liftWriteRef) f)
       where w = (mempty, MonadMonoid . g)
-    eval (SyntOnChange r f :>>= k)
-        = toSend run (runMorphD run r) (liftM evalR . evalR . f) >>= evalR . k
+
+evalRegister
+    :: (Monad n, NewRef m, ExtRef m)
+    => (m () -> n ())
+    -> Reg n m a
+    -> Register m a
+evalRegister ff (Reg m) = runReaderT m ff
 
 toSend
-    :: (Eq b, NewRef m, ExtRef x)
-    => MorphD x m
-    -> m b
+    :: (Eq b, NewRef m, ExtRef m)
+    => m b
     -> (b -> Register m (Register m c))
-    -> Register m (ReadRef x c)
-toSend run rb fb = do
+    -> Register m (ReadRef m c)
+toSend rb fb = do
         b <- lift rb
         (c, (s1, ureg1)) <- lift $ runWriterT (fb b)
         (val, (s2, ureg2)) <- lift $ runWriterT c
@@ -142,7 +107,7 @@ toSend run rb fb = do
         memoref <- lift $ newRef' v
                             -- memo table, first item is the newest
 
-        r <- lift $ runMorphD run $ newRef val
+        r <- lift $ newRef val
         tell $ t1 $ do
             b <- rb
             join $ runMorphD memoref $ StateT $ \memo -> case memo of
@@ -159,7 +124,7 @@ toSend run rb fb = do
                             return (c, (s1, ureg1))
                         _ -> runWriterT (fb b)
                     (val, (s2, ureg2)) <- runWriterT c
-                    runMorphD run $ liftWriteRef $ writeRef r val
+                    liftWriteRef $ writeRef r val
                     let memo' = (:) (b, (c, s1, s2, ureg1, ureg2)) $ filter ((/= b) . fst) memo
                     return (runMonadMonoid $ s1 `mappend` s2, memo')
         return $ readRef r
@@ -179,7 +144,7 @@ class (EffRef m, SafeIO m) => EffIORef m where
     the current computation.
     Although @(asyncWrite 0)@ is safe, code using it has a bad small.
     -}
-    asyncWrite_ :: Eq a => Int -> (a -> WriteRef m ()) -> a -> m ()
+    asyncWrite_ :: Int -> WriteRef m () -> m ()
 
     {- |
     @(fileRef path)@ returns a reference which holds the actual contents
@@ -212,22 +177,19 @@ putStrLn_ :: EffIORef m => String -> m ()
 putStrLn_ = putStr_ . (++ "\n")
 
 asyncWrite :: EffIORef m => Int -> (a -> WriteRef m ()) -> a -> m ()
-asyncWrite t f a = asyncWrite' t $ f a
+asyncWrite t f a = asyncWrite_ t $ f a
 
-asyncWrite' :: EffIORef m => Int -> WriteRef m () -> m ()
-asyncWrite' t r = asyncWrite_ t (const r) ()
-
-instance MonadIO m => SafeIO (SyntEffRef n m x) where
+instance (MonadIO m, NewRef m, ExtRef m, Monad n) => SafeIO (Reg n m) where
     getArgs = liftIO' getArgs
     getProgName = liftIO' getProgName
     lookupEnv = liftIO' . lookupEnv
 
-instance (ExtRef x, MonadIO m) => EffIORef (SyntEffRef IO m x) where
+instance (ExtRef m, MonadIO m, NewRef m) => EffIORef (Reg IO m) where
 
-    asyncWrite_ t r a = do
+    asyncWrite_ t r = do
         (u, f) <- liftIO' forkIOs'
-        x <- toReceive r $ liftIO . u
-        liftIO' $ f [ threadDelay t, x a ]
+        x <- toReceive (const r) $ liftIO . u
+        liftIO' $ f [ threadDelay t, x () ]
 
     fileRef f = do
         ms <- liftIO' r
@@ -258,7 +220,7 @@ instance (ExtRef x, MonadIO m) => EffIORef (SyntEffRef IO m x) where
         re <- toReceive (writeRef ref) $ liftIO . u
         liftIO' $ ff $ repeat $ takeMVar v >> r >>= re
 
-        rEffect (readRef ref) $ \x -> liftIO $ do
+        _ <- rEffect (readRef ref) $ \x -> liftIO $ do
             join $ takeMVar vman
             _ <- tryTakeMVar v
             w x
@@ -286,10 +248,8 @@ instance (ExtRef x, MonadIO m) => EffIORef (SyntEffRef IO m x) where
 canonicalizePath' p = liftM (F.</> f) $ canonicalizePath d 
   where (d,f) = F.splitFileName p
 
---liftIO__ :: Monad m => m a -> SyntEffIORef m (State LSt) a
-liftIO__ m = singleton $ SyntLiftEffect $ lift m
+liftIO__ m = liftEffectM $ lift m
 
---liftIO' :: EffIORef m => IO a -> m a
 liftIO' m = liftEffectM $ liftIO m
 
 

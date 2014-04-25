@@ -47,7 +47,7 @@ runWidget desc = gtkContext $ \postGUISync -> mdo
         runPostActions = join $ runMorphD postActionsRef $ state $ \m -> (m, return ())
     actionChannel <- newChan
     ((widget, (act, _)), s) <- flip runStateT initLSt $ runWriterT $
-        evalRegister (MorphD $ state . runState) (writeChan actionChannel) $
+        evalRegister (writeChan actionChannel) $
             runWidget_ id addPostAction postGUISync id id liftIO__ liftIO desc
     runPostActions
     _ <- forkIO $ void $ flip execStateT s $  forever $ do

@@ -43,10 +43,10 @@ instance Reference (Lens_ LSt) where
     lensMap l r = return $ Lens_ $ runLens_ r . l
     unitRef = return $ Lens_ united
 
-instance ExtRef (State LSt) where
-    type RefCore (State LSt) = Lens_ LSt
+instance Monad m => ExtRef (StateT LSt m) where
+    type RefCore (StateT LSt m) = Lens_ LSt
 
-    liftWriteRef = id
+    liftWriteRef = state . runState
 
     extRef r r2 a0 = state extend
       where
