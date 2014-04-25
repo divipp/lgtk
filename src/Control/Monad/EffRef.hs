@@ -155,7 +155,7 @@ toSend run rb fb = do
         (c, (s1, ureg1)) <- lift $ runWriterT (fb b)
         (val, (s2, ureg2)) <- lift $ runWriterT c
         lift $ runMonadMonoid $ s1 `mappend` s2
-        let v = Right [(b, (c, s1, s2, ureg1, ureg2))]
+        let v = [(b, (c, s1, s2, ureg1, ureg2))]
         memoref <- lift $ newRef' v
                             -- memo table, first item is the newest
 
@@ -163,22 +163,21 @@ toSend run rb fb = do
         tell $ t1 $ do
             b <- rb
             join $ runMorphD memoref $ StateT $ \memo -> case memo of
-                Left b' | b' == b -> return (return (), memo)
-                Right ((b', (_, s1, s2, _, _)): _) | b' == b ->
+                ((b', (_, s1, s2, _, _)): _) | b' == b ->
                     return (runMonadMonoid $ s1 `mappend` s2, memo)
                 _ -> do
                     case memo of
-                        Right ((_, (_, _, _, ureg1, ureg2)): _) ->
+                        ((_, (_, _, _, ureg1, ureg2)): _) ->
                             runMonadMonoid $ ureg1 Block `mappend` ureg2 Kill
                         _ -> return ()
-                    (c, (s1, ureg1)) <- case filter ((== b) . fst) $ either (const []) id memo of
+                    (c, (s1, ureg1)) <- case filter ((== b) . fst) memo of
                         ((_, (c, s1, _, ureg1, _)): _) -> do
                             runMonadMonoid $ ureg1 Unblock
                             return (c, (s1, ureg1))
                         _ -> runWriterT (fb b)
                     (val, (s2, ureg2)) <- runWriterT c
                     runMorphD run $ liftWriteRef $ writeRef r val
-                    let memo' = Right $ (:) (b, (c, s1, s2, ureg1, ureg2)) $ filter ((/= b) . fst) $ either (const []) id memo
+                    let memo' = (:) (b, (c, s1, s2, ureg1, ureg2)) $ filter ((/= b) . fst) memo
                     return (runMonadMonoid $ s1 `mappend` s2, memo')
         return $ readRef r
   where
