@@ -144,7 +144,7 @@ class (EffRef m, SafeIO m) => EffIORef m where
     the current computation.
     Although @(asyncWrite 0)@ is safe, code using it has a bad small.
     -}
-    asyncWrite_ :: Int -> WriteRef m () -> m ()
+    asyncWrite :: Int -> WriteRef m () -> m ()
 
     {- |
     @(fileRef path)@ returns a reference which holds the actual contents
@@ -176,9 +176,6 @@ class (EffRef m, SafeIO m) => EffIORef m where
 putStrLn_ :: EffIORef m => String -> m ()
 putStrLn_ = putStr_ . (++ "\n")
 
-asyncWrite :: EffIORef m => Int -> (a -> WriteRef m ()) -> a -> m ()
-asyncWrite t f a = asyncWrite_ t $ f a
-
 instance (MonadIO m, NewRef m, ExtRef m, Monad n) => SafeIO (Reg n m) where
     getArgs = liftIO' getArgs
     getProgName = liftIO' getProgName
@@ -186,7 +183,7 @@ instance (MonadIO m, NewRef m, ExtRef m, Monad n) => SafeIO (Reg n m) where
 
 instance (ExtRef m, MonadIO m, NewRef m) => EffIORef (Reg IO m) where
 
-    asyncWrite_ t r = do
+    asyncWrite t r = do
         (u, f) <- liftIO' forkIOs'
         x <- toReceive (const r) $ liftIO . u
         liftIO' $ f [ threadDelay t, x () ]

@@ -1,5 +1,6 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 module LGtk.Demos.Main
     ( main
     ) where
@@ -9,6 +10,7 @@ import Control.Lens
 import Control.Monad
 
 import LGtk
+import LGtk.Canvas
 
 import LGtk.Demos.Tri
 import LGtk.Demos.IntListEditor
@@ -82,7 +84,7 @@ main = runWidget $ notebook
             True -> return ()
             False -> do
                 d <- readRef' delay
-                asyncWrite (ceiling $ 10^6 * d) (writeRef ready) True
+                asyncWrite (ceiling $ 10^6 * d) $ writeRef ready True
         vcat
             [ hcat [ entryShow delay, label $ return "sec" ]
             , button_ (readRef delay >>= \d -> return $ "Start " ++ show d ++ " sec computation")
@@ -93,7 +95,7 @@ main = runWidget $ notebook
 
     , (,) "Timer" $ do
         t <- newRef 0
-        onChange (readRef t) $ \ti -> return $ asyncWrite (10^6) (writeRef t) (1 + ti) 
+        onChange (readRef t) $ \ti -> return $ asyncWrite (10^6) $ writeRef t $ 1 + ti
         vcat
             [ label $ liftM show $ readRef t
             ]
@@ -108,7 +110,7 @@ main = runWidget $ notebook
             v <- newRef "HOME"
             lv <- newRef ""
             onChange (readRef v) $ \s -> return $
-                asyncWrite 0 (writeRef lv) =<< liftM (maybe "Not in env." show) (lookupEnv s)
+                asyncWrite 0 . writeRef lv =<< liftM (maybe "Not in env." show) (lookupEnv s)
             vcat
                 [ entry v
                 , label $ readRef lv
