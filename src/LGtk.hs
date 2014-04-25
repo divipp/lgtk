@@ -27,7 +27,6 @@ module LGtk
     , Ref, RefCore
     , extRef
     , newRef
-    , lazyExtRef
     , ReadRef
     , WriteRef
     , liftReadRef
