@@ -143,7 +143,7 @@ inCanvas width height scale w = do
                     # value_ (return ()) (Just' df) i
 
 
-tr :: ExtRef m => Double -> Widget m -> StateT Pos m (WW' m)
+tr :: EffRef m => Double -> Widget m -> StateT Pos m (WW' m)
 tr sca w = do
     w' <- lift w
     case w' of
@@ -216,7 +216,7 @@ tr sca w = do
 
         Cell (Send r) f -> do
             i <- newId
-            r' <- lift $ lazyExtRef r $ \x -> do   
+            r' <- lift $ onChange r $ \x -> do   
                      h <- f (flip evalStateT (0:i) . tr sca) x
                      return $ do
                        hv <- h
