@@ -64,11 +64,11 @@ class (ExtRef m) => EffRef m where
 
     @k a2 >>= \\b2 -> h b2 >> k a1 >>= \\b1 -> h b1 >> h b2@
     -}
-    onChange_ :: Eq a => WriteRef m a -> (a -> m (m ())) -> m ()
+    onChange_ :: Eq a => WriteRef m a -> (a -> m (m b)) -> m (ReadRef m b)
 
     toReceive_ :: (a -> WriteRef m ()) -> (Command -> EffectM m ()) -> m (a -> CallbackM m ())
 
-onChange :: (EffRef m, Eq a) => ReadRef m a -> (a -> m (m ())) -> m ()
+onChange :: (EffRef m, Eq a) => ReadRef m a -> (a -> m (m b)) -> m (ReadRef m b)
 onChange r = onChange_ (liftRefStateReader r)
 
 toReceive :: EffRef m => (a -> WriteRef m ()) -> (Command -> EffectM m ()) -> m (a -> CallbackM m ())
@@ -76,7 +76,7 @@ toReceive = toReceive_
 
 data Command = Kill | Block | Unblock deriving (Eq, Ord, Show)
 
-rEffect  :: (EffRef m, Eq a) => ReadRef m a -> (a -> EffectM m ()) -> m ()
+rEffect  :: (EffRef m, Eq a) => ReadRef m a -> (a -> EffectM m b) -> m (ReadRef m b)
 rEffect r f = onChange r $ return . liftEffectM' . f
 
 
@@ -84,7 +84,7 @@ type SyntEffRef n m x = Program (EffRefI n m x)
 data EffRefI n m x a where
     SyntLiftEffect :: m a -> EffRefI n m x a
     SyntLiftExtRef :: x a -> EffRefI n m x a
-    SyntOnChange :: Eq a => x a -> (a -> SyntEffRef n m x (SyntEffRef n m x ())) -> EffRefI n m x ()
+    SyntOnChange :: Eq a => x a -> (a -> SyntEffRef n m x (SyntEffRef n m x b)) -> EffRefI n m x (ReadRef x b)
     SyntReceive  :: (a -> x ()) -> (Command -> m ()) -> EffRefI n m x (a -> n ())
 
 instance ExtRef x => ExtRef (SyntEffRef n m x) where
@@ -125,7 +125,7 @@ type Register m = WriterT (MonadMonoid m, Command -> MonadMonoid m) m
 
 evalRegister
     :: forall n m x a
-    .  (Monad n, NewRef m, Monad x)
+    .  (Monad n, NewRef m, ExtRef x)
     => MorphD x m
     -> (m () -> n ())
     -> SyntEffRef n m x a
@@ -142,25 +142,24 @@ evalRegister run ff = evalR
     eval (SyntReceive f g :>>= k) = tell w >> evalR (k $ ff . runMorphD run . f)
       where w = (mempty, MonadMonoid . g)
     eval (SyntOnChange r f :>>= k)
-        = toSend True (runMorphD run r) (liftM evalR . evalR . f) >>= evalR . k
+        = toSend run (runMorphD run r) (liftM evalR . evalR . f) >>= evalR . k
 
 toSend
-    :: (Eq b, NewRef m)
-    => Bool
+    :: (Eq b, NewRef m, ExtRef x)
+    => MorphD x m
     -> m b
-    -> (b -> Register m (Register m ()))
-    -> Register m ()
-toSend init rb fb = do
+    -> (b -> Register m (Register m c))
+    -> Register m (ReadRef x c)
+toSend run rb fb = do
         b <- lift rb
-        v <- case init of
-            False -> return $ Left b
-            True -> lift $ do
-                (c, (s1, ureg1)) <- runWriterT (fb b)
-                (s2, ureg2) <- execWriterT c
-                runMonadMonoid $ s1 `mappend` s2
-                return $ Right [(b, (c, s1, s2, ureg1, ureg2))]
+        (c, (s1, ureg1)) <- lift $ runWriterT (fb b)
+        (val, (s2, ureg2)) <- lift $ runWriterT c
+        lift $ runMonadMonoid $ s1 `mappend` s2
+        let v = Right [(b, (c, s1, s2, ureg1, ureg2))]
         memoref <- lift $ newRef' v
                             -- memo table, first item is the newest
+
+        r <- lift $ runMorphD run $ newRef val
         tell $ t1 $ do
             b <- rb
             join $ runMorphD memoref $ StateT $ \memo -> case memo of
@@ -177,9 +176,11 @@ toSend init rb fb = do
                             runMonadMonoid $ ureg1 Unblock
                             return (c, (s1, ureg1))
                         _ -> runWriterT (fb b)
-                    (s2, ureg2) <- execWriterT c
+                    (val, (s2, ureg2)) <- runWriterT c
+                    runMorphD run $ liftWriteRef $ writeRef r val
                     let memo' = Right $ (:) (b, (c, s1, s2, ureg1, ureg2)) $ filter ((/= b) . fst) $ either (const []) id memo
                     return (runMonadMonoid $ s1 `mappend` s2, memo')
+        return $ readRef r
   where
     t1 m = (MonadMonoid m, mempty)
 
