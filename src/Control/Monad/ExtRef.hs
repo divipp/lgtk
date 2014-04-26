@@ -1,11 +1,11 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE EmptyDataDecls #-}
-{-# LANGUAGE GADTs #-}
+--{-# LANGUAGE ExistentialQuantification #-}
+--{-# LANGUAGE EmptyDataDecls #-}
+--{-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+--{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 module Control.Monad.ExtRef where
 
@@ -294,3 +294,86 @@ correction :: Reference r => CorrRef r a -> RefReader r (a -> Maybe a)
 correction r = do
     CorrRefCore _ f <- r
     return f
+
+
+
+--------------------------------------------------------------------------------
+
+
+-- | Monad for dynamic actions
+class (ExtRef m, ExtRef (Modifier m), RefCore (Modifier m) ~ RefCore m) => EffRef m where
+
+    type CallbackM m :: * -> *
+
+    type EffectM m :: * -> *
+
+    data Modifier m a :: *
+
+    liftEffectM :: EffectM m a -> m a
+
+    liftModifier :: m a -> Modifier m a
+
+    {- |
+    Let @r@ be an effectless action (@ReadRef@ guarantees this).
+
+    @(onChange init r fmm)@ has the following effect:
+
+    Whenever the value of @r@ changes (with respect to the given equality),
+    @fmm@ is called with the new value @a@.
+    The value of the @(fmm a)@ action is memoized,
+    but the memoized value is run again and again.
+
+    The boolean parameter @init@ tells whether the action should
+    be run in the beginning or not.
+
+    For example, let @(k :: a -> m b)@ and @(h :: b -> m ())@,
+    and suppose that @r@ will have values @a1@, @a2@, @a3@ = @a1@, @a4@ = @a2@.
+
+    @onChange True r $ \\a -> k a >>= return . h@
+
+    has the effect
+
+    @k a1 >>= \\b1 -> h b1 >> k a2 >>= \\b2 -> h b2 >> h b1 >> h b2@
+
+    and
+
+    @onChange False r $ \\a -> k a >>= return . h@
+
+    has the effect
+
+    @k a2 >>= \\b2 -> h b2 >> k a1 >>= \\b1 -> h b1 >> h b2@
+    -}
+    onChange_
+        :: Eq b
+        => ReadRef m b
+        -> b -> (b -> c)
+        -> (b -> b -> c -> m (c -> m c))
+        -> m (ReadRef m c)
+
+    toReceive :: Functor f => f (Modifier m ()) -> (Command -> EffectM m ()) -> m (f (CallbackM m ()))
+
+data Command = Kill | Block | Unblock deriving (Eq, Ord, Show)
+
+--------------
+
+rEffect  :: (EffRef m, Eq a) => ReadRef m a -> (a -> EffectM m b) -> m (ReadRef m b)
+rEffect r f = onChange r $ return . liftEffectM . f
+
+onChange :: (EffRef m, Eq a) => ReadRef m a -> (a -> m (m b)) -> m (ReadRef m b)
+onChange r f = onChange_ r undefined undefined $ \b _ _ -> liftM (\x _ -> x) $ f b
+
+writeRef' :: (EffRef m, Reference r, RefReader r ~ RefReader (RefCore m)) => MRef r a -> a -> Modifier m ()
+writeRef' r a = liftModifier $ liftWriteRef $ writeRef r a
+
+-- | @modRef r f@ === @liftRefStateReader (readRef r) >>= writeRef r . f@
+--modRef :: Reference r => MRef r a -> (a -> a) -> RefStateReader (RefReader r) ()
+r `modRef'` f = liftRefStateReader' (readRef r) >>= writeRef' r . f
+
+liftRefStateReader' :: EffRef m => ReadRef m a -> Modifier m a
+liftRefStateReader' r = liftModifier $ liftWriteRef $ liftRefStateReader r
+
+action' m = liftModifier $ liftEffectM m
+
+
+
+

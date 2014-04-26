@@ -30,7 +30,7 @@ data Send m a
     = Eq a => Send (ReadRef m a)
     | SendNothing
 
-type Receive m a = a -> Control.Monad.EffRef.Modifier m ()
+type Receive m a = a -> Control.Monad.ExtRef.Modifier m ()
 
 runSend :: (EffRef m) => Send m a -> (a -> EffectM m ()) -> m ()
 runSend SendNothing _ = return ()
@@ -38,7 +38,7 @@ runSend (Send r) f = rEffect r f >> return ()
 
 noREffect = SendNothing
 
-runReceive :: (EffRef m, Functor f) => f (Control.Monad.EffRef.Modifier m ()) -> (Command -> EffectM m ()) -> m (f (CallbackM m ()))
+runReceive :: (EffRef m, Functor f) => f (Control.Monad.ExtRef.Modifier m ()) -> (Command -> EffectM m ()) -> m (f (CallbackM m ()))
 runReceive = toReceive
 
 type SendReceive m a = (Send m a, Receive m a)

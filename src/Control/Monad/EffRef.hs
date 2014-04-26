@@ -1,15 +1,12 @@
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+--{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE RankNTypes #-}
+--{-# LANGUAGE FlexibleContexts #-}
+--{-# LANGUAGE RankNTypes #-}
 module Control.Monad.EffRef where
 
-import Data.Monoid
 import Control.Concurrent
 import Control.Exception (evaluate)
-import Control.Applicative
-import Control.Lens
 import Control.Monad
 import Control.Monad.Reader
 import System.Directory
@@ -21,193 +18,7 @@ import qualified System.Environment as Env
 import System.IO.Error (catchIOError, isDoesNotExistError)
 
 import Control.Monad.ExtRef
-
-writeRef' :: (EffRef m, Reference r, RefReader r ~ RefReader (RefCore m)) => MRef r a -> a -> Modifier m ()
-writeRef' r a = liftModifier $ liftWriteRef $ writeRef r a
-
--- | @modRef r f@ === @liftRefStateReader (readRef r) >>= writeRef r . f@
---modRef :: Reference r => MRef r a -> (a -> a) -> RefStateReader (RefReader r) ()
-r `modRef'` f = liftRefStateReader' (readRef r) >>= writeRef' r . f
-
-
-liftRefStateReader' :: EffRef m => ReadRef m a -> Modifier m a
-liftRefStateReader' r = liftModifier $ liftWriteRef $ liftRefStateReader r
-
-action' m = liftModifier $ liftEffectM m
-
--- | Monad for dynamic actions
-class (ExtRef m, ExtRef (Modifier m), RefCore (Modifier m) ~ RefCore m) => EffRef m where
-
-    type CallbackM m :: * -> *
-
-    type EffectM m :: * -> *
-
-    data Modifier m a :: *
-
-    liftEffectM :: EffectM m a -> m a
-
-    liftModifier :: m a -> Modifier m a
-
-    {- |
-    Let @r@ be an effectless action (@ReadRef@ guarantees this).
-
-    @(onChange init r fmm)@ has the following effect:
-
-    Whenever the value of @r@ changes (with respect to the given equality),
-    @fmm@ is called with the new value @a@.
-    The value of the @(fmm a)@ action is memoized,
-    but the memoized value is run again and again.
-
-    The boolean parameter @init@ tells whether the action should
-    be run in the beginning or not.
-
-    For example, let @(k :: a -> m b)@ and @(h :: b -> m ())@,
-    and suppose that @r@ will have values @a1@, @a2@, @a3@ = @a1@, @a4@ = @a2@.
-
-    @onChange True r $ \\a -> k a >>= return . h@
-
-    has the effect
-
-    @k a1 >>= \\b1 -> h b1 >> k a2 >>= \\b2 -> h b2 >> h b1 >> h b2@
-
-    and
-
-    @onChange False r $ \\a -> k a >>= return . h@
-
-    has the effect
-
-    @k a2 >>= \\b2 -> h b2 >> k a1 >>= \\b1 -> h b1 >> h b2@
-    -}
-    onChange_
-        :: Eq b
-        => ReadRef m b
-        -> b -> (b -> c)
-        -> (b -> b -> c -> m (c -> m c))
-        -> m (ReadRef m c)
-
-    toReceive :: Functor f => f (Modifier m ()) -> (Command -> EffectM m ()) -> m (f (CallbackM m ()))
-
-onChange :: (EffRef m, Eq a) => ReadRef m a -> (a -> m (m b)) -> m (ReadRef m b)
-onChange r f = onChange_ r undefined undefined $ \b _ _ -> liftM (\x _ -> x) $ f b
-
-data Command = Kill | Block | Unblock deriving (Eq, Ord, Show)
-
-rEffect  :: (EffRef m, Eq a) => ReadRef m a -> (a -> EffectM m b) -> m (ReadRef m b)
-rEffect r f = onChange r $ return . liftEffectM . f
-
-type Register m = ReaderT (Ref m (MonadMonoid m, Command -> MonadMonoid m)) m
-
-newtype Reg n m a = Reg (ReaderT (m () -> n ()) (Register m) a) deriving (Monad, Applicative, Functor)
-
-
-instance ExtRef m => ExtRef (Modifier (Reg n m)) where
-
-    type RefCore (Modifier (Reg n m)) = RefCore m
-
-    liftWriteRef w = RegW $ liftWriteRef w
-    extRef rr l a = RegW $ extRef rr l a
-    newRef a = RegW $ newRef a
-
-instance ExtRef m => ExtRef (Reg n m) where
-
-    type RefCore (Reg n m) = RefCore m
-
-    liftWriteRef w = Reg $ lift $ lift $ liftWriteRef w
-    extRef rr l a = Reg $ lift $ lift $ extRef rr l a
-    newRef a = Reg $ lift $ lift $ newRef a
-
-instance (ExtRef m, Monad n) => EffRef (Reg n m) where
-
-    type EffectM (Reg n m) = m
-
-    type CallbackM (Reg n m) = n
-
-    newtype Modifier (Reg n m) a = RegW {unRegW :: Reg n m a} deriving (Monad, Applicative, Functor)
-
-    liftEffectM m = Reg $ lift $ lift $ m
-
-    liftModifier m = RegW m
-
-    onChange_ r b0 c0 f = Reg $ ReaderT $ \ff ->
-        toSend r b0 c0 $ \b b' c' -> liftM (\x -> evalRegister ff . x) $ evalRegister ff $ f b b' c'
-
-    toReceive f g = Reg $ ReaderT $ \ff -> do
-        tell (mempty, MonadMonoid . g)
-        writerstate <- ask
-        return $ fmap (ff . flip runReaderT writerstate . evalRegister ff . unRegW) f
-
-evalRegister
-    :: (Monad n, ExtRef m)
-    => (m () -> n ())
-    -> Reg n m a
-    -> Register m a
-evalRegister ff (Reg m) = runReaderT m ff
-
-toSend
-    :: (Eq b, ExtRef m)
-    => ReadRef m b
-    -> b -> (b -> c)
-    -> (b -> b -> c -> {-Either (Register m c)-} (Register m (c -> Register m c)))
-    -> Register m (ReadRef m c)
-toSend rb b0 c0 fb = do
-    let doit st = readRef' st >>= runMonadMonoid . fst
-        reg st msg = readRef' st >>= runMonadMonoid . ($ msg) . snd
-
-    memoref <- lift $ do
-        b <- liftReadRef rb
-        (c, st1) <- runWriterT' $ fb b b0 $ c0 b0
-        (val, st2) <- runWriterT' $ c $ c0 b0
-        doit st1
-        doit st2
-        newRef ((b, (c, val, st1, st2)), [])      -- memo table
-
-    let act = MonadMonoid $ do
-            b <- liftReadRef rb
-            (last@(b', cc@(_, oldval, st1, st2)), memo) <- readRef' memoref
-            (_, _, st1, st2) <- if b' == b
-              then
-                return cc
-              else do
-                reg st1 Block
-                reg st2 Kill
-                (c, oldval', st1, _) <- case lookup b memo of
-                  Nothing -> do
-                    (c, st1) <- runWriterT' $ fb b b' oldval
-                    return (c, c0 b, st1, undefined)
-                  Just cc'@(_, _, st1, _) -> do
-                    reg st1 Unblock
-                    return cc'
-                (val, st2) <- runWriterT' $ c oldval'
-                let cc = (c, val, st1, st2)
-                liftWriteRef $ writeRef memoref ((b, cc), filter ((/= b) . fst) (last:memo))
-                return cc
-            doit st1
-            doit st2
-
-    tell (act, mempty)
-    return $ readRef $ (_1 . _2 . _2) `lensMap` memoref
-
-----------------
-
--- Ref-based WriterT
-type WriterT w m = ReaderT (Ref m w) m
-
-runWriterT' :: (ExtRef m, Monoid w) => WriterT w m a -> m (a, Ref m w)
-runWriterT' m = do
-    r <- newRef mempty
-    a <- runReaderT m r
-    return (a, r)
-
-runWriterT :: (ExtRef m, Monoid w) => WriterT w m a -> m (a, w)
-runWriterT m = do
-    (a, r) <- runWriterT' m
-    w <- readRef' r
-    return (a, w)
-
-tell :: (Monoid w, ExtRef m) => w -> WriterT w m ()
-tell w = ReaderT $ \m -> readRef' m >>= liftWriteRef . writeRef m . (`mappend` w)
-
-
+import Control.Monad.ExtRef.Pure
 
 
 --------------------------------------------------------------------------
@@ -266,7 +77,6 @@ putStrLn_ = putStr_ . (++ "\n")
 
 
 instance (ExtRef m, MonadIO m) => EffIORef (Reg IO m) where
-
 
     getArgs     = liftIO' Env.getArgs
 
@@ -362,11 +172,5 @@ forkIOs' = do
 
     i <- forkIO g
     return (f i, putMVar s)
-
-newtype MonadMonoid a = MonadMonoid { runMonadMonoid :: a () }
-
-instance Monad m => Monoid (MonadMonoid m) where
-    mempty = MonadMonoid $ return ()
-    MonadMonoid a `mappend` MonadMonoid b = MonadMonoid $ a >> b
 
 
