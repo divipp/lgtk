@@ -17,7 +17,6 @@ import Graphics.UI.Gtk (ScrollDirection (..), KeyVal, Modifier (Shift, Control),
 import qualified Graphics.UI.Gtk as Gtk
 
 import Control.Monad.ExtRef
-import Control.Monad.EffRef
 
 type KeyModifier = Gtk.Modifier
 

@@ -50,13 +50,13 @@ runWidget desc = gtkContext $ \postGUISync -> mdo
     let addPostAction  = runMorphD postActionsRef . modify . flip (>>)
         runPostActions = join $ runMorphD postActionsRef $ state $ \m -> (m, return ())
     actionChannel <- newChan
-    ((widget, (act, _)), s) <- flip runStateT initLSt $ runRefWriterT $
-        evalRegister (writeChan actionChannel) $
+    ((widget, tick), s) <- flip runStateT initLSt $
+        evalRegister' (writeChan actionChannel) $
             runWidget_ id addPostAction postGUISync id id liftIO__ liftIO desc
     runPostActions
     _ <- forkIO $ void $ flip execStateT s $  forever $ do
             join $ lift $ readChan actionChannel
-            runMonadMonoid act
+            tick
             lift $ runPostActions
     return widget
 

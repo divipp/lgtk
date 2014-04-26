@@ -8,7 +8,11 @@ Pure reference implementation for the @ExtRef@ interface.
 
 The implementation uses @unsafeCoerce@ internally, but its effect cannot escape.
 -}
-module Control.Monad.ExtRef.Pure where
+module Control.Monad.ExtRef.Pure
+    ( initLSt
+    , Reg
+    , evalRegister'
+    ) where
 
 import Data.Monoid
 import Control.Applicative hiding (empty)
@@ -79,21 +83,13 @@ type Register m = ReaderT (Ref m (MonadMonoid m, Command -> MonadMonoid m)) m
 newtype Reg n m a = Reg (ReaderT (m () -> n ()) (Register m) a) deriving (Monad, Applicative, Functor)
 
 
-instance ExtRef m => ExtRef (Modifier (Reg n m)) where
-
-    type RefCore (Modifier (Reg n m)) = RefCore m
-
-    liftWriteRef w = RegW $ liftWriteRef w
-    extRef rr l a = RegW $ extRef rr l a
-    newRef a = RegW $ newRef a
-
 instance ExtRef m => ExtRef (Reg n m) where
 
     type RefCore (Reg n m) = RefCore m
 
-    liftWriteRef w = Reg $ lift $ lift $ liftWriteRef w
-    extRef rr l a = Reg $ lift $ lift $ extRef rr l a
-    newRef a = Reg $ lift $ lift $ newRef a
+    liftWriteRef = Reg . lift . lift . liftWriteRef
+    extRef r l = Reg . lift . lift . extRef r l
+    newRef = Reg . lift . lift . newRef
 
 instance (ExtRef m, Monad n) => EffRef (Reg n m) where
 
@@ -115,12 +111,27 @@ instance (ExtRef m, Monad n) => EffRef (Reg n m) where
         writerstate <- ask
         return $ fmap (ff . flip runReaderT writerstate . evalRegister ff . unRegW) f
 
-evalRegister
+instance ExtRef m => ExtRef (Modifier (Reg n m)) where
+
+    type RefCore (Modifier (Reg n m)) = RefCore m
+
+    liftWriteRef = RegW . liftWriteRef
+    extRef r l = RegW . extRef r l
+    newRef = RegW . newRef
+
+
+evalRegister ff (Reg m) = runReaderT m ff
+
+evalRegister'
     :: (Monad n, ExtRef m)
     => (m () -> n ())
     -> Reg n m a
-    -> Register m a
-evalRegister ff (Reg m) = runReaderT m ff
+    -> m (a, m ())
+evalRegister' ff (Reg m) = do
+    (a, r) <- runRefWriterT $ runReaderT m ff
+    (w, _) <- readRef' r
+    return (a, runMonadMonoid w)
+
 
 toSend
     :: (Eq b, ExtRef m)
@@ -134,8 +145,8 @@ toSend rb b0 c0 fb = do
 
     memoref <- lift $ do
         b <- liftReadRef rb
-        (c, st1) <- runRefWriterT' $ fb b b0 $ c0 b0
-        (val, st2) <- runRefWriterT' $ c $ c0 b0
+        (c, st1) <- runRefWriterT $ fb b b0 $ c0 b0
+        (val, st2) <- runRefWriterT $ c $ c0 b0
         doit st1
         doit st2
         newRef ((b, (c, val, st1, st2)), [])      -- memo table
@@ -151,12 +162,12 @@ toSend rb b0 c0 fb = do
                 reg st2 Kill
                 (c, oldval', st1, _) <- case lookup b memo of
                   Nothing -> do
-                    (c, st1) <- runRefWriterT' $ fb b b' oldval
+                    (c, st1) <- runRefWriterT $ fb b b' oldval
                     return (c, c0 b, st1, undefined)
                   Just cc'@(_, _, st1, _) -> do
                     reg st1 Unblock
                     return cc'
-                (val, st2) <- runRefWriterT' $ c oldval'
+                (val, st2) <- runRefWriterT $ c oldval'
                 let cc = (c, val, st1, st2)
                 liftWriteRef $ writeRef memoref ((b, cc), filter ((/= b) . fst) (last:memo))
                 return cc
@@ -171,17 +182,11 @@ toSend rb b0 c0 fb = do
 -- Ref-based RefWriterT
 type RefWriterT w m = ReaderT (Ref m w) m
 
-runRefWriterT' :: (ExtRef m, Monoid w) => RefWriterT w m a -> m (a, Ref m w)
-runRefWriterT' m = do
+runRefWriterT :: (ExtRef m, Monoid w) => RefWriterT w m a -> m (a, Ref m w)
+runRefWriterT m = do
     r <- newRef mempty
     a <- runReaderT m r
     return (a, r)
-
-runRefWriterT :: (ExtRef m, Monoid w) => RefWriterT w m a -> m (a, w)
-runRefWriterT m = do
-    (a, r) <- runRefWriterT' m
-    w <- readRef' r
-    return (a, w)
 
 tell' :: (Monoid w, ExtRef m) => w -> RefWriterT w m ()
 tell' w = ReaderT $ \m -> readRef' m >>= liftWriteRef . writeRef m . (`mappend` w)
