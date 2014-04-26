@@ -8,6 +8,7 @@ module LGtk.Canvas
     , mainTest
     ) where
 
+import Control.Applicative hiding (empty)
 import Control.Monad
 import Control.Monad.State
 import Control.Lens hiding ((#))
@@ -31,11 +32,18 @@ instance Monoid (Maybe' a) where
     mappend = (<>)
 
 instance Monad Maybe' where
-    return = Just'
+    return = pure
     Just' x >>= f = f x
     _ >>= _ = Nothing'
 
+instance Applicative Maybe' where
+    pure = Just'
+    Just' f <*> Just' x = Just' $ f x
+    _ <*> _ = Nothing'
 
+instance Functor Maybe' where
+    fmap _ Nothing' = Nothing'
+    fmap f (Just' x) = Just' $ f x
 
 --------------------
 

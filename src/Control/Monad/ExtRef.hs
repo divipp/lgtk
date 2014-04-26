@@ -1,20 +1,12 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
---{-# LANGUAGE ExistentialQuantification #-}
---{-# LANGUAGE EmptyDataDecls #-}
---{-# LANGUAGE GADTs #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
---{-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE FlexibleInstances #-}
 module Control.Monad.ExtRef where
 
-import Control.Applicative
-import Control.Monad
-import Control.Monad.Reader
-import Control.Monad.State
-import Control.Lens
+import Control.Monad (liftM)
+import Control.Lens (Lens', lens, set, (^.))
 
+--------------------------------
 
 -- | @m@ has a submonad @(RefState m)@ which is isomorphic to 'Reader'.
 class (Monad m, Monad (RefState m)) => MonadRefReader m where
@@ -34,10 +26,6 @@ class (Monad m, Monad (RefState m)) => MonadRefReader m where
     -- | @m@ is a submonad of @(RefState m)@
     liftRefStateReader :: m a -> RefState m a
 
--- | @RefState (StateT s m) = Reader s@ 
-instance Monad m => MonadRefReader (ReaderT s m) where
-    newtype RefState (ReaderT s m) a = RSR { runRSR :: StateT s m a } deriving (Monad, Applicative, Functor, MonadReader s, MonadState s)
-    liftRefStateReader m = RSR $ StateT $ \s -> liftM (\a -> (a,s)) $ runReaderT m s
 
 
 {- |
@@ -90,7 +78,6 @@ type MRef r a = RefReader r (r a)
 infixr 8 `lensMap`
 
 
-
 {- | Monad for reference creation. Reference creation is not a method
 of the 'Reference' type class to make possible to
 create the same type of references in multiple monads.
@@ -105,6 +92,14 @@ class (Monad m, Reference (RefCore m)) => ExtRef m where
 
     -- | @'WriteRef' m@ is a submonad of @m@.
     liftWriteRef :: WriteRef m a -> m a
+
+    {- | @ReadRef@ lifted to the reference creation class.
+
+    Note that we do not lift @WriteRef@ to the reference creation class, which a crucial restriction
+    in the LGtk interface; this is a feature.
+    -}
+    liftReadRef :: ExtRef m => ReadRef m a -> m a
+    liftReadRef = liftWriteRef . liftRefStateReader
 
     {- | Reference creation by extending the state of an existing reference.
 
@@ -132,19 +127,111 @@ class (Monad m, Reference (RefCore m)) => ExtRef m where
     newRef :: a -> m (Ref m a)
     newRef = extRef unitRef $ lens (const ()) (flip $ const id)
 
-type Ref m a = ReadRef m (RefCore m a)
 
-type WriteRef m = RefState (RefReader (RefCore m))
+    {- | Lazy monadic evaluation.
+    In case of @y <- memoRead x@, invoking @y@ will invoke @x@ at most once.
+
+    Laws:
+
+     *  @(memoRead x >> return ())@ === @return ()@
+
+     *  @(memoRead x >>= id)@ === @x@
+
+     *  @(memoRead x >>= \y -> liftM2 (,) y y)@ === @liftM (\a -> (a, a)) y@
+
+     *  @(memoRead x >>= \y -> liftM3 (,) y y y)@ === @liftM (\a -> (a, a, a)) y@
+
+     *  ...
+    -}
+    memoRead :: ExtRef m => m a -> m (m a)
+    memoRead g = do
+        s <- newRef Nothing
+        return $ readRef' s >>= \x -> case x of
+            Just a -> return a
+            _ -> g >>= \a -> do
+                liftWriteRef $ writeRef s $ Just a
+                return a
+
+    memoWrite :: (ExtRef m, Eq b) => (b -> m a) -> m (b -> m a)
+    memoWrite g = do
+        s <- newRef Nothing
+        return $ \b -> readRef' s >>= \x -> case x of
+            Just (b', a) | b' == b -> return a
+            _ -> g b >>= \a -> do
+                liftWriteRef $ writeRef s $ Just (b, a)
+                return a
+
+
+type Ref m a = ReadRef m (RefCore m a)
 
 type ReadRef m = RefReader (RefCore m)
 
-{- | @ReadRef@ lifted to the reference creation class.
+type WriteRef m = RefState (RefReader (RefCore m))
 
-Note that we do not lift @WriteRef@ to the reference creation class, which a crucial restriction
-in the LGtk interface; this is a feature.
--}
-liftReadRef :: ExtRef m => ReadRef m a -> m a
-liftReadRef = liftWriteRef . liftRefStateReader
+
+-- | Monad for dynamic actions
+class (ExtRef m, ExtRef (Modifier m), RefCore (Modifier m) ~ RefCore m) => EffRef m where
+
+    type CallbackM m :: * -> *
+
+    type EffectM m :: * -> *
+
+    data Modifier m a :: *
+
+    liftEffectM :: EffectM m a -> m a
+
+    liftModifier :: m a -> Modifier m a
+
+    liftWriteRef' :: WriteRef m a -> Modifier m a
+    liftWriteRef' = liftModifier . liftWriteRef
+
+    {- |
+    Let @r@ be an effectless action (@ReadRef@ guarantees this).
+
+    @(onChange init r fmm)@ has the following effect:
+
+    Whenever the value of @r@ changes (with respect to the given equality),
+    @fmm@ is called with the new value @a@.
+    The value of the @(fmm a)@ action is memoized,
+    but the memoized value is run again and again.
+
+    The boolean parameter @init@ tells whether the action should
+    be run in the beginning or not.
+
+    For example, let @(k :: a -> m b)@ and @(h :: b -> m ())@,
+    and suppose that @r@ will have values @a1@, @a2@, @a3@ = @a1@, @a4@ = @a2@.
+
+    @onChange True r $ \\a -> k a >>= return . h@
+
+    has the effect
+
+    @k a1 >>= \\b1 -> h b1 >> k a2 >>= \\b2 -> h b2 >> h b1 >> h b2@
+
+    and
+
+    @onChange False r $ \\a -> k a >>= return . h@
+
+    has the effect
+
+    @k a2 >>= \\b2 -> h b2 >> k a1 >>= \\b1 -> h b1 >> h b2@
+    -}
+    onChange_
+        :: Eq b
+        => ReadRef m b
+        -> b -> (b -> c)
+        -> (b -> b -> c -> m (c -> m c))
+        -> m (ReadRef m c)
+
+    toReceive :: Functor f => f (Modifier m ()) -> (Command -> EffectM m ()) -> m (f (CallbackM m ()))
+
+data Command = Kill | Block | Unblock deriving (Eq, Ord, Show)
+
+
+
+
+
+-------------- derived constructs
+
 
 {- | @readRef@ lifted to the reference creation class.
 
@@ -153,38 +240,6 @@ liftReadRef = liftWriteRef . liftRefStateReader
 readRef' :: ExtRef m => Ref m a -> m a
 readRef' = liftReadRef . readRef
 
-{- | Lazy monadic evaluation.
-In case of @y <- memoRead x@, invoking @y@ will invoke @x@ at most once.
-
-Laws:
-
- *  @(memoRead x >> return ())@ === @return ()@
-
- *  @(memoRead x >>= id)@ === @x@
-
- *  @(memoRead x >>= \y -> liftM2 (,) y y)@ === @liftM (\a -> (a, a)) y@
-
- *  @(memoRead x >>= \y -> liftM3 (,) y y y)@ === @liftM (\a -> (a, a, a)) y@
-
- *  ...
--}
-memoRead :: ExtRef m => m a -> m (m a)
-memoRead g = do
-    s <- newRef Nothing
-    return $ readRef' s >>= \x -> case x of
-        Just a -> return a
-        _ -> g >>= \a -> do
-            liftWriteRef $ writeRef s $ Just a
-            return a
-
-memoWrite :: (ExtRef m, Eq b) => (b -> m a) -> m (b -> m a)
-memoWrite g = do
-    s <- newRef Nothing
-    return $ \b -> readRef' s >>= \x -> case x of
-        Just (b', a) | b' == b -> return a
-        _ -> g b >>= \a -> do
-            liftWriteRef $ writeRef s $ Just (b, a)
-            return a
 
 
 {- | References with inherent equivalence.
@@ -295,66 +350,7 @@ correction r = do
     CorrRefCore _ f <- r
     return f
 
-
-
---------------------------------------------------------------------------------
-
-
--- | Monad for dynamic actions
-class (ExtRef m, ExtRef (Modifier m), RefCore (Modifier m) ~ RefCore m) => EffRef m where
-
-    type CallbackM m :: * -> *
-
-    type EffectM m :: * -> *
-
-    data Modifier m a :: *
-
-    liftEffectM :: EffectM m a -> m a
-
-    liftModifier :: m a -> Modifier m a
-
-    {- |
-    Let @r@ be an effectless action (@ReadRef@ guarantees this).
-
-    @(onChange init r fmm)@ has the following effect:
-
-    Whenever the value of @r@ changes (with respect to the given equality),
-    @fmm@ is called with the new value @a@.
-    The value of the @(fmm a)@ action is memoized,
-    but the memoized value is run again and again.
-
-    The boolean parameter @init@ tells whether the action should
-    be run in the beginning or not.
-
-    For example, let @(k :: a -> m b)@ and @(h :: b -> m ())@,
-    and suppose that @r@ will have values @a1@, @a2@, @a3@ = @a1@, @a4@ = @a2@.
-
-    @onChange True r $ \\a -> k a >>= return . h@
-
-    has the effect
-
-    @k a1 >>= \\b1 -> h b1 >> k a2 >>= \\b2 -> h b2 >> h b1 >> h b2@
-
-    and
-
-    @onChange False r $ \\a -> k a >>= return . h@
-
-    has the effect
-
-    @k a2 >>= \\b2 -> h b2 >> k a1 >>= \\b1 -> h b1 >> h b2@
-    -}
-    onChange_
-        :: Eq b
-        => ReadRef m b
-        -> b -> (b -> c)
-        -> (b -> b -> c -> m (c -> m c))
-        -> m (ReadRef m c)
-
-    toReceive :: Functor f => f (Modifier m ()) -> (Command -> EffectM m ()) -> m (f (CallbackM m ()))
-
-data Command = Kill | Block | Unblock deriving (Eq, Ord, Show)
-
---------------
+----------------
 
 rEffect  :: (EffRef m, Eq a) => ReadRef m a -> (a -> EffectM m b) -> m (ReadRef m b)
 rEffect r f = onChange r $ return . liftEffectM . f
@@ -363,14 +359,14 @@ onChange :: (EffRef m, Eq a) => ReadRef m a -> (a -> m (m b)) -> m (ReadRef m b)
 onChange r f = onChange_ r undefined undefined $ \b _ _ -> liftM (\x _ -> x) $ f b
 
 writeRef' :: (EffRef m, Reference r, RefReader r ~ RefReader (RefCore m)) => MRef r a -> a -> Modifier m ()
-writeRef' r a = liftModifier $ liftWriteRef $ writeRef r a
+writeRef' r a = liftWriteRef' $ writeRef r a
 
 -- | @modRef r f@ === @liftRefStateReader (readRef r) >>= writeRef r . f@
 --modRef :: Reference r => MRef r a -> (a -> a) -> RefStateReader (RefReader r) ()
 r `modRef'` f = liftRefStateReader' (readRef r) >>= writeRef' r . f
 
 liftRefStateReader' :: EffRef m => ReadRef m a -> Modifier m a
-liftRefStateReader' r = liftModifier $ liftWriteRef $ liftRefStateReader r
+liftRefStateReader' r = liftWriteRef' $ liftRefStateReader r
 
 action' m = liftModifier $ liftEffectM m
 

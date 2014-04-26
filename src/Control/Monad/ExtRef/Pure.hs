@@ -30,6 +30,13 @@ import Control.Monad.ExtRef
 
 ----------------------
 
+-- | @RefState (StateT s m) = Reader s@ 
+instance Monad m => MonadRefReader (ReaderT s m) where
+    newtype RefState (ReaderT s m) a = RSR { runRSR :: StateT s m a } deriving (Monad, Applicative, Functor, MonadReader s, MonadState s)
+    liftRefStateReader m = RSR $ StateT $ \s -> liftM (\a -> (a,s)) $ runReaderT m s
+
+----------------------
+
 newtype Lens_ a b = Lens_ {unLens_ :: ALens' a b}
 
 runLens_ :: Reader a (Lens_ a b) -> Lens' a b
