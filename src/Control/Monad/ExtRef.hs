@@ -90,16 +90,12 @@ class (Monad m, Reference (RefCore m)) => ExtRef m where
 
     type RefCore m :: * -> *
 
-    -- | @'WriteRef' m@ is a submonad of @m@.
-    liftWriteRef :: WriteRef m a -> m a
-
     {- | @ReadRef@ lifted to the reference creation class.
 
     Note that we do not lift @WriteRef@ to the reference creation class, which a crucial restriction
     in the LGtk interface; this is a feature.
     -}
     liftReadRef :: ExtRef m => ReadRef m a -> m a
-    liftReadRef = liftWriteRef . liftRefStateReader
 
     {- | Reference creation by extending the state of an existing reference.
 
@@ -144,22 +140,8 @@ class (Monad m, Reference (RefCore m)) => ExtRef m where
      *  ...
     -}
     memoRead :: ExtRef m => m a -> m (m a)
-    memoRead g = do
-        s <- newRef Nothing
-        return $ readRef' s >>= \x -> case x of
-            Just a -> return a
-            _ -> g >>= \a -> do
-                liftWriteRef $ writeRef s $ Just a
-                return a
 
     memoWrite :: (ExtRef m, Eq b) => (b -> m a) -> m (b -> m a)
-    memoWrite g = do
-        s <- newRef Nothing
-        return $ \b -> readRef' s >>= \x -> case x of
-            Just (b', a) | b' == b -> return a
-            _ -> g b >>= \a -> do
-                liftWriteRef $ writeRef s $ Just (b, a)
-                return a
 
 
 type Ref m a = ReadRef m (RefCore m a)
@@ -183,7 +165,6 @@ class (ExtRef m, ExtRef (Modifier m), RefCore (Modifier m) ~ RefCore m) => EffRe
     liftModifier :: m a -> Modifier m a
 
     liftWriteRef' :: WriteRef m a -> Modifier m a
-    liftWriteRef' = liftModifier . liftWriteRef
 
     {- |
     Let @r@ be an effectless action (@ReadRef@ guarantees this).

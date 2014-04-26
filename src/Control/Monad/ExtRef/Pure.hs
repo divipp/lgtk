@@ -12,6 +12,7 @@ module Control.Monad.ExtRef.Pure
     ( initLSt
     , Reg
     , evalRegister'
+    , ExtRefWrite (..)
     ) where
 
 import Data.Monoid
@@ -60,7 +61,7 @@ instance Reference (Lens_ LSt) where
 instance Monad m => ExtRef (StateT LSt m) where
     type RefCore (StateT LSt m) = Lens_ LSt
 
-    liftWriteRef = state . runState . runRSR
+    liftReadRef = liftWriteRef . liftRefStateReader
 
     extRef r r2 a0 = state extend
       where
@@ -82,6 +83,33 @@ instance Monad m => ExtRef (StateT LSt m) where
         unsafeData :: CC -> a
         unsafeData (CC _ a) = unsafeCoerce a
 
+    memoRead = memoRead_
+
+    memoWrite = memoWrite_
+
+memoRead_ g = do
+    s <- newRef Nothing
+    return $ readRef' s >>= \x -> case x of
+        Just a -> return a
+        _ -> g >>= \a -> do
+            liftWriteRef $ writeRef s $ Just a
+            return a
+
+memoWrite_ g = do
+    s <- newRef Nothing
+    return $ \b -> readRef' s >>= \x -> case x of
+        Just (b', a) | b' == b -> return a
+        _ -> g b >>= \a -> do
+            liftWriteRef $ writeRef s $ Just (b, a)
+            return a
+
+class ExtRef m => ExtRefWrite m where
+    liftWriteRef :: WriteRef m a -> m a
+
+instance Monad m => ExtRefWrite (StateT LSt m) where
+    liftWriteRef = state . runState . runRSR
+
+
 ---------------------------------
 
 
@@ -90,15 +118,20 @@ type Register m = ReaderT (Ref m (MonadMonoid m, Command -> MonadMonoid m)) m
 newtype Reg n m a = Reg (ReaderT (m () -> n ()) (Register m) a) deriving (Monad, Applicative, Functor)
 
 
-instance ExtRef m => ExtRef (Reg n m) where
+instance ExtRefWrite m => ExtRef (Reg n m) where
 
     type RefCore (Reg n m) = RefCore m
 
-    liftWriteRef = Reg . lift . lift . liftWriteRef
+    liftReadRef = Reg . lift . lift . liftReadRef
     extRef r l = Reg . lift . lift . extRef r l
     newRef = Reg . lift . lift . newRef
+    memoRead = memoRead_
+    memoWrite = memoWrite_
 
-instance (ExtRef m, Monad n) => EffRef (Reg n m) where
+instance ExtRefWrite m => ExtRefWrite (Reg n m) where
+    liftWriteRef = Reg . lift . lift . liftWriteRef
+
+instance (ExtRefWrite m, Monad n) => EffRef (Reg n m) where
 
     type EffectM (Reg n m) = m
 
@@ -106,9 +139,11 @@ instance (ExtRef m, Monad n) => EffRef (Reg n m) where
 
     newtype Modifier (Reg n m) a = RegW {unRegW :: Reg n m a} deriving (Monad, Applicative, Functor)
 
-    liftEffectM m = Reg $ lift $ lift $ m
+    liftEffectM = Reg . lift . lift
 
-    liftModifier m = RegW m
+    liftModifier = RegW
+
+    liftWriteRef' = liftModifier . liftWriteRef
 
     onChange_ r b0 c0 f = Reg $ ReaderT $ \ff ->
         toSend r b0 c0 $ \b b' c' -> liftM (\x -> evalRegister ff . x) $ evalRegister ff $ f b b' c'
@@ -118,13 +153,18 @@ instance (ExtRef m, Monad n) => EffRef (Reg n m) where
         writerstate <- ask
         return $ fmap (ff . flip runReaderT writerstate . evalRegister ff . unRegW) f
 
-instance ExtRef m => ExtRef (Modifier (Reg n m)) where
+instance ExtRefWrite m => ExtRefWrite (Modifier (Reg n m)) where
+    liftWriteRef = RegW . liftWriteRef
+
+instance ExtRefWrite m => ExtRef (Modifier (Reg n m)) where
 
     type RefCore (Modifier (Reg n m)) = RefCore m
 
-    liftWriteRef = RegW . liftWriteRef
+    liftReadRef = RegW . liftReadRef
     extRef r l = RegW . extRef r l
     newRef = RegW . newRef
+    memoRead = memoRead_
+    memoWrite = memoWrite_
 
 
 evalRegister ff (Reg m) = runReaderT m ff
@@ -141,7 +181,7 @@ evalRegister' ff (Reg m) = do
 
 
 toSend
-    :: (Eq b, ExtRef m)
+    :: (Eq b, ExtRefWrite m)
     => ReadRef m b
     -> b -> (b -> c)
     -> (b -> b -> c -> {-Either (Register m c)-} (Register m (c -> Register m c)))
@@ -195,7 +235,7 @@ runRefWriterT m = do
     a <- runReaderT m r
     return (a, r)
 
-tell' :: (Monoid w, ExtRef m) => w -> RefWriterT w m ()
+tell' :: (Monoid w, ExtRefWrite m) => w -> RefWriterT w m ()
 tell' w = ReaderT $ \m -> readRef' m >>= liftWriteRef . writeRef m . (`mappend` w)
 
 -------------

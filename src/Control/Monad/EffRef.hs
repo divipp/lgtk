@@ -76,7 +76,7 @@ putStrLn_ :: EffIORef m => String -> m ()
 putStrLn_ = putStr_ . (++ "\n")
 
 
-instance (ExtRef m, MonadIO m) => EffIORef (Reg IO m) where
+instance (ExtRefWrite m, MonadIO m) => EffIORef (Reg IO m) where
 
     getArgs     = liftIO' Env.getArgs
 

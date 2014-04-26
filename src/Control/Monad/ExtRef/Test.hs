@@ -21,6 +21,7 @@ import Prelude hiding ((.), id)
 
 import Control.Lens
 import Control.Monad.ExtRef
+import Control.Monad.ExtRef.Pure (ExtRefWrite (..))
 import qualified Control.Monad.ExtRef.Pure as Pure
 --import qualified Control.Monad.ExtRef.IORef as IORef
 
@@ -31,9 +32,13 @@ instance (ExtRef m, Monoid w) => ExtRef (WriterT w m) where
 
     type RefCore (WriterT w m) = RefCore m
 
-    liftWriteRef = lift . liftWriteRef
+    liftReadRef = lift . liftReadRef
 
     extRef x y a = lift $ extRef x y a
+
+instance (ExtRefWrite m, Monoid w) => ExtRefWrite (WriterT w m) where
+
+    liftWriteRef = lift . liftWriteRef
 
 
 -- | Consistency tests for the pure implementation of @Ext@, should give an empty list of errors.
@@ -66,7 +71,7 @@ maybeLens = lens (\(b,a) -> if b then Just a else Nothing)
 
 Look inside the sources for the tests.
 -}
-mkTests :: ((forall m . (MonadWriter [String] m, ExtRef m) => m ()) -> [String]) -> [String]
+mkTests :: ((forall m . (MonadWriter [String] m, ExtRefWrite m) => m ()) -> [String]) -> [String]
 mkTests runTest
       = newRefTest
      ++ writeRefTest
