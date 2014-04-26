@@ -4,25 +4,24 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE EmptyDataDecls #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 module Control.Monad.ExtRef where
 
+import Control.Applicative
 import Control.Monad
 import Control.Monad.Reader
-import Control.Monad.Writer
 import Control.Monad.State
---import Control.Monad.RWS
---import Control.Monad.Trans.Identity
---import Control.Monad.Operational
 import Control.Lens
 
--- | @m@ has a submonad @(RefStateReader m)@ which is isomorphic to 'Reader'.
-class (Monad m, Monad (RefStateReader m)) => MonadRefState m where
 
-    {- | Law: @(RefStateReader m)@  ===  @('Reader' x)@ for some @x@.
+-- | @m@ has a submonad @(RefState m)@ which is isomorphic to 'Reader'.
+class (Monad m, Monad (RefState m)) => MonadRefReader m where
 
-    Alternative laws which ensures this isomorphism (@r :: (RefStateReader m a)@ is arbitrary):
+    {- | Law: @(RefState m)@  ===  @('Reader' x)@ for some @x@.
+
+    Alternative laws which ensures this isomorphism (@r :: (RefState m a)@ is arbitrary):
 
      *  @(r >> return ())@ === @return ()@
 
@@ -30,15 +29,15 @@ class (Monad m, Monad (RefStateReader m)) => MonadRefState m where
 
     See also <http://stackoverflow.com/questions/16123588/what-is-this-special-functor-structure-called>
     -}
-    type RefStateReader m :: * -> *
+    data RefState m a :: *
 
-    -- | @(RefStateReader m)@ is a submonad of @m@
-    liftRefStateReader :: RefStateReader m a -> m a
+    -- | @m@ is a submonad of @(RefState m)@
+    liftRefStateReader :: m a -> RefState m a
 
--- | @RefStateReader (StateT s m) = Reader s@ 
-instance Monad m => MonadRefState (StateT s m) where
-    type RefStateReader (StateT s m) = Reader s
-    liftRefStateReader = gets . runReader
+-- | @RefState (StateT s m) = Reader s@ 
+instance Monad m => MonadRefReader (ReaderT s m) where
+    newtype RefState (ReaderT s m) a = RSR { runRSR :: StateT s m a } deriving (Monad, Applicative, Functor, MonadReader s, MonadState s)
+    liftRefStateReader m = RSR $ StateT $ \s -> liftM (\a -> (a,s)) $ runReaderT m s
 
 
 {- |
@@ -46,19 +45,19 @@ A reference @(r a)@ is isomorphic to @('Lens' s a)@ for some fixed state @s@.
 
 @r@  ===  @Lens s@
 -}
-class (MonadRefState (RefState r)) => Reference r where
+class (MonadRefReader (RefReader r)) => Reference r where
 
     {- | @Refmonad r@  ===  @State s@
 
-    Property derived from the 'MonadRefState' instance:
+    Property derived from the 'MonadRefReader' instance:
 
-    @RefReader r@ = @RefStateReader (Refmonad r)@  ===  @Reader s@
+    @RefReader r@ = @RefState (Refmonad r)@  ===  @Reader s@
     -}
-    type RefState r :: * -> *
+    type RefReader r :: * -> *
 
     {- | @readRef@ === @reader . getL@
 
-    Properties derived from the 'MonadRefState' instance:
+    Properties derived from the 'MonadRefReader' instance:
 
     @(readRef r >> return ())@ === @return ()@
     -}
@@ -74,7 +73,7 @@ class (MonadRefState (RefState r)) => Reference r where
 
      *  @(writeRef r a >> writeRef r a')@ === @writeRef r a'@
     -}
-    writeRef :: MRef r a -> a -> RefState r ()
+    writeRef :: MRef r a -> a -> RefState (RefReader r) ()
 
     {- | Apply a lens on a reference.
 
@@ -88,14 +87,8 @@ class (MonadRefState (RefState r)) => Reference r where
 -- | Reference wrapped into a RefReader monad
 type MRef r a = RefReader r (r a)
 
-type RefReader m = RefStateReader (RefState m)
-
 infixr 8 `lensMap`
 
-
--- | @modRef r f@ === @liftRefStateReader (readRef r) >>= writeRef r . f@
-modRef :: Reference r => MRef r a -> (a -> a) -> RefState r ()
-r `modRef` f = liftRefStateReader (readRef r) >>= writeRef r . f
 
 
 {- | Monad for reference creation. Reference creation is not a method
@@ -139,11 +132,9 @@ class (Monad m, Reference (RefCore m)) => ExtRef m where
     newRef :: a -> m (Ref m a)
     newRef = extRef unitRef $ lens (const ()) (flip $ const id)
 
-type PureExt (m :: * -> *) = m
+type Ref m a = ReadRef m (RefCore m a)
 
-type Ref m a = RefReader (RefCore m) (RefCore m a)
-
-type WriteRef m = RefState (RefCore m)
+type WriteRef m = RefState (RefReader (RefCore m))
 
 type ReadRef m = RefReader (RefCore m)
 
@@ -194,42 +185,6 @@ memoWrite g = do
         _ -> g b >>= \a -> do
             liftWriteRef $ writeRef s $ Just (b, a)
             return a
-
-
--- | This instance is used in the implementation, end users do not need it.
-instance (ExtRef m, Monoid w) => ExtRef (WriterT w m) where
-
-    type RefCore (WriterT w m) = RefCore m
-
-    liftWriteRef = lift . liftWriteRef
-
-    extRef x y a = lift $ extRef x y a
-
-
--- | Undo-redo state transformation.
-undoTr
-    :: ExtRef m =>
-       (a -> a -> Bool)     -- ^ equality on state
-    -> Ref m a             -- ^ reference of state
-    ->   m ( ReadRef m (Maybe (WriteRef m ()))   
-           , ReadRef m (Maybe (WriteRef m ()))
-           )  -- ^ undo and redo actions
-undoTr eq r = do
-    ku <- extRef r (undoLens eq) ([], [])
-    let try f = liftM (liftM (writeRef ku) . f) $ readRef ku
-    return (try undo, try redo)
-  where
-    undo (x: xs@(_:_), ys) = Just (xs, x: ys)
-    undo _ = Nothing
-
-    redo (xs, y: ys) = Just (y: xs, ys)
-    redo _ = Nothing
-
-undoLens :: (a -> a -> Bool) -> Lens' ([a],[a]) a
-undoLens eq = lens get set where
-    get = head . fst
-    set (x' : xs, ys) x | eq x x' = (x: xs, ys)
-    set (xs, _) x = (x : xs, [])
 
 
 {- | References with inherent equivalence.
@@ -292,7 +247,7 @@ instance Reference r => EqReference (EqRefCore r) where
 
 instance Reference r => Reference (EqRefCore r) where
 
-    type (RefState (EqRefCore r)) = RefState r
+    type (RefReader (EqRefCore r)) = RefReader r
 
     readRef = readRef . toRef
 
@@ -313,7 +268,7 @@ type CorrRef r a = RefReader r (CorrRefCore r a)
 
 instance Reference r => Reference (CorrRefCore r) where
 
-    type (RefState (CorrRefCore r)) = RefState r
+    type (RefReader (CorrRefCore r)) = RefReader r
 
     readRef = readRef . fromCorrRef
 

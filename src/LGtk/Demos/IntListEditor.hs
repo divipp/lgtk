@@ -58,8 +58,8 @@ intListEditor def maxi list_ range = do
         [ label $ return $ show (i+1) ++ "."
         , entryShow $ _1 `lensMap` r
         , checkbox $ _2 `lensMap` r
-        , button_ (return "Del")  (return True) $ modRef list $ \xs -> take i xs ++ drop (i+1) xs
-        , button_ (return "Copy") (return True) $ modRef list $ \xs -> take (i+1) xs ++ drop i xs
+        , button_ (return "Del")  (return True) $ modRef' list $ \xs -> take i xs ++ drop (i+1) xs
+        , button_ (return "Copy") (return True) $ modRef' list $ \xs -> take (i+1) xs ++ drop i xs
         ]
 
     safeList = lens id (const $ take maxi) `lensMap` list

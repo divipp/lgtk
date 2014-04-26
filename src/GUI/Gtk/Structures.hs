@@ -4,18 +4,25 @@
 -- | Lens-based Gtk interface
 module GUI.Gtk.Structures
     ( module GUI.Gtk.Structures
-    , module Graphics.UI.Gtk
-    , Color (..), Modifier (..)
+    , Color (..)
+    , ScrollDirection (..)
+    , KeyVal, keyName, keyToChar
     ) where
 
 import Data.Semigroup
 import Graphics.UI.Gtk.Gdk.GC (Color (Color))
-import Diagrams.Prelude (QDiagram, R2, Monoid)
+import Diagrams.Prelude (QDiagram, R2)
 import Diagrams.Backend.Cairo (Cairo)
 import Graphics.UI.Gtk (ScrollDirection (..), KeyVal, Modifier (Shift, Control), keyName, keyToChar)
+import qualified Graphics.UI.Gtk as Gtk
 
 import Control.Monad.ExtRef
 import Control.Monad.EffRef
+
+type KeyModifier = Gtk.Modifier
+
+shiftKeyModifier = Shift
+controlKeyModifier = Control
 
 type Dia a = QDiagram Cairo R2 a
 
@@ -23,7 +30,7 @@ data Send m a
     = Eq a => Send (ReadRef m a)
     | SendNothing
 
-type Receive m a = a -> WriteRef m ()
+type Receive m a = a -> Control.Monad.EffRef.Modifier m ()
 
 runSend :: (EffRef m) => Send m a -> (a -> EffectM m ()) -> m ()
 runSend SendNothing _ = return ()
@@ -31,7 +38,7 @@ runSend (Send r) f = rEffect r f >> return ()
 
 noREffect = SendNothing
 
-runReceive :: EffRef m => Receive m a -> (Command -> EffectM m ()) -> m (a -> CallbackM m ())
+runReceive :: (EffRef m, Functor f) => f (Control.Monad.EffRef.Modifier m ()) -> (Command -> EffectM m ()) -> m (f (CallbackM m ()))
 runReceive = toReceive
 
 type SendReceive m a = (Send m a, Receive m a)
@@ -69,7 +76,7 @@ data MouseEvent a
     | DragTo (MousePos a)
     | Release (MousePos a)
     | ScrollTo ScrollDirection (MousePos a)
-    | KeyPress [Modifier] KeyVal String (Maybe Char)
+    | KeyPress [KeyModifier] KeyVal String (Maybe Char)
     | LostFocus
         deriving (Eq)
 

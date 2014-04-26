@@ -36,7 +36,7 @@ initLSt :: LSt
 initLSt = empty
 
 instance Reference (Lens_ LSt) where
-    type RefState (Lens_ LSt) = State LSt
+    type RefReader (Lens_ LSt) = Reader LSt
 
     readRef = view . runLens_
     writeRef r a = runLens_ r .= a
@@ -46,7 +46,7 @@ instance Reference (Lens_ LSt) where
 instance Monad m => ExtRef (StateT LSt m) where
     type RefCore (StateT LSt m) = Lens_ LSt
 
-    liftWriteRef = state . runState
+    liftWriteRef = state . runState . runRSR
 
     extRef r r2 a0 = state extend
       where

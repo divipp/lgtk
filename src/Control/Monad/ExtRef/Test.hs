@@ -15,7 +15,7 @@ module Control.Monad.ExtRef.Test
 import Control.Monad.State
 import Control.Monad.Writer
 import Control.Category
-import Control.Arrow ((***))
+--import Control.Arrow ((***))
 import Data.Maybe
 import Prelude hiding ((.), id)
 
@@ -25,6 +25,16 @@ import qualified Control.Monad.ExtRef.Pure as Pure
 --import qualified Control.Monad.ExtRef.IORef as IORef
 
 -----------------------------------------------------------------
+
+-- | This instance is used in the implementation, end users do not need it.
+instance (ExtRef m, Monoid w) => ExtRef (WriterT w m) where
+
+    type RefCore (WriterT w m) = RefCore m
+
+    liftWriteRef = lift . liftWriteRef
+
+    extRef x y a = lift $ extRef x y a
+
 
 -- | Consistency tests for the pure implementation of @Ext@, should give an empty list of errors.
 testExtPure :: [String]
@@ -70,7 +80,7 @@ mkTests runTest
      ++ chainTest
      ++ undoTest
      ++ undoTest2
-     ++ undoTest3
+--     ++ undoTest3
   where
 
     newRefTest = runTest $ do
@@ -252,7 +262,7 @@ mkTests runTest
         r <- newRef 3
         q <- extRef r (lens head $ flip (:)) []
         q ==> [3]
-
+{-
     undoTest3 = runTest $ do
         r <- newRef 3
         (undo, redo) <- liftM (liftRefStateReader *** liftRefStateReader) $ undoTr (==) r
@@ -286,7 +296,7 @@ mkTests runTest
       where
         push m = liftWriteRef m >>= \x -> maybe (return ()) liftWriteRef x
         m === t = liftWriteRef m >>= \x -> isJust x ==? t
-
+-}
     join' r = join $ readRef r
 
     writeRef' r a = liftWriteRef $ writeRef r a

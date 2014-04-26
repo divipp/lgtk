@@ -12,7 +12,7 @@ module GUI.Gtk.Structures.IO
 import Control.Category
 import Control.Monad
 import Control.Monad.State
-import Control.Monad.Writer
+--import Control.Monad.Writer
 import Control.Concurrent
 import Data.Maybe
 import Data.List hiding (union)
@@ -22,7 +22,6 @@ import Graphics.UI.Gtk hiding (Widget, Release)
 import qualified Graphics.UI.Gtk as Gtk
 --import Graphics.UI.Gtk.Gdk.Events (eventKeyChar)
 
-import Control.Monad.Restricted
 import Control.Monad.ExtRef ()
 import Control.Monad.ExtRef.Pure (initLSt)
 import Control.Monad.EffRef
@@ -34,15 +33,20 @@ import Diagrams.Backend.Cairo.Internal
 
 -------------------------
 
+runMorphD :: MVar a -> StateT a IO b -> IO b
+runMorphD vx m = modifyMVar vx $ liftM swap . runStateT m
+      where
+        swap (a, b) = (b, a)
+
 {- |
 Run a Gtk widget description.
 
 The widget is shown in a window and the thread enters into the Gtk event cycle.
 It leaves the event cycle when the window is closed.
 -}
-runWidget :: (forall m . EffIORef m => Widget m) -> IO ()
+runWidget :: (forall m . (EffIORef m) => Widget m) -> IO ()
 runWidget desc = gtkContext $ \postGUISync -> mdo
-    postActionsRef <- newRef' $ return ()
+    postActionsRef <- newMVar $ return ()
     let addPostAction  = runMorphD postActionsRef . modify . flip (>>)
         runPostActions = join $ runMorphD postActionsRef $ state $ \m -> (m, return ())
     actionChannel <- newChan
@@ -57,11 +61,11 @@ runWidget desc = gtkContext $ \postGUISync -> mdo
     return widget
 
 
-gtkContext :: (Morph IO IO -> IO SWidget) -> IO ()
+gtkContext :: ((forall a . IO a -> IO a) -> IO SWidget) -> IO ()
 gtkContext m = do
     _ <- unsafeInitGUIForThreadedRTS
     tid <- myThreadId
-    let post :: Morph IO IO
+    let post :: forall a . IO a -> IO a
         post e = do
             tid' <- myThreadId
             if tid' == tid then e else postGUISync e
@@ -79,10 +83,10 @@ runWidget_
     :: forall n m k o . (EffRef m, Monad o, n ~ EffectM m, k ~ CallbackM m)
     => (k () -> IO ())
     -> (IO () -> IO ())
-    -> Morph IO IO
-    -> Morph m o
-    -> Morph o m
-    -> Morph IO o
+    -> (forall a . IO a -> IO a)
+    -> (forall a . m a -> o a)
+    -> (forall a . o a -> m a)
+    -> (forall a . IO a -> o a)
     -> (IO () -> n ())
     -> Widget m
     -> o SWidget
@@ -271,7 +275,7 @@ runWidget_ nio post' post liftO liftOBack liftIO_ liftION = toWidget
                 True -> fmap castToContainer $ hBoxNew False 1
                 False -> fmap castToContainer $ alignmentNew 0 0 1 1
             sh <- liftIO_ $ newMVar $ return ()
-            liftO $ onChange onCh $ \bv -> do
+            _ <- liftO $ onChange onCh $ \bv -> do
                 mx <- f (liftOBack . toWidget) bv
                 return $ mx >>= \(x, y) -> liftOBack $ liftIO' $ do 
                     _ <- swapMVar sh x

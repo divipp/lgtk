@@ -1,7 +1,12 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ExistentialQuantification #-}
-module LGtk.Canvas where
+module LGtk.Canvas
+    ( inCanvas
+    , mainTest
+    ) where
 
 import Control.Monad
 import Control.Monad.State
@@ -71,9 +76,9 @@ clipBy' p d = fmap unX (fmap X d # clipBy p  <> fmap flipp (stroke p # lw 0 # va
 
 ------------------
 
-data WW m = forall x . Eq x => WW (RefStateReader m ([(m (), FocFun m, m (), Pos)], x)) (x -> [Pos] -> Pos -> Dia (Mon m))
+data WW m = forall x . Eq x => WW (ReadRef m ([(m (), FocFun m, m (), Pos)], x)) (x -> [Pos] -> Pos -> Dia (Mon m))
 
-type WW' m = WW (RefState (RefCore m))
+type WW' m = WW (Modifier m)
 
 type Pos = [Int]
 
@@ -85,7 +90,7 @@ newId = do
 
 type Mon m = MouseEvent () -> (Maybe' (m ()), Maybe' (Foc m), Maybe' Pos)
 
-type FocFun m = [Modifier] -> String -> Maybe Char -> m ()
+type FocFun m = [KeyModifier] -> String -> Maybe Char -> m ()
 
 value_ a c b = value f where
     f (Click _) = (Just' a, c, Just' b)
@@ -95,45 +100,44 @@ value_ a c b = value f where
 -------------------------
 
 type Foc m = (FocFun m, m ())
-type Foc' m = Foc (RefState (RefCore m))
+type Foc' m = Foc (Modifier m)
 
-adjustFoc foc = join $ liftRefStateReader $ readRef $ _2 `lensMap` foc
+adjustFoc :: (EffRef m) => Ref m (Foc' m) -> Modifier m ()
+adjustFoc foc = join $ liftRefStateReader' $ readRef $ _2 `lensMap` foc
 
 -----------------
-
-app x f = f x
 
 mb f (Just' a) = f a
 mb _ Nothing' = return ()
 
-inCanvas :: EffRef m => Int -> Int -> Double -> Widget m -> Widget m
+inCanvas :: forall m . EffRef m => Int -> Int -> Double -> Widget m -> Widget m
 inCanvas width height scale w = do
     let df = (\_ _ _ -> return (), return ())
     foc <- newRef df
     (i, bhr) <- flip evalStateT [0] $ liftM2 (,) newId $ tr (fromIntegral width / scale) w
     hi <- newRef ([i], i)
-    tab <- newRef 0
+    tab <- newRef (0 :: Int)
     case bhr of
        WW b render -> do
-        let handle (a, b, c) = mb id a >> mb h2 b >> mb h3 c >> mb h4 (liftM2 (,) b c)
+        let handle (a, bb, c) = mb id a >> mb h2 bb >> mb h3 c >> mb h4 (liftM2 (,) bb c)
 
-            h2 m = adjustFoc foc >> writeRef foc m
-            h3 i = writeRef (_1 `lensMap` hi) [i]
-            h4 (_,i) = writeRef (_2 `lensMap` hi) i
+            h2 m = adjustFoc foc >> writeRef' foc m
+            h3 i = writeRef' (_1 `lensMap` hi) [i]
+            h4 (_,i) = writeRef' (_2 `lensMap` hi) i
 
-            moveFoc f = do
-                modRef tab f
-                j <- liftRefStateReader $ readRef tab
-                (xs, _) <- liftRefStateReader b
-                let (a,b,c,d) = xs !! (j `mod` length xs)
-                a >> h2 (b,c) >> h4 (undefined, d)
+            moveFoc f = (do
+                modRef' tab f
+                j <- liftRefStateReader' $ readRef tab
+                (xs, _) <- liftRefStateReader' b
+                let (a,bb,c,d) = xs !! (j `mod` length xs)
+                a >> h2 (bb,c) >> h4 (undefined, d)) :: Modifier m ()
 
-            handleEvent (Click (MousePos p f)) = handle $ f $ Click $ MousePos p ()
+            handleEvent (Click (MousePos p f)) = handle $ f $ Click $ MousePos p ()  :: Modifier m ()
             handleEvent (MoveTo (MousePos p f)) = handle $ f $ MoveTo $ MousePos p ()
             handleEvent (KeyPress [] _ "Tab" _) = moveFoc (+1)
-            handleEvent (KeyPress [Control] _ "Tab" _) = moveFoc (+(-1))
+            handleEvent (KeyPress [c] _ "Tab" _) | c == controlKeyModifier = moveFoc (+(-1))
             handleEvent (KeyPress m _ n c) = do
-                (f,_) <- liftRefStateReader $ readRef foc
+                (f,_) <- liftRefStateReader' $ readRef foc
                 f m n c
             handleEvent LostFocus = adjustFoc foc
             handleEvent _ = return ()
@@ -143,7 +147,7 @@ inCanvas width height scale w = do
                     # value_ (return ()) (Just' df) i
 
 
-tr :: EffRef m => Double -> Widget m -> StateT Pos m (WW' m)
+tr :: forall m . EffRef m => Double -> Widget m -> StateT Pos m (WW' m)
 tr sca w = do
     w' <- lift w
     case w' of
@@ -180,18 +184,18 @@ tr sca w = do
                 f _ _ x = x
 
                 ff _ e f' = do
-                    (_, x) <- liftRefStateReader $ readRef j
-                    s <- liftRefStateReader rs
+                    (_, x) <- liftRefStateReader' $ readRef j
+                    s <- liftRefStateReader' rs
                     let  (a,b) = splitAt x s
                          (a', b') = f e f' (reverse a,b)
                     rr $ reverse a' ++ b'
-                    writeRef (_2 `lensMap` j) $ length a'
+                    writeRef' (_2 `lensMap` j) $ length a'
 
                 text' ((False,_),s) = s
                 text' ((True,i),s) = a ++ "|" ++ b where (a,b) = splitAt i s
 
-                fin = writeRef (_1 `lensMap` j) True
-                fout = writeRef (_1 `lensMap` j) False
+                fin = writeRef' (_1 `lensMap` j) True
+                fout = writeRef' (_1 `lensMap` j) False
 
                 render bv is is' = 
                      text (text' bv) # clipBy (rect 5 1) # value mempty
@@ -203,7 +207,7 @@ tr sca w = do
         Checkbox (Send bs, br) -> do
             i <- newId
 
-            let ff _ _ (Just ' ') = liftRefStateReader bs >>= br . not
+            let ff _ _ (Just ' ') = liftRefStateReader' bs >>= br . not
                 ff _ _ _ = return ()
 
                 render bv is is' = 
@@ -228,6 +232,7 @@ tr sca w = do
 
         List layout ws -> liftM (foldr conc2 nil) $ mapM (tr sca) ws
           where
+            nil :: ExtRef n => WW n
             nil = WW (return ([],())) mempty
 
             conc2 (WW b r) (WW b' r')
@@ -256,19 +261,23 @@ tr sca w = do
 
             return $ WW (liftM ((,) []) s) render
 
+        Combobox _ _ -> error "cb"
+        Notebook' _ l -> do
+            tr sca $ snd $ l !! 0
+        Scale _ _ _ _ -> error "sc"
 
 ----------------------------------------------------------------------------
 
-main :: IO ()
-main = runWidget $ do
+mainTest :: IO ()
+mainTest = runWidget $ do
     t <- newRef $ iterate (Node Leaf) Leaf !! 5
-    i <- newRef 0
+    i <- newRef (0 :: Int)
     s <- newRef "x"
     s' <- newRef "y"
     let x = vcat
             [ hcat
                 [ label $ readRef i >>= \i -> return $ show i ++ "hello"
-                , button_ (return "+1") (return True) $ modRef i (+1)
+                , button_ (return "+1") (return True) $ modRef' i (+1)
                 ]
             , hcat
                 [ entry s

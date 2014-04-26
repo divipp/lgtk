@@ -58,8 +58,6 @@ library
                     LGtk.Demos.IntListEditor
                     LGtk.Demos.TEditor
   other-modules:
-                    Control.Monad.Restricted
-
                     Control.Monad.ExtRef
                     Control.Monad.ExtRef.Pure
                     Control.Monad.ExtRef.Test

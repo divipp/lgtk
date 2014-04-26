@@ -9,15 +9,10 @@ module LGtk
     (
     -- * References
 
-    -- ** Reference modifying monad
-      MonadRefState (..)
-
-    -- ** Reference operations
-    , Reference, MRef
-    , RefState
+      Reference, MRef
     , RefReader
     , readRef
-    , writeRef
+    , writeRef', modRef', liftRefStateReader', action', Modifier
     , lensMap
     , join
     , unitRef
@@ -32,7 +27,6 @@ module LGtk
     , liftReadRef
 
     -- ** Derived constructs
-    , modRef
     , readRef'
     , memoRead
     , undoTr
@@ -51,9 +45,9 @@ module LGtk
     -- * Dynamic networks
     , EffRef
     , onChange
+    , onChange_
 
     -- * I/O
-    , SafeIO
     , getArgs
     , getProgName
     , lookupEnv
@@ -89,7 +83,7 @@ module LGtk
     , Dia
     , MouseEvent (..)
     , MousePos (..)
-    , Modifier
+    , KeyModifier
     , KeyVal
     , keyName
     , keyToChar
@@ -123,8 +117,7 @@ import Control.Lens
 import Control.Monad.ExtRef
 import Control.Monad.EffRef
 import GUI.Gtk.Structures
-import qualified GUI.Gtk.Structures.IO as Gtk
-import Control.Monad.Restricted
+import GUI.Gtk.Structures.IO (runWidget)
 
 
 {- |
@@ -142,8 +135,8 @@ Run a Gtk widget description.
 The widget is shown in a window and the thread enters into the Gtk event cycle.
 It leaves the event cycle when the window is closed.
 -}
-runWidget :: (forall m . EffIORef m => Widget m) -> IO ()
-runWidget = Gtk.runWidget
+--runWidget :: (forall m . EffIORef m => Widget m) -> IO ()
+--runWidget = Gtk.runWidget
 {-
 instance MonadRefState m => IsString (RefStateReader m String) where
     fromString = return
@@ -170,7 +163,7 @@ button__
     => ReadRef m String     -- ^ dynamic label of the button
     -> ReadRef m Bool       -- ^ the button is active when this returns @True@
     -> ReadRef m Color      -- ^ dynamic background color
-    -> WriteRef m ()        -- ^ the action to do when the button is pressed
+    -> Modifier m ()        -- ^ the action to do when the button is pressed
     -> Widget m
 button__ r x c y = return $ Button (Send r) (Send x) (Send c) (\() -> y)
 
@@ -179,42 +172,42 @@ button_
     :: EffRef m
     => ReadRef m String     -- ^ dynamic label of the button
     -> ReadRef m Bool       -- ^ the button is active when this returns @True@
-    -> WriteRef m ()        -- ^ the action to do when the button is pressed
+    -> Modifier m ()        -- ^ the action to do when the button is pressed
     -> Widget m
 button_ r x y = return $ Button (Send r) (Send x) noREffect (\() -> y)
 
 button
     :: EffRef m
     => ReadRef m String     -- ^ dynamic label of the button
-    -> ReadRef m (Maybe (WriteRef m ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
+    -> ReadRef m (Maybe (Modifier m ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
     -> Widget m
-button r fm = button_ r (liftM isJust fm) (liftRefStateReader fm >>= maybe (return ()) id)
+button r fm = button_ r (liftM isJust fm) (liftRefStateReader' fm >>= maybe (return ()) id)
 
 
 
 smartButton
-    :: (EffRef m, EqReference r, RefState r ~ RefState (RefCore m)) 
+    :: (EffRef m, EqReference r, RefReader r ~ RefReader (RefCore m)) 
     => ReadRef m String     -- ^ dynamic label of the button
     -> MRef r a              -- ^ underlying reference
     -> (a -> a)   -- ^ The button is active when this function is not identity on value of the reference. When the button is pressed, the value of the reference is modified with this function.
     -> Widget m
 smartButton s r f
-    = button_ s (hasEffect r f) (modRef r f)
+    = button_ s (hasEffect r f) (modRef' r f)
 
 -- | Checkbox.
 checkbox :: EffRef m => Ref m Bool -> Widget m
-checkbox r = return $ Checkbox (Send (readRef r), writeRef r)
+checkbox r = return $ Checkbox (Send (readRef r), writeRef' r)
 
 -- | Simple combo box.
 combobox :: EffRef m => [String] -> Ref m Int -> Widget m
-combobox ss r = return $ Combobox ss (Send (readRef r), writeRef r)
+combobox ss r = return $ Combobox ss (Send (readRef r), writeRef' r)
 
 -- | Text entry.
-entry :: (EffRef m, Reference r, RefState r ~ RefState (RefCore m))  => MRef r String -> Widget m
-entry r = return $ Entry (Send (readRef r), writeRef r)
+entry :: (EffRef m, Reference r, RefReader r ~ RefReader (RefCore m))  => MRef r String -> Widget m
+entry r = return $ Entry (Send (readRef r), writeRef' r)
 
 -- | Text entry.
-entryShow :: (EffRef m, Show a, Read a, Reference r, RefState r ~ RefState (RefCore m)) => MRef r a -> Widget m
+entryShow :: (EffRef m, Show a, Read a, Reference r, RefReader r ~ RefReader (RefCore m)) => MRef r a -> Widget m
 entryShow r = entry $ showLens `lensMap` r
 
 {- | Notebook (tabs).
@@ -227,7 +220,7 @@ notebook xs = do
     let f index (title, w) = (,) title $ cell (liftM (== index) $ readRef currentPage) $ \b -> case b of
            False -> hcat []
            True -> w
-    return $ Notebook' (writeRef currentPage) $ zipWith f [0..] xs
+    return $ Notebook' (writeRef' currentPage) $ zipWith f [0..] xs
 
 {- | Dynamic cell.
 
@@ -255,14 +248,14 @@ canvas
     => Int   -- ^ width
     -> Int   -- ^ height
     -> Double  -- ^ scale
-    -> (MouseEvent a -> WriteRef m ())
+    -> (MouseEvent a -> Modifier m ())
     -> ReadRef m b
     -> (b -> Dia a)
     -> Widget m
 canvas w h sc me r f = return $ Canvas w h sc me (Send r) f
 
 hscale :: (EffRef m) => Double -> Double -> Double -> Ref m Double -> Widget m
-hscale a b c r = return $ Scale a b c (Send $ readRef r, writeRef r)
+hscale a b c r = return $ Scale a b c (Send $ readRef r, writeRef' r)
 
 showLens :: (Show a, Read a) => Lens' a String
 showLens = lens show $ \def s -> maybe def fst $ listToMaybe $ reads s
@@ -273,3 +266,31 @@ listLens = lens get set where
     get (True, (l, r)) = l: r
     set (_, x) [] = (False, x)
     set _ (l: r) = (True, (l, r))
+
+
+-- | Undo-redo state transformation.
+undoTr
+    :: EffRef m =>
+       (a -> a -> Bool)     -- ^ equality on state
+    -> Ref m a             -- ^ reference of state
+    ->   m ( ReadRef m (Maybe (Modifier m ()))
+           , ReadRef m (Maybe (Modifier m ()))
+           )  -- ^ undo and redo actions
+undoTr eq r = do
+    ku <- extRef r (undoLens eq) ([], [])
+    let try f = liftM (liftM (writeRef' ku) . f) $ readRef ku
+    return (try undo, try redo)
+  where
+    undo (x: xs@(_:_), ys) = Just (xs, x: ys)
+    undo _ = Nothing
+
+    redo (xs, y: ys) = Just (y: xs, ys)
+    redo _ = Nothing
+
+undoLens :: (a -> a -> Bool) -> Lens' ([a],[a]) a
+undoLens eq = lens get set where
+    get = head . fst
+    set (x' : xs, ys) x | eq x x' = (x: xs, ys)
+    set (xs, _) x = (x : xs, [])
+
+
