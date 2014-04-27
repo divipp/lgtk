@@ -2,6 +2,8 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances #-}
 -- | Tests for the @ExtRef@ interface.
 module Control.Monad.ExtRef.Test
@@ -14,18 +16,24 @@ module Control.Monad.ExtRef.Test
 
 import Control.Monad.State
 import Control.Monad.Writer
+import Control.Concurrent
 import Control.Category
 --import Control.Arrow ((***))
 import Data.Maybe
 import Prelude hiding ((.), id)
+import System.IO
 
 import Control.Lens
 import Control.Monad.ExtRef
 import Control.Monad.ExtRef.Pure (ExtRefWrite (..))
 import qualified Control.Monad.ExtRef.Pure as Pure
---import qualified Control.Monad.ExtRef.IORef as IORef
+
+import System.IO.Unsafe
 
 -----------------------------------------------------------------
+
+
+{-
 
 -- | This instance is used in the implementation, end users do not need it.
 instance (ExtRef m, Monoid w) => ExtRef (WriterT w m) where
@@ -39,25 +47,40 @@ instance (ExtRef m, Monoid w) => ExtRef (WriterT w m) where
 instance (ExtRefWrite m, Monoid w) => ExtRefWrite (WriterT w m) where
 
     liftWriteRef = lift . liftWriteRef
-
-
--- | Consistency tests for the pure implementation of @Ext@, should give an empty list of errors.
-testExtPure :: [String]
-testExtPure = mkTests $ \t -> flip evalState Pure.initLSt $ execWriterT t
-
-{-
--- | Consistency tests for the @IORef@-based implementation of @Ext@, should give an empty list of errors.
-testExtIORef :: [String]
-testExtIORef = mkTests $ \t -> execWriter $ IORef.runExt t
-    -- IORef.Ext i (Writer [String])
 -}
 
+-- | Consistency tests for the pure implementation of @Ext@, should give an empty list of errors.
+{-
+testExtPure :: [String]
+testExtPure = mkTests $ \t -> let
+    (((), m), w) = runWriter $ Pure.runPure newChan t
+    in w -- ++ execWriter m
+  where
+    newChan = return (fail "x", \_ -> return (error "1"))
+-}
+
+instance MonadWriter [String] IO where
+    tell = putStrLn . show
+
+testExtPure = mkTests $ \t -> unsafePerformIO $ do
+    hSetBuffering stdout LineBuffering
+    ((), m) <- Pure.runPure newChan' t
+
+    forkIO m
+    return ["end"]
+   where
+    newChan' :: IO (IO a, a -> IO ())
+    newChan' = do
+        ch <- newChan
+        return (readChan ch, \x -> writeChan ch x)
+
+
 -- | Check an equality.
-(==?) :: (Eq a, Show a, MonadWriter [String] m) => a -> a -> m ()
-rv ==? v = when (rv /= v) $ tell . return $ "runTest failed: " ++ show rv ++ " /= " ++ show v
+(==?) :: (Eq a, Show a, MonadWriter [String] (EffectM m), EffRef m) => a -> a -> m ()
+rv ==? v = liftEffectM $ when (rv /= v) $ tell . return $ "runTest failed: " ++ show rv ++ " /= " ++ show v
 
 -- | Check the current value of a given reference.
-(==>) :: (Eq a, Show a, MonadWriter [String] m, ExtRef m) => Ref m a -> a -> m ()
+(==>) :: (Eq a, Show a, MonadWriter [String] (EffectM m), EffRef m) => Ref m a -> a -> m ()
 r ==> v = readRef' r >>= (==? v)
 
 infix 0 ==>, ==?
@@ -71,10 +94,11 @@ maybeLens = lens (\(b,a) -> if b then Just a else Nothing)
 
 Look inside the sources for the tests.
 -}
-mkTests :: ((forall m . (MonadWriter [String] m, ExtRefWrite m) => m ()) -> [String]) -> [String]
+mkTests :: ((forall m . (MonadWriter [String] (EffectM m), EffRef m) => m ()) -> [String]) -> [String]
 mkTests runTest
       = newRefTest
      ++ writeRefTest
+{-
      ++ writeRefsTest
      ++ extRefTest
      ++ joinTest
@@ -85,6 +109,7 @@ mkTests runTest
      ++ chainTest
      ++ undoTest
      ++ undoTest2
+-}
 --     ++ undoTest3
   where
 
@@ -94,10 +119,40 @@ mkTests runTest
 
     writeRefTest = runTest $ do
         r <- newRef (3 :: Int)
-        r ==> 3
-        writeRef' r 4
-        r ==> 4
+        k <- newRef (3 :: Int)
+        sr <- toReceive (writeRef' r) (const $ return ())
+        sk <- toReceive (writeRef' k) (const $ return ())
 
+        onChange (readRef r) $ \x -> do
+            when (x == 3) $ do
+                onChange (readRef k) $ \x -> do
+                    liftEffectM $ tell ["k1: " ++ show x]
+                    return $ return ()
+                return ()
+            return $ do
+                liftEffectM $ tell ["r: " ++ show x]
+                when (x == 4) $ do
+                    onChange (readRef k) $ \x -> return $ do
+                        liftEffectM $ tell ["k2: " ++ show x]
+                    return ()
+                r ==> x
+        r ==> 3
+        liftEffectM $ sr 5
+        liftEffectM $ sk 6
+        liftEffectM $ sr 4
+        liftEffectM $ sk 7
+        liftEffectM $ sr 3
+        liftEffectM $ sk 8
+        liftEffectM $ sr 5
+        liftEffectM $ sk 9
+        liftEffectM $ sr 4
+        liftEffectM $ sk 10
+        liftEffectM $ sr 3
+        liftEffectM $ sk 11
+        r ==> 3
+        return ()
+
+{-
     writeRefsTest = runTest $ do
         r1 <- newRef (3 :: Int)
         r2 <- newRef (13 :: Int)
@@ -305,4 +360,4 @@ mkTests runTest
     join' r = join $ readRef r
 
     writeRef' r a = liftWriteRef $ writeRef r a
-
+-}
