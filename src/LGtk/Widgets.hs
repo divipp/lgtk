@@ -1,7 +1,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
 -- | Lens-based Gtk interface
-module GUI.Gtk.Structures
-    ( module GUI.Gtk.Structures
+module LGtk.Widgets
+    ( module LGtk.Widgets
     , Colour, RGB (..), sRGB, toSRGB
     ) where
 

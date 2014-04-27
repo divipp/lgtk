@@ -3,7 +3,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ExistentialQuantification #-}
-module LGtk.Canvas
+module LGtk.Render
     ( inCanvas
     , mainTest
     ) where
@@ -17,7 +17,7 @@ import Data.Colour.SRGB
 import Unsafe.Coerce
 
 import LGtk
-import GUI.Gtk.Structures
+import LGtk.Widgets
 
 --------------------------------------
 

@@ -3,7 +3,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
-module GUI.Gtk.Structures.IO
+module LGtk.Backend.Gtk
     ( runWidget
     ) where
 
@@ -21,8 +21,8 @@ import qualified Graphics.UI.Gtk as Gtk
 
 import Control.Monad.ExtRef
 import Control.Monad.ExtRef.Pure
-import Control.Monad.EffRef
-import GUI.Gtk.Structures
+import LGtk.Effects
+import LGtk.Widgets
 
 import Diagrams.Prelude
 import Diagrams.Backend.Cairo

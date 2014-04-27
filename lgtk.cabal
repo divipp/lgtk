@@ -54,25 +54,25 @@ library
 
                   , lens
   exposed-modules:
+                    Control.Monad.ExtRef
+                    Control.Monad.ExtRef.Pure
+                    Control.Monad.ExtRef.Test
+
                     LGtk
 
+                    LGtk.Widgets
+                    LGtk.Render
+                    LGtk.Effects
+
+                    LGtk.Backend.Gtk
+                    LGtk.Backend.GLFW
+
                     LGtk.ADTEditor
-                    LGtk.Canvas
 
                     LGtk.Demos.Main
                     LGtk.Demos.Tri
                     LGtk.Demos.IntListEditor
                     LGtk.Demos.TEditor
-  other-modules:
-                    Control.Monad.ExtRef
-                    Control.Monad.ExtRef.Pure
-                    Control.Monad.ExtRef.Test
-
-                    Control.Monad.EffRef
-
-                    GUI.Gtk.Structures
-                    GUI.Gtk.Structures.IO
-                    GUI.Gtk.Structures.GLFW
   ghc-options: 
                     -threaded
                     -Wall 

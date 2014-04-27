@@ -111,10 +111,10 @@ import Control.Monad
 import Control.Lens
 
 import Control.Monad.ExtRef
-import Control.Monad.EffRef
-import GUI.Gtk.Structures
-import GUI.Gtk.Structures.IO (runWidget)
-import qualified GUI.Gtk.Structures.GLFW as GLFW
+import LGtk.Effects
+import LGtk.Widgets
+import LGtk.Backend.Gtk (runWidget)
+import qualified LGtk.Backend.GLFW as GLFW
 
 
 {- |

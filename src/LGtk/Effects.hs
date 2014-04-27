@@ -7,7 +7,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE GADTs #-}
-module Control.Monad.EffRef where
+module LGtk.Effects where
 
 import Control.Applicative
 import Control.Concurrent
