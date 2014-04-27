@@ -86,6 +86,15 @@ instance Monad m => ExtRef (StateT LSt m) where
 
     memoWrite = memoWrite_
 
+    future = future_
+
+future_ :: ExtRefWrite m => (ReadRef m a -> m a) -> m a
+future_ f = do
+    s <- newRef $ error "can't see the future"
+    a <- f $ readRef s
+    liftWriteRef $ writeRef s a
+    return a
+
 memoRead_ g = do
     s <- newRef Nothing
     return $ readRef' s >>= \x -> case x of
@@ -133,6 +142,7 @@ instance Monad n => ExtRef (Pure n) where
     newRef = Reg . lift . lift . newRef
     memoRead = memoRead_
     memoWrite = memoWrite_
+    future = future_
 
 instance Monad n => ExtRefWrite (Pure n) where
     liftWriteRef = Reg . lift . lift . liftWriteRef
@@ -169,6 +179,7 @@ instance Monad m => ExtRef (Modifier (Pure m)) where
     newRef = RegW . newRef
     memoRead = memoRead_
     memoWrite = memoWrite_
+    future = future_
 
 evalRegister ff (Reg m) = runReaderT m ff
 

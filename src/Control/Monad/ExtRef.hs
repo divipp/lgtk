@@ -143,6 +143,8 @@ class (Monad m, Reference (RefCore m)) => ExtRef m where
 
     memoWrite :: (ExtRef m, Eq b) => (b -> m a) -> m (b -> m a)
 
+    future :: (ReadRef m a -> m a) -> m a
+
 
 type Ref m a = ReadRef m (RefCore m a)
 

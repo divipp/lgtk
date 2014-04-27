@@ -5,13 +5,15 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
---{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE GADTs #-}
 module Control.Monad.EffRef where
 
 import Control.Applicative
 import Control.Concurrent
 import Control.Exception (evaluate)
 import Control.Monad
+import Control.Monad.Operational
 import Control.Monad.Reader
 import Control.Monad.Trans.Control
 import System.Directory
@@ -105,8 +107,18 @@ instance EffRef m => EffRef (Wrap m) where
     onChange_ r b bc f = Wrap $ onChange_ r b bc $ (fmap . fmap . fmap) (liftM (fmap unWrap) . unWrap) f
     toReceive r f = Wrap $ toReceive (fmap unWrapM r) f
 
+data IOInstruction a where
+    GetArgs :: IOInstruction [String]
+    GetProgName :: IOInstruction String
+    LookupEnv :: String -> IOInstruction (Maybe String)
+    PutStr :: String -> IOInstruction ()
+    GetLine :: (String -> SIO ()) -> IOInstruction Handle    
+    AsyncWrite :: Int -> SIO () -> IOInstruction Handle
+    FileRef :: FilePath -> (Maybe String -> SIO ()) -> IOInstruction (Handle, String -> SIO ())
 
+type SIO = Program IOInstruction
 
+type Handle = Command -> SIO ()
 
 instance (EffRef m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m) where
 
@@ -175,6 +187,26 @@ instance (EffRef m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m) where
         x <- toReceive w u
         liftEffectM $ f [ liftIO_ getLine >>= x ]   -- TODO
     putStr_ s = liftIO' $ putStr s
+
+getLine__ :: (String -> IO ()) -> IO (Command -> IO ())
+getLine__ f = do
+    forkIO $ forever $ getLine >>= f   -- todo
+    return $ const $ return ()
+
+--toReceive_ :: Functor f => f (Modifier m ()) -> (Command -> EffectM m ()) -> m (f (EffectM m ()))
+toReceive_
+    :: (EffRef m, EffectM m ~ IO, Functor f)
+    => f (Modifier m ())
+    -> (f (EffectM m ()) -> EffectM m (Command -> EffectM m ()))
+    -> m ()
+toReceive_ w g = do
+    r <- liftIO' $ newMVar $ const $ return ()
+    let h_ comm = do
+            readMVar r >>= ($ comm)
+    c <- toReceive w h_
+    h <- liftEffectM $ g c
+    liftIO' $ putMVar r h
+    return ()
 
 -- canonicalizePath may fail if the file does not exsist
 canonicalizePath' p = liftM (F.</> f) $ canonicalizePath d 
