@@ -182,7 +182,7 @@ runWidget_ post' post liftIO_ = toWidget
                 c <- eventKeyVal
                 kn <- lift $ keyvalName c
                 kc <- lift $ keyvalToChar c
-                liftIO $ re $ KeyPress m c kn kc
+                liftIO $ re $ KeyPress m kn kc
           _ <- liftIO_ $ on canvas exposeEvent $ tryEvent $ liftIO $ do
                 d <- readMVar cur'
                 case d of
