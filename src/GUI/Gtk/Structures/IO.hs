@@ -1,10 +1,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE RecursiveDo #-}
 module GUI.Gtk.Structures.IO
     ( runWidget
     ) where
@@ -12,7 +9,6 @@ module GUI.Gtk.Structures.IO
 import Control.Category
 import Control.Monad
 import Control.Monad.State
---import Control.Monad.Writer
 import Control.Concurrent
 import Data.Maybe
 import Data.List hiding (union)
@@ -20,7 +16,6 @@ import Prelude hiding ((.), id)
 
 import Graphics.UI.Gtk hiding (Widget, Release)
 import qualified Graphics.UI.Gtk as Gtk
---import Graphics.UI.Gtk.Gdk.Events (eventKeyChar)
 
 import Control.Monad.ExtRef
 import Control.Monad.ExtRef.Pure
@@ -45,21 +40,20 @@ The widget is shown in a window and the thread enters into the Gtk event cycle.
 It leaves the event cycle when the window is closed.
 -}
 runWidget :: (forall m . (EffIORef m) => Widget m) -> IO ()
-runWidget desc = gtkContext $ \postGUISync -> mdo
+runWidget desc = gtkContext $ \postGUISync -> do
     postActionsRef <- newMVar $ return ()
     let addPostAction  = runMorphD postActionsRef . modify . flip (>>)
         runPostActions = join $ runMorphD postActionsRef $ state $ \m -> (m, return ())
-    actionChannel <- newChan
-    ((widget, tick), s) <- runSLSt $
-        evalRegister' (writeChan actionChannel) $
-            runWidget_ addPostAction postGUISync liftIO' desc
-    runPostActions
-    _ <- forkIO $ s $ forever $ do
-            join $ lift $ readChan actionChannel
-            tick
-            lift $ runPostActions
+    (widget, actions) <- runPure (newChan' runPostActions) $ do
+        w <- runWidget_ addPostAction postGUISync liftIO' desc
+        liftIO' runPostActions
+        return w
+    _ <- forkIO $ actions
     return widget
 
+newChan' pa = do
+    ch <- newChan
+    return (pa >> readChan ch, writeChan ch)
 
 gtkContext :: ((forall a . IO a -> IO a) -> IO SWidget) -> IO ()
 gtkContext m = do

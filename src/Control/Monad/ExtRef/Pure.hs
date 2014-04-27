@@ -11,10 +11,9 @@ The implementation uses @unsafeCoerce@ internally, but its effect cannot escape.
 -}
 module Control.Monad.ExtRef.Pure
     ( Pure
-    , evalRegister'
-    , runSLSt
     , ExtRefWrite (..)
     , initLSt
+    , runPure
     ) where
 
 import Data.Monoid
@@ -172,21 +171,17 @@ type SLSt = StateT LSt
 
 type Pure m = Reg m
 
-runSLSt :: Monad m => SLSt m a -> m (a, SLSt m b -> m b)
-runSLSt m = do
-    (a, s) <- flip runStateT initLSt m
-    return (a, flip evalStateT s)
+runPure :: Monad m => (forall a . m (m a, a -> m ())) -> Pure m a -> m (a, m ())
+runPure newChan (Reg m) = do
+    (read, write) <- newChan
+    ((a, tick), s) <- flip runStateT initLSt $ do
+        (a, r) <- runRefWriterT $ runReaderT m write
+        (w, _) <- readRef' r
+        return (a, runMonadMonoid w)
+    return $ (,) a $ flip evalStateT s $ forever $ do
+        join $ lift read
+        tick
 
-
-evalRegister'
-    :: Monad m
-    => (SLSt m () -> m ())
-    -> Pure m a
-    -> SLSt m (a, SLSt m ())
-evalRegister' ff (Reg m) = do
-    (a, r) <- runRefWriterT $ runReaderT m ff
-    (w, _) <- readRef' r
-    return (a, runMonadMonoid w)
 
 
 toSend
