@@ -19,8 +19,8 @@ import Prelude hiding ((.), id)
 import Graphics.UI.Gtk hiding (Widget, Release)
 import qualified Graphics.UI.Gtk as Gtk
 
-import Control.Monad.ExtRef
-import Control.Monad.ExtRef.Pure
+import Data.LensRef
+import Data.LensRef.Pure
 import LGtk.Effects
 import LGtk.Widgets
 

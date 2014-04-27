@@ -1,7 +1,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
-module Control.Monad.ExtRef where
+module Data.LensRef where
 
 import Control.Monad (liftM)
 import Control.Lens (Lens', lens, set, (^.))
@@ -84,7 +84,7 @@ create the same type of references in multiple monads.
 
 @(Extref m) === (StateT s m)@, where 's' is an extendible state.
 
-For basic usage examples, look into the source of @Control.Monad.ExtRef.Pure.Test@.
+For basic usage examples, look into the source of @Data.LensRef.Pure.Test@.
 -}
 class (Monad m, Reference (RefCore m)) => ExtRef m where
 

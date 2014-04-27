@@ -54,21 +54,20 @@ library
 
                   , lens
   exposed-modules:
-                    Control.Monad.ExtRef
-                    Control.Monad.ExtRef.Pure
-                    Control.Monad.ExtRef.Test
+                    Data.LensRef
+                    Data.LensRef.Pure
+                    Data.LensRef.Test
 
                     LGtk
 
+                    LGtk.Effects
                     LGtk.Widgets
                     LGtk.Render
-                    LGtk.Effects
 
                     LGtk.Backend.Gtk
                     LGtk.Backend.GLFW
 
                     LGtk.ADTEditor
-
                     LGtk.Demos.Main
                     LGtk.Demos.Tri
                     LGtk.Demos.IntListEditor

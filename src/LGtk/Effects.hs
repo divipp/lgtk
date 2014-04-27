@@ -24,7 +24,7 @@ import Filesystem.Path.CurrentOS hiding (FilePath)
 import qualified System.Environment as Env
 import System.IO.Error (catchIOError, isDoesNotExistError)
 
-import Control.Monad.ExtRef
+import Data.LensRef
 
 
 --------------------------------------------------------------------------

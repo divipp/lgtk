@@ -6,7 +6,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances #-}
 -- | Tests for the @ExtRef@ interface.
-module Control.Monad.ExtRef.Test
+module Data.LensRef.Test
     ( -- * Tests for the interface
       mkTests
     -- * Tests for implementations
@@ -24,9 +24,9 @@ import Prelude hiding ((.), id)
 import System.IO
 
 import Control.Lens
-import Control.Monad.ExtRef
---import Control.Monad.ExtRef.Pure (ExtRefWrite (..))
-import qualified Control.Monad.ExtRef.Pure as Pure
+import Data.LensRef
+--import Data.LensRef.Pure (ExtRefWrite (..))
+import qualified Data.LensRef.Pure as Pure
 
 import System.IO.Unsafe
 

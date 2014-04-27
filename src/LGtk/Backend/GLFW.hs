@@ -28,8 +28,8 @@ import Diagrams.Backend.Cairo.Ptr
 
 import Codec.Picture
 
-import Control.Monad.ExtRef
-import Control.Monad.ExtRef.Pure
+import Data.LensRef
+import Data.LensRef.Pure
 import LGtk.Effects
 import LGtk.Widgets
 

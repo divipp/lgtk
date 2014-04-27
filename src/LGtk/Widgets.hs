@@ -11,7 +11,7 @@ import Data.Colour.SRGB
 import Diagrams.Prelude (QDiagram, R2)
 import Diagrams.Backend.Cairo (Cairo)
 
-import Control.Monad.ExtRef
+import Data.LensRef
 
 type Receive m a = a -> Modifier m ()
 

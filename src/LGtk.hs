@@ -110,7 +110,7 @@ import Data.Semigroup
 import Control.Monad
 import Control.Lens
 
-import Control.Monad.ExtRef
+import Data.LensRef
 import LGtk.Effects
 import LGtk.Widgets
 import LGtk.Backend.Gtk (runWidget)
