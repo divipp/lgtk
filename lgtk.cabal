@@ -1,5 +1,5 @@
 name:               lgtk
-version:            0.7
+version:            0.8
 category:           GUI
 synopsis:           lens-based API for Gtk
 description:
@@ -30,6 +30,7 @@ library
                   , filepath
                   , system-filepath
                   , fsnotify
+                  , monad-control
 
                   , transformers
                   , mtl

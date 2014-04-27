@@ -3,7 +3,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE StandaloneDeriving #-}
---{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 --{-# LANGUAGE RankNTypes #-}
 module Control.Monad.EffRef where
 
@@ -12,6 +13,7 @@ import Control.Concurrent
 import Control.Exception (evaluate)
 import Control.Monad
 import Control.Monad.Reader
+import Control.Monad.Trans.Control
 import System.Directory
 import qualified System.FilePath as F
 import System.FSNotify
@@ -104,7 +106,9 @@ instance EffRef m => EffRef (Wrap m) where
     toReceive r f = Wrap $ toReceive (fmap unWrapM r) f
 
 
-instance (EffRef m, EffectM m ~ IO) => EffIORef (Wrap m) where
+
+
+instance (EffRef m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m) where
 
     getArgs     = liftIO' Env.getArgs
 
@@ -115,9 +119,9 @@ instance (EffRef m, EffectM m ~ IO) => EffIORef (Wrap m) where
         if isDoesNotExistError e then return Nothing else ioError e
 
     asyncWrite t r = do
-        (u, f) <- liftIO' forkIOs'
-        x <- toReceive (const r) $ liftIO . u
-        liftIO' $ f [ threadDelay t, x () ]
+        (u, f) <- liftEffectM forkIOs'
+        x <- toReceive (const r) u
+        liftEffectM $ f [ liftIO_ $ threadDelay t, x () ]
 
     fileRef f = do
         ms <- liftIO' r
@@ -144,11 +148,11 @@ instance (EffRef m, EffectM m ~ IO) => EffIORef (Wrap m) where
                 putMVar vman $ stopManager man
                 watchDir man (directory cf') filt act
 
-        (u, ff) <- liftIO' forkIOs'
-        re <- toReceive (writeRef' ref) $ liftIO . u
-        liftIO' $ ff $ repeat $ takeMVar v >> r >>= re
+        (u, ff) <- liftEffectM  forkIOs'
+        re <- toReceive (writeRef' ref) u
+        liftEffectM $ ff $ repeat $ liftIO_ (takeMVar v >> r) >>= re
 
-        _ <- rEffect (readRef ref) $ \x -> liftIO $ do
+        _ <- rEffect (readRef ref) $ \x -> liftIO_ $ do
             join $ takeMVar vman
             _ <- tryTakeMVar v
             w x
@@ -167,20 +171,20 @@ instance (EffRef m, EffectM m ~ IO) => EffIORef (Wrap m) where
         w = maybe (doesFileExist f >>= \b -> when b (removeFile f)) (writeFile f)
 
     getLine_ w = do
-        (u, f) <- liftIO' forkIOs'
-        x <- toReceive w $ liftIO . u
-        liftIO' $ f [ getLine >>= x ]   -- TODO
+        (u, f) <- liftEffectM forkIOs'
+        x <- toReceive w u
+        liftEffectM $ f [ liftIO_ getLine >>= x ]   -- TODO
     putStr_ s = liftIO' $ putStr s
 
 -- canonicalizePath may fail if the file does not exsist
 canonicalizePath' p = liftM (F.</> f) $ canonicalizePath d 
   where (d,f) = F.splitFileName p
 
-liftIO' m = liftEffectM $ liftIO m
+liftIO' m = liftEffectM $ liftIO_ m
 
 
---forkIOs' :: IO (Command -> IO (), [IO ()] -> IO ())
-forkIOs' = do
+forkIOs' :: MonadBaseControl IO m => m (Command -> m (), [m ()] -> m ())
+forkIOs' = liftBaseWith $ \run -> do
     x <- newMVar ()
     s <- newEmptyMVar
     let g = do
@@ -190,13 +194,14 @@ forkIOs' = do
                 [] -> return ()
                 (i:is) -> do
                     putMVar s is
-                    _ <- i
+                    _ <- run i
                     g
         f i Kill = killThread i
         f _ Block = takeMVar x
         f _ Unblock = putMVar x ()
 
     i <- forkIO g
-    return (f i, putMVar s)
+    return (liftIO_ . f i, liftIO_ . putMVar s)
 
+liftIO_ = liftBaseWith . const
 
