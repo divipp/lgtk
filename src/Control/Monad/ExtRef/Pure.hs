@@ -179,7 +179,7 @@ runSLSt m = do
 
 
 evalRegister'
-    :: (Monad m)
+    :: Monad m
     => (SLSt m () -> m ())
     -> Pure m a
     -> SLSt m (a, SLSt m ())

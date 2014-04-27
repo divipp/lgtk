@@ -52,7 +52,7 @@ runWidget desc = gtkContext $ \postGUISync -> mdo
     actionChannel <- newChan
     ((widget, tick), s) <- runSLSt $
         evalRegister' (writeChan actionChannel) $
-            runWidget_ id id addPostAction postGUISync id id liftIO' desc
+            runWidget_ addPostAction postGUISync liftIO' desc
     runPostActions
     _ <- forkIO $ s $ forever $ do
             join $ lift $ readChan actionChannel
@@ -80,34 +80,30 @@ type SWidget = (IO (), Gtk.Widget)
 
 -- | Run an @IO@ parametrized interface description with Gtk backend
 runWidget_
-    :: forall m k o . (EffRef m, Monad o, k ~ EffectM m)
-    => (k () -> IO ())    -- id
-    -> (IO () -> k ())    -- id
-    -> (IO () -> IO ())
+    :: forall m . (EffRef m, IO ~ EffectM m)
+    => (IO () -> IO ())
     -> (forall a . IO a -> IO a)
-    -> (forall a . m a -> o a)       -- id
-    -> (forall a . o a -> m a)       -- id
-    -> (forall a . IO a -> o a)
+    -> (forall a . IO a -> m a)
     -> Widget m
-    -> o SWidget
-runWidget_ nio nio' post' post liftO liftOBack liftIO_ = toWidget
+    -> m SWidget
+runWidget_ post' post liftIO_ = toWidget
  where
-    liftIO' :: IO a -> o a
+    liftIO' :: IO a -> m a
     liftIO' = liftIO_ . post
 
     -- type Receive n m k a = (Command -> n ()) -> m (a -> k ())
-    reg :: Receive m a -> ((a -> IO ()) -> IO (Command -> IO ())) -> o (Command -> IO ())
+    reg :: Receive m a -> ((a -> IO ()) -> IO (Command -> IO ())) -> m (Command -> IO ())
     reg s f = do
         rer <- liftIO_ newEmptyMVar
         u <- liftIO_ $ f $ \x -> do
             re <- readMVar rer
-            nio $ re x
-        re <- liftO $ runReceive s $ nio' . post . u
+            re x
+        re <- runReceive s $ post . u
         liftIO_ $ putMVar rer re
         return u
 
-    ger :: (Command -> IO ()) -> Send m a -> (a -> IO ()) -> o ()
-    ger hd s f = liftO $ runSend s $ \a -> nio' $ post $ do
+    ger :: (Command -> IO ()) -> Send m a -> (a -> IO ()) -> m ()
+    ger hd s f = runSend s $ \a -> post $ do
         hd Block
         f a
         hd Unblock
@@ -115,10 +111,9 @@ runWidget_ nio nio' post' post liftO liftOBack liftIO_ = toWidget
     nhd :: Command -> IO ()
     nhd = const $ return ()
 
-    toWidget :: Widget m -> o SWidget
-    toWidget m = liftO m >>= \i -> case i of
+    toWidget :: Widget m -> m SWidget
+    toWidget m = m >>= \i -> case i of
 
---        Action m -> liftO m >>= toWidget
         Label s -> do
             w <- liftIO' $ labelNew Nothing
             ger nhd s $ labelSetLabel w
@@ -275,9 +270,9 @@ runWidget_ nio nio' post' post liftO liftOBack liftIO_ = toWidget
                 True -> fmap castToContainer $ hBoxNew False 1
                 False -> fmap castToContainer $ alignmentNew 0 0 1 1
             sh <- liftIO_ $ newMVar $ return ()
-            _ <- liftO $ onChange onCh $ \bv -> do
-                mx <- f (liftOBack . toWidget) bv
-                return $ mx >>= \(x, y) -> liftOBack $ liftIO' $ do 
+            _ <- onChange onCh $ \bv -> do
+                mx <- f toWidget bv
+                return $ mx >>= \(x, y) -> liftIO' $ do 
                     _ <- swapMVar sh x
                     containerForeach w $ if b then widgetHideAll else containerRemove w 
                     post' $ post $ do
