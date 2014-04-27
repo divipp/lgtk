@@ -148,7 +148,7 @@ type Ref m a = ReadRef m (RefCore m a)
 
 type ReadRef m = RefReader (RefCore m)
 
-type WriteRef m = RefState (RefReader (RefCore m))
+type WriteRef m = RefState (ReadRef m)
 
 
 -- | Monad for dynamic actions

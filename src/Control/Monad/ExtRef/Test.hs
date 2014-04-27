@@ -25,7 +25,7 @@ import System.IO
 
 import Control.Lens
 import Control.Monad.ExtRef
-import Control.Monad.ExtRef.Pure (ExtRefWrite (..))
+--import Control.Monad.ExtRef.Pure (ExtRefWrite (..))
 import qualified Control.Monad.ExtRef.Pure as Pure
 
 import System.IO.Unsafe

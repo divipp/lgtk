@@ -11,8 +11,6 @@ The implementation uses @unsafeCoerce@ internally, but its effect cannot escape.
 -}
 module Control.Monad.ExtRef.Pure
     ( Pure
-    , ExtRefWrite (..)
-    , initLSt
     , runPure
     ) where
 

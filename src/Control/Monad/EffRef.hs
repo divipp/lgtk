@@ -1,10 +1,13 @@
 {-# LANGUAGE TypeFamilies #-}
---{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE StandaloneDeriving #-}
 --{-# LANGUAGE FlexibleContexts #-}
 --{-# LANGUAGE RankNTypes #-}
 module Control.Monad.EffRef where
 
+import Control.Applicative
 import Control.Concurrent
 import Control.Exception (evaluate)
 import Control.Monad
@@ -18,7 +21,6 @@ import qualified System.Environment as Env
 import System.IO.Error (catchIOError, isDoesNotExistError)
 
 import Control.Monad.ExtRef
-import Control.Monad.ExtRef.Pure
 
 
 --------------------------------------------------------------------------
@@ -76,7 +78,33 @@ putStrLn_ :: EffIORef m => String -> m ()
 putStrLn_ = putStr_ . (++ "\n")
 
 
-instance EffIORef (Pure IO) where
+newtype Wrap m a = Wrap { unWrap :: m a } deriving (Functor, Applicative, Monad)
+
+instance ExtRef m => ExtRef (Wrap m) where
+    type RefCore (Wrap m) = RefCore m
+    liftReadRef = Wrap . liftReadRef
+    extRef r l = Wrap . extRef r l
+    newRef = Wrap . newRef
+
+deriving instance (EffRef m) => Monad (Modifier (Wrap m))
+
+instance EffRef m => ExtRef (Modifier (Wrap m)) where
+    type RefCore (Modifier (Wrap m)) = RefCore m
+    liftReadRef = WrapM . liftReadRef
+    extRef r l = WrapM . extRef r l
+    newRef = WrapM . newRef
+
+instance EffRef m => EffRef (Wrap m) where
+    type EffectM (Wrap m) = EffectM m
+    newtype Modifier (Wrap m) a = WrapM { unWrapM :: Modifier m a}
+    liftEffectM = Wrap . liftEffectM -- :: EffectM m a -> m a
+    liftModifier = WrapM . liftModifier . unWrap -- :: m a -> Modifier m a
+    liftWriteRef' = WrapM . liftWriteRef' -- :: WriteRef m a -> Modifier m a
+    onChange_ r b bc f = Wrap $ onChange_ r b bc $ (fmap . fmap . fmap) (liftM (fmap unWrap) . unWrap) f
+    toReceive r f = Wrap $ toReceive (fmap unWrapM r) f
+
+
+instance (EffRef m, EffectM m ~ IO) => EffIORef (Wrap m) where
 
     getArgs     = liftIO' Env.getArgs
 

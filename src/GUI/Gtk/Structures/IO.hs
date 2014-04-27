@@ -44,7 +44,7 @@ runWidget desc = gtkContext $ \postGUISync -> do
     postActionsRef <- newMVar $ return ()
     let addPostAction  = runMorphD postActionsRef . modify . flip (>>)
         runPostActions = join $ runMorphD postActionsRef $ state $ \m -> (m, return ())
-    (widget, actions) <- runPure (newChan' runPostActions) $ do
+    (widget, actions) <- runPure (newChan' runPostActions) $ unWrap $ do
         w <- runWidget_ addPostAction postGUISync liftIO' desc
         liftIO' runPostActions
         return w
