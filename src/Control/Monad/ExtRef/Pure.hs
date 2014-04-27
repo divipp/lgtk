@@ -116,6 +116,13 @@ type Register n m = ReaderT (Ref m (MonadMonoid m, Command -> MonadMonoid n)) m
 
 newtype Reg n a = Reg (ReaderT (SLSt n () -> n ()) (Register n (SLSt n)) a) deriving (Monad, Applicative, Functor)
 
+mapReg :: (forall a . m a -> n a) -> Reg m a -> Reg n a
+mapReg ff (Reg m) = Reg $ ReaderT $ \f -> ReaderT $ \r -> StateT $ \s -> 
+    ff $ flip runStateT s $ flip runReaderT (iso undefined undefined `lensMap` r) $ runReaderT m $ undefined f
+
+instance MonadTrans Reg where
+    lift = Reg . lift . lift . lift
+
 
 instance Monad n => ExtRef (Pure n) where
 
@@ -136,7 +143,7 @@ instance Monad n => EffRef (Pure n) where
 
     newtype Modifier (Pure n) a = RegW {unRegW :: Pure n a} deriving (Monad, Applicative, Functor)
 
-    liftEffectM = Reg . lift . lift . lift
+    liftEffectM = lift
 
     liftModifier = RegW
 
