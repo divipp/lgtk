@@ -37,6 +37,11 @@ library
 
                   , gtk
 
+                  , vector
+                  , OpenGLRaw
+                  , GLFW-b
+                  , JuicyPixels
+
 --                  , threepenny-gui == 0.4.1.*
 
                   , diagrams-lib
@@ -66,6 +71,7 @@ library
 
                     GUI.Gtk.Structures
                     GUI.Gtk.Structures.IO
+                    GUI.Gtk.Structures.GLFW
   ghc-options: 
                     -threaded
                     -Wall 

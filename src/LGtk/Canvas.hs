@@ -277,7 +277,7 @@ tr sca w = do
 ----------------------------------------------------------------------------
 
 mainTest :: IO ()
-mainTest = runWidget $ do
+mainTest = runWidgetGLFW $ do
     t <- newRef $ iterate (Node Leaf) Leaf !! 5
     i <- newRef (0 :: Int)
     s <- newRef "x"
@@ -298,9 +298,10 @@ mainTest = runWidget $ do
             , join $ tEditor3 t
             ]
 
-    hcat
+    inCanvas 600 400 30 $ hcat [ inCanvas 200 300 15 $ vcat [x, inCanvas 100 100 15 x], x]
+{-    hcat
         [ inCanvas 600 400 30 $ hcat [ inCanvas 200 300 15 $ vcat [x, inCanvas 100 100 15 x], x], x ]
-
+-}
 
 -- | Binary tree shapes
 data T

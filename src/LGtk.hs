@@ -66,7 +66,7 @@ module LGtk
     -- ** Running
     , Widget
     , runWidget
---    , runWidget'
+    , runWidgetGLFW
 
     -- ** GUI descriptions
     , label
@@ -118,6 +118,7 @@ import Control.Monad.ExtRef
 import Control.Monad.EffRef
 import GUI.Gtk.Structures
 import GUI.Gtk.Structures.IO (runWidget)
+import qualified GUI.Gtk.Structures.GLFW as GLFW
 
 
 {- |
@@ -128,6 +129,7 @@ side-effects happen at running @('runWidget' w)@.
 @Widget@ should be abstract data type, but it is also safe to keep it as a type synonym because
 the operations of the revealed implementation are hidden.
 -}
+runWidgetGLFW = GLFW.runWidget
 
 {- |
 Run a Gtk widget description.
