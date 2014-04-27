@@ -89,18 +89,18 @@ mkTests runTest
   where
 
     newRefTest = runTest $ do
-        r <- newRef 3
+        r <- newRef (3 :: Int)
         r ==> 3
 
     writeRefTest = runTest $ do
-        r <- newRef 3
+        r <- newRef (3 :: Int)
         r ==> 3
         writeRef' r 4
         r ==> 4
 
     writeRefsTest = runTest $ do
-        r1 <- newRef 3
-        r2 <- newRef 13
+        r1 <- newRef (3 :: Int)
+        r2 <- newRef (13 :: Int)
         r1 ==> 3
         r2 ==> 13
         writeRef' r1 4
@@ -111,7 +111,7 @@ mkTests runTest
         r2 ==> 0
 
     extRefTest = runTest $ do
-        r <- newRef $ Just 3
+        r <- newRef $ Just (3 :: Int)
         q <- extRef r maybeLens (False, 0)
         let q1 = _1 `lensMap` q
             q2 = _2 `lensMap` q
@@ -127,7 +127,7 @@ mkTests runTest
         r ==> Just 1
 
     joinTest = runTest $ do
-        r2 <- newRef 5
+        r2 <- newRef (5 :: Int)
         r1 <- newRef 3
         rr <- newRef r1
         r1 ==> 3
@@ -143,14 +143,14 @@ mkTests runTest
         r ==> 14
 
     joinTest2 = runTest $ do
-        r1 <- newRef 3
+        r1 <- newRef (3 :: Int)
         rr <- newRef r1
         r2 <- newRef 5
         writeRef' rr r2
         join' rr ==> 5
 
     chainTest0 = runTest $ do
-        r <- newRef 1
+        r <- newRef (1 :: Int)
         q <- extRef r id 0
         s <- extRef q id 0
         r ==> 1
@@ -170,7 +170,7 @@ mkTests runTest
         s ==> 4
 
     forkTest = runTest $ do
-        r <- newRef 1
+        r <- newRef (1 :: Int)
         q <- extRef r id 0
         s <- extRef r id 0
         r ==> 1
@@ -190,7 +190,7 @@ mkTests runTest
         s ==> 4
 
     forkTest2 = runTest $ do
-        r <- newRef $ Just 1
+        r <- newRef $ Just (1 :: Int)
         q <- extRef r maybeLens (False, 0)
         s <- extRef r maybeLens (False, 0)
         r ==> Just 1
@@ -234,7 +234,7 @@ mkTests runTest
         s ==> (True, 4)
 
     chainTest = runTest $ do
-        r <- newRef $ Just $ Just 3
+        r <- newRef $ Just $ Just (3 :: Int)
         q <- extRef r maybeLens (False, Nothing)
         s <- extRef (_2 `lensMap` q) maybeLens (False, 0)
         r ==> Just (Just 3)
@@ -258,13 +258,13 @@ mkTests runTest
         s ==> (True, 3)
 
     undoTest = runTest $ do
-        r <- newRef 3
+        r <- newRef (3 :: Int)
         q <- extRef r (lens head $ flip (:)) []
         writeRef' r 4
         q ==> [4, 3]
 
     undoTest2 = runTest $ do
-        r <- newRef 3
+        r <- newRef (3 :: Int)
         q <- extRef r (lens head $ flip (:)) []
         q ==> [3]
 {-
