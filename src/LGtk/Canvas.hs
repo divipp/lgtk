@@ -159,11 +159,11 @@ tr :: forall m . EffRef m => Double -> Widget m -> StateT Pos m (WW' m)
 tr sca w = do
     w' <- lift w
     case w' of
-        Label (Send r) -> do
+        Label (r) -> do
             let render bv _ _ = ((rect 5 1 # lw 0 <> text bv) # clipped (rect 5 1)) # value mempty
             return $ WW (liftM ((,) []) r) render
 
-        Button (Send r) _ _ a -> do
+        Button (r) _ _ a -> do
             i <- newId
 
             let ff _ _ (Just ' ') = a ()
@@ -180,7 +180,7 @@ tr sca w = do
                         # clipBy' (rect 5 1) # freeze # frame 0.1
             return $ WW (liftM ((,) [(return (), ff, return (), i)]) r) render
 
-        Entry (Send rs, rr) -> do
+        Entry (rs, rr) -> do
             i <- newId
             j <- lift $ newRef (False, 0)
 
@@ -213,7 +213,7 @@ tr sca w = do
                   ) # freeze # frame 0.1
             return $ WW (liftM ((,) [(fin, ff, fout, i)]) (liftM2 (,) (readRef j) rs)) render
 
-        Checkbox (Send bs, br) -> do
+        Checkbox (bs, br) -> do
             i <- newId
 
             let ff _ _ (Just ' ') = liftRefStateReader' bs >>= br . not
@@ -229,7 +229,7 @@ tr sca w = do
                     ) # freeze # frame 0.1
             return $ WW (liftM ((,) [(return (), ff, return (), i)]) bs) render
 
-        Cell (Send r) f -> do
+        Cell (r) f -> do
             i <- newId
             r' <- lift $ onChange r $ \x -> do   
                      h <- f (flip evalStateT (0:i) . tr sca) x
@@ -253,7 +253,7 @@ tr sca w = do
                 Horizontal -> (|||)
                 Vertical -> (===)
 
-        Canvas w h d r (Send s) f -> do
+        Canvas w h d r (s) f -> do
 
             i <- newId
 

@@ -153,7 +153,7 @@ empty = hcat []
 
 -- | Dynamic label.
 label :: EffRef m => ReadRef m String -> Widget m
-label = return . Label . Send
+label = return . Label
 
 -- | Low-level button with changeable background color.
 button__
@@ -163,7 +163,7 @@ button__
     -> ReadRef m Color      -- ^ dynamic background color
     -> Modifier m ()        -- ^ the action to do when the button is pressed
     -> Widget m
-button__ r x c y = return $ Button (Send r) (Send x) (Send c) (\() -> y)
+button__ r x c y = return $ Button (r) (x) (Just c) (\() -> y)
 
 -- | Low-level button.
 button_
@@ -172,7 +172,7 @@ button_
     -> ReadRef m Bool       -- ^ the button is active when this returns @True@
     -> Modifier m ()        -- ^ the action to do when the button is pressed
     -> Widget m
-button_ r x y = return $ Button (Send r) (Send x) noREffect (\() -> y)
+button_ r x y = return $ Button (r) (x) Nothing (\() -> y)
 
 button
     :: EffRef m
@@ -194,15 +194,15 @@ smartButton s r f
 
 -- | Checkbox.
 checkbox :: EffRef m => Ref m Bool -> Widget m
-checkbox r = return $ Checkbox (Send (readRef r), writeRef' r)
+checkbox r = return $ Checkbox ((readRef r), writeRef' r)
 
 -- | Simple combo box.
 combobox :: EffRef m => [String] -> Ref m Int -> Widget m
-combobox ss r = return $ Combobox ss (Send (readRef r), writeRef' r)
+combobox ss r = return $ Combobox ss ((readRef r), writeRef' r)
 
 -- | Text entry.
 entry :: (EffRef m, Reference r, RefReader r ~ RefReader (RefCore m))  => MRef r String -> Widget m
-entry r = return $ Entry (Send (readRef r), writeRef' r)
+entry r = return $ Entry ((readRef r), writeRef' r)
 
 -- | Text entry.
 entryShow :: (EffRef m, Show a, Read a, Reference r, RefReader r ~ RefReader (RefCore m)) => MRef r a -> Widget m
@@ -225,7 +225,7 @@ notebook xs = do
 The monadic action for inner widget creation is memoised in the first monad layer.
 -}
 cell_ :: (EffRef m, Eq a) => ReadRef m a -> (forall x . (Widget m -> m x) -> a -> m (m x)) -> Widget m
-cell_ r f = return $ Cell (Send r) f
+cell_ r f = return $ Cell (r) f
 
 {- | Dynamic cell.
 
@@ -250,10 +250,10 @@ canvas
     -> ReadRef m b
     -> (b -> Dia a)
     -> Widget m
-canvas w h sc me r f = return $ Canvas w h sc me (Send r) f
+canvas w h sc me r f = return $ Canvas w h sc me (r) f
 
 hscale :: (EffRef m) => Double -> Double -> Double -> Ref m Double -> Widget m
-hscale a b c r = return $ Scale a b c (Send $ readRef r, writeRef' r)
+hscale a b c r = return $ Scale a b c (readRef r, writeRef' r)
 
 showLens :: (Show a, Read a) => Lens' a String
 showLens = lens show $ \def s -> maybe def fst $ listToMaybe $ reads s

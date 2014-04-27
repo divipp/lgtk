@@ -92,12 +92,12 @@ runWidget_ post' post liftIO_ = toWidget
         u <- liftIO_ $ f $ \x -> do
             re <- readMVar rer
             re x
-        re <- runReceive s $ post . u
+        re <- toReceive s $ post . u
         liftIO_ $ putMVar rer re
         return u
 
-    ger :: (Command -> IO ()) -> Send m a -> (a -> IO ()) -> m ()
-    ger hd s f = runSend s $ \a -> post $ do
+    ger :: Eq a => (Command -> IO ()) -> ReadRef m a -> (a -> IO ()) -> m ()
+    ger hd s f = liftM (const ()) $ rEffect s $ \a -> post $ do
         hd Block
         f a
         hd Unblock
@@ -220,9 +220,11 @@ runWidget_ post' post liftIO_ = toWidget
             hd <- reg m $ \re -> on' w buttonActivated $ re ()
             ger hd s $ buttonSetLabel w
             ger hd sens $ widgetSetSensitive w
-            ger hd col $ \c -> do
-                widgetModifyBg w StateNormal c
-                widgetModifyBg w StatePrelight c
+            case col of
+                Nothing -> return ()
+                Just col -> ger hd col $ \c -> do
+                    widgetModifyBg w StateNormal c
+                    widgetModifyBg w StatePrelight c
             return' w
         Entry (r, s) -> do
             w <- liftIO' entryNew
@@ -262,7 +264,7 @@ runWidget_ post' post liftIO_ = toWidget
                 liftIO' . flip (notebookAppendPage w) s $ snd $ ww
             _ <- reg s $ \re -> on' w switchPage $ re
             return'' ws w
-        Cell (Send onCh) f -> do
+        Cell onCh f -> do
             let b = False
             w <- liftIO' $ case b of
                 True -> fmap castToContainer $ hBoxNew False 1
