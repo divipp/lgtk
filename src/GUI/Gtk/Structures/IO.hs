@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -9,6 +10,7 @@ module GUI.Gtk.Structures.IO
 import Control.Category
 import Control.Monad
 import Control.Monad.State
+import Control.Monad.Trans.Control
 import Control.Concurrent
 import Data.Maybe
 import Data.List hiding (union)
@@ -33,27 +35,31 @@ runMorphD vx m = modifyMVar vx $ liftM swap . runStateT m
       where
         swap (a, b) = (b, a)
 
+runWidget :: (forall m . (EffIORef m) => Widget m) -> IO ()
+runWidget w = runWidget' (\pa -> runPure (newChan' pa) . unWrap) w
+  where
+    newChan' pa = do
+        ch <- newChan
+        return (pa >> readChan ch, writeChan ch)
+
 {- |
 Run a Gtk widget description.
 
 The widget is shown in a window and the thread enters into the Gtk event cycle.
 It leaves the event cycle when the window is closed.
 -}
-runWidget :: (forall m . (EffIORef m) => Widget m) -> IO ()
-runWidget desc = gtkContext $ \postGUISync -> do
+runWidget' :: (EffRef m, MonadBaseControl IO (EffectM m))
+    => (forall a . IO () -> m a -> IO (a, IO ())) -> Widget m -> IO ()
+runWidget' run desc = gtkContext $ \postGUISync -> do
     postActionsRef <- newMVar $ return ()
     let addPostAction  = runMorphD postActionsRef . modify . flip (>>)
         runPostActions = join $ runMorphD postActionsRef $ state $ \m -> (m, return ())
-    (widget, actions) <- runPure (newChan' runPostActions) $ unWrap $ do
-        w <- runWidget_ addPostAction postGUISync liftIO' desc
+    (widget, actions) <- run runPostActions $ do
+        w <- runWidget_ addPostAction postGUISync desc
         liftIO' runPostActions
         return w
     _ <- forkIO $ actions
     return widget
-
-newChan' pa = do
-    ch <- newChan
-    return (pa >> readChan ch, writeChan ch)
 
 gtkContext :: ((forall a . IO a -> IO a) -> IO SWidget) -> IO ()
 gtkContext m = do
@@ -74,30 +80,30 @@ type SWidget = (IO (), Gtk.Widget)
 
 -- | Run an @IO@ parametrized interface description with Gtk backend
 runWidget_
-    :: forall m . (EffRef m, IO ~ EffectM m)
+    :: forall m . (EffRef m, MonadBaseControl IO (EffectM m))
     => (IO () -> IO ())
     -> (forall a . IO a -> IO a)
-    -> (forall a . IO a -> m a)
     -> Widget m
     -> m SWidget
-runWidget_ post' post liftIO_ = toWidget
+runWidget_ post' post = toWidget
  where
-    liftIO' :: IO a -> m a
-    liftIO' = liftIO_ . post
+    liftIO'' :: IO a -> m a
+    liftIO'' = liftIO' . post
 
     -- type Receive n m k a = (Command -> n ()) -> m (a -> k ())
     reg :: Receive m a -> ((a -> IO ()) -> IO (Command -> IO ())) -> m (Command -> IO ())
     reg s f = do
-        rer <- liftIO_ newEmptyMVar
-        u <- liftIO_ $ f $ \x -> do
+        rer <- liftIO' newEmptyMVar
+        u <- liftEffectM $ liftBaseWith $ \unr -> f $ \x -> do
             re <- readMVar rer
-            re x
-        re <- toReceive s $ post . u
-        liftIO_ $ putMVar rer re
+            _ <- unr $ re x
+            return ()
+        re <- toReceive s $ \x -> liftIO_ . post . u $ x
+        liftIO' $ putMVar rer re
         return u
 
     ger :: Eq a => (Command -> IO ()) -> ReadRef m a -> (a -> IO ()) -> m ()
-    ger hd s f = liftM (const ()) $ rEffect s $ \a -> post $ do
+    ger hd s f = liftM (const ()) $ rEffect s $ \a -> liftBaseWith . const $ post $ do
         hd Block
         f a
         hd Unblock
@@ -109,17 +115,17 @@ runWidget_ post' post liftIO_ = toWidget
     toWidget m = m >>= \i -> case i of
 
         Label s -> do
-            w <- liftIO' $ labelNew Nothing
+            w <- liftIO'' $ labelNew Nothing
             ger nhd s $ labelSetLabel w
             return' w
 
         Canvas w h sc_ me r diaFun -> do
 
-          cur <- liftIO_ $ newMVar Nothing
-          cur' <- liftIO_ $ newMVar Nothing
-          v <- liftIO_ newEmptyMVar
+          cur <- liftIO' $ newMVar Nothing
+          cur' <- liftIO' $ newMVar Nothing
+          v <- liftIO' newEmptyMVar
 
-          (canvasDraw, canvas, af, dims) <- liftIO' $ do
+          (canvasDraw, canvas, af, dims) <- liftIO'' $ do
             canvas <- drawingAreaNew
             widgetAddEvents canvas [PointerMotionMask, KeyPressMask]
             widgetSetCanFocus canvas True
@@ -187,13 +193,13 @@ runWidget_ post' post liftIO_ = toWidget
                     tr Gtk.Control = [ControlModifier]
                     tr _ = []
                 liftIO $ re $ KeyPress (concatMap tr m) kn kc
-          _ <- liftIO_ $ on canvas exposeEvent $ tryEvent $ liftIO $ do
+          _ <- liftIO' $ on canvas exposeEvent $ tryEvent $ liftIO $ do
                 d <- readMVar cur'
                 case d of
                     Just x -> putMVar v x
                     _ -> return ()
 
-          canvasDraw' <- liftIO_ $ do
+          canvasDraw' <- liftIO' $ do
             v2 <- newMVar False
             _ <- forkIO $ do
               threadDelay 200000
@@ -216,7 +222,7 @@ runWidget_ post' post liftIO_ = toWidget
           return' af
 
         Button s sens col m -> do
-            w <- liftIO' buttonNew
+            w <- liftIO'' buttonNew
             hd <- reg m $ \re -> on' w buttonActivated $ re ()
             ger hd s $ buttonSetLabel w
             ger hd sens $ widgetSetSensitive w
@@ -227,52 +233,52 @@ runWidget_ post' post liftIO_ = toWidget
                     widgetModifyBg w StatePrelight c
             return' w
         Entry (r, s) -> do
-            w <- liftIO' entryNew
+            w <- liftIO'' entryNew
             hd <- reg s $ \re -> on' w entryActivate $ entryGetText w >>= re
             hd' <- reg s $ \re -> on' w focusOutEvent $ lift $ entryGetText w >>= re >> return False
             ger (\x -> hd x >> hd' x) r $ entrySetText w
             return' w
         Checkbox (r, s) -> do
-            w <- liftIO' checkButtonNew
+            w <- liftIO'' checkButtonNew
             hd <- reg s $ \re -> on' w toggled $ toggleButtonGetActive w >>= re
             ger hd r $ toggleButtonSetActive w
             return' w
         Scale a b c (r, s) -> do
-            w <- liftIO' $ hScaleNewWithRange a b c
-            _ <- liftIO' $ w `onSizeRequest` return (Requisition 200 40)
+            w <- liftIO'' $ hScaleNewWithRange a b c
+            _ <- liftIO'' $ w `onSizeRequest` return (Requisition 200 40)
             hd <- reg s $ \re -> on' w valueChanged $ rangeGetValue w >>= re
             ger hd r $ rangeSetValue w
             return' w
         Combobox ss (r, s) -> do
-            w <- liftIO' comboBoxNewText
-            _ <- liftIO' $ w `onSizeRequest` return (Requisition 50 30)
-            liftIO' $ flip mapM_ ss $ comboBoxAppendText w
+            w <- liftIO'' comboBoxNewText
+            _ <- liftIO'' $ w `onSizeRequest` return (Requisition 50 30)
+            liftIO'' $ flip mapM_ ss $ comboBoxAppendText w
             hd <- reg s $ \re -> on' w changed $ fmap (max 0) (comboBoxGetActive w) >>= re
             ger hd r $ comboBoxSetActive w
             return' w
         List o xs -> do
             ws <- mapM toWidget xs
-            w <- liftIO' $ case o of
+            w <- liftIO'' $ case o of
                 Vertical -> fmap castToBox $ vBoxNew False 1
                 Horizontal -> fmap castToBox $ hBoxNew False 1
-            shs <- forM ws $ liftIO' . containerAdd'' w . snd
+            shs <- forM ws $ liftIO'' . containerAdd'' w . snd
             liftM (mapFst (sequence_ shs >>)) $ return'' ws w
         Notebook' s xs -> do
             ws <- mapM (toWidget . snd) xs
-            w <- liftIO' notebookNew
+            w <- liftIO'' notebookNew
             forM_ (zip ws xs) $ \(ww, (s, _)) -> do
-                liftIO' . flip (notebookAppendPage w) s $ snd $ ww
+                liftIO'' . flip (notebookAppendPage w) s $ snd $ ww
             _ <- reg s $ \re -> on' w switchPage $ re
             return'' ws w
         Cell onCh f -> do
             let b = False
-            w <- liftIO' $ case b of
+            w <- liftIO'' $ case b of
                 True -> fmap castToContainer $ hBoxNew False 1
                 False -> fmap castToContainer $ alignmentNew 0 0 1 1
-            sh <- liftIO_ $ newMVar $ return ()
+            sh <- liftIO' $ newMVar $ return ()
             _ <- onChange onCh $ \bv -> do
                 mx <- f toWidget bv
-                return $ mx >>= \(x, y) -> liftIO' $ do 
+                return $ mx >>= \(x, y) -> liftIO'' $ do 
                     _ <- swapMVar sh x
                     containerForeach w $ if b then widgetHideAll else containerRemove w 
                     post' $ post $ do
