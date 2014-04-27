@@ -232,9 +232,9 @@ tr sca w = do
         Cell (r) f -> do
             i <- newId
             r' <- lift $ onChange r $ \x -> do   
-                     h <- f (flip evalStateT (0:i) . tr sca) x
+                     h <- f x
                      return $ do
-                       hv <- h
+                       hv <- flip evalStateT (0:i) . tr sca $ h
                        return $ case hv of
                          WW rr render -> do
                            (es, rrv) <- rr

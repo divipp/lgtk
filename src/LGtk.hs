@@ -224,7 +224,7 @@ notebook xs = do
 
 The monadic action for inner widget creation is memoised in the first monad layer.
 -}
-cell_ :: (EffRef m, Eq a) => ReadRef m a -> (forall x . (Widget m -> m x) -> a -> m (m x)) -> Widget m
+cell_ :: (EffRef m, Eq a) => ReadRef m a -> (a -> m (Widget m)) -> Widget m
 cell_ r f = return $ Cell (r) f
 
 {- | Dynamic cell.
@@ -232,14 +232,14 @@ cell_ r f = return $ Cell (r) f
 The inner widgets are memoised.
 -}
 cell :: (EffRef m, Eq a) => ReadRef m a -> (a -> Widget m) -> Widget m
-cell r m = cell_ r $ \mk -> liftM return . mk . m
+cell r m = cell_ r $ liftM return . m
 
 {- | Dynamic cell.
 
 The inner widgets are not memoised.
 -}
 cellNoMemo :: (EffRef m, Eq a) => ReadRef m a -> (a -> Widget m) -> Widget m
-cellNoMemo r m = cell_ r $ \mk -> return . mk . m
+cellNoMemo r m = cell_ r $ return . m
 
 canvas
     :: (EffRef m, Eq b, Monoid a, Semigroup a)

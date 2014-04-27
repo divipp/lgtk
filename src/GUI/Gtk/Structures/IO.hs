@@ -277,8 +277,8 @@ runWidget_ post' post = toWidget
                 False -> fmap castToContainer $ alignmentNew 0 0 1 1
             sh <- liftIO' $ newMVar $ return ()
             _ <- onChange onCh $ \bv -> do
-                mx <- f toWidget bv
-                return $ mx >>= \(x, y) -> liftIO'' $ do 
+                mx <- f bv
+                return $ toWidget mx >>= \(x,y) -> liftIO'' $ do 
                     _ <- swapMVar sh x
                     containerForeach w $ if b then widgetHideAll else containerRemove w 
                     post' $ post $ do

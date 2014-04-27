@@ -40,7 +40,7 @@ data WidgetCore m
     | Entry (SendReceive m String)          -- ^ entry field
     | List ListLayout [Widget m]         -- ^ group interfaces into row or column
     | Notebook' (Receive m Int) [(String, Widget m)]     -- ^ actual tab index, tabs
-    | forall b . Eq b => Cell (ReadRef m b) (forall x . (Widget m -> m x) -> b -> m (m x))
+    | forall b . Eq b => Cell (ReadRef m b) (b -> m (Widget m))
     | forall a b . (Eq b, Monoid a, Semigroup a) => Canvas Int Int Double (Receive m (MouseEvent a)) (ReadRef m b) (b -> Dia a)
     | Scale Double Double Double (SendReceive m Double)
 
