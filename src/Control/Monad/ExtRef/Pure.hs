@@ -2,6 +2,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {- |
 Pure reference implementation for the @ExtRef@ interface.
@@ -9,10 +10,11 @@ Pure reference implementation for the @ExtRef@ interface.
 The implementation uses @unsafeCoerce@ internally, but its effect cannot escape.
 -}
 module Control.Monad.ExtRef.Pure
-    ( initLSt
-    , Reg
+    ( Pure
     , evalRegister'
+    , runSLSt
     , ExtRefWrite (..)
+    , initLSt
     ) where
 
 import Data.Monoid
@@ -113,14 +115,14 @@ instance Monad m => ExtRefWrite (StateT LSt m) where
 ---------------------------------
 
 
-type Register m = ReaderT (Ref m (MonadMonoid m, Command -> MonadMonoid m)) m
+type Register n m = ReaderT (Ref m (MonadMonoid m, Command -> MonadMonoid n)) m
 
-newtype Reg n m a = Reg (ReaderT (m () -> n ()) (Register m) a) deriving (Monad, Applicative, Functor)
+newtype Reg n a = Reg (ReaderT (SLSt n () -> n ()) (Register n (SLSt n)) a) deriving (Monad, Applicative, Functor)
 
 
-instance ExtRefWrite m => ExtRef (Reg n m) where
+instance Monad n => ExtRef (Pure n) where
 
-    type RefCore (Reg n m) = RefCore m
+    type RefCore (Pure n) = Lens_ LSt
 
     liftReadRef = Reg . lift . lift . liftReadRef
     extRef r l = Reg . lift . lift . extRef r l
@@ -128,37 +130,35 @@ instance ExtRefWrite m => ExtRef (Reg n m) where
     memoRead = memoRead_
     memoWrite = memoWrite_
 
-instance ExtRefWrite m => ExtRefWrite (Reg n m) where
+instance Monad n => ExtRefWrite (Pure n) where
     liftWriteRef = Reg . lift . lift . liftWriteRef
 
-instance (ExtRefWrite m, Monad n) => EffRef (Reg n m) where
+instance Monad n => EffRef (Pure n) where
 
-    type EffectM (Reg n m) = m
+    type EffectM (Pure n) = n
 
-    type CallbackM (Reg n m) = n
+    newtype Modifier (Pure n) a = RegW {unRegW :: Pure n a} deriving (Monad, Applicative, Functor)
 
-    newtype Modifier (Reg n m) a = RegW {unRegW :: Reg n m a} deriving (Monad, Applicative, Functor)
-
-    liftEffectM = Reg . lift . lift
+    liftEffectM = Reg . lift . lift . lift
 
     liftModifier = RegW
 
     liftWriteRef' = liftModifier . liftWriteRef
 
     onChange_ r b0 c0 f = Reg $ ReaderT $ \ff ->
-        toSend r b0 c0 $ \b b' c' -> liftM (\x -> evalRegister ff . x) $ evalRegister ff $ f b b' c'
+        toSend lift r b0 c0 $ \b b' c' -> liftM (\x -> evalRegister ff . x) $ evalRegister ff $ f b b' c'
 
     toReceive f g = Reg $ ReaderT $ \ff -> do
         tell' (mempty, MonadMonoid . g)
         writerstate <- ask
         return $ fmap (ff . flip runReaderT writerstate . evalRegister ff . unRegW) f
 
-instance ExtRefWrite m => ExtRefWrite (Modifier (Reg n m)) where
+instance Monad m => ExtRefWrite (Modifier (Pure m)) where
     liftWriteRef = RegW . liftWriteRef
 
-instance ExtRefWrite m => ExtRef (Modifier (Reg n m)) where
+instance Monad m => ExtRef (Modifier (Pure m)) where
 
-    type RefCore (Modifier (Reg n m)) = RefCore m
+    type RefCore (Modifier (Pure m)) = Lens_ LSt
 
     liftReadRef = RegW . liftReadRef
     extRef r l = RegW . extRef r l
@@ -166,14 +166,23 @@ instance ExtRefWrite m => ExtRef (Modifier (Reg n m)) where
     memoRead = memoRead_
     memoWrite = memoWrite_
 
-
 evalRegister ff (Reg m) = runReaderT m ff
 
+type SLSt = StateT LSt
+
+type Pure m = Reg m
+
+runSLSt :: Monad m => SLSt m a -> m (a, SLSt m b -> m b)
+runSLSt m = do
+    (a, s) <- flip runStateT initLSt m
+    return (a, flip evalStateT s)
+
+
 evalRegister'
-    :: (Monad n, ExtRef m)
-    => (m () -> n ())
-    -> Reg n m a
-    -> m (a, m ())
+    :: (Monad m)
+    => (SLSt m () -> m ())
+    -> Pure m a
+    -> SLSt m (a, SLSt m ())
 evalRegister' ff (Reg m) = do
     (a, r) <- runRefWriterT $ runReaderT m ff
     (w, _) <- readRef' r
@@ -181,14 +190,15 @@ evalRegister' ff (Reg m) = do
 
 
 toSend
-    :: (Eq b, ExtRefWrite m)
-    => ReadRef m b
+    :: (Eq b, ExtRefWrite m, Monad n)
+    => (n () -> m ())
+    -> ReadRef m b
     -> b -> (b -> c)
-    -> (b -> b -> c -> {-Either (Register m c)-} (Register m (c -> Register m c)))
-    -> Register m (ReadRef m c)
-toSend rb b0 c0 fb = do
+    -> (b -> b -> c -> {-Either (Register m c)-} (Register n m (c -> Register n m c)))
+    -> Register n m (ReadRef m c)
+toSend li rb b0 c0 fb = do
     let doit st = readRef' st >>= runMonadMonoid . fst
-        reg st msg = readRef' st >>= runMonadMonoid . ($ msg) . snd
+        reg st msg = readRef' st >>= li . runMonadMonoid . ($ msg) . snd
 
     memoref <- lift $ do
         b <- liftReadRef rb

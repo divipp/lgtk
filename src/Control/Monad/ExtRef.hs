@@ -154,8 +154,6 @@ type WriteRef m = RefState (RefReader (RefCore m))
 -- | Monad for dynamic actions
 class (ExtRef m, ExtRef (Modifier m), RefCore (Modifier m) ~ RefCore m) => EffRef m where
 
-    type CallbackM m :: * -> *
-
     type EffectM m :: * -> *
 
     data Modifier m a :: *
@@ -203,7 +201,7 @@ class (ExtRef m, ExtRef (Modifier m), RefCore (Modifier m) ~ RefCore m) => EffRe
         -> (b -> b -> c -> m (c -> m c))
         -> m (ReadRef m c)
 
-    toReceive :: Functor f => f (Modifier m ()) -> (Command -> EffectM m ()) -> m (f (CallbackM m ()))
+    toReceive :: Functor f => f (Modifier m ()) -> (Command -> EffectM m ()) -> m (f (EffectM m ()))
 
 data Command = Kill | Block | Unblock deriving (Eq, Ord, Show)
 

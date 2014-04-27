@@ -50,11 +50,11 @@ runWidget desc = gtkContext $ \postGUISync -> mdo
     let addPostAction  = runMorphD postActionsRef . modify . flip (>>)
         runPostActions = join $ runMorphD postActionsRef $ state $ \m -> (m, return ())
     actionChannel <- newChan
-    ((widget, tick), s) <- flip runStateT initLSt $
+    ((widget, tick), s) <- runSLSt $
         evalRegister' (writeChan actionChannel) $
-            runWidget_ id addPostAction postGUISync id id liftIO__ liftIO desc
+            runWidget_ id id addPostAction postGUISync id id liftIO' desc
     runPostActions
-    _ <- forkIO $ void $ flip execStateT s $  forever $ do
+    _ <- forkIO $ s $ forever $ do
             join $ lift $ readChan actionChannel
             tick
             lift $ runPostActions
@@ -80,17 +80,17 @@ type SWidget = (IO (), Gtk.Widget)
 
 -- | Run an @IO@ parametrized interface description with Gtk backend
 runWidget_
-    :: forall n m k o . (EffRef m, Monad o, n ~ EffectM m, k ~ CallbackM m)
-    => (k () -> IO ())
+    :: forall m k o . (EffRef m, Monad o, k ~ EffectM m)
+    => (k () -> IO ())    -- id
+    -> (IO () -> k ())    -- id
     -> (IO () -> IO ())
     -> (forall a . IO a -> IO a)
-    -> (forall a . m a -> o a)
-    -> (forall a . o a -> m a)
+    -> (forall a . m a -> o a)       -- id
+    -> (forall a . o a -> m a)       -- id
     -> (forall a . IO a -> o a)
-    -> (IO () -> n ())
     -> Widget m
     -> o SWidget
-runWidget_ nio post' post liftO liftOBack liftIO_ liftION = toWidget
+runWidget_ nio nio' post' post liftO liftOBack liftIO_ = toWidget
  where
     liftIO' :: IO a -> o a
     liftIO' = liftIO_ . post
@@ -102,12 +102,12 @@ runWidget_ nio post' post liftO liftOBack liftIO_ liftION = toWidget
         u <- liftIO_ $ f $ \x -> do
             re <- readMVar rer
             nio $ re x
-        re <- liftO $ runReceive s $ liftION . post . u
+        re <- liftO $ runReceive s $ nio' . post . u
         liftIO_ $ putMVar rer re
         return u
 
     ger :: (Command -> IO ()) -> Send m a -> (a -> IO ()) -> o ()
-    ger hd s f = liftO $ runSend s $ \a -> liftION $ post $ do
+    ger hd s f = liftO $ runSend s $ \a -> nio' $ post $ do
         hd Block
         f a
         hd Unblock

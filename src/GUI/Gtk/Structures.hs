@@ -37,7 +37,7 @@ runSend (Send r) f = rEffect r f >> return ()
 
 noREffect = SendNothing
 
-runReceive :: (EffRef m, Functor f) => f (Control.Monad.ExtRef.Modifier m ()) -> (Command -> EffectM m ()) -> m (f (CallbackM m ()))
+runReceive :: (EffRef m, Functor f) => f (Control.Monad.ExtRef.Modifier m ()) -> (Command -> EffectM m ()) -> m (f (EffectM m ()))
 runReceive = toReceive
 
 type SendReceive m a = (Send m a, Receive m a)

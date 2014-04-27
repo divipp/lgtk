@@ -76,7 +76,7 @@ putStrLn_ :: EffIORef m => String -> m ()
 putStrLn_ = putStr_ . (++ "\n")
 
 
-instance (ExtRefWrite m, MonadIO m) => EffIORef (Reg IO m) where
+instance EffIORef (Pure IO) where
 
     getArgs     = liftIO' Env.getArgs
 
@@ -147,8 +147,6 @@ instance (ExtRefWrite m, MonadIO m) => EffIORef (Reg IO m) where
 -- canonicalizePath may fail if the file does not exsist
 canonicalizePath' p = liftM (F.</> f) $ canonicalizePath d 
   where (d,f) = F.splitFileName p
-
-liftIO__ m = liftEffectM $ lift m
 
 liftIO' m = liftEffectM $ liftIO m
 
