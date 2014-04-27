@@ -1,27 +1,19 @@
 {-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE KindSignatures #-}
 -- | Lens-based Gtk interface
 module GUI.Gtk.Structures
     ( module GUI.Gtk.Structures
-    , Color (..)
+    , Colour, RGB (..), sRGB, toSRGB
     ) where
 
 import Data.Semigroup
-import Graphics.UI.Gtk.Gdk.GC (Color (Color))
+import Data.Colour
+import Data.Colour.SRGB
 import Diagrams.Prelude (QDiagram, R2)
 import Diagrams.Backend.Cairo (Cairo)
 
 import Control.Monad.ExtRef
 
-data KeyModifier = ShiftModifier | ControlModifier deriving (Eq, Ord)
-
-shiftKeyModifier = ShiftModifier
-controlKeyModifier = ControlModifier
-
-type Dia a = QDiagram Cairo R2 a
-
-type Receive m a = a -> Control.Monad.ExtRef.Modifier m ()
+type Receive m a = a -> Modifier m ()
 
 type SendReceive m a = (ReadRef m a, Receive m a)
 
@@ -32,7 +24,7 @@ data WidgetCore m
     = Label (ReadRef m String)     -- ^ label
     | Button { label_  :: ReadRef m String
              , sensitive_ :: ReadRef m Bool
-             , color_ :: Maybe (ReadRef m Color)
+             , color_ :: Maybe (ReadRef m (Colour Double))
              , action_ :: Receive m ()
              }  -- ^ button
     | Checkbox (SendReceive m Bool)         -- ^ checkbox
@@ -44,6 +36,12 @@ data WidgetCore m
     | forall a b . (Eq b, Monoid a, Semigroup a) => Canvas Int Int Double (Receive m (MouseEvent a)) (ReadRef m b) (b -> Dia a)
     | Scale Double Double Double (SendReceive m Double)
 
+data KeyModifier
+    = ShiftModifier
+    | ControlModifier
+        deriving (Eq, Ord)
+
+type Dia a = QDiagram Cairo R2 a
 
 data ListLayout
     = Horizontal

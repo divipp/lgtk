@@ -226,11 +226,13 @@ runWidget_ post' post = toWidget
             hd <- reg m $ \re -> on' w buttonActivated $ re ()
             ger hd s $ buttonSetLabel w
             ger hd sens $ widgetSetSensitive w
+            let tr col = case toSRGB col of RGB r g b -> Color (f r) (f g) (f b)
+                f d = fromInteger $ min 65535 $ max 0 $ floor $ d * 65536
             case col of
                 Nothing -> return ()
                 Just col -> ger hd col $ \c -> do
-                    widgetModifyBg w StateNormal c
-                    widgetModifyBg w StatePrelight c
+                    widgetModifyBg w StateNormal $ tr c
+                    widgetModifyBg w StatePrelight $ tr c
             return' w
         Entry (r, s) -> do
             w <- liftIO'' entryNew

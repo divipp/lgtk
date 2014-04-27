@@ -76,7 +76,7 @@ module LGtk
     , vcat
     , hcat
     , button_
-    , Color (..)
+    , Colour, sRGB
     , notebook
     , cell_
     , canvas
@@ -160,7 +160,7 @@ button__
     :: EffRef m
     => ReadRef m String     -- ^ dynamic label of the button
     -> ReadRef m Bool       -- ^ the button is active when this returns @True@
-    -> ReadRef m Color      -- ^ dynamic background color
+    -> ReadRef m (Colour Double)      -- ^ dynamic background color
     -> Modifier m ()        -- ^ the action to do when the button is pressed
     -> Widget m
 button__ r x c y = return $ Button (r) (x) (Just c) (\() -> y)

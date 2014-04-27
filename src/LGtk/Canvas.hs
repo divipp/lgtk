@@ -143,7 +143,7 @@ inCanvas width height scale w = do
             handleEvent (Click (MousePos p f)) = handle $ f $ Click $ MousePos p ()  :: Modifier m ()
             handleEvent (MoveTo (MousePos p f)) = handle $ f $ MoveTo $ MousePos p ()
             handleEvent (KeyPress [] "Tab" _) = moveFoc (+1)
-            handleEvent (KeyPress [c] "Tab" _) | c == controlKeyModifier = moveFoc (+(-1))
+            handleEvent (KeyPress [c] "Tab" _) | c == ControlModifier = moveFoc (+(-1))
             handleEvent (KeyPress m n c) = do
                 (f,_) <- liftRefStateReader' $ readRef foc
                 f m n c

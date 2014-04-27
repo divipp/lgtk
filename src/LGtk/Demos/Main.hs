@@ -59,9 +59,9 @@ main = runWidget $ notebook
         ]
 
     , (,) "Buttons" $ do
-        x <- newRef 0
-        let is = [0, 65535 `div` 2, 65535]
-            colorlist = liftM3 Color is is is
+        x <- newRef (0 :: Int)
+        let is = [0 :: Double, 0.5, 1]
+            colorlist = liftM3 sRGB is is is
             f n = colorlist !! (n `mod` length colorlist)
         button__ (return "Push") (return True) (liftM f $ readRef x) $ modRef' x (+1)
 
