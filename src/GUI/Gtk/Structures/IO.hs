@@ -175,14 +175,18 @@ runWidget_ post' post liftIO_ = toWidget
               _ <- on' canvas scrollEvent $ tryEvent $ do
                 p <- eventCoordinates >>= liftIO . compCoords
                 dir <- eventScrollDirection
-                liftIO $ re $ ScrollTo dir p
+                let tr _ = Horizontal -- TODO
+                liftIO $ re $ ScrollTo (tr dir) p
               on' canvas keyPressEvent $ tryEvent $ do
 --                p <- eventCoordinates >>= liftIO . compCoords
                 m <- eventModifier
                 c <- eventKeyVal
                 kn <- lift $ keyvalName c
                 kc <- lift $ keyvalToChar c
-                liftIO $ re $ KeyPress m kn kc
+                let tr Gtk.Shift = [ShiftModifier]
+                    tr Gtk.Control = [ControlModifier]
+                    tr _ = []
+                liftIO $ re $ KeyPress (concatMap tr m) kn kc
           _ <- liftIO_ $ on canvas exposeEvent $ tryEvent $ liftIO $ do
                 d <- readMVar cur'
                 case d of

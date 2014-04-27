@@ -84,10 +84,6 @@ module LGtk
     , MouseEvent (..)
     , MousePos (..)
     , KeyModifier
-    , KeyVal
-    , keyName
-    , keyToChar
-    , ScrollDirection (..)
     , hscale
 
     -- ** Derived constructs

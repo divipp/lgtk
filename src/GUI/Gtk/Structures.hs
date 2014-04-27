@@ -5,23 +5,19 @@
 module GUI.Gtk.Structures
     ( module GUI.Gtk.Structures
     , Color (..)
-    , ScrollDirection (..)
-    , KeyVal, keyName, keyToChar
     ) where
 
 import Data.Semigroup
 import Graphics.UI.Gtk.Gdk.GC (Color (Color))
 import Diagrams.Prelude (QDiagram, R2)
 import Diagrams.Backend.Cairo (Cairo)
-import Graphics.UI.Gtk (ScrollDirection (..), KeyVal, Modifier (Shift, Control), keyName, keyToChar)
-import qualified Graphics.UI.Gtk as Gtk
 
 import Control.Monad.ExtRef
 
-type KeyModifier = Gtk.Modifier
+data KeyModifier = ShiftModifier | ControlModifier deriving (Eq, Ord)
 
-shiftKeyModifier = Shift
-controlKeyModifier = Control
+shiftKeyModifier = ShiftModifier
+controlKeyModifier = ControlModifier
 
 type Dia a = QDiagram Cairo R2 a
 
@@ -66,6 +62,8 @@ data ListLayout
     = Horizontal
     | Vertical
         deriving (Eq)
+
+type ScrollDirection = ListLayout
 
 data MouseEvent a
     = MoveTo (MousePos a)
