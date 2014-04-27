@@ -160,7 +160,7 @@ tr sca w = do
     w' <- lift w
     case w' of
         Label (Send r) -> do
-            let render bv _ _ = ((rect 5 1 # lw 0 <> text bv) # clipBy (rect 5 1)) # value mempty
+            let render bv _ _ = ((rect 5 1 # lw 0 <> text bv) # clipped (rect 5 1)) # value mempty
             return $ WW (liftM ((,) []) r) render
 
         Button (Send r) _ _ a -> do
@@ -177,7 +177,7 @@ tr sca w = do
                         # value_ (a ())
                                  (Just' (ff, return ()))
                                  i
-                        # clipBy' (rect 5 1)
+                        # clipBy' (rect 5 1) # freeze # frame 0.1
             return $ WW (liftM ((,) [(return (), ff, return (), i)]) r) render
 
         Entry (Send rs, rr) -> do
@@ -206,10 +206,11 @@ tr sca w = do
                 fout = writeRef' (_1 `lensMap` j) False
 
                 render bv is is' = 
-                     text (text' bv) # clipBy (rect 5 1) # value mempty
+                  (   text (text' bv) # clipped (rect 5 1) # value mempty
                   <> rect 5 1 # fc (if i `elem` is then yellow else white)
                          # (if is' == i then lc yellow . lw 0.05 else lc black . lw 0.02)
                          # value_ fin (Just' (ff, fout)) i
+                  ) # freeze # frame 0.1
             return $ WW (liftM ((,) [(fin, ff, fout, i)]) (liftM2 (,) (readRef j) rs)) render
 
         Checkbox (Send bs, br) -> do
@@ -219,11 +220,13 @@ tr sca w = do
                 ff _ _ _ = return ()
 
                 render bv is is' = 
+                    (
                        (if bv then fromVertices [p2 (-0.3, 0), p2 (-0.1,-0.3), p2 (0.3,0.3)] 
                                 # lineCap LineCapRound else mempty) # value mempty # lw 0.15
                     <> rect 1 1 # value_ (br (not bv)) (Just' (ff, return ())) i
                                 # fc (if i `elem` is then yellow else sRGB 0.95 0.95 0.95)
                                 # (if is' == i then lc yellow . lw 0.05 else lc black . lw 0.02)
+                    ) # freeze # frame 0.1
             return $ WW (liftM ((,) [(return (), ff, return (), i)]) bs) render
 
         Cell (Send r) f -> do
@@ -263,9 +266,9 @@ tr sca w = do
                 wi = fromIntegral w / sca
                 hi = fromIntegral h / sca
 
-                render bv _is _is' = fmap gg (fmap Just' (f bv) # scale ((fromIntegral w / d) / sca) # clipBy' (rect wi hi))
+                render bv _is _is' = (fmap gg (fmap Just' (f bv) # scale ((fromIntegral w / d) / sca) # clipBy' (rect wi hi))
                    <> rect wi hi # value mempty
-                           # lw 0.02
+                         )  # lw 0.02 # freeze  # frame 0.1
 
             return $ WW (liftM ((,) []) s) render
 
