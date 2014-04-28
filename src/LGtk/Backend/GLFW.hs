@@ -148,7 +148,7 @@ runWidget desc = do
                 --let image = renderDia Rasterific (RasterificOptions sizeSpec) dia
 
                 copyToScreen win (fromIntegral sw) (fromIntegral sh) image
-                putStr "*"
+--                putStr "*"
 
         let evalposts = do
                 x <- readChan postchan

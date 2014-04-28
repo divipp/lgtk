@@ -18,6 +18,10 @@ source-repository head
   type:             git
   location:         https://github.com/divipp/lgtk.git
 
+Flag Gtk
+  Description:      Build the Gtk backend
+  Default:          False
+
 
 library
 
@@ -35,8 +39,6 @@ library
                   , transformers
                   , mtl
                   , operational
-
-                  , gtk
 
                   , vector
                   , OpenGLRaw
@@ -64,7 +66,6 @@ library
                     LGtk.Widgets
                     LGtk.Render
 
-                    LGtk.Backend.Gtk
 
                     LGtk.Backend.GLFW
 
@@ -73,6 +74,12 @@ library
                     LGtk.Demos.Tri
                     LGtk.Demos.IntListEditor
                     LGtk.Demos.TEditor
+  if flag(Gtk)
+    build-depends:
+                    gtk
+    exposed-modules:
+                    LGtk.Backend.Gtk
+
   ghc-options: 
                     -threaded
                     -Wall 
