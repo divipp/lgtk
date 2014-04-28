@@ -12,6 +12,7 @@ The implementation uses @unsafeCoerce@ internally, but its effect cannot escape.
 module Data.LensRef.Pure
     ( Pure
     , runPure
+    , ExtRefWrite (..)
     ) where
 
 import Data.Monoid
@@ -125,6 +126,10 @@ type Register n m = ReaderT (Ref m (MonadMonoid m, Command -> MonadMonoid n)) m
 
 newtype Reg n a = Reg (ReaderT (SLSt n () -> n ()) (Register n (SLSt n)) a) deriving (Monad, Applicative, Functor)
 
+type SLSt = StateT LSt
+
+type Pure m = Reg m
+
 mapReg :: (forall a . m a -> n a) -> Reg m a -> Reg n a
 mapReg ff (Reg m) = Reg $ ReaderT $ \f -> ReaderT $ \r -> StateT $ \s -> 
     ff $ flip runStateT s $ flip runReaderT (iso undefined undefined `lensMap` r) $ runReaderT m $ undefined f
@@ -182,10 +187,6 @@ instance Monad m => ExtRef (Modifier (Pure m)) where
     future = future_
 
 evalRegister ff (Reg m) = runReaderT m ff
-
-type SLSt = StateT LSt
-
-type Pure m = Reg m
 
 runPure :: Monad m => (forall a . m (m a, a -> m ())) -> Pure m a -> m (a, m ())
 runPure newChan (Reg m) = do

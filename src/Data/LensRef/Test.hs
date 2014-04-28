@@ -5,35 +5,37 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 -- | Tests for the @ExtRef@ interface.
 module Data.LensRef.Test
     ( -- * Tests for the interface
       mkTests
     -- * Tests for implementations
     , testExtPure
---    , testExtIORef
+    , testExtFast
     ) where
 
 import Control.Monad.State
 import Control.Monad.Writer
 import Control.Concurrent
 import Control.Category
---import Control.Arrow ((***))
+import Control.Arrow ((***))
 import Data.Maybe
 import Prelude hiding ((.), id)
 import System.IO
 
 import Control.Lens
 import Data.LensRef
---import Data.LensRef.Pure (ExtRefWrite (..))
+import Data.LensRef.Pure (ExtRefWrite (..))
 import qualified Data.LensRef.Pure as Pure
+import qualified Data.LensRef.Fast as Fast
 
 import System.IO.Unsafe
 
 -----------------------------------------------------------------
 
 
-{-
+
 
 -- | This instance is used in the implementation, end users do not need it.
 instance (ExtRef m, Monoid w) => ExtRef (WriterT w m) where
@@ -47,10 +49,9 @@ instance (ExtRef m, Monoid w) => ExtRef (WriterT w m) where
 instance (ExtRefWrite m, Monoid w) => ExtRefWrite (WriterT w m) where
 
     liftWriteRef = lift . liftWriteRef
--}
 
--- | Consistency tests for the pure implementation of @Ext@, should give an empty list of errors.
 {-
+-- | Consistency tests for the pure implementation of @Ext@, should give an empty list of errors.
 testExtPure :: [String]
 testExtPure = mkTests $ \t -> let
     (((), m), w) = runWriter $ Pure.runPure newChan t
@@ -65,6 +66,18 @@ instance MonadWriter [String] IO where
 testExtPure = mkTests $ \t -> unsafePerformIO $ do
     hSetBuffering stdout LineBuffering
     ((), m) <- Pure.runPure newChan' t
+
+    forkIO m
+    return ["end"]
+   where
+    newChan' :: IO (IO a, a -> IO ())
+    newChan' = do
+        ch <- newChan
+        return (readChan ch, \x -> writeChan ch x)
+
+testExtFast = mkTests $ \t -> unsafePerformIO $ do
+    hSetBuffering stdout LineBuffering
+    ((), m) <- Fast.runPure newChan' t
 
     forkIO m
     return ["end"]
@@ -89,16 +102,16 @@ maybeLens :: Lens' (Bool, a) (Maybe a)
 maybeLens = lens (\(b,a) -> if b then Just a else Nothing)
               (\(_,a) x -> maybe (False, a) (\a' -> (True, a')) x)
 
+writeRef'' = writeRef'
+
 {- | 
 @mkTests@ generates a list of error messages which should be emtpy.
 
 Look inside the sources for the tests.
 -}
-mkTests :: ((forall m . (MonadWriter [String] (EffectM m), EffRef m) => m ()) -> [String]) -> [String]
+mkTests :: ((forall m . (MonadWriter [String] (EffectM m), EffRef m, ExtRefWrite m) => m ()) -> [String]) -> [String]
 mkTests runTest
       = newRefTest
-     ++ writeRefTest
-{-
      ++ writeRefsTest
      ++ extRefTest
      ++ joinTest
@@ -107,10 +120,12 @@ mkTests runTest
      ++ forkTest
      ++ forkTest2
      ++ chainTest
+     ++ chainTest'
      ++ undoTest
      ++ undoTest2
--}
---     ++ undoTest3
+     ++ undoTest3
+
+     ++ writeRefTest
   where
 
     newRefTest = runTest $ do
@@ -120,8 +135,8 @@ mkTests runTest
     writeRefTest = runTest $ do
         r <- newRef (3 :: Int)
         k <- newRef (3 :: Int)
-        sr <- toReceive (writeRef' r) (const $ return ())
-        sk <- toReceive (writeRef' k) (const $ return ())
+        sr <- toReceive (writeRef'' r) (const $ return ())
+        sk <- toReceive (writeRef'' k) (const $ return ())
 
         onChange (readRef r) $ \x -> do
             when (x == 3) $ do
@@ -152,7 +167,6 @@ mkTests runTest
         r ==> 3
         return ()
 
-{-
     writeRefsTest = runTest $ do
         r1 <- newRef (3 :: Int)
         r2 <- newRef (13 :: Int)
@@ -289,9 +303,22 @@ mkTests runTest
         s ==> (True, 4)
 
     chainTest = runTest $ do
+        r <- newRef $ Just Nothing
+        q <- extRef r maybeLens (False, Nothing)
+        s <- extRef (_2 `lensMap` q) maybeLens (False, 3 :: Int)
+        writeRef' (_1 `lensMap` s) False
+        r ==> Just Nothing
+        q ==> (True, Nothing)
+        s ==> (False, 3)
+        writeRef' (_1 `lensMap` q) False
+        r ==> Nothing
+        q ==> (False, Nothing)
+        s ==> (False, 3)
+
+    chainTest' = runTest $ do
         r <- newRef $ Just $ Just (3 :: Int)
         q <- extRef r maybeLens (False, Nothing)
-        s <- extRef (_2 `lensMap` q) maybeLens (False, 0)
+        s <- extRef (_2 `lensMap` q) maybeLens (False, 0 :: Int)
         r ==> Just (Just 3)
         q ==> (True, Just 3)
         s ==> (True, 3)
@@ -322,9 +349,9 @@ mkTests runTest
         r <- newRef (3 :: Int)
         q <- extRef r (lens head $ flip (:)) []
         q ==> [3]
-{-
+
     undoTest3 = runTest $ do
-        r <- newRef 3
+        r <- newRef (3 :: Int)
         (undo, redo) <- liftM (liftRefStateReader *** liftRefStateReader) $ undoTr (==) r
         r ==> 3
         redo === False
@@ -356,8 +383,35 @@ mkTests runTest
       where
         push m = liftWriteRef m >>= \x -> maybe (return ()) liftWriteRef x
         m === t = liftWriteRef m >>= \x -> isJust x ==? t
--}
+
     join' r = join $ readRef r
 
     writeRef' r a = liftWriteRef $ writeRef r a
--}
+
+
+-- | Undo-redo state transformation.
+undoTr
+    :: EffRef m =>
+       (a -> a -> Bool)     -- ^ equality on state
+    -> Ref m a             -- ^ reference of state
+    ->   m ( ReadRef m (Maybe (WriteRef m ()))
+           , ReadRef m (Maybe (WriteRef m ()))
+           )  -- ^ undo and redo actions
+undoTr eq r = do
+    ku <- extRef r (undoLens eq) ([], [])
+    let try f = liftM (liftM (writeRef ku) . f) $ readRef ku
+    return (try undo, try redo)
+  where
+    undo (x: xs@(_:_), ys) = Just (xs, x: ys)
+    undo _ = Nothing
+
+    redo (xs, y: ys) = Just (y: xs, ys)
+    redo _ = Nothing
+
+undoLens :: (a -> a -> Bool) -> Lens' ([a],[a]) a
+undoLens eq = lens get set where
+    get = head . fst
+    set (x' : xs, ys) x | eq x x' = (x: xs, ys)
+    set (xs, _) x = (x : xs, [])
+
+
