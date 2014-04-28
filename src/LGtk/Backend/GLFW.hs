@@ -42,7 +42,7 @@ runWidget desc = do
     hSetBuffering stdout NoBuffering
 
     (widget, actions) <- runPure newChan' $ unWrap $ do
-      runWidget_ liftIO' $ inCanvas 600 400 30 desc
+      runWidget_ liftIO' $ inCanvas 800 600 60 desc
     _ <- forkIO $ actions
 
     case widget of

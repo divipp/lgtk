@@ -1,6 +1,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ExistentialQuantification #-}
 module LGtk.Render
@@ -11,7 +12,9 @@ import Control.Applicative hiding (empty)
 import Control.Monad
 import Control.Monad.State
 import Control.Lens hiding ((#))
-import Diagrams.Prelude hiding (vcat, hcat, Dynamic)
+import Diagrams.Prelude
+import Diagrams.BoundingBox
+import Graphics.SVGFonts
 import Data.Colour.SRGB
 import Unsafe.Coerce
 
@@ -133,12 +136,13 @@ inCanvas width height scale w = do
             h3 i = writeRef' (_1 `lensMap` hi) [i]
             h4 (_,i) = writeRef' (_2 `lensMap` hi) i
 
-            moveFoc f = (do
-                modRef' tab f
+            moveFoc f = do
                 j <- liftRefStateReader' $ readRef tab
                 (xs, _) <- liftRefStateReader' b
-                let (a,bb,c,d) = xs !! (j `mod` length xs)
-                a >> h2 (bb,c) >> h4 (undefined, d)) :: Modifier m ()
+                let j' = f j `mod` length xs
+                writeRef' tab j'
+                let (a,bb,c,d) = xs !! j'
+                a >> h2 (bb,c) >> h4 (undefined, d)
 
             handleEvent (Click (MousePos p f)) = handle $ f $ Click $ MousePos p ()  :: Modifier m ()
             handleEvent (MoveTo (MousePos p f)) = handle $ f $ MoveTo $ MousePos p ()
@@ -150,35 +154,43 @@ inCanvas width height scale w = do
             handleEvent LostFocus = adjustFoc foc
             handleEvent _ = return ()
         return $ Canvas width height scale handleEvent (liftM2 (,) (readRef hi) $ liftM snd b) $ \((is,is'), x) -> 
-              render x is is' # translate (r2 (-scale/4,scale/4* fromIntegral height / fromIntegral width))
+              render x is is' # alignT # alignL # translate (r2 (-scale/2,scale/2* fromIntegral height / fromIntegral width))
               <> rect scale (scale / fromIntegral width * fromIntegral height)
                     # value_ (return ()) (Just' df) i
 
+focWidth = 0.2
+
+text_ :: String -> ((Double :& Double), Dia Any)
+{-
+text_ s = (coords $ boxExtents (boundingBox t) + r2 (0.2, 0.2) , t) where
+    t = textSVG s 1.8 # stroke # fc black  
+-}
+text_ s = ((max 5 (fromIntegral (length s) / 2) :& 1), text s)
 
 tr :: forall m . EffRef m => Double -> Widget m -> StateT Pos m (WW' m)
 tr sca w = do
     w' <- lift w
     case w' of
-        Label (r) -> do
-            let render bv _ _ = ((rect 5 1 # lw 0 <> text bv) # clipped (rect 5 1)) # value mempty
+        Label r -> do
+            let render bv _ _ = ((rect x y # lw 0 <> te) # clipped (rect x y)) # value mempty
+                     where ((x :& y), te) = text_ bv
             return $ WW (liftM ((,) []) r) render
 
-        Button (r) _ _ a -> do
+        Button r sens _ a -> do
             i <- newId
 
             let ff _ _ (Just ' ') = a ()
                 ff _ _ _ = return ()
 
-                render bv is is' =
-                     (text bv
-                  <> roundedRect 4.9 0.9 0.3 # fc (if i `elem` is then yellow else sRGB 0.95 0.95 0.95)
-                         # (if is' == i then lc yellow . lw 0.05 else lc black . lw 0.02)
+                render (bv, se) is is' =
+                     (te # fc (if se then black else gray)
+                  <> roundedRect x y 0.3 # fc (if i `elem` is && se then yellow else sRGB 0.95 0.95 0.95)
+                         # (if is' == i && se then lc yellow . lw focWidth else lc black . lw 0.02)
                      )
-                        # value_ (a ())
-                                 (Just' (ff, return ()))
-                                 i
-                        # clipBy' (rect 5 1) # freeze # frame 0.1
-            return $ WW (liftM ((,) [(return (), ff, return (), i)]) r) render
+                        # (if se then value_ (a ()) (Just' (ff, return ())) i else value mempty)
+                        # clipBy' (rect (x+0.1) (y+0.1)) # freeze # frame 0.1
+                   where ((x :& y), te) = text_ bv
+            return $ WW (liftM (\(r,se) -> ([(return (), ff, return (), i) | se], (r,se))) $ liftM2 (,) r sens) render
 
         Entry (rs, rr) -> do
             i <- newId
@@ -206,9 +218,9 @@ tr sca w = do
                 fout = writeRef' (_1 `lensMap` j) False
 
                 render bv is is' = 
-                  (   text (text' bv) # clipped (rect 5 1) # value mempty
+                  (  snd (text_ $ text' bv) # clipped (rect 10 1) # value mempty
                   <> rect 5 1 # fc (if i `elem` is then yellow else white)
-                         # (if is' == i then lc yellow . lw 0.05 else lc black . lw 0.02)
+                         # (if is' == i then lc yellow . lw focWidth else lc black . lw 0.02)
                          # value_ fin (Just' (ff, fout)) i
                   ) # freeze # frame 0.1
             return $ WW (liftM ((,) [(fin, ff, fout, i)]) (liftM2 (,) (readRef j) rs)) render
@@ -225,7 +237,7 @@ tr sca w = do
                                 # lineCap LineCapRound else mempty) # value mempty # lw 0.15
                     <> rect 1 1 # value_ (br (not bv)) (Just' (ff, return ())) i
                                 # fc (if i `elem` is then yellow else sRGB 0.95 0.95 0.95)
-                                # (if is' == i then lc yellow . lw 0.05 else lc black . lw 0.02)
+                                # (if is' == i then lc yellow . lw focWidth else lc black . lw 0.02)
                     ) # freeze # frame 0.1
             return $ WW (liftM ((,) [(return (), ff, return (), i)]) bs) render
 
@@ -250,8 +262,8 @@ tr sca w = do
               = WW (liftM2 (\(a,b)(c,d)->(a++c,(b,d))) b b') (\(x,y) -> liftM2 (liftM2 ff) (r x) (r' y))
 
             ff = case layout of
-                Horizontal -> (|||)
-                Vertical -> (===)
+                Horizontal -> \a b -> a # alignT ||| b # alignT
+                Vertical -> \a b -> a # alignL === b # alignL
 
         Canvas w h d r (s) f -> do
 
@@ -272,9 +284,70 @@ tr sca w = do
 
             return $ WW (liftM ((,) []) s) render
 
-        Combobox _ _ -> error "cb"
-        Notebook' _ l -> do
-            tr sca $ snd $ l !! 0
+        Combobox xs (bs, br) -> do
+            let n = length xs
+            iss <- replicateM n newId
+
+            let ff ind _ _ (Just ' ') = br ind
+                ff _ _ _ _ = return ()
+
+                render bv is is' = vcat (zipWith3 g [0..] iss xs) # freeze # frame 0.1
+                  where
+                    g ind i txt = (
+                       (if bv == ind then fromVertices [p2 (-0.3, 0), p2 (-0.1,-0.3), p2 (0.3,0.3)] 
+                                # lineCap LineCapRound else mempty) # value mempty # translate (r2 (x / 2,0)) # lw 0.15
+                      <> te # clipped (rect x y) # value mempty
+                      <> rect x y # fc (if i `elem` is then yellow else white)
+                             # (if is' == i then lc yellow . lw focWidth else lc black . lw 0.02)
+                             # value_ (br ind) (Just' (ff ind, return ())) i
+                            )  # frame 0.02
+
+                     where ((x :& y), te) = text_ txt
+
+            return $ WW (liftM ((,) [(return (), ff ind, return (), i) | (ind,i) <- zip [0..] iss]) bs) render
+
+        Notebook' br xs -> do
+            let (names, wis) = unzip xs
+                n = length names
+            iss <- replicateM n newId
+            ir <- lift $ newRef (0 :: Int)
+
+            let br' :: Int -> Modifier m ()
+                br' ind = br ind >> writeRef' ir ind
+                ff ind _ _ (Just ' ') = br' ind
+                ff _ _ _ _ = return ()
+
+            ww <- tr sca $ return $ Cell (readRef ir) $ \iv -> return $ wis !! iv
+            case ww of
+              WW wr wf -> do
+
+                let
+                    render (bv,wv) is is' =
+                        vcat
+                            [ hcat (zipWith3 g [0..] iss names) # freeze # frame 0.1
+                            , wf wv is is'
+                            ]
+                      where
+                        g ind i txt =
+--                           (if bv == ind then fromVertices [p2 (-0.3, 0), p2 (-0.1,-0.3), p2 (0.3,0.3)] 
+--                                    # lineCap LineCapRound else mempty) # value mempty # translate (r2 (x/2,0)) # lw 0.15
+                             te # clipped (rect x y) # value mempty
+                                 # fc (if i `elem` is then yellow else black)
+                          <> rect x y # lw 0
+                                 # value_ (br' ind) (Just' (ff ind, return ())) i
+                          <> (if bv == ind then fromVertices [p2 (-x/2, -y/2), p2 (-x/2,y/2), p2 (x/2,y/2), p2 (x/2,-y/2)]
+                                else rect x y)
+                                 # (if is' == i then lc yellow . lw focWidth else lc black . lw 0.02)
+                                 # value mempty # frame 0.02
+                         where ((x :& y), te) = text_ txt
+
+                return $ WW (liftM2 (\iv (ls,vv) ->
+                    ( [ (return (), ff ind, return (), i) | (ind,i) <- zip [0..] iss] ++ ls
+                    , (iv, vv)
+                    )) (readRef ir) wr) render
+
         Scale _ _ _ _ -> error "sc"
+
+
 
 

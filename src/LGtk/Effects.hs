@@ -89,6 +89,7 @@ instance ExtRef m => ExtRef (Wrap m) where
     liftReadRef = Wrap . liftReadRef
     extRef r l = Wrap . extRef r l
     newRef = Wrap . newRef
+    memoRead (Wrap m) = liftM Wrap $ Wrap $ memoRead m
 
 deriving instance (EffRef m) => Monad (Modifier (Wrap m))
 

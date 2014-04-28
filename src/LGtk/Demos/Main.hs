@@ -17,8 +17,8 @@ import LGtk.Demos.Tri
 import LGtk.Demos.IntListEditor
 import LGtk.Demos.TEditor
 
-main' :: IO ()
-main' = runWidget $ notebook
+main :: IO ()
+main = runWidget $ notebook
     [ (,) "Hello" $ label $ return "Hello World!"
 
     , (,) "Counters" $ notebook
@@ -178,24 +178,30 @@ interval ab = (lens fst set1 `lensMap` ab, lens snd set2 `lensMap` ab) where
 
 ----------------------------------------------------------------------------
 
-main :: IO ()
-main = runWidget $ do
+main' :: IO ()
+main' = runWidget $ do
     t <- newRef $ iterate (Node Leaf) Leaf !! 5
     i <- newRef (0 :: Int)
+    j <- newRef 0
     s <- newRef "x"
     s' <- newRef "y"
     let x = vcat
             [ hcat
-                [ label $ readRef i >>= \i -> return $ show i ++ "hello"
-                , button_ (return "+1") (return True) $ modRef' i (+1)
-                ]
-            , hcat
-                [ entry s
-                , entry s
-                ]
-            , hcat
-                [ entry s'
-                , entry s'
+                [ vcat
+                    [ hcat
+                        [ label $ readRef i >>= \i -> return $ show i ++ "hello"
+                        , button_ (return "+1") (return True) $ modRef' i (+1)
+                        ]
+                    , hcat
+                        [ entry s
+                        , entry s
+                        ]
+                    , hcat
+                        [ entry s'
+                        , entry s'
+                        ]
+                    ]
+                , combobox ["Hello","World","!"] j
                 ]
             , tEditor3 t
             ]
