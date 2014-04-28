@@ -160,12 +160,12 @@ inCanvas width height scale w = do
 
 focWidth = 0.2
 
-text_ :: String -> ((Double :& Double), Dia Any)
+text__ :: Double -> Double -> String -> ((Double :& Double), Dia Any)
 {-
 text_ s = (coords $ boxExtents (boundingBox t) + r2 (0.2, 0.2) , t) where
     t = textSVG s 1.8 # stroke # fc black  
 -}
-text_ s = ((max 5 (fromIntegral (length s) / 2) :& 1), text s)
+text__ ma mi s = ((max mi (min ma $ fromIntegral (length s) * 2/3) :& 1), text s)
 
 tr :: forall m . EffRef m => Double -> Widget m -> StateT Pos m (WW' m)
 tr sca w = do
@@ -173,7 +173,7 @@ tr sca w = do
     case w' of
         Label r -> do
             let render bv _ _ = ((rect x y # lw 0 <> te) # clipped (rect x y)) # value mempty
-                     where ((x :& y), te) = text_ bv
+                     where ((x :& y), te) = text__ 15 5 bv
             return $ WW (liftM ((,) []) r) render
 
         Button r sens _ a -> do
@@ -189,7 +189,7 @@ tr sca w = do
                      )
                         # (if se then value_ (a ()) (Just' (ff, return ())) i else value mempty)
                         # clipBy' (rect (x+0.1) (y+0.1)) # freeze # frame 0.1
-                   where ((x :& y), te) = text_ bv
+                   where ((x :& y), te) = text__ 15 3 bv
             return $ WW (liftM (\(r,se) -> ([(return (), ff, return (), i) | se], (r,se))) $ liftM2 (,) r sens) render
 
         Entry (rs, rr) -> do
@@ -218,11 +218,12 @@ tr sca w = do
                 fout = writeRef' (_1 `lensMap` j) False
 
                 render bv is is' = 
-                  (  snd (text_ $ text' bv) # clipped (rect 10 1) # value mempty
-                  <> rect 5 1 # fc (if i `elem` is then yellow else white)
+                  (  te # clipped (rect x y) # value mempty
+                  <> rect x y # fc (if i `elem` is then yellow else white)
                          # (if is' == i then lc yellow . lw focWidth else lc black . lw 0.02)
                          # value_ fin (Just' (ff, fout)) i
                   ) # freeze # frame 0.1
+                   where ((x :& y), te) = text__ 7 5 $ text' bv
             return $ WW (liftM ((,) [(fin, ff, fout, i)]) (liftM2 (,) (readRef j) rs)) render
 
         Checkbox (bs, br) -> do
@@ -302,7 +303,7 @@ tr sca w = do
                              # value_ (br ind) (Just' (ff ind, return ())) i
                             )  # frame 0.02
 
-                     where ((x :& y), te) = text_ txt
+                     where ((x :& y), te) = text__ 15 3 txt
 
             return $ WW (liftM ((,) [(return (), ff ind, return (), i) | (ind,i) <- zip [0..] iss]) bs) render
 
@@ -313,8 +314,11 @@ tr sca w = do
             ir <- lift $ newRef (0 :: Int)
 
             let br' :: Int -> Modifier m ()
-                br' ind = br ind >> writeRef' ir ind
+                br' ind = br ind' >> writeRef' ir ind' where ind' = ind `mod` n
+                br'' f = readRef' ir >>= br' . f 
                 ff ind _ _ (Just ' ') = br' ind
+                ff _ _ "Left" _ = br'' (+(-1))
+                ff _ _ "Right" _ = br'' (+ 1)
                 ff _ _ _ _ = return ()
 
             ww <- tr sca $ return $ Cell (readRef ir) $ \iv -> return $ wis !! iv
@@ -339,7 +343,7 @@ tr sca w = do
                                 else rect x y)
                                  # (if is' == i then lc yellow . lw focWidth else lc black . lw 0.02)
                                  # value mempty # frame 0.02
-                         where ((x :& y), te) = text_ txt
+                         where ((x :& y), te) = text__ 10 3 txt
 
                 return $ WW (liftM2 (\iv (ls,vv) ->
                     ( [ (return (), ff ind, return (), i) | (ind,i) <- zip [0..] iss] ++ ls
