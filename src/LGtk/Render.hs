@@ -5,7 +5,6 @@
 {-# LANGUAGE ExistentialQuantification #-}
 module LGtk.Render
     ( inCanvas
-    , mainTest
     ) where
 
 import Control.Applicative hiding (empty)
@@ -16,7 +15,8 @@ import Diagrams.Prelude hiding (vcat, hcat, Dynamic)
 import Data.Colour.SRGB
 import Unsafe.Coerce
 
-import LGtk
+--import LGtk
+import Data.LensRef
 import LGtk.Widgets
 
 --------------------------------------
@@ -149,7 +149,7 @@ inCanvas width height scale w = do
                 f m n c
             handleEvent LostFocus = adjustFoc foc
             handleEvent _ = return ()
-        canvas width height scale handleEvent (liftM2 (,) (readRef hi) $ liftM snd b) $ \((is,is'), x) -> 
+        return $ Canvas width height scale handleEvent (liftM2 (,) (readRef hi) $ liftM snd b) $ \((is,is'), x) -> 
               render x is is' # translate (r2 (-scale/4,scale/4* fromIntegral height / fromIntegral width))
               <> rect scale (scale / fromIntegral width * fromIntegral height)
                     # value_ (return ()) (Just' df) i
@@ -277,59 +277,4 @@ tr sca w = do
             tr sca $ snd $ l !! 0
         Scale _ _ _ _ -> error "sc"
 
-----------------------------------------------------------------------------
 
-mainTest :: IO ()
-mainTest = runWidgetGLFW $ do
-    t <- newRef $ iterate (Node Leaf) Leaf !! 5
-    i <- newRef (0 :: Int)
-    s <- newRef "x"
-    s' <- newRef "y"
-    let x = vcat
-            [ hcat
-                [ label $ readRef i >>= \i -> return $ show i ++ "hello"
-                , button_ (return "+1") (return True) $ modRef' i (+1)
-                ]
-            , hcat
-                [ entry s
-                , entry s
-                ]
-            , hcat
-                [ entry s'
-                , entry s'
-                ]
-            , join $ tEditor3 t
-            ]
-
-    inCanvas 600 400 30 $ hcat [ inCanvas 200 300 15 $ vcat [x, inCanvas 100 100 15 x], x]
-{-    hcat
-        [ inCanvas 600 400 30 $ hcat [ inCanvas 200 300 15 $ vcat [x, inCanvas 100 100 15 x], x], x ]
--}
-
--- | Binary tree shapes
-data T
-    = Leaf
-    | Node T T
-        deriving Show
-
--- | Lens for @T@
-tLens :: Lens' (Bool, (T, T)) T
-tLens = lens get set where
-    get (False, _)     = Leaf
-    get (True, (l, r)) = Node l r
-    set (_, x) Leaf  = (False, x)
-    set _ (Node l r) = (True, (l, r))
-
--- | @T@ editor with checkboxes, given directly
-tEditor3 :: EffRef m => Ref m T -> m (Widget m)
-tEditor3 r = do
-    q <- extRef r tLens (False, (Leaf, Leaf))
-    return $ hcat
-        [ checkbox $ _1 `lensMap` q
-        , cell (liftM fst $ readRef q) $ \b -> case b of
-            False -> empty
-            True -> do
-                t1 <- tEditor3 $ _2 . _1 `lensMap` q
-                t2 <- tEditor3 $ _2 . _2 `lensMap` q
-                vcat [t1, t2]
-        ]

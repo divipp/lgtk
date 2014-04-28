@@ -11,6 +11,7 @@ import Data.Char
 import Control.Applicative
 import Control.Concurrent
 import Control.Monad
+--import Control.Lens hiding ((#))
 import Data.IORef
 import Data.Vector.Storable (unsafeWith, unsafeFromForeignPtr0)
 import Foreign
@@ -32,6 +33,7 @@ import Data.LensRef
 import Data.LensRef.Fast
 import LGtk.Effects
 import LGtk.Widgets
+import LGtk.Render
 
 -------------------------------
 
@@ -63,7 +65,7 @@ runWidget desc = do
 
 
     (widget, actions) <- runPure newChan' $ unWrap $ do
-        runWidget_ liftIO' desc
+        runWidget_ liftIO' $ inCanvas width height 30 desc
     _ <- forkIO $ actions
 
     case widget of
@@ -223,5 +225,7 @@ copyToScreen w h (Image width height dat) = do
 
 imageRGBA8FromUnsafePtr :: Int -> Int -> ForeignPtr Word8 -> Image PixelRGBA8
 imageRGBA8FromUnsafePtr w h ptr = Image w h $ unsafeFromForeignPtr0 ptr (w * h * 4)
+
+-----------------------
 
 

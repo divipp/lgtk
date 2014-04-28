@@ -3,6 +3,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 module LGtk.Demos.Main
     ( main
+    , mainTest
     ) where
 
 import Data.Maybe (isJust)
@@ -10,7 +11,7 @@ import Control.Lens
 import Control.Monad
 
 import LGtk
---import LGtk.Canvas
+import LGtk.Backend.GLFW
 
 import LGtk.Demos.Tri
 import LGtk.Demos.IntListEditor
@@ -173,5 +174,34 @@ interval :: (Reference r, Ord a) => MRef r (a, a) -> (MRef r a, MRef r a)
 interval ab = (lens fst set1 `lensMap` ab, lens snd set2 `lensMap` ab) where
     set1 (_, b) a = (min b a, b)
     set2 (a, _) b = (a, max a b)
+
+
+----------------------------------------------------------------------------
+
+mainTest :: IO ()
+mainTest = runWidget $ do
+    t <- newRef $ iterate (Node Leaf) Leaf !! 5
+    i <- newRef (0 :: Int)
+    s <- newRef "x"
+    s' <- newRef "y"
+    let x = vcat
+            [ hcat
+                [ label $ readRef i >>= \i -> return $ show i ++ "hello"
+                , button_ (return "+1") (return True) $ modRef' i (+1)
+                ]
+            , hcat
+                [ entry s
+                , entry s
+                ]
+            , hcat
+                [ entry s'
+                , entry s'
+                ]
+            , tEditor3 t
+            ]
+
+    hcat
+        [ inCanvas 600 400 30 $ hcat [ inCanvas 200 300 15 $ vcat [x, inCanvas 100 100 15 x], x], x ]
+
 
 

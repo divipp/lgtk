@@ -65,8 +65,6 @@ module LGtk
 
     -- ** Running
     , Widget
-    , runWidget
-    , runWidgetGLFW
 
     -- ** GUI descriptions
     , label
@@ -85,6 +83,9 @@ module LGtk
     , MousePos (..)
     , KeyModifier
     , hscale
+
+    -- ** Rendering into a canvas
+    , inCanvas
 
     -- ** Derived constructs
     , empty
@@ -113,8 +114,9 @@ import Control.Lens
 import Data.LensRef
 import LGtk.Effects
 import LGtk.Widgets
-import LGtk.Backend.Gtk (runWidget)
-import qualified LGtk.Backend.GLFW as GLFW
+import LGtk.Render
+--import LGtk.Backend.Gtk (runWidget)
+--import qualified LGtk.Backend.GLFW as GLFW
 
 
 {- |
@@ -125,7 +127,7 @@ side-effects happen at running @('runWidget' w)@.
 @Widget@ should be abstract data type, but it is also safe to keep it as a type synonym because
 the operations of the revealed implementation are hidden.
 -}
-runWidgetGLFW = GLFW.runWidget
+--runWidgetGLFW = GLFW.runWidget
 
 {- |
 Run a Gtk widget description.
