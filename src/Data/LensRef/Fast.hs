@@ -5,29 +5,27 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {- |
-Pure reference implementation for the @ExtRef@ interface.
+Fast reference implementation for the @ExtRef@ interface.
 
-The implementation uses @unsafeCoerce@ internally, but its effect cannot escape.
+TODO
+- elim mem leak: regitered events don't allow to release unused refs
+- optimiziation: equality check
+- generalize it to be a monad transformer
 -}
 module Data.LensRef.Fast
-{-    ( Pure
+    ( Pure
     , runPure
-    )-} where
+    ) where
 
 import Data.Monoid
 import Control.Concurrent
 import Control.Applicative hiding (empty)
 import Control.Monad.State
 import Control.Monad.Reader
-import Control.Arrow ((***))
-import Data.Sequence hiding (singleton, filter)
-import Control.Lens hiding ((|>))
-import Data.Foldable (toList)
-import Prelude hiding (splitAt, length)
-
-import Unsafe.Coerce
+import Control.Lens
 
 import Data.LensRef
+import Data.LensRef.Pure (ExtRefWrite (..))
 
 ----------------------
 
@@ -41,11 +39,13 @@ instance MonadRefReader IO where
 data Lens_ a = Lens_ 
     { readPart :: IO a
     , writePart :: a -> IO ()
+    , register :: IO () -> IO ()
     }
 
 joinLens m = Lens_
     { readPart = m >>= readPart
     , writePart = \a -> m >>= \r -> writePart r a
+    , register = \e -> m >>= \r -> register r e
     }
 
 instance Reference Lens_ where
@@ -54,10 +54,17 @@ instance Reference Lens_ where
     readRef = readPart . joinLens
     writeRef m = RSR . writePart (joinLens m)
     lensMap l m = do
-        Lens_ r w <- m
-        a <- r
-        return $ Lens_ (return $ a ^. l) (\b -> w $ set l b a)
-    unitRef = return $ Lens_ (return ()) (const $ return ())
+        Lens_ r w t <- m
+        return $ Lens_
+            { readPart = r >>= \a -> return $ a ^. l
+            , writePart = \b -> r >>= \a -> w $ set l b a
+            , register = t
+            }
+    unitRef = return $ Lens_
+                { readPart = return ()
+                , writePart = const $ return ()
+                , register = \_ -> return ()
+                }
 
 instance ExtRef IO where
 
@@ -65,34 +72,38 @@ instance ExtRef IO where
 
     liftReadRef = id
 
-    extRef r r2 a0 = undefined {-state extend
-      where
-        rk = set (runLens_ r) . (^. r2)
-        kr = set r2 . (^. runLens_ r)
+    extRef r r2 a0 = do
+        Lens_ rb wb tb <- r
+        b0 <- rb
+        va <- newMVar $ set r2 b0 a0
+        reg <- newMVar $ return ()
+        status <- newMVar True -- True: normal; False:
+        tb $ do
+            s <- readMVar status
+            when s $ do
+                b <- rb
+                modifyMVar va $ \a -> return (set r2 b a, ())
+                join $ readMVar reg
+        return $ do
+            return $ Lens_
+                { readPart = readMVar va
+                , writePart = \a -> do
+                    _ <- swapMVar va a
+                    _ <- swapMVar status False
+                    wb $ a ^. r2
+                    _ <- swapMVar status True
+                    join $ readMVar reg
+                    return ()
+                , register = \m -> modifyMVar reg $ \x -> return (x >> m, ())
+                }
 
-        extend x0 = (return $ Lens_ $ lens get set, x0 |> CC kr (kr x0 a0))
-          where
-            limit = (id *** toList) . splitAt (length x0)
-
-            get = unsafeData . head . snd . limit
-
-            set x a = foldl (\x -> (|>) x . ap_ x) (rk a zs |> CC kr a) ys where
-                (zs, _ : ys) = limit x
-
-        ap_ :: LSt -> CC -> CC
-        ap_ x (CC f a) = CC f (f x a)
-
-        unsafeData :: CC -> a
-        unsafeData (CC _ a) = unsafeCoerce a
--}
-{-
     memoRead = memoRead_
 
     memoWrite = memoWrite_
 
     future = future_
--}
-{-
+
+
 future_ :: ExtRefWrite m => (ReadRef m a -> m a) -> m a
 future_ f = do
     s <- newRef $ error "can't see the future"
@@ -116,31 +127,33 @@ memoWrite_ g = do
             liftWriteRef $ writeRef s $ Just (b, a)
             return a
 
-class ExtRef m => ExtRefWrite m where
-    liftWriteRef :: WriteRef m a -> m a
 
-instance Monad m => ExtRefWrite (StateT LSt m) where
-    liftWriteRef = state . runState . runRSR
+
+instance ExtRefWrite IO where
+    liftWriteRef = runRSR
 
 
 ---------------------------------
-
 
 type Register n m = ReaderT (Ref m (MonadMonoid m, Command -> MonadMonoid n)) m
 
 newtype Reg n a = Reg (ReaderT (SLSt n () -> n ()) (Register n (SLSt n)) a) deriving (Monad, Applicative, Functor)
 
+type SLSt (n :: * -> *) = IO
+
+type Pure (n :: * -> *) = Reg IO
+{-
 mapReg :: (forall a . m a -> n a) -> Reg m a -> Reg n a
 mapReg ff (Reg m) = Reg $ ReaderT $ \f -> ReaderT $ \r -> StateT $ \s -> 
     ff $ flip runStateT s $ flip runReaderT (iso undefined undefined `lensMap` r) $ runReaderT m $ undefined f
 
 instance MonadTrans Reg where
     lift = Reg . lift . lift . lift
+-}
 
+instance {-Monad n => -} ExtRef (Pure n) where
 
-instance Monad n => ExtRef (Pure n) where
-
-    type RefCore (Pure n) = Lens_ LSt
+    type RefCore (Pure IO) = Lens_
 
     liftReadRef = Reg . lift . lift . liftReadRef
     extRef r l = Reg . lift . lift . extRef r l
@@ -149,35 +162,35 @@ instance Monad n => ExtRef (Pure n) where
     memoWrite = memoWrite_
     future = future_
 
-instance Monad n => ExtRefWrite (Pure n) where
+instance {-Monad n => -} ExtRefWrite (Pure n) where
     liftWriteRef = Reg . lift . lift . liftWriteRef
 
-instance Monad n => EffRef (Pure n) where
+instance {-Monad n => -} EffRef (Pure n) where
 
-    type EffectM (Pure n) = n
+    type EffectM (Pure IO) = IO
 
-    newtype Modifier (Pure n) a = RegW {unRegW :: Pure n a} deriving (Monad, Applicative, Functor)
+    newtype Modifier (Pure IO) a = RegW {unRegW :: Pure IO a} deriving (Monad, Applicative, Functor)
 
-    liftEffectM = lift
+    liftEffectM = Reg . lift . lift
 
     liftModifier = RegW
 
     liftWriteRef' = liftModifier . liftWriteRef
 
     onChange_ r b0 c0 f = Reg $ ReaderT $ \ff ->
-        toSend lift r b0 c0 $ \b b' c' -> liftM (\x -> evalRegister ff . x) $ evalRegister ff $ f b b' c'
+        toSend id r b0 c0 $ \b b' c' -> liftM (\x -> evalRegister ff . x) $ evalRegister ff $ f b b' c'
 
     toReceive f g = Reg $ ReaderT $ \ff -> do
         tell' (mempty, MonadMonoid . g)
         writerstate <- ask
         return $ fmap (ff . flip runReaderT writerstate . evalRegister ff . unRegW) f
 
-instance Monad m => ExtRefWrite (Modifier (Pure m)) where
+instance {- Monad m => -} ExtRefWrite (Modifier (Pure m)) where
     liftWriteRef = RegW . liftWriteRef
 
-instance Monad m => ExtRef (Modifier (Pure m)) where
+instance {- Monad m => -} ExtRef (Modifier (Pure m)) where
 
-    type RefCore (Modifier (Pure m)) = Lens_ LSt
+    type RefCore (Modifier (Pure IO)) = Lens_
 
     liftReadRef = RegW . liftReadRef
     extRef r l = RegW . extRef r l
@@ -188,19 +201,15 @@ instance Monad m => ExtRef (Modifier (Pure m)) where
 
 evalRegister ff (Reg m) = runReaderT m ff
 
-type SLSt = StateT LSt
-
-type Pure m = Reg m
-
-runPure :: Monad m => (forall a . m (m a, a -> m ())) -> Pure m a -> m (a, m ())
+runPure :: (Monad m, m ~ IO) => (forall a . m (m a, a -> m ())) -> Pure m a -> m (a, m ())
 runPure newChan (Reg m) = do
     (read, write) <- newChan
-    ((a, tick), s) <- flip runStateT initLSt $ do
+    (a, tick) <- do
         (a, r) <- runRefWriterT $ runReaderT m write
         (w, _) <- readRef' r
         return (a, runMonadMonoid w)
-    return $ (,) a $ flip evalStateT s $ forever $ do
-        join $ lift read
+    return $ (,) a $ forever $ do
+        join $ read
         tick
 
 
@@ -272,4 +281,4 @@ instance Monad m => Monoid (MonadMonoid m) where
     mempty = MonadMonoid $ return ()
     MonadMonoid a `mappend` MonadMonoid b = MonadMonoid $ a >> b
 
--}
+

@@ -20,7 +20,7 @@ import Graphics.UI.Gtk hiding (Widget, Release)
 import qualified Graphics.UI.Gtk as Gtk
 
 import Data.LensRef
-import Data.LensRef.Pure
+import Data.LensRef.Fast
 import LGtk.Effects
 import LGtk.Widgets
 

@@ -29,7 +29,7 @@ import Diagrams.Backend.Cairo.Ptr
 import Codec.Picture
 
 import Data.LensRef
-import Data.LensRef.Pure
+import Data.LensRef.Fast
 import LGtk.Effects
 import LGtk.Widgets
 
