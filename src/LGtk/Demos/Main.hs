@@ -3,7 +3,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 module LGtk.Demos.Main
     ( main
-    , mainTest
+    , main'
     ) where
 
 import Data.Maybe (isJust)
@@ -17,8 +17,8 @@ import LGtk.Demos.Tri
 import LGtk.Demos.IntListEditor
 import LGtk.Demos.TEditor
 
-main :: IO ()
-main = runWidget $ notebook
+main' :: IO ()
+main' = runWidget $ notebook
     [ (,) "Hello" $ label $ return "Hello World!"
 
     , (,) "Counters" $ notebook
@@ -178,8 +178,8 @@ interval ab = (lens fst set1 `lensMap` ab, lens snd set2 `lensMap` ab) where
 
 ----------------------------------------------------------------------------
 
-mainTest :: IO ()
-mainTest = runWidget $ do
+main :: IO ()
+main = runWidget $ do
     t <- newRef $ iterate (Node Leaf) Leaf !! 5
     i <- newRef (0 :: Int)
     s <- newRef "x"
@@ -200,8 +200,7 @@ mainTest = runWidget $ do
             , tEditor3 t
             ]
 
-    hcat
-        [ inCanvas 600 400 30 $ hcat [ inCanvas 200 300 15 $ vcat [x, inCanvas 100 100 15 x], x], x ]
+    hcat [ inCanvas 200 300 15 $ vcat [x, inCanvas 100 100 15 x], x]
 
 
 

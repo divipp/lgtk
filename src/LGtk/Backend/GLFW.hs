@@ -12,9 +12,9 @@ import Control.Applicative
 import Control.Concurrent
 import Control.Monad
 --import Control.Lens hiding ((#))
-import Data.IORef
 import Data.Vector.Storable (unsafeWith, unsafeFromForeignPtr0)
 import Foreign
+import System.IO
 import Graphics.Rendering.OpenGL.Raw.Core31
 import Graphics.UI.GLFW as GLFW
 
@@ -39,52 +39,43 @@ import LGtk.Render
 
 runWidget :: (forall m . (EffIORef m) => Widget m) -> IO ()
 runWidget desc = do
-
-    exitRef <- newIORef False
-    _ <- GLFW.init
-    print =<< getVersion
-    let width = 600
-        height = 400
-    Just w <- createWindow width height "Diagrams + Rasterific + GLFW" Nothing Nothing
-
-    makeContextCurrent (Just w) -- for OpenGL
-
-    let render dia = do
-            (sw,sh) <- getFramebufferSize w
-            (w,h) <- return (sw,sh)
-
-            -- Cairo
-            image <- imageRGBA8FromUnsafePtr w h <$> renderForeignPtrOpaque w h dia
-
-            -- Rasterific
-            --let sizeSpec = mkSizeSpec (Just $ fromIntegral w) (Just $ fromIntegral h)
-            --let image = renderDia Rasterific (RasterificOptions sizeSpec) dia
-
-            copyToScreen (fromIntegral sw) (fromIntegral sh) image
-            putStrLn "render"
-
+    hSetBuffering stdout NoBuffering
 
     (widget, actions) <- runPure newChan' $ unWrap $ do
-        runWidget_ liftIO' $ inCanvas width height 30 desc
+      runWidget_ liftIO' $ inCanvas 600 400 30 desc
     _ <- forkIO $ actions
 
     case widget of
-      SWidget _wi _he sc_ handle current iodia -> do
+      SWidget width height sc_ handle current iodia -> do
+
+        _ <- GLFW.init
+        print =<< getVersion
+        Just win <- createWindow width height "Diagrams + Rasterific + GLFW" Nothing Nothing
+        makeContextCurrent (Just win) -- for OpenGL
+
+        postchan <- newChan
+
+        let post_ = writeChan postchan . Just
+            post :: forall a . IO a -> IO a
+            post m = do
+                x <- newEmptyMVar
+                post_ $ m >>= putMVar x
+                takeMVar x
 
         mc <- newMVar (0,0)
-        let
+
+        let 
             dims = do
-                (w, h) <- getFramebufferSize w
+                (w, h) <- getFramebufferSize win
                 let (w', h') = (fromIntegral w, fromIntegral h)
                 let sc = w' / sc_
                 return (sc, w', h', w, h)
 
-
             compCoords (x,y) = do
-                (sc, w, h, _, _) <- dims
+                (sc, w, h, _, _) <- post dims
                 d <- current
                 let p = ((x - w / 2) / sc, (h / 2 - y) / sc)
---                print p
+    --                print p
                 return $ MousePos p $ d `sample` p2 p
 
             logMousePos :: CursorPosCallback
@@ -102,12 +93,12 @@ runWidget desc = do
                   MouseButtonState'Pressed -> Click p
                   MouseButtonState'Released -> Release p
 
-            logKey :: IORef Bool -> KeyCallback
-            logKey ref _win key _scancode action mods = do
-                writeIORef ref $ key == Key'Escape
-                case action of
-                    KeyState'Pressed -> do
---                        putStrLn $ "KeyCallback: " ++ show (key,mods)
+            logKey :: KeyCallback
+            logKey _win key _scancode action mods = do
+                when (key == Key'Escape) $ writeChan postchan Nothing
+
+    --                putStrLn $ "KeyCallback: " ++ show (action, key,mods)
+                when (action `elem` [KeyState'Pressed, KeyState'Repeating]) $ do
                         let name = case key of
                                 Key'Backspace -> "BackSpace"
                                 Key'Delete -> "Delete"
@@ -121,50 +112,62 @@ runWidget desc = do
                                     ['K','e','y','\'',c] -> Just $ (if modifierKeysShift mods then id else toLower) c
                                     _ -> Nothing
                         handle $ KeyPress [ControlModifier | modifierKeysControl mods] name char
-                    _ -> return ()
 
             logChar :: CharCallback
             logChar _win _char = return () --putStrLn $ "CharCallback: " ++ show (char)
 
             logWinSize :: WindowSizeCallback
-            logWinSize _win w h = putStrLn $ "WindowSizeCallback: " ++ show (w,h)
+            logWinSize _win w h = do
+--                threadDelay 20000
+                _ <- tryTakeMVar iodia
+                current >>= putMVar iodia . clearValue
+                --putStrLn $ "WindowSizeCallback: " ++ show (w,h)
 
-        -- callbacks
-        setKeyCallback w (Just $ logKey exitRef)
-        setCharCallback w (Just logChar)
-        setMouseButtonCallback w (Just logMouseButton)
-        setCursorPosCallback w (Just logMousePos)
-        setWindowSizeCallback w (Just logWinSize)
-
-        let
             tr sc w h dia = {-translate (r2 (w/2, h/2)) $ -} dia # {-scaleY (-1) # -} scale sc # clipped (rect w h) <>
                                                              rect w h # fc white # lw 0
 
-            run = do
-                dia_ <- iodia
-                let dia = freeze $ clearValue dia_
-                (sc, w', h, _, _) <- dims
-                render $ tr sc w' h dia
-                swapBuffers w
+        -- callbacks
+        setKeyCallback win (Just logKey)
+        setCharCallback win (Just logChar)
+        setMouseButtonCallback win (Just logMouseButton)
+        setCursorPosCallback win (Just logMousePos)
+        setWindowSizeCallback win (Just logWinSize)
+        _ <- forkIO $ forever waitEvents
 
-            run' = do
-                waitEvents
-                --pollEvents
-                exit <- readIORef exitRef
-                unless exit run'
+        _ <- forkIO $ forever $ do
+            threadDelay 20000
+            dia_ <- takeMVar iodia
+            post $ do
+                (sc, w, h, sw, sh) <- dims
+                let dia = tr sc w h $ dia_ # freeze
 
-        _ <- forkIO $ forever run
+                -- Cairo
+                image <- imageRGBA8FromUnsafePtr sw sh <$> renderForeignPtrOpaque sw sh dia
 
-        run'
-        destroyWindow w
+                -- Rasterific
+                --let sizeSpec = mkSizeSpec (Just $ fromIntegral w) (Just $ fromIntegral h)
+                --let image = renderDia Rasterific (RasterificOptions sizeSpec) dia
+
+                copyToScreen win (fromIntegral sw) (fromIntegral sh) image
+                putStr "*"
+
+        let evalposts = do
+                x <- readChan postchan
+                case x of
+                    Nothing -> return ()
+                    Just x -> x >> evalposts
+
+        evalposts
+        destroyWindow win
         terminate
+
 
 
 newChan' = do
     ch <- newChan
     return (readChan ch, writeChan ch)
 
-data SWidget = forall a . (Monoid a, Semigroup a) => SWidget Int Int Double (MouseEvent a -> IO ()) (IO (Dia a)) (IO (Dia a))
+data SWidget = forall a . (Monoid a, Semigroup a) => SWidget Int Int Double (MouseEvent a -> IO ()) (IO (Dia a)) (MVar (Dia Any))
 
 
 runWidget_
@@ -184,17 +187,17 @@ runWidget_ liftIO_ = toWidget
                 liftIO_ $ do
                     let d = diaFun b
                     _ <- tryTakeMVar rer
-                    putMVar rer d
+                    putMVar rer $ d # clearValue
                     _ <- swapMVar rer' d
                     return d
 
-            let iodia = takeMVar rer
+            let iodia = rer
             let current = readMVar rer'
             handle <- toReceive me (const $ return ())
             return $ SWidget w h sc_ handle current iodia
 
 
-copyToScreen w h (Image width height dat) = do
+copyToScreen win w h (Image width height dat) = do
     let iw = fromIntegral width
         ih = fromIntegral height
     fbo <- alloca $! \pbo -> glGenFramebuffers 1 pbo >> peek pbo
@@ -209,19 +212,23 @@ copyToScreen w h (Image width height dat) = do
     glFramebufferTexture2D gl_DRAW_FRAMEBUFFER gl_COLOR_ATTACHMENT0 gl_TEXTURE_2D tex 0
 
     status <- glCheckFramebufferStatus gl_FRAMEBUFFER
-    unless (status == gl_FRAMEBUFFER_COMPLETE) $
+    if (status /= gl_FRAMEBUFFER_COMPLETE)
+      then do
         putStrLn $ "incomplete framebuffer: " ++ show status
+      else do
+        glBindFramebuffer gl_DRAW_FRAMEBUFFER 0
 
-    glBindFramebuffer gl_DRAW_FRAMEBUFFER 0
+        glBindFramebuffer gl_READ_FRAMEBUFFER fbo
+        glBindFramebuffer gl_DRAW_FRAMEBUFFER 0
+        glBlitFramebuffer 0 ih iw 0 0 0 w h gl_COLOR_BUFFER_BIT gl_LINEAR
+        glBindFramebuffer gl_READ_FRAMEBUFFER 0
+        glBindFramebuffer gl_DRAW_FRAMEBUFFER 0
 
-    glBindFramebuffer gl_READ_FRAMEBUFFER fbo
-    glBindFramebuffer gl_DRAW_FRAMEBUFFER 0
-    glBlitFramebuffer 0 ih iw 0 0 0 w h gl_COLOR_BUFFER_BIT gl_LINEAR
-    glBindFramebuffer gl_READ_FRAMEBUFFER 0
-    glBindFramebuffer gl_DRAW_FRAMEBUFFER 0
+        Foreign.with fbo $ glDeleteFramebuffers 1
+        Foreign.with tex $ glDeleteTextures 1
 
-    Foreign.with fbo $ glDeleteFramebuffers 1
-    Foreign.with tex $ glDeleteTextures 1
+        swapBuffers win
+
 
 imageRGBA8FromUnsafePtr :: Int -> Int -> ForeignPtr Word8 -> Image PixelRGBA8
 imageRGBA8FromUnsafePtr w h ptr = Image w h $ unsafeFromForeignPtr0 ptr (w * h * 4)
