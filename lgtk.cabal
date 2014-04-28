@@ -56,19 +56,22 @@ library
 
                   , lens
   exposed-modules:
+                    -- lens-references
                     Data.LensRef
                     Data.LensRef.Pure
                     Data.LensRef.Fast
                     Data.LensRef.Test
 
-                    LGtk
+                    -- lgtk
                     LGtk.Effects
                     LGtk.Widgets
                     LGtk.Render
+                    LGtk
 
-
+                    -- lgtk-glfw
                     LGtk.Backend.GLFW
 
+                    -- lgtk-demos
                     LGtk.ADTEditor
                     LGtk.Demos.Main
                     LGtk.Demos.Tri

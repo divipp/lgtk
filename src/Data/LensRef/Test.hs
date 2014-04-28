@@ -132,40 +132,6 @@ mkTests runTest
         r <- newRef (3 :: Int)
         r ==> 3
 
-    writeRefTest = runTest $ do
-        r <- newRef (3 :: Int)
-        k <- newRef (3 :: Int)
-        sr <- toReceive (writeRef'' r) (const $ return ())
-        sk <- toReceive (writeRef'' k) (const $ return ())
-
-        onChange (readRef r) $ \x -> do
-            when (x == 3) $ do
-                onChange (readRef k) $ \x -> do
-                    liftEffectM $ tell ["k1: " ++ show x]
-                    return $ return ()
-                return ()
-            return $ do
-                liftEffectM $ tell ["r: " ++ show x]
-                when (x == 4) $ do
-                    onChange (readRef k) $ \x -> return $ do
-                        liftEffectM $ tell ["k2: " ++ show x]
-                    return ()
-                r ==> x
-        r ==> 3
-        liftEffectM $ sr 5
-        liftEffectM $ sk 6
-        liftEffectM $ sr 4
-        liftEffectM $ sk 7
-        liftEffectM $ sr 3
-        liftEffectM $ sk 8
-        liftEffectM $ sr 5
-        liftEffectM $ sk 9
-        liftEffectM $ sr 4
-        liftEffectM $ sk 10
-        liftEffectM $ sr 3
-        liftEffectM $ sk 11
-        r ==> 3
-        return ()
 
     writeRefsTest = runTest $ do
         r1 <- newRef (3 :: Int)
@@ -383,6 +349,43 @@ mkTests runTest
       where
         push m = liftWriteRef m >>= \x -> maybe (return ()) liftWriteRef x
         m === t = liftWriteRef m >>= \x -> isJust x ==? t
+
+
+
+    writeRefTest = runTest $ do
+        r <- newRef (3 :: Int)
+        k <- newRef (3 :: Int)
+        sr <- toReceive (writeRef'' r) (const $ return ())
+        sk <- toReceive (writeRef'' k) (const $ return ())
+
+        onChange (readRef r) $ \x -> do
+            when (x == 3) $ do
+                onChange (readRef k) $ \x -> do
+                    liftEffectM $ tell ["k1: " ++ show x]
+                    return $ return ()
+                return ()
+            return $ do
+                liftEffectM $ tell ["r: " ++ show x]
+                when (x == 4) $ do
+                    onChange (readRef k) $ \x -> return $ do
+                        liftEffectM $ tell ["k2: " ++ show x]
+                    return ()
+                r ==> x
+        r ==> 3
+        liftEffectM $ sr 5
+        liftEffectM $ sk 6
+        liftEffectM $ sr 4
+        liftEffectM $ sk 7
+        liftEffectM $ sr 3
+        liftEffectM $ sk 8
+        liftEffectM $ sr 5
+        liftEffectM $ sk 9
+        liftEffectM $ sr 4
+        liftEffectM $ sk 10
+        liftEffectM $ sr 3
+        liftEffectM $ sk 11
+        r ==> 3
+        return ()
 
     join' r = join $ readRef r
 

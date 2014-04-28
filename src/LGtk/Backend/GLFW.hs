@@ -215,7 +215,7 @@ copyToScreen win w h (Image width height dat) = do
     glBindTexture gl_TEXTURE_2D tex
     glTexParameteri gl_TEXTURE_2D gl_TEXTURE_MAG_FILTER $ fromIntegral gl_NEAREST
     glTexParameteri gl_TEXTURE_2D gl_TEXTURE_MIN_FILTER $ fromIntegral gl_NEAREST
-    unsafeWith dat $ glTexImage2D gl_TEXTURE_2D 0 (fromIntegral gl_RGBA) iw ih 0 (fromIntegral gl_RGBA) gl_UNSIGNED_BYTE
+    unsafeWith dat $ glTexImage2D gl_TEXTURE_2D 0 (fromIntegral gl_RGBA) iw ih 0 (fromIntegral gl_BGRA) gl_UNSIGNED_BYTE
     glFramebufferTexture2D gl_DRAW_FRAMEBUFFER gl_COLOR_ATTACHMENT0 gl_TEXTURE_2D tex 0
 
     status <- glCheckFramebufferStatus gl_FRAMEBUFFER
@@ -241,5 +241,27 @@ imageRGBA8FromUnsafePtr :: Int -> Int -> ForeignPtr Word8 -> Image PixelRGBA8
 imageRGBA8FromUnsafePtr w h ptr = Image w h $ unsafeFromForeignPtr0 ptr (w * h * 4)
 
 -----------------------
+
+{-
+low level primitives
+
+data Image = { width, height :: Int, Ptr }
+data Point
+data Rect = { corner1, corner2 :: Point }
+
+1.
+resizeCopy :: (Rect, Image) -> (Rect, Image) -> ReaderT x IO ()
+2.
+render :: (Rect, Dia) -> (Rect, Image) -> ReaderT x IO ()
+3.
+-- to full screen
+toScreen :: (Rect, Image) -> ReaderT x IO ()
+
+
+-}
+
+
+
+
 
 
