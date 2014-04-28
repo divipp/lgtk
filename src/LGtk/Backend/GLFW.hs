@@ -63,6 +63,7 @@ runWidget desc = do
                 takeMVar x
 
         mc <- newMVar (0,0)
+        mc' <- newEmptyMVar
 
         let 
             dims = do
@@ -82,7 +83,8 @@ runWidget desc = do
             logMousePos _win x y = do
                 _ <- swapMVar mc (x,y)
                 p <- compCoords (x,y)
-                handle $ MoveTo p
+                _ <- tryTakeMVar mc'
+                putMVar mc' p
 
             logMouseButton :: MouseButtonCallback
             logMouseButton _win _button state _mod = do
@@ -130,7 +132,13 @@ runWidget desc = do
         setMouseButtonCallback win (Just logMouseButton)
         setCursorPosCallback win (Just logMousePos)
         setWindowSizeCallback win (Just logWinSize)
-        _ <- forkIO $ forever $ waitEvents
+        _ <- forkIO $ forever $ waitEvents {-do
+            post pollEvents
+-}
+        _ <- forkIO $ forever $ do
+            threadDelay 20000
+            p <- takeMVar mc'
+            handle $ MoveTo p
 
         _ <- forkIO $ forever $ do
             threadDelay 20000
