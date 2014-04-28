@@ -12,7 +12,7 @@ import LGtk.ADTEditor
 data T
     = Leaf
     | Node T T
-        deriving Show
+        deriving (Eq, Show)
 
 -- | Lens for @T@
 tLens :: Lens' (Bool, (T, T)) T
