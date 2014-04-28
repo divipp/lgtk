@@ -203,6 +203,12 @@ class (ExtRef m, ExtRef (Modifier m), RefCore (Modifier m) ~ RefCore m) => EffRe
         -> (b -> b -> c -> m (c -> m c))
         -> m (ReadRef m c)
 
+    onChange :: Eq a => ReadRef m a -> (a -> m (m b)) -> m (ReadRef m b)
+    onChange r f = onChange_ r undefined undefined $ \b _ _ -> liftM (\x _ -> x) $ f b
+
+    onChangeSimple :: Eq a => ReadRef m a -> (a -> m b) -> m (ReadRef m b)
+    onChangeSimple r f = onChange r $ return . f
+
     toReceive :: Functor f => f (Modifier m ()) -> (Command -> EffectM m ()) -> m (f (EffectM m ()))
 
 data Command = Kill | Block | Unblock deriving (Eq, Ord, Show)
@@ -334,10 +340,7 @@ correction r = do
 ----------------
 
 rEffect  :: (EffRef m, Eq a) => ReadRef m a -> (a -> EffectM m b) -> m (ReadRef m b)
-rEffect r f = onChange r $ return . liftEffectM . f
-
-onChange :: (EffRef m, Eq a) => ReadRef m a -> (a -> m (m b)) -> m (ReadRef m b)
-onChange r f = onChange_ r undefined undefined $ \b _ _ -> liftM (\x _ -> x) $ f b
+rEffect r f = onChangeSimple r $ liftEffectM . f
 
 writeRef' :: (EffRef m, Reference r, RefReader r ~ RefReader (RefCore m)) => MRef r a -> a -> Modifier m ()
 writeRef' r a = liftWriteRef' $ writeRef r a

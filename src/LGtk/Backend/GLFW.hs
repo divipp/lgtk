@@ -123,8 +123,6 @@ runWidget desc = do
                 current >>= putMVar iodia . clearValue
                 --putStrLn $ "WindowSizeCallback: " ++ show (w,h)
 
-            tr sc w h dia = {-translate (r2 (w/2, h/2)) $ -} dia # {-scaleY (-1) # -} scale sc # clipped (rect w h) <>
-                                                             rect w h # fc white # lw 0
 
         -- callbacks
         setKeyCallback win (Just logKey)
@@ -132,14 +130,15 @@ runWidget desc = do
         setMouseButtonCallback win (Just logMouseButton)
         setCursorPosCallback win (Just logMousePos)
         setWindowSizeCallback win (Just logWinSize)
-        _ <- forkIO $ forever waitEvents
+        _ <- forkIO $ forever $ waitEvents
 
         _ <- forkIO $ forever $ do
             threadDelay 20000
             dia_ <- takeMVar iodia
             post $ do
                 (sc, w, h, sw, sh) <- dims
-                let dia = tr sc w h $ dia_ # freeze
+                let dia = dia_ # freeze # scale sc # clipped (rect w h) <>
+                            rect w h # fc white # lw 0
 
                 -- Cairo
                 image <- imageRGBA8FromUnsafePtr sw sh <$> renderForeignPtrOpaque sw sh dia
@@ -183,7 +182,7 @@ runWidget_ liftIO_ = toWidget
         Canvas w h sc_ me r diaFun -> do
             rer <- liftIO_ $ newMVar mempty
             rer' <- liftIO_ $ newMVar mempty
-            _ <- onChange r $ \b -> return $ do
+            _ <- onChangeSimple r $ \b -> do
                 liftIO_ $ do
                     let d = diaFun b
                     _ <- tryTakeMVar rer

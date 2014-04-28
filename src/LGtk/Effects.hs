@@ -105,6 +105,7 @@ instance EffRef m => EffRef (Wrap m) where
     liftModifier = WrapM . liftModifier . unWrap -- :: m a -> Modifier m a
     liftWriteRef' = WrapM . liftWriteRef' -- :: WriteRef m a -> Modifier m a
     onChange_ r b bc f = Wrap $ onChange_ r b bc $ (fmap . fmap . fmap) (liftM (fmap unWrap) . unWrap) f
+    onChangeSimple r f = Wrap $ onChangeSimple r $ fmap unWrap f
     toReceive r f = Wrap $ toReceive (fmap unWrapM r) f
 
 data IOInstruction a where

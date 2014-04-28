@@ -190,7 +190,10 @@ instance {-Monad n => -} EffRef (Pure n) where
     liftWriteRef' = liftModifier . liftWriteRef
 
     onChange_ r b0 c0 f = Reg $ ReaderT $ \ff ->
-        toSend id r b0 c0 $ \b b' c' -> liftM (\x -> evalRegister ff . x) $ evalRegister ff $ f b b' c'
+        toSend True id r b0 c0 $ \b b' c' -> liftM (\x -> evalRegister ff . x) $ evalRegister ff $ f b b' c'
+
+    onChangeSimple r f = Reg $ ReaderT $ \ff ->
+        toSend False id r undefined undefined $ \b _ _ -> return $ \_ -> evalRegister ff $ f b
 
     toReceive f g = Reg $ ReaderT $ \ff -> do
         tell' (mempty, MonadMonoid . g)
@@ -228,12 +231,13 @@ runPure newChan (Reg m) = do
 
 toSend
     :: (Eq b, ExtRefWrite m, Monad n)
-    => (n () -> m ())
+    => Bool
+    -> (n () -> m ())
     -> ReadRef m b
     -> b -> (b -> c)
     -> (b -> b -> c -> {-Either (Register m c)-} (Register n m (c -> Register n m c)))
     -> Register n m (ReadRef m c)
-toSend li rb b0 c0 fb = do
+toSend memoize li rb b0 c0 fb = do
     let doit st = readRef' st >>= runMonadMonoid . fst
         reg st msg = readRef' st >>= li . runMonadMonoid . ($ msg) . snd
 
@@ -263,7 +267,7 @@ toSend li rb b0 c0 fb = do
                     return cc'
                 (val, st2) <- runRefWriterT $ c oldval'
                 let cc = (c, val, st1, st2)
-                liftWriteRef $ writeRef memoref ((b, cc), filter ((/= b) . fst) (last:memo))
+                liftWriteRef $ writeRef memoref ((b, cc), if memoize then filter ((/= b) . fst) (last:memo) else [])
                 return cc
             doit st1
             doit st2
