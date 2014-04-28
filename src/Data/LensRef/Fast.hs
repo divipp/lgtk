@@ -9,6 +9,7 @@ Fast reference implementation for the @ExtRef@ interface.
 
 TODO
 - elim mem leak: regitered events don't allow to release unused refs
+- optimiziation: do not remember values
 - optimiziation: equality check
 - generalize it to be a monad transformer
 -}
@@ -18,6 +19,7 @@ module Data.LensRef.Fast
     ) where
 
 import Data.Monoid
+--import qualified Data.Map
 import Control.Concurrent
 import Control.Applicative hiding (empty)
 import Control.Monad.State
@@ -93,7 +95,17 @@ instance ExtRef IO where
                     wb $ a ^. r2
                     _ <- swapMVar status True
                     join $ readMVar reg
-                    return ()
+                , register = \m -> modifyMVar reg $ \x -> return (x >> m, ())
+                }
+
+    newRef a0 = do
+        va <- newMVar a0
+        reg <- newMVar $ return ()
+        return $ return $ Lens_
+                { readPart = readMVar va
+                , writePart = \a -> do
+                    _ <- swapMVar va a
+                    join $ readMVar reg
                 , register = \m -> modifyMVar reg $ \x -> return (x >> m, ())
                 }
 
