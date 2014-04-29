@@ -41,8 +41,7 @@ runWidget :: (forall m . (EffIORef m) => Widget m) -> IO ()
 runWidget desc = do
     hSetBuffering stdout NoBuffering
 
-    (widget, actions) <- runPure newChan' $ unWrap $ do
-      runWidget_ liftIO' $ inCanvas 800 600 30 desc
+    (widget, actions) <- runPure newChan' $ unWrap $ runWidget_ $ inCanvas 800 600 30 desc
     _ <- forkIO $ actions
 
     case widget of
@@ -124,7 +123,6 @@ runWidget desc = do
         setWindowSizeCallback win (Just logWinSize)
 
         let redraw = do
---            threadDelay 20000
             dia_ <- tryTakeMVar iodia
             case dia_ of
               Nothing -> return ()
@@ -165,30 +163,20 @@ data SWidget = forall a . (Monoid a, Semigroup a) => SWidget Int Int Double (Mou
 
 
 runWidget_
-    :: forall m . (EffRef m, IO ~ EffectM m)
-    => (forall a . IO a -> m a)
-    -> Widget m
-    -> m SWidget
-runWidget_ liftIO_ = toWidget
- where
-    toWidget :: Widget m -> m SWidget
-    toWidget m = m >>= \i -> case i of
+    :: forall m . (EffRef m, IO ~ EffectM m) => Widget m -> m SWidget
+runWidget_  m = m >>= \i -> case i of
+    Canvas w h sc_ me r diaFun -> do
+        rer <- liftIO' $ newMVar mempty
+        rer' <- liftIO' $ newMVar mempty
+        _ <- onChangeSimple r $ \b -> liftIO' $ do
+            let d = diaFun b
+            _ <- tryTakeMVar rer
+            putMVar rer $ d # clearValue
+            _ <- swapMVar rer' d
+            return ()
 
-        Canvas w h sc_ me r diaFun -> do
-            rer <- liftIO_ $ newMVar mempty
-            rer' <- liftIO_ $ newMVar mempty
-            _ <- onChangeSimple r $ \b -> do
-                liftIO_ $ do
-                    let d = diaFun b
-                    _ <- tryTakeMVar rer
-                    putMVar rer $ d # clearValue
-                    _ <- swapMVar rer' d
-                    return d
-
-            let iodia = rer
-            let current = readMVar rer'
-            handle <- toReceive me (const $ return ())
-            return $ SWidget w h sc_ handle current iodia
+        handle <- toReceive me $ const $ return ()
+        return $ SWidget w h sc_ handle (readMVar rer') rer
 
 
 copyToScreen win w h (Image width height dat) = do
