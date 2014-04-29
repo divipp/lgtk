@@ -53,54 +53,47 @@ runWidget desc = do
         Just win <- createWindow width height "Diagrams + Rasterific + GLFW" Nothing Nothing
         makeContextCurrent (Just win) -- for OpenGL
 
-        postchan <- newChan
+        exit <- newMVar False
+        postedActions <- newMVar $ return ()
+        mc <- newMVar (0, Nothing)
 
-        let post_ = writeChan postchan . Just
-            post :: forall a . IO a -> IO a
-            post m = do
-                x <- newEmptyMVar
-                post_ $ m >>= putMVar x
-                takeMVar x
+        let
+            post :: IO () -> IO ()
+            post m = modifyMVar_ postedActions $ \n -> return $ n >> m
 
-        mc <- newMVar (0,0)
-        mc' <- newEmptyMVar
-
-        let 
             dims = do
                 (w, h) <- getFramebufferSize win
                 let (w', h') = (fromIntegral w, fromIntegral h)
                 let sc = w' / sc_
                 return (sc, w', h', w, h)
 
-            compCoords (x,y) = do
-                (sc, w, h, _, _) <- post dims
-                d <- current
-                let p = ((x - w / 2) / sc, (h / 2 - y) / sc)
-    --                print p
-                return $ MousePos p $ d `sample` p2 p
-
             logMousePos :: CursorPosCallback
             logMousePos _win x y = do
-                _ <- swapMVar mc (x,y)
-                p <- compCoords (x,y)
-                _ <- tryTakeMVar mc'
-                putMVar mc' p
+                (sc, w, h, _, _) <- dims
+                d <- current
+                let p = ((x - w / 2) / sc, (h / 2 - y) / sc)
+                    q = MousePos p $ d `sample` p2 p
+                t <- modifyMVar mc $ \(tick, _) -> return ((tick+1, Just q), tick+1)
+                post $ do
+                    (t',q) <- readMVar mc
+                    case q of
+                        Just q | t==t' -> handle $ MoveTo q
+                        _ -> return ()
 
             logMouseButton :: MouseButtonCallback
-            logMouseButton _win _button state _mod = do
+            logMouseButton _win _button state _mod = post $ do
                 --putStrLn $ "MouseButtonCallback: " ++ show (button,state,mod)
-                (x,y) <- readMVar mc
-                p <- compCoords (x,y)
-                handle $ case state of
-                  MouseButtonState'Pressed -> Click p
-                  MouseButtonState'Released -> Release p
+                (_, p) <- readMVar mc
+                case (state, p) of
+                  (MouseButtonState'Pressed, Just p) -> handle $ Click p
+                  (MouseButtonState'Released, Just p) -> handle $ Release p
+                  _ -> return ()
 
             logKey :: KeyCallback
             logKey _win key _scancode action mods = do
-                when (key == Key'Escape) $ writeChan postchan Nothing
-
+                when (key == Key'Escape) $ swapMVar exit True >> return ()
     --                putStrLn $ "KeyCallback: " ++ show (action, key,mods)
-                when (action `elem` [KeyState'Pressed, KeyState'Repeating]) $ do
+                post $ when (action `elem` [KeyState'Pressed, KeyState'Repeating]) $ do
                         let name = case key of
                                 Key'Backspace -> "BackSpace"
                                 Key'Delete -> "Delete"
@@ -119,12 +112,9 @@ runWidget desc = do
             logChar _win _char = return () --putStrLn $ "CharCallback: " ++ show (char)
 
             logWinSize :: WindowSizeCallback
-            logWinSize _win w h = do
---                threadDelay 20000
+            logWinSize _win _w _h = do
                 _ <- tryTakeMVar iodia
                 current >>= putMVar iodia . clearValue
-                --putStrLn $ "WindowSizeCallback: " ++ show (w,h)
-
 
         -- callbacks
         setKeyCallback win (Just logKey)
@@ -132,18 +122,13 @@ runWidget desc = do
         setMouseButtonCallback win (Just logMouseButton)
         setCursorPosCallback win (Just logMousePos)
         setWindowSizeCallback win (Just logWinSize)
-        _ <- forkIO $ forever $ waitEvents {-do
-            post pollEvents
--}
-        _ <- forkIO $ forever $ do
-            threadDelay 20000
-            p <- takeMVar mc'
-            handle $ MoveTo p
 
-        _ <- forkIO $ forever $ do
-            threadDelay 20000
-            dia_ <- takeMVar iodia
-            post $ do
+        let redraw = do
+--            threadDelay 20000
+            dia_ <- tryTakeMVar iodia
+            case dia_ of
+              Nothing -> return ()
+              Just dia_ -> do
                 (sc, w, h, sw, sh) <- dims
                 let dia = dia_ # freeze # scale sc # clipped (rect w h) <>
                             rect w h # fc white # lw 0
@@ -158,13 +143,15 @@ runWidget desc = do
                 copyToScreen win (fromIntegral sw) (fromIntegral sh) image
 --                putStr "*"
 
-        let evalposts = do
-                x <- readChan postchan
-                case x of
-                    Nothing -> return ()
-                    Just x -> x >> evalposts
+        let eventCycle = do
+                waitEvents
+                b <- readMVar exit
+                when (not b) $ do
+                    join $ swapMVar postedActions $ return ()
+                    redraw
+                    eventCycle
 
-        evalposts
+        eventCycle
         destroyWindow win
         terminate
 
