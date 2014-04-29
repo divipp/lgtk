@@ -50,19 +50,6 @@ instance Functor Maybe' where
 
 --------------------
 
-data Cache a b = Cache a b
-instance Eq a => Eq (Cache a b) where
-    Cache a _ == Cache b _ = a == b
-
----------------
-
-data Dy = forall a . Eq a => Wrap a
-
-instance Eq Dy where
-  Wrap a == Wrap b  = a == unsafeCoerce b
-
---------------------
-
 data X a = X a | Cancel | Z
 
 instance Monoid (X a) where
@@ -242,7 +229,7 @@ tr sca w = do
                     ) # freeze # frame 0.1
             return $ WW (liftM ((,) [(return (), ff, return (), i)]) bs) render
 
-        Cell (r) f -> do
+        Cell r f -> do
             i <- newId
             r' <- lift $ onChange r $ \x -> do   
                      h <- f x
@@ -251,8 +238,8 @@ tr sca w = do
                        return $ case hv of
                          WW rr render -> do
                            (es, rrv) <- rr
-                           return $ (es, Cache (x, Wrap rrv) (render rrv))
-            return $ WW (join r') $ \(Cache _ d) is is' -> d is is'
+                           return $ (es, UnsafeEqWrap (x, rrv) $ render rrv)
+            return $ WW (join r') $ \(UnsafeEqWrap _ d) is is' -> d is is'
 
         List layout ws -> liftM (foldr conc2 nil) $ mapM (tr sca) ws
           where
@@ -353,5 +340,10 @@ tr sca w = do
         Scale _ _ _ _ -> error "sc"
 
 
+--------------------
+
+data UnsafeEqWrap b = forall a . Eq a => UnsafeEqWrap a b
+instance Eq (UnsafeEqWrap b) where
+    UnsafeEqWrap a _ == UnsafeEqWrap b _ = a == unsafeCoerce b
 
 
