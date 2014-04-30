@@ -119,15 +119,15 @@ inCanvas width height scale w = do
        WW b render -> do
         let handle (a, bb, c) = mb id a >> mb h2 bb >> mb h3 c >> mb h4 (liftM2 (,) bb c)
 
-            h2 m = adjustFoc foc >> writeRef' foc m
-            h3 i = writeRef' (_1 `lensMap` hi) [i]
-            h4 (_,i) = writeRef' (_2 `lensMap` hi) i
+            h2 m = adjustFoc foc >> writeRef foc m
+            h3 i = writeRef (_1 `lensMap` hi) [i]
+            h4 (_,i) = writeRef (_2 `lensMap` hi) i
 
             moveFoc f = do
                 j <- liftRefStateReader' $ readRef tab
                 (xs, _) <- liftRefStateReader' b
                 let j' = f j `mod` length xs
-                writeRef' tab j'
+                writeRef tab j'
                 let (a,bb,c,d) = xs !! j'
                 a >> h2 (bb,c) >> h4 (undefined, d)
 
@@ -196,13 +196,13 @@ tr sca w = do
                     let  (a,b) = splitAt x s
                          (a', b') = f e f' (reverse a,b)
                     rr $ reverse a' ++ b'
-                    writeRef' (_2 `lensMap` j) $ length a'
+                    writeRef (_2 `lensMap` j) $ length a'
 
                 text' ((False,_),s) = s
                 text' ((True,i),s) = a ++ "|" ++ b where (a,b) = splitAt i s
 
-                fin = writeRef' (_1 `lensMap` j) True
-                fout = writeRef' (_1 `lensMap` j) False
+                fin = writeRef (_1 `lensMap` j) True
+                fout = writeRef (_1 `lensMap` j) False
 
                 render bv is is' = 
                   (  te # clipped (rect x y) # value mempty
@@ -301,7 +301,7 @@ tr sca w = do
             ir <- lift $ newRef (0 :: Int)
 
             let br' :: Int -> Modifier m ()
-                br' ind = br ind' >> writeRef' ir ind' where ind' = ind `mod` n
+                br' ind = br ind' >> writeRef ir ind' where ind' = ind `mod` n
                 br'' f = readRef' ir >>= br' . f 
                 ff ind _ _ (Just ' ') = br' ind
                 ff _ _ "Left" _ = br'' (+(-1))

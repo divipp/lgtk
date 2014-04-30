@@ -101,7 +101,7 @@ maybeLens :: Lens' (Bool, a) (Maybe a)
 maybeLens = lens (\(b,a) -> if b then Just a else Nothing)
               (\(_,a) x -> maybe (False, a) (\a' -> (True, a')) x)
 
-writeRef'' = writeRef'
+writeRef' = writeRef
 
 {- | 
 @mkTests@ generates a list of error messages which should be emtpy.
@@ -137,10 +137,10 @@ mkTests runTest
         r2 <- newRef (13 :: Int)
         r1 ==> 3
         r2 ==> 13
-        writeRef' r1 4
+        writeRef r1 4
         r1 ==> 4
         r2 ==> 13
-        writeRef' r2 0
+        writeRef r2 0
         r1 ==> 4
         r2 ==> 0
 
@@ -151,13 +151,13 @@ mkTests runTest
             q2 = _2 `lensMap` q
         r ==> Just 3
         q ==> (True, 3)
-        writeRef' r Nothing
+        writeRef r Nothing
         r ==> Nothing
         q ==> (False, 3)
         q1 ==> False
-        writeRef' q1 True
+        writeRef q1 True
         r ==> Just 3
-        writeRef' q2 1
+        writeRef q2 1
         r ==> Just 1
 
     joinTest = runTest $ do
@@ -167,20 +167,20 @@ mkTests runTest
         r1 ==> 3
         let r = join' rr
         r ==> 3
-        writeRef' r1 4
+        writeRef r1 4
         r ==> 4
-        writeRef' rr r2
+        writeRef rr r2
         r ==> 5
-        writeRef' r1 4
+        writeRef r1 4
         r ==> 5
-        writeRef' r2 14
+        writeRef r2 14
         r ==> 14
 
     joinTest2 = runTest $ do
         r1 <- newRef (3 :: Int)
         rr <- newRef r1
         r2 <- newRef 5
-        writeRef' rr r2
+        writeRef rr r2
         join' rr ==> 5
 
     chainTest0 = runTest $ do
@@ -190,15 +190,15 @@ mkTests runTest
         r ==> 1
         q ==> 1
         s ==> 1
-        writeRef' r 2
+        writeRef r 2
         r ==> 2
         q ==> 2
         s ==> 2
-        writeRef' q 3
+        writeRef q 3
         r ==> 3
         q ==> 3
         s ==> 3
-        writeRef' s 4
+        writeRef s 4
         r ==> 4
         q ==> 4
         s ==> 4
@@ -210,15 +210,15 @@ mkTests runTest
         r ==> 1
         q ==> 1
         s ==> 1
-        writeRef' r 2
+        writeRef r 2
         r ==> 2
         q ==> 2
         s ==> 2
-        writeRef' q 3
+        writeRef q 3
         r ==> 3
         q ==> 3
         s ==> 3
-        writeRef' s 4
+        writeRef s 4
         r ==> 4
         q ==> 4
         s ==> 4
@@ -230,39 +230,39 @@ mkTests runTest
         r ==> Just 1
         q ==> (True, 1)
         s ==> (True, 1)
-        writeRef' r $ Just 2
+        writeRef r $ Just 2
         r ==> Just 2
         q ==> (True, 2)
         s ==> (True, 2)
-        writeRef' r Nothing
+        writeRef r Nothing
         r ==> Nothing
         q ==> (False, 2)
         s ==> (False, 2)
-        writeRef' (_1 `lensMap` q) True
+        writeRef (_1 `lensMap` q) True
         r ==> Just 2
         q ==> (True, 2)
         s ==> (True, 2)
-        writeRef' (_2 `lensMap` q) 3
+        writeRef (_2 `lensMap` q) 3
         r ==> Just 3
         q ==> (True, 3)
         s ==> (True, 3)
-        writeRef' (_1 `lensMap` q) False
+        writeRef (_1 `lensMap` q) False
         r ==> Nothing
         q ==> (False, 3)
         s ==> (False, 3)
-        writeRef' (_2 `lensMap` q) 4
+        writeRef (_2 `lensMap` q) 4
         r ==> Nothing
         q ==> (False, 4)
         s ==> (False, 3)
-        writeRef' (_1 `lensMap` q) True
+        writeRef (_1 `lensMap` q) True
         r ==> Just 4
         q ==> (True, 4)
         s ==> (True, 4)
-        writeRef' q (False, 5)
+        writeRef q (False, 5)
         r ==> Nothing
         q ==> (False, 5)
         s ==> (False, 4)
-        writeRef' (_1 `lensMap` s) True
+        writeRef (_1 `lensMap` s) True
         r ==> Just 4
         q ==> (True, 4)
         s ==> (True, 4)
@@ -271,11 +271,11 @@ mkTests runTest
         r <- newRef $ Just Nothing
         q <- extRef r maybeLens (False, Nothing)
         s <- extRef (_2 `lensMap` q) maybeLens (False, 3 :: Int)
-        writeRef' (_1 `lensMap` s) False
+        writeRef (_1 `lensMap` s) False
         r ==> Just Nothing
         q ==> (True, Nothing)
         s ==> (False, 3)
-        writeRef' (_1 `lensMap` q) False
+        writeRef (_1 `lensMap` q) False
         r ==> Nothing
         q ==> (False, Nothing)
         s ==> (False, 3)
@@ -287,19 +287,19 @@ mkTests runTest
         r ==> Just (Just 3)
         q ==> (True, Just 3)
         s ==> (True, 3)
-        writeRef' (_1 `lensMap` s) False
+        writeRef (_1 `lensMap` s) False
         r ==> Just Nothing
         q ==> (True, Nothing)
         s ==> (False, 3)
-        writeRef' (_1 `lensMap` q) False
+        writeRef (_1 `lensMap` q) False
         r ==> Nothing
         q ==> (False, Nothing)
         s ==> (False, 3)
-        writeRef' (_1 `lensMap` s) True
+        writeRef (_1 `lensMap` s) True
         r ==> Nothing
         q ==> (False, Just 3)
         s ==> (True, 3)
-        writeRef' (_1 `lensMap` q) True
+        writeRef (_1 `lensMap` q) True
         r ==> Just (Just 3)
         q ==> (True, Just 3)
         s ==> (True, 3)
@@ -307,7 +307,7 @@ mkTests runTest
     undoTest = runTest $ do
         r <- newRef (3 :: Int)
         q <- extRef r (lens head $ flip (:)) []
-        writeRef' r 4
+        writeRef r 4
         q ==> [4, 3]
 
     undoTest2 = runTest $ do
@@ -321,11 +321,11 @@ mkTests runTest
         r ==> 3
         redo === False
         undo === False
-        writeRef' r 4
+        writeRef r 4
         r ==> 4
         redo === False
         undo === True
-        writeRef' r 5
+        writeRef r 5
         r ==> 5
         redo === False
         undo === True
@@ -341,7 +341,7 @@ mkTests runTest
         r ==> 4
         redo === True
         undo === True
-        writeRef' r 6
+        writeRef r 6
         r ==> 6
         redo === False
         undo === True
@@ -354,8 +354,8 @@ mkTests runTest
     writeRefTest = runTest $ do
         r <- newRef (3 :: Int)
         k <- newRef (3 :: Int)
-        sr <- toReceive (writeRef'' r) (const $ return ())
-        sk <- toReceive (writeRef'' k) (const $ return ())
+        sr <- toReceive (writeRef' r) (const $ return ())
+        sk <- toReceive (writeRef' k) (const $ return ())
 
         _ <- onChange (readRef r) $ \x -> do
             when (x == 3) $ do

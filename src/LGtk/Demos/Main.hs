@@ -101,18 +101,18 @@ main = runWidget $ notebook
                 True -> return ()
                 False -> do
                     d <- readRef' delay
-                    asyncWrite (ceiling $ 1000000 * d) $ writeRef' ready True
+                    asyncWrite (ceiling $ 1000000 * d) $ writeRef ready True
             vcat
                 [ hcat [ entryShow delay, label $ return "sec" ]
                 , button_ (readRef delay >>= \d -> return $ "Start " ++ show d ++ " sec computation")
                           (readRef ready)
-                          (writeRef' ready False)
+                          (writeRef ready False)
                 , label $ liftM (\b -> if b then "Ready." else "Computing...") $ readRef ready
                 ]
 
         , (,) "Timer" $ do
             t <- newRef (0 :: Int)
-            _ <- onChange (readRef t) $ \ti -> return $ asyncWrite 1000000 $ writeRef' t $ 1 + ti
+            _ <- onChange (readRef t) $ \ti -> return $ asyncWrite 1000000 $ writeRef t $ 1 + ti
             vcat
                 [ label $ liftM show $ readRef t
                 ]
@@ -127,7 +127,7 @@ main = runWidget $ notebook
                 v <- newRef "HOME"
                 lv <- newRef ""
                 _ <- onChange (readRef v) $ \s -> return $
-                    asyncWrite 0 . writeRef' lv =<< liftM (maybe "Not in env." show) (lookupEnv s)
+                    asyncWrite 0 . writeRef lv =<< liftM (maybe "Not in env." show) (lookupEnv s)
                 vcat
                     [ entry v
                     , label $ readRef lv
@@ -144,9 +144,9 @@ main = runWidget $ notebook
                 get = do
                     ready <- newRef $ Just ""
                     _ <- onChange (liftM isJust $ readRef ready) $ \b -> 
-                        return $ when (not b) $ getLine_ $ writeRef' ready . Just
+                        return $ when (not b) $ getLine_ $ writeRef ready . Just
                     hcat 
-                        [ button_ (return "getLine") (liftM isJust $ readRef ready) $ writeRef' ready Nothing
+                        [ button_ (return "getLine") (liftM isJust $ readRef ready) $ writeRef ready Nothing
                         , label $ liftM (maybe "<<<waiting for input>>>" id) $ readRef ready
                         ]
                in vcat [ put, put, put, get, get, get ]

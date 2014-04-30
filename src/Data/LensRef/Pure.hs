@@ -92,7 +92,7 @@ future_ :: ExtRefWrite m => (ReadRef m a -> m a) -> m a
 future_ f = do
     s <- newRef $ error "can't see the future"
     a <- f $ readRef s
-    writeRef' s a
+    writeRef s a
     return a
 
 memoRead_ g = do
@@ -100,7 +100,7 @@ memoRead_ g = do
     return $ readRef' s >>= \x -> case x of
         Just a -> return a
         _ -> g >>= \a -> do
-            writeRef' s $ Just a
+            writeRef s $ Just a
             return a
 
 memoWrite_ g = do
@@ -108,7 +108,7 @@ memoWrite_ g = do
     return $ \b -> readRef' s >>= \x -> case x of
         Just (b', a) | b' == b -> return a
         _ -> g b >>= \a -> do
-            writeRef' s $ Just (b, a)
+            writeRef s $ Just (b, a)
             return a
 
 instance Monad m => ExtRefWrite (StateT LSt m) where
@@ -232,7 +232,7 @@ toSend li rb b0 c0 fb = do
                     return cc'
                 (val, st2) <- runRefWriterT $ c oldval'
                 let cc = (c, val, st1, st2)
-                writeRef' memoref ((b, cc), filter ((/= b) . fst) (last:memo))
+                writeRef memoref ((b, cc), filter ((/= b) . fst) (last:memo))
                 return cc
             doit st1
             doit st2
@@ -252,7 +252,7 @@ runRefWriterT m = do
     return (a, r)
 
 tell' :: (Monoid w, ExtRefWrite m) => w -> RefWriterT w m ()
-tell' w = ReaderT $ \m -> readRef' m >>= writeRef' m . (`mappend` w)
+tell' w = ReaderT $ \m -> readRef' m >>= writeRef m . (`mappend` w)
 
 -------------
 

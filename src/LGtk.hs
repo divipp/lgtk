@@ -12,7 +12,7 @@ module LGtk
       Reference, MRef
     , RefReader
     , readRef
-    , writeRef', modRef', liftRefStateReader', action', Modifier
+    , writeRef, modRef', liftRefStateReader', action', Modifier
     , lensMap
     , join
     , unitRef
@@ -196,15 +196,15 @@ smartButton s r f
 
 -- | Checkbox.
 checkbox :: EffRef m => Ref m Bool -> Widget m
-checkbox r = return $ Checkbox ((readRef r), writeRef' r)
+checkbox r = return $ Checkbox ((readRef r), writeRef r)
 
 -- | Simple combo box.
 combobox :: EffRef m => [String] -> Ref m Int -> Widget m
-combobox ss r = return $ Combobox ss ((readRef r), writeRef' r)
+combobox ss r = return $ Combobox ss ((readRef r), writeRef r)
 
 -- | Text entry.
 entry :: (EffRef m, Reference r, RefReader r ~ RefReader (RefCore m))  => MRef r String -> Widget m
-entry r = return $ Entry ((readRef r), writeRef' r)
+entry r = return $ Entry ((readRef r), writeRef r)
 
 -- | Text entry.
 entryShow :: (EffRef m, Show a, Read a, Reference r, RefReader r ~ RefReader (RefCore m)) => MRef r a -> Widget m
@@ -220,7 +220,7 @@ notebook xs = do
     let f index (title, w) = (,) title $ cell (liftM (== index) $ readRef currentPage) $ \b -> case b of
            False -> hcat []
            True -> w
-    return $ Notebook' (writeRef' currentPage) $ zipWith f [0..] xs
+    return $ Notebook' (writeRef currentPage) $ zipWith f [0..] xs
 
 {- | Dynamic cell.
 
@@ -255,7 +255,7 @@ canvas
 canvas w h sc me r f = return $ Canvas w h sc me (r) f
 
 hscale :: (EffRef m) => Double -> Double -> Double -> Ref m Double -> Widget m
-hscale a b c r = return $ Scale a b c (readRef r, writeRef' r)
+hscale a b c r = return $ Scale a b c (readRef r, writeRef r)
 
 showLens :: (Show a, Read a) => Lens' a String
 showLens = lens show $ \def s -> maybe def fst $ listToMaybe $ reads s
@@ -278,7 +278,7 @@ undoTr
            )  -- ^ undo and redo actions
 undoTr eq r = do
     ku <- extRef r (undoLens eq) ([], [])
-    let try f = liftM (liftM (writeRef' ku) . f) $ readRef ku
+    let try f = liftM (liftM (writeRef ku) . f) $ readRef ku
     return (try undo, try redo)
   where
     undo (x: xs@(_:_), ys) = Just (xs, x: ys)

@@ -165,7 +165,7 @@ instance (EffRef m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m) where
                 watchDir man (directory cf') filt act
 
         (u, ff) <- liftEffectM  forkIOs'
-        re <- toReceive (writeRef' ref) u
+        re <- toReceive (writeRef ref) u
         liftEffectM $ ff $ repeat $ liftIO_ (takeMVar v >> r) >>= re
 
         _ <- rEffect (readRef ref) $ \x -> liftIO_ $ do
