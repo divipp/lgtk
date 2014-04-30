@@ -68,7 +68,7 @@ main = runWidget $ notebook
             let is = [0 :: Double, 0.5, 1]
                 colorlist = liftM3 sRGB is is is
                 f n = colorlist !! (n `mod` length colorlist)
-            button__ (return "Push") (return True) (liftM f $ readRef x) $ modRef' x (+1)
+            button__ (return "Push") (return True) (liftM f $ readRef x) $ modRef x (+1)
 
         , (,) "Tabs" $ notebook
 
@@ -214,7 +214,7 @@ main' = runWidget $ do
                 [ vcat
                     [ hcat
                         [ label $ readRef i >>= \i -> return $ show i ++ "hello"
-                        , button_ (return "+1") (return True) $ modRef' i (+1)
+                        , button_ (return "+1") (return True) $ modRef i (+1)
                         ]
                     , hcat
                         [ entry s

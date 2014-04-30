@@ -12,7 +12,7 @@ module LGtk
       Reference, MRef
     , RefReader
     , readRef
-    , writeRef, modRef', liftRefStateReader', action', Modifier
+    , writeRef, modRef, liftRefStateReader', action', Modifier
     , lensMap
     , join
     , unitRef
@@ -192,7 +192,7 @@ smartButton
     -> (a -> a)   -- ^ The button is active when this function is not identity on value of the reference. When the button is pressed, the value of the reference is modified with this function.
     -> Widget m
 smartButton s r f
-    = button_ s (hasEffect r f) (modRef' r f)
+    = button_ s (hasEffect r f) (modRef r f)
 
 -- | Checkbox.
 checkbox :: EffRef m => Ref m Bool -> Widget m
