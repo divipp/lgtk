@@ -101,7 +101,7 @@ type Foc m = (FocFun m, m ())
 type Foc' m = Foc (Modifier m)
 
 adjustFoc :: (EffRef m) => Ref m (Foc' m) -> Modifier m ()
-adjustFoc foc = join $ liftRefStateReader' $ readRef $ _2 `lensMap` foc
+adjustFoc foc = join $ liftReadRef $ readRef $ _2 `lensMap` foc
 
 -----------------
 
@@ -124,8 +124,8 @@ inCanvas width height scale w = do
             h4 (_,i) = writeRef (_2 `lensMap` hi) i
 
             moveFoc f = do
-                j <- liftRefStateReader' $ readRef tab
-                (xs, _) <- liftRefStateReader' b
+                j <- liftReadRef $ readRef tab
+                (xs, _) <- liftReadRef b
                 let j' = f j `mod` length xs
                 writeRef tab j'
                 let (a,bb,c,d) = xs !! j'
@@ -136,7 +136,7 @@ inCanvas width height scale w = do
             handleEvent (KeyPress [] "Tab" _) = moveFoc (+1)
             handleEvent (KeyPress [c] "Tab" _) | c == ControlModifier = moveFoc (+(-1))
             handleEvent (KeyPress m n c) = do
-                (f,_) <- liftRefStateReader' $ readRef foc
+                (f,_) <- liftReadRef $ readRef foc
                 f m n c
             handleEvent LostFocus = adjustFoc foc
             handleEvent _ = return ()
@@ -191,8 +191,8 @@ tr sca w = do
                 f _ _ x = x
 
                 ff _ e f' = do
-                    (_, x) <- liftRefStateReader' $ readRef j
-                    s <- liftRefStateReader' rs
+                    (_, x) <- liftReadRef $ readRef j
+                    s <- liftReadRef rs
                     let  (a,b) = splitAt x s
                          (a', b') = f e f' (reverse a,b)
                     rr $ reverse a' ++ b'
@@ -216,7 +216,7 @@ tr sca w = do
         Checkbox (bs, br) -> do
             i <- newId
 
-            let ff _ _ (Just ' ') = liftRefStateReader' bs >>= br . not
+            let ff _ _ (Just ' ') = liftReadRef bs >>= br . not
                 ff _ _ _ = return ()
 
                 render bv is is' = 

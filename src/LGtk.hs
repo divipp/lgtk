@@ -12,7 +12,7 @@ module LGtk
       Reference, MRef
     , RefReader
     , readRef
-    , writeRef, modRef, liftRefStateReader', action', Modifier
+    , writeRef, modRef, liftReadRef, action', Modifier
     , lensMap
     , join
     , unitRef
@@ -181,7 +181,7 @@ button
     => ReadRef m String     -- ^ dynamic label of the button
     -> ReadRef m (Maybe (Modifier m ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
     -> Widget m
-button r fm = button_ r (liftM isJust fm) (liftRefStateReader' fm >>= maybe (return ()) id)
+button r fm = button_ r (liftM isJust fm) (liftReadRef fm >>= maybe (return ()) id)
 
 
 

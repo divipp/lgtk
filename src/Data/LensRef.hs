@@ -352,9 +352,6 @@ rEffect r f = onChangeSimple r $ liftEffectM . f
 modRef :: (ExtRefWrite m, Reference r, RefReader r ~ ReadRef m) => MRef r a -> (a -> a) -> m ()
 r `modRef` f = readRef' r >>= writeRef r . f
 
-liftRefStateReader' :: ExtRefWrite m => ReadRef m a -> m a
-liftRefStateReader' = liftReadRef -- liftWriteRef $ liftRefStateReader r
-
 action' m = liftModifier $ liftEffectM m
 
 
