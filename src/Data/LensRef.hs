@@ -230,7 +230,7 @@ data Command = Kill | Block | Unblock deriving (Eq, Ord, Show)
 
 @readRef'@ === @liftReadRef . readRef@
 -}
-readRef' :: ExtRef m => Ref m a -> m a
+readRef' :: (ExtRef m, Reference r, ReadRef m ~ RefReader r) => MRef r a -> m a
 readRef' = liftReadRef . readRef
 
 
@@ -349,11 +349,11 @@ rEffect  :: (EffRef m, Eq a) => ReadRef m a -> (a -> EffectM m b) -> m (ReadRef 
 rEffect r f = onChangeSimple r $ liftEffectM . f
 
 -- | @modRef r f@ === @liftRefStateReader (readRef r) >>= writeRef r . f@
---modRef :: Reference r => MRef r a -> (a -> a) -> RefStateReader (RefReader r) ()
-r `modRef` f = liftRefStateReader' (readRef r) >>= writeRef r . f
+modRef :: (ExtRefWrite m, Reference r, RefReader r ~ ReadRef m) => MRef r a -> (a -> a) -> m ()
+r `modRef` f = readRef' r >>= writeRef r . f
 
 liftRefStateReader' :: ExtRefWrite m => ReadRef m a -> m a
-liftRefStateReader' r = liftWriteRef $ liftRefStateReader r
+liftRefStateReader' = liftReadRef -- liftWriteRef $ liftRefStateReader r
 
 action' m = liftModifier $ liftEffectM m
 
