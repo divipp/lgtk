@@ -26,7 +26,6 @@ import System.IO
 
 import Control.Lens
 import Data.LensRef
-import Data.LensRef.Pure (ExtRefWrite (..))
 import qualified Data.LensRef.Pure as Pure
 import qualified Data.LensRef.Fast as Fast
 

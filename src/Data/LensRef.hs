@@ -153,6 +153,10 @@ type ReadRef m = RefReader (RefCore m)
 type WriteRef m = RefState (ReadRef m)
 
 
+class ExtRef m => ExtRefWrite m where
+    liftWriteRef :: WriteRef m a -> m a
+
+
 -- | Monad for dynamic actions
 class (ExtRef m, ExtRef (Modifier m), RefCore (Modifier m) ~ RefCore m) => EffRef m where
 

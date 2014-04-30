@@ -12,7 +12,6 @@ The implementation uses @unsafeCoerce@ internally, but its effect cannot escape.
 module Data.LensRef.Pure
     ( Pure
     , runPure
-    , ExtRefWrite (..)
     ) where
 
 import Data.Monoid
@@ -111,9 +110,6 @@ memoWrite_ g = do
         _ -> g b >>= \a -> do
             liftWriteRef $ writeRef s $ Just (b, a)
             return a
-
-class ExtRef m => ExtRefWrite m where
-    liftWriteRef :: WriteRef m a -> m a
 
 instance Monad m => ExtRefWrite (StateT LSt m) where
     liftWriteRef = state . runState . runRSR

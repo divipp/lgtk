@@ -27,7 +27,6 @@ import Control.Monad.Reader
 import Control.Lens
 
 import Data.LensRef
-import Data.LensRef.Pure (ExtRefWrite (..))
 
 ----------------------
 
