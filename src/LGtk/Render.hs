@@ -101,7 +101,7 @@ type Foc m = (FocFun m, m ())
 type Foc' m = Foc (Modifier m)
 
 adjustFoc :: (EffRef m) => Ref m (Foc' m) -> Modifier m ()
-adjustFoc foc = join $ liftReadRef $ readRef $ _2 `lensMap` foc
+adjustFoc foc = join $ readRef' $ _2 `lensMap` foc
 
 -----------------
 
@@ -124,7 +124,7 @@ inCanvas width height scale w = do
             h4 (_,i) = writeRef (_2 `lensMap` hi) i
 
             moveFoc f = do
-                j <- liftReadRef $ readRef tab
+                j <- readRef' tab
                 (xs, _) <- liftReadRef b
                 let j' = f j `mod` length xs
                 writeRef tab j'
@@ -136,7 +136,7 @@ inCanvas width height scale w = do
             handleEvent (KeyPress [] "Tab" _) = moveFoc (+1)
             handleEvent (KeyPress [c] "Tab" _) | c == ControlModifier = moveFoc (+(-1))
             handleEvent (KeyPress m n c) = do
-                (f,_) <- liftReadRef $ readRef foc
+                (f,_) <- readRef' foc
                 f m n c
             handleEvent LostFocus = adjustFoc foc
             handleEvent _ = return ()
@@ -191,7 +191,7 @@ tr sca w = do
                 f _ _ x = x
 
                 ff _ e f' = do
-                    (_, x) <- liftReadRef $ readRef j
+                    (_, x) <- readRef' j
                     s <- liftReadRef rs
                     let  (a,b) = splitAt x s
                          (a', b') = f e f' (reverse a,b)

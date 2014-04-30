@@ -12,7 +12,7 @@ module LGtk
       Reference, MRef
     , RefReader
     , readRef
-    , writeRef, modRef, liftReadRef, action', Modifier
+    , writeRef, modRef, Modifier
     , lensMap
     , join
     , unitRef

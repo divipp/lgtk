@@ -390,7 +390,7 @@ mkTests runTest
 
 -- | Undo-redo state transformation.
 undoTr
-    :: ExtRef m =>
+    :: EffRef m =>
        (a -> a -> Bool)     -- ^ equality on state
     -> Ref m a             -- ^ reference of state
     ->   m ( ReadRef m (Maybe (WriteRef m ()))

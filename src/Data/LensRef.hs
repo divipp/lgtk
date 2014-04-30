@@ -29,7 +29,7 @@ A reference @(r a)@ is isomorphic to @('Lens' s a)@ for some fixed state @s@.
 
 @r@  ===  @Lens s@
 -}
-class (Monad (RefReader r)) => Reference r where
+class Monad (RefReader r) => Reference r where
 
     {- | @Refmonad r@  ===  @State s@
 
@@ -91,7 +91,7 @@ class (Monad m, Reference (RefCore m)) => ExtRef m where
     Note that we do not lift @WriteRef@ to the reference creation class, which a crucial restriction
     in the LGtk interface; this is a feature.
     -}
-    liftReadRef :: ExtRef m => ReadRef m a -> m a
+    liftReadRef :: ReadRef m a -> m a
 
     {- | Reference creation by extending the state of an existing reference.
 
@@ -135,9 +135,9 @@ class (Monad m, Reference (RefCore m)) => ExtRef m where
 
      *  ...
     -}
-    memoRead :: ExtRef m => m a -> m (m a)
+    memoRead :: m a -> m (m a)
 
-    memoWrite :: (ExtRef m, Eq b) => (b -> m a) -> m (b -> m a)
+    memoWrite :: Eq b => (b -> m a) -> m (b -> m a)
 
     future :: (ReadRef m a -> m a) -> m a
 
@@ -150,6 +150,7 @@ type WriteRef m = RefWriter (RefCore m)
 
 
 class ExtRef m => ExtRefWrite m where
+
     liftWriteRef :: WriteRef m a -> m a
 
     writeRef :: (Reference r, RefReader r ~ ReadRef m) => MRef r a -> a -> m ()
@@ -162,11 +163,7 @@ class (ExtRef m, ExtRefWrite (Modifier m), RefCore (Modifier m) ~ RefCore m) => 
 
     type EffectM m :: * -> *
 
-    data Modifier m a :: *
-
     liftEffectM :: EffectM m a -> m a
-
-    liftModifier :: m a -> Modifier m a
 
     {- |
     Let @r@ be an effectless action (@ReadRef@ guarantees this).
@@ -210,6 +207,10 @@ class (ExtRef m, ExtRefWrite (Modifier m), RefCore (Modifier m) ~ RefCore m) => 
 
     onChangeSimple :: Eq a => ReadRef m a -> (a -> m b) -> m (ReadRef m b)
     onChangeSimple r f = onChange r $ return . f
+
+    data Modifier m a :: *
+
+    liftModifier :: m a -> Modifier m a
 
     toReceive :: Functor f => f (Modifier m ()) -> (Command -> EffectM m ()) -> m (f (EffectM m ()))
 
@@ -347,8 +348,6 @@ rEffect r f = onChangeSimple r $ liftEffectM . f
 -- | @modRef r f@ === @liftRefStateReader (readRef r) >>= writeRef r . f@
 modRef :: (ExtRefWrite m, Reference r, RefReader r ~ ReadRef m) => MRef r a -> (a -> a) -> m ()
 r `modRef` f = readRef' r >>= writeRef r . f
-
-action' m = liftModifier $ liftEffectM m
 
 
 

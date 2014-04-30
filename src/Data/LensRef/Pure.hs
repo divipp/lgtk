@@ -151,9 +151,9 @@ instance Monad n => EffRef (Pure n) where
 
     type EffectM (Pure n) = n
 
-    newtype Modifier (Pure n) a = RegW {unRegW :: Pure n a} deriving (Monad, Applicative, Functor)
-
     liftEffectM = lift
+
+    newtype Modifier (Pure n) a = RegW {unRegW :: Pure n a} deriving (Monad, Applicative, Functor)
 
     liftModifier = RegW
 
