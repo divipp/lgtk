@@ -30,11 +30,6 @@ import Diagrams.Backend.Cairo.Internal
 
 -------------------------
 
-runMorphD :: MVar a -> StateT a IO b -> IO b
-runMorphD vx m = modifyMVar vx $ liftM swap . runStateT m
-      where
-        swap (a, b) = (b, a)
-
 runWidget :: (forall m . (EffIORef m) => Widget m) -> IO ()
 runWidget w = runWidget' (\pa -> runPure (newChan' pa) . unWrap) w
   where
@@ -52,8 +47,8 @@ runWidget' :: (EffRef m, MonadBaseControl IO (EffectM m))
     => (forall a . IO () -> m a -> IO (a, IO ())) -> Widget m -> IO ()
 runWidget' run desc = gtkContext $ \postGUISync -> do
     postActionsRef <- newMVar $ return ()
-    let addPostAction  = runMorphD postActionsRef . modify . flip (>>)
-        runPostActions = join $ runMorphD postActionsRef $ state $ \m -> (m, return ())
+    let addPostAction m = modifyMVar_ postActionsRef $ \n -> return $ n >> m
+        runPostActions = join $ modifyMVar postActionsRef $ \m -> return (return (), m)
     (widget, actions) <- run runPostActions $ do
         w <- runWidget_ addPostAction postGUISync desc
         liftIO' runPostActions
