@@ -23,9 +23,6 @@ class (Monad m, Monad (RefState m)) => MonadRefReader m where
     -}
     data RefState m a :: *
 
-    -- | @m@ is a submonad of @(RefState m)@
-    liftRefStateReader :: m a -> RefState m a
-
 
 
 {- |
