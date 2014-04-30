@@ -22,7 +22,7 @@ import Control.Lens (Lens', lens, set, (^.))
 
 data family RefState (m :: * -> *) a :: *
 
-
+type RefWriter m = RefState (RefReader m)
 
 {- |
 A reference @(r a)@ is isomorphic to @('Lens' s a)@ for some fixed state @s@.
@@ -57,7 +57,7 @@ class (Monad (RefReader r)) => Reference r where
 
      *  @(writeRef r a >> writeRef r a')@ === @writeRef r a'@
     -}
-    writeRef_ :: MRef r a -> a -> RefState (RefReader r) ()
+    writeRef_ :: MRef r a -> a -> RefWriter r ()
 
     {- | Apply a lens on a reference.
 
@@ -146,7 +146,7 @@ type Ref m a = ReadRef m (RefCore m a)
 
 type ReadRef m = RefReader (RefCore m)
 
-type WriteRef m = RefState (ReadRef m)
+type WriteRef m = RefWriter (RefCore m)
 
 
 class ExtRef m => ExtRefWrite m where
