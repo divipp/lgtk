@@ -8,8 +8,6 @@ import Control.Lens (Lens', lens, set, (^.))
 
 --------------------------------
 
--- | @m@ has a submonad @(RefState m)@ which is isomorphic to 'Reader'.
-class (Monad m, Monad (RefState m)) => MonadRefReader m where
 
     {- | Law: @(RefState m)@  ===  @('Reader' x)@ for some @x@.
 
@@ -21,7 +19,8 @@ class (Monad m, Monad (RefState m)) => MonadRefReader m where
 
     See also <http://stackoverflow.com/questions/16123588/what-is-this-special-functor-structure-called>
     -}
-    data RefState m a :: *
+
+data family RefState (m :: * -> *) a :: *
 
 
 
@@ -30,7 +29,7 @@ A reference @(r a)@ is isomorphic to @('Lens' s a)@ for some fixed state @s@.
 
 @r@  ===  @Lens s@
 -}
-class (MonadRefReader (RefReader r)) => Reference r where
+class (Monad (RefReader r)) => Reference r where
 
     {- | @Refmonad r@  ===  @State s@
 

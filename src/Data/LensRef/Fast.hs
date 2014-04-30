@@ -30,9 +30,7 @@ import Data.LensRef
 
 ----------------------
 
--- | @RefState (StateT s m) = Reader s@ 
-instance MonadRefReader IO where
-    newtype RefState IO a = RSR { runRSR :: IO a } deriving (Monad, Applicative, Functor)
+newtype instance RefState IO a = RSR { runRSR :: IO a } deriving (Monad, Applicative, Functor)
 
 ----------------------
 
