@@ -66,7 +66,7 @@ testExtPure = mkTests $ \t -> unsafePerformIO $ do
     hSetBuffering stdout LineBuffering
     ((), m) <- Pure.runPure newChan' t
 
-    forkIO m
+    _ <- forkIO m
     return ["end"]
    where
     newChan' :: IO (IO a, a -> IO ())
@@ -78,7 +78,7 @@ testExtFast = mkTests $ \t -> unsafePerformIO $ do
     hSetBuffering stdout LineBuffering
     ((), m) <- Fast.runPure newChan' t
 
-    forkIO m
+    _ <- forkIO m
     return ["end"]
    where
     newChan' :: IO (IO a, a -> IO ())
@@ -357,16 +357,16 @@ mkTests runTest
         sr <- toReceive (writeRef'' r) (const $ return ())
         sk <- toReceive (writeRef'' k) (const $ return ())
 
-        onChange (readRef r) $ \x -> do
+        _ <- onChange (readRef r) $ \x -> do
             when (x == 3) $ do
-                onChange (readRef k) $ \x -> do
+                _ <- onChange (readRef k) $ \x -> do
                     liftEffectM $ tell ["k1: " ++ show x]
                     return $ return ()
                 return ()
             return $ do
                 liftEffectM $ tell ["r: " ++ show x]
                 when (x == 4) $ do
-                    onChange (readRef k) $ \x -> return $ do
+                    _ <- onChange (readRef k) $ \x -> return $ do
                         liftEffectM $ tell ["k2: " ++ show x]
                     return ()
                 r ==> x
@@ -388,12 +388,9 @@ mkTests runTest
 
     join' r = join $ readRef r
 
-    writeRef' r a = liftWriteRef $ writeRef r a
-
-
 -- | Undo-redo state transformation.
 undoTr
-    :: EffRef m =>
+    :: ExtRef m =>
        (a -> a -> Bool)     -- ^ equality on state
     -> Ref m a             -- ^ reference of state
     ->   m ( ReadRef m (Maybe (WriteRef m ()))
@@ -401,7 +398,7 @@ undoTr
            )  -- ^ undo and redo actions
 undoTr eq r = do
     ku <- extRef r (undoLens eq) ([], [])
-    let try f = liftM (liftM (writeRef ku) . f) $ readRef ku
+    let try f = liftM (liftM (writeRef_ ku) . f) $ readRef ku
     return (try undo, try redo)
   where
     undo (x: xs@(_:_), ys) = Just (xs, x: ys)

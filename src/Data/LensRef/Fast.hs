@@ -53,7 +53,7 @@ instance Reference Lens_ where
     type RefReader Lens_ = IO
 
     readRef = readPart . joinLens
-    writeRef m = RSR . writePart (joinLens m)
+    writeRef_ m = RSR . writePart (joinLens m)
     lensMap l m = do
         Lens_ r w t <- m
         return $ Lens_
@@ -119,7 +119,7 @@ future_ :: ExtRefWrite m => (ReadRef m a -> m a) -> m a
 future_ f = do
     s <- newRef $ error "can't see the future"
     a <- f $ readRef s
-    liftWriteRef $ writeRef s a
+    writeRef' s a
     return a
 
 memoRead_ g = do
@@ -127,7 +127,7 @@ memoRead_ g = do
     return $ readRef' s >>= \x -> case x of
         Just a -> return a
         _ -> g >>= \a -> do
-            liftWriteRef $ writeRef s $ Just a
+            writeRef' s $ Just a
             return a
 
 memoWrite_ g = do
@@ -135,7 +135,7 @@ memoWrite_ g = do
     return $ \b -> readRef' s >>= \x -> case x of
         Just (b', a) | b' == b -> return a
         _ -> g b >>= \a -> do
-            liftWriteRef $ writeRef s $ Just (b, a)
+            writeRef' s $ Just (b, a)
             return a
 
 
@@ -264,7 +264,7 @@ toSend memoize li rb b0 c0 fb = do
                     return cc'
                 (val, st2) <- runRefWriterT $ c oldval'
                 let cc = (c, val, st1, st2)
-                liftWriteRef $ writeRef memoref ((b, cc), if memoize then filter ((/= b) . fst) (last:memo) else [])
+                writeRef' memoref ((b, cc), if memoize then filter ((/= b) . fst) (last:memo) else [])
                 return cc
             doit st1
             doit st2
@@ -284,7 +284,7 @@ runRefWriterT m = do
     return (a, r)
 
 tell' :: (Monoid w, ExtRefWrite m) => w -> RefWriterT w m ()
-tell' w = ReaderT $ \m -> readRef' m >>= liftWriteRef . writeRef m . (`mappend` w)
+tell' w = ReaderT $ \m -> readRef' m >>= writeRef' m . (`mappend` w)
 
 -------------
 

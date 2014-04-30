@@ -61,7 +61,7 @@ class (MonadRefReader (RefReader r)) => Reference r where
 
      *  @(writeRef r a >> writeRef r a')@ === @writeRef r a'@
     -}
-    writeRef :: MRef r a -> a -> RefState (RefReader r) ()
+    writeRef_ :: MRef r a -> a -> RefState (RefReader r) ()
 
     {- | Apply a lens on a reference.
 
@@ -155,6 +155,10 @@ type WriteRef m = RefState (ReadRef m)
 
 class ExtRef m => ExtRefWrite m where
     liftWriteRef :: WriteRef m a -> m a
+
+    writeRef' :: (Reference r, RefReader r ~ ReadRef m) => MRef r a -> a -> m ()
+    writeRef' r a = liftWriteRef $ writeRef_ r a
+
 
 
 -- | Monad for dynamic actions
@@ -295,7 +299,7 @@ instance Reference r => Reference (EqRefCore r) where
 
     readRef = readRef . toRef
 
-    writeRef = writeRef . toRef
+    writeRef_ = writeRef_ . toRef
 
     lensMap l m = do
         a <- readRef m
@@ -316,7 +320,7 @@ instance Reference r => Reference (CorrRefCore r) where
 
     readRef = readRef . fromCorrRef
 
-    writeRef = writeRef . fromCorrRef
+    writeRef_ = writeRef_ . fromCorrRef
 
     lensMap l m = do
         a <- readRef m
@@ -344,14 +348,11 @@ correction r = do
 rEffect  :: (EffRef m, Eq a) => ReadRef m a -> (a -> EffectM m b) -> m (ReadRef m b)
 rEffect r f = onChangeSimple r $ liftEffectM . f
 
-writeRef' :: (EffRef m, Reference r, RefReader r ~ RefReader (RefCore m)) => MRef r a -> a -> Modifier m ()
-writeRef' r a = liftWriteRef $ writeRef r a
-
 -- | @modRef r f@ === @liftRefStateReader (readRef r) >>= writeRef r . f@
 --modRef :: Reference r => MRef r a -> (a -> a) -> RefStateReader (RefReader r) ()
 r `modRef'` f = liftRefStateReader' (readRef r) >>= writeRef' r . f
 
-liftRefStateReader' :: EffRef m => ReadRef m a -> Modifier m a
+liftRefStateReader' :: ExtRefWrite m => ReadRef m a -> m a
 liftRefStateReader' r = liftWriteRef $ liftRefStateReader r
 
 action' m = liftModifier $ liftEffectM m
