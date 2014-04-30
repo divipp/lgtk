@@ -158,7 +158,7 @@ class ExtRef m => ExtRefWrite m where
 
 
 -- | Monad for dynamic actions
-class (ExtRef m, ExtRef (Modifier m), RefCore (Modifier m) ~ RefCore m) => EffRef m where
+class (ExtRef m, ExtRefWrite (Modifier m), RefCore (Modifier m) ~ RefCore m) => EffRef m where
 
     type EffectM m :: * -> *
 
@@ -167,8 +167,6 @@ class (ExtRef m, ExtRef (Modifier m), RefCore (Modifier m) ~ RefCore m) => EffRe
     liftEffectM :: EffectM m a -> m a
 
     liftModifier :: m a -> Modifier m a
-
-    liftWriteRef' :: WriteRef m a -> Modifier m a
 
     {- |
     Let @r@ be an effectless action (@ReadRef@ guarantees this).
@@ -347,14 +345,14 @@ rEffect  :: (EffRef m, Eq a) => ReadRef m a -> (a -> EffectM m b) -> m (ReadRef 
 rEffect r f = onChangeSimple r $ liftEffectM . f
 
 writeRef' :: (EffRef m, Reference r, RefReader r ~ RefReader (RefCore m)) => MRef r a -> a -> Modifier m ()
-writeRef' r a = liftWriteRef' $ writeRef r a
+writeRef' r a = liftWriteRef $ writeRef r a
 
 -- | @modRef r f@ === @liftRefStateReader (readRef r) >>= writeRef r . f@
 --modRef :: Reference r => MRef r a -> (a -> a) -> RefStateReader (RefReader r) ()
 r `modRef'` f = liftRefStateReader' (readRef r) >>= writeRef' r . f
 
 liftRefStateReader' :: EffRef m => ReadRef m a -> Modifier m a
-liftRefStateReader' r = liftWriteRef' $ liftRefStateReader r
+liftRefStateReader' r = liftWriteRef $ liftRefStateReader r
 
 action' m = liftModifier $ liftEffectM m
 

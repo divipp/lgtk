@@ -99,12 +99,14 @@ instance EffRef m => ExtRef (Modifier (Wrap m)) where
     extRef r l = WrapM . extRef r l
     newRef = WrapM . newRef
 
+instance EffRef m => ExtRefWrite (Modifier (Wrap m)) where
+    liftWriteRef = WrapM . liftWriteRef
+
 instance EffRef m => EffRef (Wrap m) where
     type EffectM (Wrap m) = EffectM m
     newtype Modifier (Wrap m) a = WrapM { unWrapM :: Modifier m a}
     liftEffectM = Wrap . liftEffectM -- :: EffectM m a -> m a
     liftModifier = WrapM . liftModifier . unWrap -- :: m a -> Modifier m a
-    liftWriteRef' = WrapM . liftWriteRef' -- :: WriteRef m a -> Modifier m a
     onChange_ r b bc f = Wrap $ onChange_ r b bc $ (fmap . fmap . fmap) (liftM (fmap unWrap) . unWrap) f
     onChangeSimple r f = Wrap $ onChangeSimple r $ fmap unWrap f
     toReceive r f = Wrap $ toReceive (fmap unWrapM r) f
