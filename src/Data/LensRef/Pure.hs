@@ -60,7 +60,7 @@ instance Reference (Lens_ LSt) where
 instance Monad m => ExtRef (StateT LSt m) where
     type RefCore (StateT LSt m) = Lens_ LSt
 
-    liftReadRef = liftWriteRef . liftRefStateReader
+    liftReadRef m = state $ \s -> (runReader m s, s)
 
     extRef r r2 a0 = state extend
       where
