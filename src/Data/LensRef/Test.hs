@@ -317,7 +317,7 @@ mkTests runTest
 
     undoTest3 = runTest $ do
         r <- newRef (3 :: Int)
-        (undo, redo) <- liftM (liftRefStateReader *** liftRefStateReader) $ undoTr (==) r
+        (undo, redo) <- liftM (liftReadRef *** liftReadRef) $ undoTr (==) r
         r ==> 3
         redo === False
         undo === False
@@ -346,8 +346,8 @@ mkTests runTest
         redo === False
         undo === True
       where
-        push m = liftWriteRef m >>= \x -> maybe (return ()) liftWriteRef x
-        m === t = liftWriteRef m >>= \x -> isJust x ==? t
+        push m = m >>= \x -> maybe (return ()) liftWriteRef x
+        m === t = m >>= \x -> isJust x ==? t
 
 
 
