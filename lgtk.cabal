@@ -29,32 +29,31 @@ library
                     src
   build-depends:
                     base < 5
-                  , containers
-                  , directory
-                  , filepath
-                  , system-filepath
-                  , fsnotify
-                  , monad-control
 
-                  , transformers
-                  , mtl
-                  , operational
+                  , groups == 0.4.*
+                  , semigroups == 0.13.*
+                  , transformers == 0.3.*
+                  , mtl == 2.1.*
+                  , monad-control == 0.3.*
+                  , operational == 0.2.*
+                  , lens == 4.1.*
 
-                  , vector
-                  , OpenGLRaw
-                  , GLFW-b
-                  , JuicyPixels
+                  , vector == 0.10.*
+                  , containers == 0.5.*
+                  , directory == 1.2.*
+                  , filepath == 1.3.*
+                  , system-filepath == 0.4.*
+                  , fsnotify == 0.0.*
 
+                  , colour == 2.3.*
+                  , JuicyPixels == 3.1.*
+                  , diagrams-lib == 1.1.*
+                  , diagrams-cairo == 1.1.*
+                  , SVGFonts == 1.4.*
+                  , OpenGLRaw == 1.4.*
+                  , GLFW-b == 1.4.*
 --                  , threepenny-gui == 0.4.1.*
 
-                  , diagrams-lib
-                  , diagrams-cairo
-                  , colour
-                  , SVGFonts
-                  , groups
-                  , semigroups
-
-                  , lens
   exposed-modules:
                     -- lens-references
                     Data.LensRef
@@ -79,7 +78,7 @@ library
                     LGtk.Demos.TEditor
   if flag(Gtk)
     build-depends:
-                    gtk
+                    gtk == 0.12.*
     exposed-modules:
                     LGtk.Backend.Gtk
 
