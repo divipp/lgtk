@@ -11,7 +11,8 @@ module LGtk.Render
 import Control.Applicative hiding (empty)
 import Control.Monad
 import Control.Monad.State
-import Control.Lens hiding ((#))
+import Control.Lens hiding ((#), beside)
+import Data.List
 import Diagrams.Prelude
 import Diagrams.BoundingBox
 import Graphics.SVGFonts
@@ -313,10 +314,13 @@ tr sca w = do
               WW wr wf -> do
 
                 let
+                    line dx = fromOffsets [r2 (dx,0)]  # strokeLine # lw 0.02 # translate (r2 (0,-0.5)) # value mempty
                     render (bv,wv) is is' =
                         vcat
-                            [ hcat (zipWith3 g [0..] iss names) # freeze # frame 0.1
-                            , wf wv is is'
+                            [ alignL $ (beside (r2 (-1,0)) (hcat (intersperse (line 1) $ zipWith3 g [0..] iss names)) (line 1)
+                               ||| line 100
+                                )  # freeze # frame 0.1
+                            , alignL $ wf wv is is'
                             ]
                       where
                         g ind i txt =

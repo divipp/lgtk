@@ -3,51 +3,45 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Data.LensRef where
 
-import Control.Monad (liftM)
+import Control.Monad (liftM, join)
 import Control.Lens (Lens', lens, set, (^.))
 
 --------------------------------
 
 
-    {- | Law: @(RefState m)@  ===  @('Reader' x)@ for some @x@.
-
-    Alternative laws which ensures this isomorphism (@r :: (RefState m a)@ is arbitrary):
-
-     *  @(r >> return ())@ === @return ()@
-
-     *  @liftM2 (,) r r@ === @liftM (\a -> (a, a)) r@
-
-    See also <http://stackoverflow.com/questions/16123588/what-is-this-special-functor-structure-called>
-    -}
-
-data family RefState (m :: * -> *) a :: *
-
-type RefWriter m = RefState (RefReader m)
-
 {- |
-A reference @(r a)@ is isomorphic to @('Lens' s a)@ for some fixed state @s@.
+Type class for references which can be joined and on which lenses can be applied.
 
-@r@  ===  @Lens s@
+The join operation is 'join' from "Control.Monad":
+If @(r :: RefReader r (MRef r a))@ then @(join r :: MRef r a)@.
 -}
-class Monad (RefReader r) => Reference r where
+class (Monad (RefReader r), Monad (RefWriter r)) => Reference r where
 
-    {- | @Refmonad r@  ===  @State s@
+    {- | unit reference
 
-    Property derived from the 'MonadRefReader' instance:
+    Laws:
 
-    @RefReader r@ = @RefState (Refmonad r)@  ===  @Reader s@
+     * @(writeRef unitRef () >> m)@ === @m@
+    -}
+    unitRef :: MRef r ()
+
+    {- | Apply a lens on a reference.
+    -}
+    lensMap :: Lens' a b -> MRef r a -> MRef r b
+
+    {- | Associated reader monad.
     -}
     type RefReader r :: * -> *
 
-    {- | @readRef@ === @reader . getL@
+    {- | Reference read.
 
-    Properties derived from the 'MonadRefReader' instance:
+    Laws:
 
     @(readRef r >> return ())@ === @return ()@
     -}
     readRef  :: MRef r a -> RefReader r a
 
-    {- | @writeRef r@ === @modify . set r@
+    {- | Reference write.
 
     Properties derived from the set-get, get-set and set-set laws for lenses:
 
@@ -59,14 +53,21 @@ class Monad (RefReader r) => Reference r where
     -}
     writeRef_ :: MRef r a -> a -> RefWriter r ()
 
-    {- | Apply a lens on a reference.
 
-    @lensMap@ === @(.)@
-    -}
-    lensMap :: Lens' a b -> MRef r a -> MRef r b
+{- | Law: @(RefState m)@  ===  @('Reader' x)@ for some @x@.
 
-    -- | @unitRef@ === @lens (const ()) (const id)@
-    unitRef :: MRef r ()
+Alternative laws which ensures this isomorphism (@r :: (RefState m a)@ is arbitrary):
+
+ *  @(r >> return ())@ === @return ()@
+
+ *  @liftM2 (,) r r@ === @liftM (\a -> (a, a)) r@
+
+See also <http://stackoverflow.com/questions/16123588/what-is-this-special-functor-structure-called>
+-}
+data family RefState (m :: * -> *) a :: *
+
+type RefWriter m = RefState (RefReader m)
+
 
 -- | Reference wrapped into a RefReader monad
 type MRef r a = RefReader r (r a)
