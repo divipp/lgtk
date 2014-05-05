@@ -237,9 +237,9 @@ tr sca w = do
         Cell r f -> do
             i <- newId
             r' <- lift $ onChange r $ \x -> do   
-                     h <- f x
+                     h <- f (flip evalStateT (0:i) . tr sca) x
                      return $ do
-                       hv <- flip evalStateT (0:i) . tr sca $ h
+                       hv <- h
                        return $ case hv of
                          WW rr render -> do
                            (es, rrv) <- rr
@@ -315,8 +315,8 @@ tr sca w = do
                 ff _ _ "Right" _ = br'' (+ 1)
                 ff _ _ _ _ = return ()
 
-            ww <- tr sca $ return $ Cell (readRef ir) $ \iv -> do
-                return $ return $ wisv !! iv
+            ww <- tr sca $ return $ Cell (readRef ir) $ \mk iv -> do
+                return $ mk $ return $ wisv !! iv
             case ww of
               WW wr wf -> do
 
