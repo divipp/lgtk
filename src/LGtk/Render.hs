@@ -65,7 +65,7 @@ instance Semigroup (X a) where
 
 ---------
 
-clipBy' p d = fmap unX (fmap X d # clipBy p  <> fmap flipp (stroke p # lw 0 # value Cancel))
+clipBy' p d = fmap unX (fmap X d # clipBy p # withEnvelope p  <> fmap flipp (stroke p # lw 0 # value Cancel))
   where
     flipp Cancel = Z
     flipp Z = Cancel
@@ -272,7 +272,7 @@ tr sca w = do
                 hi = fromIntegral h / sca
 
                 render bv _is _is' = (fmap gg (fmap Just' (f bv # freeze) # scale ((fromIntegral w / d) / sca)
-                                            # clipBy' (rect wi hi) # withEnvelope (rect wi hi :: D R2))
+                                            # clipBy' (rect wi hi))
                    <> rect wi hi # value mempty # lw 0.02
                          )  # freeze  # frame 0.1
 
