@@ -146,7 +146,7 @@ inCanvas width height scale w = do
               <> rect scale (scale / fromIntegral width * fromIntegral height)
                     # value_ (return ()) (Just' df) i
 
-focWidth = 0.2
+focWidth = 0.1
 
 text__ :: Double -> Double -> String -> ((Double :& Double), Dia Any)
 {-
@@ -164,21 +164,25 @@ tr sca w = do
                      where ((x :& y), te) = text__ 15 5 bv
             return $ WW (liftM ((,) []) r) render
 
-        Button r sens _ a -> do
+        Button r sens col a -> do
             i <- newId
 
             let ff _ _ (Just ' ') = a ()
                 ff _ _ _ = return ()
 
-                render (bv, se) is is' =
+                col' = maybe (return defcolor) id col
+
+                defcolor = sRGB 0.95 0.95 0.95
+
+                render (bv, se, color) is is' =
                      (te # fc (if se then black else gray)
-                  <> roundedRect x y 0.3 # fc (if i `elem` is && se then yellow else sRGB 0.95 0.95 0.95)
+                  <> roundedRect x y 0.3 # fc (if i `elem` is && se then yellow else color)
                          # (if is' == i && se then lc yellow . lw focWidth else lc black . lw 0.02)
                      )
                         # (if se then value_ (a ()) (Just' (ff, return ())) i else value mempty)
                         # clipBy' (rect (x+0.1) (y+0.1)) # freeze # frame 0.1
                    where ((x :& y), te) = text__ 15 3 bv
-            return $ WW (liftM (\(r,se) -> ([(return (), ff, return (), i) | se], (r,se))) $ liftM2 (,) r sens) render
+            return $ WW (liftM3 (\r se c -> ([(return (), ff, return (), i) | se], (r,se,c))) r sens col') render
 
         Entry (rs, rr) -> do
             i <- newId
@@ -334,7 +338,7 @@ tr sca w = do
                           <> (if bv == ind then mempty else line x # translate (r2 (-x/2, 0)))
                           <> bez' # closeLine # strokeLoop  # translate (r2 (-x/2,-y/2)) # lw 0
                                  # (if (bv == ind) then value mempty else value_ (br' ind) (Just' (ff ind, return ())) i)
-                                 # (if i `elem` is then fc yellow else id)
+                                 # (if i `elem` is && bv /= ind then fc yellow else id)
                          where ((x_ :& y), te) = text__ 10 3 txt
                                x = x_ + 2
                                bez = fromSegments [ bezier3 (r2 (0.7,0)) (r2 (0.3,1)) (r2 (1,1))
