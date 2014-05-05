@@ -305,7 +305,13 @@ tr sca w = do
                 n = length names
             iss <- replicateM n newId
             ir <- lift $ newRef (0 :: Int)
-            wisv <- lift $ sequence wis
+            wisv <- mapM (tr sca) wis
+
+            wr <- lift $ onChangeSimple (readRef ir) $ \x -> return $ case wisv !! x of
+                         WW rr render -> do
+                           (es, rrv) <- rr
+                           return $ (es, UnsafeEqWrap (x, rrv) $ render rrv)
+
 
             let br' :: Int -> Modifier m ()
                 br' ind = br ind' >> writeRef ir ind' where ind' = ind `mod` n
@@ -315,21 +321,17 @@ tr sca w = do
                 ff _ _ "Right" _ = br'' (+ 1)
                 ff _ _ _ _ = return ()
 
-            ww <- tr sca $ return $ Cell (readRef ir) $ \mk iv -> do
-                return $ mk $ return $ wisv !! iv
-            case ww of
-              WW wr wf -> do
-
+            do
                 let
                     line dx = fromOffsets [r2 (dx,0)]  # strokeLine # lw 0.02 # translate (r2 (0,-0.5)) # value mempty
-                    render (bv,wv) is is' =
+                    render (bv, UnsafeEqWrap _ d) is is' =
                         vcat
                             [ strutY 0.1
                             , alignL $ line 0.2
                                ||| hcat (intersperse (line 0.1) $ zipWith3 g [0..] iss names)
                                ||| line 100
                             , strutY 0.2
-                            , alignL $ wf wv is is'
+                            , alignL $ d is is'
                             ] # freeze
                       where
                         g ind i txt =
@@ -356,7 +358,7 @@ tr sca w = do
                 return $ WW (liftM2 (\iv (ls,vv) ->
                     ( [ (return (), ff ind, return (), i) | (ind,i) <- zip [0..] iss] ++ ls
                     , (iv, vv)
-                    )) (readRef ir) wr) render
+                    )) (readRef ir) (join wr)) render
 
         Scale _ _ _ _ -> error "sc"
 
