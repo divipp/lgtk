@@ -278,7 +278,7 @@ runWidget_ post' post = toWidget
                 True -> fmap castToContainer $ hBoxNew False 1
                 False -> fmap castToContainer $ alignmentNew 0 0 1 1
             sh <- liftIO' $ newMVar $ return ()
-            _ <- onChangeSimple onCh $ \bv -> do
+            _ <- onChange onCh $ \bv -> do
                 mx <- f bv
                 return $ toWidget mx >>= \(x,y) -> liftIO'' $ do 
                     _ <- swapMVar sh x
