@@ -271,7 +271,8 @@ tr sca w = do
                 wi = fromIntegral w / sca
                 hi = fromIntegral h / sca
 
-                render bv _is _is' = (fmap gg (fmap Just' (f bv # freeze) # scale ((fromIntegral w / d) / sca) # clipBy' (rect wi hi))
+                render bv _is _is' = (fmap gg (fmap Just' (f bv # freeze) # scale ((fromIntegral w / d) / sca)
+                                            # clipBy' (rect wi hi) # withEnvelope (rect wi hi :: D R2))
                    <> rect wi hi # value mempty # lw 0.02
                          )  # freeze  # frame 0.1
 
