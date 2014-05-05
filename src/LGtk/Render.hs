@@ -207,7 +207,7 @@ tr sca w = do
 
                 render bv is is' = 
                   (  te # clipped (rect x y) # value mempty
-                  <> rect x y # fc (if i `elem` is then yellow else white)
+                  <> rect x y # (if i `elem` is then fc yellow else id)
                          # (if is' == i then lc yellow . lw focWidth else lc black . lw 0.02)
                          # value_ fin (Just' (ff, fout)) i
                   ) # freeze # frame 0.1
@@ -286,7 +286,7 @@ tr sca w = do
                        (if bv == ind then fromVertices [p2 (-0.3, 0), p2 (-0.1,-0.3), p2 (0.3,0.3)] 
                                 # lineCap LineCapRound else mempty) # value mempty # translate (r2 (x / 2,0)) # lw 0.15
                       <> te # clipped (rect x y) # value mempty
-                      <> rect x y # fc (if i `elem` is then yellow else white)
+                      <> rect x y # (if i `elem` is then fc yellow else id)
                              # (if is' == i then lc yellow . lw focWidth else lc black . lw 0.02)
                              # value_ (br ind) (Just' (ff ind, return ())) i
                             )  # frame 0.02
@@ -317,24 +317,34 @@ tr sca w = do
                     line dx = fromOffsets [r2 (dx,0)]  # strokeLine # lw 0.02 # translate (r2 (0,-0.5)) # value mempty
                     render (bv,wv) is is' =
                         vcat
-                            [ alignL $ (beside (r2 (-1,0)) (hcat (intersperse (line 1) $ zipWith3 g [0..] iss names)) (line 1)
+                            [ strutY 0.1
+                            , alignL $ (beside (r2 (-1,0)) (hcat (intersperse (line 0.1) $ zipWith3 g [0..] iss names)) (line 1)
                                ||| line 100
-                                )  # freeze # frame 0.1
+                                )  # freeze
+                            , strutY 0.2
                             , alignL $ wf wv is is'
                             ]
                       where
                         g ind i txt =
---                           (if bv == ind then fromVertices [p2 (-0.3, 0), p2 (-0.1,-0.3), p2 (0.3,0.3)] 
---                                    # lineCap LineCapRound else mempty) # value mempty # translate (r2 (x/2,0)) # lw 0.15
                              te # clipped (rect x y) # value mempty
-                                 # fc (if i `elem` is then yellow else black)
-                          <> rect x y # lw 0
-                                 # value_ (br' ind) (Just' (ff ind, return ())) i
-                          <> (if bv == ind then fromVertices [p2 (-x/2, -y/2), p2 (-x/2,y/2), p2 (x/2,y/2), p2 (x/2,-y/2)]
-                                else rect x y)
+                                 # fc black
+                          <> bez
                                  # (if is' == i then lc yellow . lw focWidth else lc black . lw 0.02)
-                                 # value mempty # frame 0.02
-                         where ((x :& y), te) = text__ 10 3 txt
+                                 # value mempty
+                          <> (if bv == ind then mempty else line x # translate (r2 (-x/2, 0)))
+                          <> bez' # closeLine # strokeLoop  # translate (r2 (-x/2,-y/2)) # lw 0
+                                 # (if (bv == ind) then value mempty else value_ (br' ind) (Just' (ff ind, return ())) i)
+                                 # (if i `elem` is then fc yellow else id)
+                         where ((x_ :& y), te) = text__ 10 3 txt
+                               x = x_ + 2
+                               bez = fromSegments [ bezier3 (r2 (0.7,0)) (r2 (0.3,1)) (r2 (1,1))
+                                          , straight (r2 (x - 2, 0))
+                                          , bezier3 (r2 (0.7,0)) (r2 (0.3,-1)) (r2 (1,-1))
+                                          ] # translate (r2 (-x/2,-y/2))
+                               bez' = fromSegments [ bezier3 (r2 (0.7,0)) (r2 (0.3,1)) (r2 (1,1))
+                                          , straight (r2 (x - 2, 0))
+                                          , bezier3 (r2 (0.7,0)) (r2 (0.3,-1)) (r2 (1,-1))
+                                          ]
 
                 return $ WW (liftM2 (\iv (ls,vv) ->
                     ( [ (return (), ff ind, return (), i) | (ind,i) <- zip [0..] iss] ++ ls
