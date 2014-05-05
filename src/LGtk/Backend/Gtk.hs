@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -20,7 +21,11 @@ import Graphics.UI.Gtk hiding (Widget, Release)
 import qualified Graphics.UI.Gtk as Gtk
 
 import Data.LensRef
+#ifdef __PURE__
+import Data.LensRef.Pure
+#else
 import Data.LensRef.Fast
+#endif
 import LGtk.Effects
 import LGtk.Widgets
 

@@ -22,6 +22,10 @@ Flag Gtk
   Description:      Build the Gtk backend
   Default:          False
 
+Flag Pure
+  Description:      Use the pure but slow implementation of lens-references
+  Default:          False
+
 
 library
 
@@ -76,11 +80,18 @@ library
                     LGtk.Demos.Tri
                     LGtk.Demos.IntListEditor
                     LGtk.Demos.TEditor
+
   if flag(Gtk)
     build-depends:
                     gtk == 0.12.*
     exposed-modules:
                     LGtk.Backend.Gtk
+    cpp-options:
+                    -D__GTK__
+
+  if flag(Pure)
+    cpp-options:
+                    -D__PURE__
 
   ghc-options: 
                     -threaded

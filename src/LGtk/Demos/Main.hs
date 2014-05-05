@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -13,7 +14,11 @@ import Diagrams.Prelude hiding (vcat, hcat, interval, tri, (#))
 import qualified Diagrams.Prelude as P
 
 import LGtk
+#ifdef __GTK__
+import LGtk.Backend.Gtk
+#else
 import LGtk.Backend.GLFW
+#endif
 
 import LGtk.Demos.Tri
 import LGtk.Demos.IntListEditor

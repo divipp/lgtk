@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ExistentialQuantification #-}
@@ -30,7 +31,11 @@ import Diagrams.Backend.Cairo.Ptr
 import Codec.Picture
 
 import Data.LensRef
+#ifdef __PURE__
+import Data.LensRef.Pure
+#else
 import Data.LensRef.Fast
+#endif
 import LGtk.Effects
 import LGtk.Widgets
 import LGtk.Render
