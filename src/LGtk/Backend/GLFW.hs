@@ -47,7 +47,7 @@ runWidget desc = do
     hSetBuffering stdout NoBuffering
 
     (widget, actions) <- runPure newChan' $ unWrap $ runWidget_ $ inCanvas 800 600 30 desc
-    _ <- forkIO $ actions
+    _ <- forkIO actions
 
     case widget of
       SWidget width height sc_ handle current iodia -> do
@@ -112,9 +112,6 @@ runWidget desc = do
                                     _ -> Nothing
                         handle $ KeyPress [ControlModifier | modifierKeysControl mods] name char
 
-            logChar :: CharCallback
-            logChar _win _char = return () --putStrLn $ "CharCallback: " ++ show (char)
-
             logWinSize :: WindowSizeCallback
             logWinSize _win _w _h = do
                 _ <- tryTakeMVar iodia
@@ -122,7 +119,6 @@ runWidget desc = do
 
         -- callbacks
         setKeyCallback win (Just logKey)
-        setCharCallback win (Just logChar)
         setMouseButtonCallback win (Just logMouseButton)
         setCursorPosCallback win (Just logMousePos)
         setWindowSizeCallback win (Just logWinSize)
