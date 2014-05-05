@@ -147,11 +147,12 @@ runWidget desc = do
 --                putStr "*"
 
         let eventCycle = do
-                waitEvents
+                pollEvents
                 b <- readMVar exit
                 when (not b) $ do
                     join $ swapMVar postedActions $ return ()
                     redraw
+                    threadDelay 10000
                     eventCycle
 
         eventCycle
