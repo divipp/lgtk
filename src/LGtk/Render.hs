@@ -258,7 +258,7 @@ tr sca w = do
                 Horizontal -> \a b -> a # alignT ||| b # alignT
                 Vertical -> \a b -> a # alignL === b # alignL
 
-        Canvas w h d r (s) f -> do
+        Canvas w h d r s f -> do
 
             i <- newId
 
@@ -271,9 +271,9 @@ tr sca w = do
                 wi = fromIntegral w / sca
                 hi = fromIntegral h / sca
 
-                render bv _is _is' = (fmap gg (fmap Just' (f bv) # scale ((fromIntegral w / d) / sca) # clipBy' (rect wi hi))
-                   <> rect wi hi # value mempty
-                         )  # lw 0.02 # freeze  # frame 0.1
+                render bv _is _is' = (fmap gg (fmap Just' (f bv # freeze) # scale ((fromIntegral w / d) / sca) # clipBy' (rect wi hi))
+                   <> rect wi hi # value mempty # lw 0.02
+                         )  # freeze  # frame 0.1
 
             return $ WW (liftM ((,) []) s) render
 
@@ -304,6 +304,7 @@ tr sca w = do
                 n = length names
             iss <- replicateM n newId
             ir <- lift $ newRef (0 :: Int)
+            wisv <- lift $ sequence wis
 
             let br' :: Int -> Modifier m ()
                 br' ind = br ind' >> writeRef ir ind' where ind' = ind `mod` n
@@ -313,7 +314,8 @@ tr sca w = do
                 ff _ _ "Right" _ = br'' (+ 1)
                 ff _ _ _ _ = return ()
 
-            ww <- tr sca $ return $ Cell (readRef ir) $ \iv -> return $ wis !! iv
+            ww <- tr sca $ return $ Cell (readRef ir) $ \iv -> do
+                return $ return $ wisv !! iv
             case ww of
               WW wr wf -> do
 
@@ -322,12 +324,12 @@ tr sca w = do
                     render (bv,wv) is is' =
                         vcat
                             [ strutY 0.1
-                            , alignL $ (beside (r2 (-1,0)) (hcat (intersperse (line 0.1) $ zipWith3 g [0..] iss names)) (line 1)
+                            , alignL $ line 0.2
+                               ||| hcat (intersperse (line 0.1) $ zipWith3 g [0..] iss names)
                                ||| line 100
-                                )  # freeze
                             , strutY 0.2
                             , alignL $ wf wv is is'
-                            ]
+                            ] # freeze
                       where
                         g ind i txt =
                              te # clipped (rect x y) # value mempty
