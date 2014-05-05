@@ -71,17 +71,21 @@ runWidget desc = do
                 let sc = w' / sc_
                 return (sc, w', h', w, h)
 
-            logMousePos :: CursorPosCallback
-            logMousePos _win x y = do
+            calcMousePos (x,y) = do
                 (sc, w, h, _, _) <- dims
                 d <- current
                 let p = ((x - w / 2) / sc, (h / 2 - y) / sc)
                     q = MousePos p $ d `sample` p2 p
-                t <- modifyMVar mc $ \(tick, _) -> return ((tick+1, Just q), tick+1)
+                return q
+
+            logMousePos :: CursorPosCallback
+            logMousePos _win x y = do
+                t <- modifyMVar mc $ \(tick, _) -> return ((tick+1, Just (x,y)), tick+1)
                 post $ do
                     (t',q) <- readMVar mc
                     case q of
-                        Just q | t==t' -> handle $ MoveTo q
+                        Just q | t==t' -> do
+                            calcMousePos q >>= handle . MoveTo
                         _ -> return ()
 
             logMouseButton :: MouseButtonCallback
@@ -89,8 +93,8 @@ runWidget desc = do
                 --putStrLn $ "MouseButtonCallback: " ++ show (button,state,mod)
                 (_, p) <- readMVar mc
                 case (state, p) of
-                  (MouseButtonState'Pressed, Just p) -> handle $ Click p
-                  (MouseButtonState'Released, Just p) -> handle $ Release p
+                  (MouseButtonState'Pressed, Just p) -> calcMousePos p >>= handle . Click
+                  (MouseButtonState'Released, Just p) -> calcMousePos p >>= handle . Release
                   _ -> return ()
 
             logKey :: KeyCallback
