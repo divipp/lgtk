@@ -213,19 +213,19 @@ copyToScreen win w h (Image width height dat) = do
     if (status /= gl_FRAMEBUFFER_COMPLETE)
       then do
         putStrLn $ "incomplete framebuffer: " ++ show status
+        glClearColor 1 0 0 1
+        glClear gl_COLOR_BUFFER_BIT
       else do
-        glBindFramebuffer gl_DRAW_FRAMEBUFFER 0
-
         glBindFramebuffer gl_READ_FRAMEBUFFER fbo
         glBindFramebuffer gl_DRAW_FRAMEBUFFER 0
         glBlitFramebuffer 0 ih iw 0 0 0 w h gl_COLOR_BUFFER_BIT gl_LINEAR
-        glBindFramebuffer gl_READ_FRAMEBUFFER 0
-        glBindFramebuffer gl_DRAW_FRAMEBUFFER 0
 
-        Foreign.with fbo $ glDeleteFramebuffers 1
-        Foreign.with tex $ glDeleteTextures 1
+    glBindFramebuffer gl_READ_FRAMEBUFFER 0
+    glBindFramebuffer gl_DRAW_FRAMEBUFFER 0
+    Foreign.with fbo $ glDeleteFramebuffers 1
+    Foreign.with tex $ glDeleteTextures 1
 
-        swapBuffers win
+    swapBuffers win
 
 
 imageRGBA8FromUnsafePtr :: Int -> Int -> ForeignPtr Word8 -> Image PixelRGBA8
