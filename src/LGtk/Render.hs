@@ -105,8 +105,8 @@ newIds (Id i) = flip evalStateT $ Id (0:i)
 -- how to handle keyboard events
 type FocFun m = [KeyModifier] -> String -> Maybe Char -> m ()
 
--- keyboard event handle + what to do when the focus leaves the widget
-type Foc m = (FocFun m, m ())
+-- keyboard event handle; what to do when the focus leaves the widget; id of the keyboard-focused widget
+type Foc m = (FocFun m, m (), Id)
 
 -- for each mouse event:
 --  - what to do
@@ -124,11 +124,14 @@ data CWidget m
 
 ------------------
 
-value_ :: Monad m => m () -> Maybe' (Foc m) -> Id -> Id -> Dia Any -> Dia (EventHandle m)
+--value_ :: Monad m => m () -> Maybe' (Foc m) -> Id -> Id -> Dia Any -> Dia (EventHandle m)
 value_ a c i i' = value f where
-    f (Click _) = (Just' a, c, Just' (i, i'))
+    f (Click _) = (Just' a, c', Just' (i, i'))
     f (MoveTo _) = (Nothing', Nothing', Just' (i, i'))
     f _ = mempty
+    c' = case c of
+        Just' (x,y) -> Just' (x,y,i')
+        Nothing' -> Nothing'
 
 adjustFoc :: EffRef m => Ref m (Foc (Modifier m)) -> Modifier m ()
 adjustFoc foc = join $ readRef' $ _2 `lensMap` foc
@@ -137,11 +140,12 @@ adjustFoc foc = join $ readRef' $ _2 `lensMap` foc
 
 inCanvas :: forall m . EffIORef m => Int -> Int -> Double -> Widget m -> Widget m
 inCanvas width height scale w = do
-    let df = (\_ _ _ -> return (), return ())
-    -- current keyboard focus :: Foc m
-    foc <- newRef df  
     -- id of the root plane;  compiled widget
     (i, bhr) <- newIds firstId $ liftM2 (,) newId $ tr (fromIntegral width / scale) w
+    let df = (\_ _ _ -> return (), return (), i)
+    let df' = (\_ _ _ -> return (), return ())
+    -- current keyboard focus :: Foc m
+    foc <- newRef df  
     -- mouse-focused widget id; keyboard-focused widget id
     hi <- newRef ([i], i)
     case bhr of
@@ -150,34 +154,32 @@ inCanvas width height scale w = do
                 whenMaybe' id a
                 whenMaybe' h2 bb
                 whenMaybe' h3 c
-                whenMaybe' h4 (liftM2 (,) bb c)
 
-            h2 m = do
+            h2 m@(_,_,i) = do
                 adjustFoc foc
                 writeRef foc m
-            h3 (i,_) = writeRef (_1 `lensMap` hi) [i]
-            h4 (_,(_,i)) = do
                 writeRef (_2 `lensMap` hi) i
+            h3 (i,_) = writeRef (_1 `lensMap` hi) [i]
 
             moveFoc f = do
                 (_, j) <- readRef' hi
                 (xs, _) <- liftReadRef b
                 let (a,bb,c,d) = maybe (head xs) snd $ find (\((_,_,_,x),_) -> x == j) $ pairs $ (if f then id else reverse) (xs ++ xs)
-                a >> h2 (bb,c) >> h4 (undefined, (d,d))
+                a >> h2 (bb,c,d)
 
             handleEvent (Click (MousePos p f)) = handle $ f $ Click $ MousePos p ()  :: Modifier m ()
             handleEvent (MoveTo (MousePos p f)) = handle $ f $ MoveTo $ MousePos p ()
             handleEvent (KeyPress [] "Tab" _) = moveFoc True
             handleEvent (KeyPress [c] "Tab" _) | c == ControlModifier = moveFoc False
             handleEvent (KeyPress m n c) = do
-                (f,_) <- readRef' foc
+                (f,_,_) <- readRef' foc
                 f m n c
             handleEvent LostFocus = adjustFoc foc
             handleEvent _ = return ()
         return $ Canvas width height scale handleEvent (liftM2 (,) (readRef hi) $ liftM snd b) $ \((is,is'), x) -> 
               render x is is' # alignT # alignL # translate (r2 (-scale/2,scale/2* fromIntegral height / fromIntegral width))
               <> rect scale (scale / fromIntegral width * fromIntegral height)
-                    # value_ (return ()) (Just' df) i i
+                    # value_ (return ()) (Just' df') i i
 
 focWidth = 0.1
 
@@ -299,7 +301,7 @@ tr sca w = do
 
             let ff x y z = r $ KeyPress x y z
 
-                gg (Just' ls) (Click (MousePos p _)) = (Just' $ r (Click $ MousePos p ls), Just' (ff, r LostFocus), Just' (i,i))
+                gg (Just' ls) (Click (MousePos p _)) = (Just' $ r (Click $ MousePos p ls), Just' (ff, r LostFocus, i), Just' (i,i))
                 gg (Just' ls) (MoveTo (MousePos p _)) = (Just' $ r (MoveTo $ MousePos p ls), Nothing', Just' (i,i))
                 gg _ _ = mempty
 
