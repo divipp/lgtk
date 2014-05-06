@@ -148,7 +148,7 @@ inCanvas width height scale w = do
                 whenMaybe' h2 bb
                 whenMaybe' h3 c
 
-            h2 m@(_,_,_,i) = do
+            h2 m = do
                 adjustFoc foc
                 writeRef foc m
             h3 i = writeRef hi [i]
@@ -200,6 +200,7 @@ tr sca w = do
             let ff _ _ (Just ' ') = a ()
                 ff _ _ (Just '\n') = a ()
                 ff _ _ _ = return ()
+                kh = (return (), ff, return (), i)
 
                 col' = maybe (return black) id col
 
@@ -208,10 +209,10 @@ tr sca w = do
                   <> roundedRect x y 0.3 # fc (if i `elem` is && se then yellow else defcolor)
                          # (if is' == i && se then lc yellow . lw focWidth else lc black . lw 0.02)
                      )
-                        # (if se then value_ (a ()) (return (), ff, return (), i) i else value mempty)
+                        # (if se then value_ (a ()) kh i else value mempty)
                         # clipBy' (rect (x+0.1) (y+0.1)) # freeze # frame 0.1
                    where ((x :& y), te) = text__ 15 3 bv
-            return $ CWidget (liftM3 (\r se c -> ([(return (), ff, return (), i) | se], (r,se,c))) r sens col') render
+            return $ CWidget (liftM3 (\r se c -> ([kh | se], (r,se,c))) r sens col') render
 
         Entry (rs, rr) -> do
             i <- newId
@@ -238,31 +239,33 @@ tr sca w = do
 
                 fin = writeRef (_1 `lensMap` j) True
                 fout = writeRef (_1 `lensMap` j) False
+                kh = (fin, ff, fout, i)
 
                 render bv is is' = 
                   (  te # clipped (rect x y) # value mempty
                   <> rect x y # (if i `elem` is then fc yellow else id)
                          # (if is' == i then lc yellow . lw focWidth else lc black . lw 0.02)
-                         # value_ fin (fin, ff, fout, i) i
+                         # value_ fin kh i
                   ) # freeze # frame 0.1
                    where ((x :& y), te) = text__ 7 5 $ text' bv
-            return $ CWidget (liftM ((,) [(fin, ff, fout, i)]) (readRef j)) render
+            return $ CWidget (liftM ((,) [kh]) (readRef j)) render
 
         Checkbox (bs, br) -> do
             i <- newId
 
             let ff _ _ (Just ' ') = liftReadRef bs >>= br . not
                 ff _ _ _ = return ()
+                kh = (return (), ff, return (), i)
 
                 render bv is is' = 
                     (
                        (if bv then fromVertices [p2 (-0.3, 0), p2 (-0.1,-0.3), p2 (0.3,0.3)] 
                                 # lineCap LineCapRound else mempty) # value mempty # lw 0.15
-                    <> rect 1 1 # value_ (br (not bv)) (return (), ff, return (), i) i
+                    <> rect 1 1 # value_ (br (not bv)) kh i
                                 # fc (if i `elem` is then yellow else sRGB 0.95 0.95 0.95)
                                 # (if is' == i then lc yellow . lw focWidth else lc black . lw 0.02)
                     ) # freeze # frame 0.1
-            return $ CWidget (liftM ((,) [(return (), ff, return (), i)]) bs) render
+            return $ CWidget (liftM ((,) [kh]) bs) render
 
         Cell r f -> do
             i <- newId
@@ -319,6 +322,7 @@ tr sca w = do
                 ff _ "Down" _ = br'' (+1)
                 ff _ "Up" _ = br'' (+(-1))
                 ff _ _ _ = return ()
+                kh = (return (), ff, return (), ii)
 
                 render bv is is' = vcat (zipWith3 g [0..] iss xs) # freeze # frame 0.1
                   where
@@ -328,12 +332,12 @@ tr sca w = do
                       <> te # clipped (rect x y) # value mempty
                       <> rect x y # (if i `elem` is then fc yellow else id)
                              # (if is' == ii then lc yellow . lw focWidth else lc black . lw 0.02)
-                             # value_ (br ind) (return (), ff, return (), ii) i
+                             # value_ (br ind) kh i
                             )  # frame 0.02
 
                      where ((x :& y), te) = text__ 15 3 txt
 
-            return $ CWidget (liftM ((,) [(return (), ff, return (), ii)]) bs) render
+            return $ CWidget (liftM ((,) [kh]) bs) render
 
         Notebook' br xs -> do
             let (names, wis) = unzip xs
@@ -361,46 +365,43 @@ tr sca w = do
                       | otherwise = Nothing
                   where i = fromEnum c - fromEnum '1'
 
-            do
-                let
-                    render (bv, UnsafeEqWrap _ d) is is' =
-                        vcat
-                            [ strutY 0.1
-                            , alignL $ line 0.2
-                               ||| hcat (intersperse (line 0.1) $ zipWith3 g [0..] iss names)
-                               ||| line 100
-                            , strutY 0.2
-                            , alignL $ d is is'
-                            ] # freeze
-                      where
-                        line dx = fromOffsets [r2 (dx,0)] # strokeLine # translate (r2 (0,-0.5)) # value mempty # lcw
+                kh = (return (), ff, return (), ii)
 
-                        lcw = if is' == ii then lc yellow . lw focWidth else lc black . lw 0.02
+                render (bv, UnsafeEqWrap _ d) is is' =
+                    vcat
+                        [ strutY 0.1
+                        , alignL $ line 0.2
+                           ||| hcat (intersperse (line 0.1) $ zipWith3 g [0..] iss names)
+                           ||| line 100
+                        , strutY 0.2
+                        , alignL $ d is is'
+                        ] # freeze
+                  where
+                    line dx = fromOffsets [r2 (dx,0)] # strokeLine # translate (r2 (0,-0.5)) # value mempty # lcw
 
-                        g ind i txt =
-                             te # clipped (rect x y) # value mempty
-                                 # fc black
-                          <> bez # value mempty
-                                 # lcw
-                          <> (if bv == ind then mempty else line x # translate (r2 (-x/2, 0))) # lcw
-                          <> bez' # closeLine # strokeLoop  # translate (r2 (-x/2,-y/2)) # lw 0
-                                 # (if (bv == ind) then value mempty else value_ (br' ind) (return (), ff, return (), ii) i)
-                                 # (if bv /= ind then fc (if i `elem` is then yellow else defcolor) else id)
-                         where ((x_ :& y), te) = text__ 10 3 txt
-                               x = x_ + 2
-                               bez = fromSegments [ bezier3 (r2 (0.7,0)) (r2 (0.3,1)) (r2 (1,1))
-                                          , straight (r2 (x - 2, 0))
-                                          , bezier3 (r2 (0.7,0)) (r2 (0.3,-1)) (r2 (1,-1))
-                                          ] # translate (r2 (-x/2,-y/2))
-                               bez' = fromSegments [ bezier3 (r2 (0.7,0)) (r2 (0.3,1)) (r2 (1,1))
-                                          , straight (r2 (x - 2, 0))
-                                          , bezier3 (r2 (0.7,0)) (r2 (0.3,-1)) (r2 (1,-1))
-                                          ]
+                    lcw = if is' == ii then lc yellow . lw focWidth else lc black . lw 0.02
 
-                return $ CWidget (liftM2 (\iv (ls,vv) ->
-                    ( (return (), ff, return (), ii): ls
-                    , (iv, vv)
-                    )) (readRef ir) (join wr)) render
+                    g ind i txt =
+                         te # clipped (rect x y) # value mempty
+                             # fc black
+                      <> bez # value mempty
+                             # lcw
+                      <> (if bv == ind then mempty else line x # translate (r2 (-x/2, 0))) # lcw
+                      <> bez' # closeLine # strokeLoop  # translate (r2 (-x/2,-y/2)) # lw 0
+                             # (if bv == ind then value mempty else value_ (br' ind) kh i)
+                             # (if bv /= ind then fc (if i `elem` is then yellow else defcolor) else id)
+                     where ((x_ :& y), te) = text__ 10 3 txt
+                           x = x_ + 2
+                           bez = fromSegments [ bezier3 (r2 (0.7,0)) (r2 (0.3,1)) (r2 (1,1))
+                                      , straight (r2 (x - 2, 0))
+                                      , bezier3 (r2 (0.7,0)) (r2 (0.3,-1)) (r2 (1,-1))
+                                      ] # translate (r2 (-x/2,-y/2))
+                           bez' = fromSegments [ bezier3 (r2 (0.7,0)) (r2 (0.3,1)) (r2 (1,1))
+                                      , straight (r2 (x - 2, 0))
+                                      , bezier3 (r2 (0.7,0)) (r2 (0.3,-1)) (r2 (1,-1))
+                                      ]
+
+            return $ CWidget (liftM2 (\iv (ls,vv) -> (kh:ls, (iv, vv))) (readRef ir) (join wr)) render
 
         Scale _ _ _ _ -> error "sc"
 
