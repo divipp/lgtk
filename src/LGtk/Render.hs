@@ -16,7 +16,7 @@ import Control.Lens hiding ((#), beside)
 import Data.List
 import Diagrams.Prelude
 import Diagrams.BoundingBox
-import Graphics.SVGFonts
+--import Graphics.SVGFonts
 import Data.Colour.SRGB
 import Unsafe.Coerce
 
