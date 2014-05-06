@@ -163,7 +163,7 @@ main = runWidget $ notebook
         [ (,) "T-Editor3" $ do
             t <- newRef $ iterate (Node Leaf) Leaf !! 10
             hcat
-                [ canvas 200 200 20 (const $ return ()) (readRef t) (value () {- . clipped (rect 200 200) -} . lw 0.05 . translate (r2 (0,10)) . tPic 0)
+                [ canvas 200 200 20 (const $ return ()) (readRef t) (value () {- . clipped (rect 200 200) -} . lwL 0.05 . translate (r2 (0,10)) . tPic 0)
                 , tEditor3 t
                 ]
 

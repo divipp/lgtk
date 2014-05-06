@@ -22,11 +22,10 @@ import Graphics.UI.GLFW as GLFW
 import Diagrams.Prelude hiding (Image)
 
 -- Rasterific
---import Diagrams.Backend.Rasterific
+import Diagrams.Backend.Rasterific
 
 -- Cairo
---import Diagrams.Backend.Cairo
-import Diagrams.Backend.Cairo.Ptr
+--import Diagrams.Backend.Cairo.Ptr
 
 import Codec.Picture
 
@@ -143,14 +142,15 @@ runWidget desc = do
               Just dia_ -> do
                 (sc, w, h, sw, sh) <- dims
                 let dia = dia_ # freeze # scale sc # clipped (rect w h) <>
-                            rect w h # fc white # lw 0
+                            rect w h # fc white # lwL 0
+                    freeze = id
 
                 -- Cairo
-                image <- imageRGBA8FromUnsafePtr sw sh <$> renderForeignPtrOpaque sw sh dia
+                --image <- imageRGBA8FromUnsafePtr sw sh <$> renderForeignPtrOpaque sw sh dia
 
                 -- Rasterific
-                --let sizeSpec = mkSizeSpec (Just $ fromIntegral w) (Just $ fromIntegral h)
-                --let image = renderDia Rasterific (RasterificOptions sizeSpec) dia
+                let sizeSpec = mkSizeSpec (Just $ fromIntegral sw) (Just $ fromIntegral sh)
+                let image = renderDia Rasterific (RasterificOptions sizeSpec) dia
 
                 copyToScreen win (fromIntegral sw) (fromIntegral sh) image
 --                putStr "*"
