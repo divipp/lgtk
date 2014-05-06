@@ -151,7 +151,7 @@ inCanvas width height scale w = do
             moveFoc f = do
                 (_, j) <- readRef' hi
                 (xs, _) <- liftReadRef b
-                let (Just (_,(a,bb,c,d))) = find (\((_,_,_,x),_) -> x == j) $ pairs $ (if f then id else reverse) (xs ++ xs)
+                let (a,bb,c,d) = maybe (head xs) snd $ find (\((_,_,_,x),_) -> x == j) $ pairs $ (if f then id else reverse) (xs ++ xs)
                 a >> h2 (bb,c) >> h4 (undefined, d)
 
             handleEvent (Click (MousePos p f)) = handle $ f $ Click $ MousePos p ()  :: Modifier m ()
@@ -177,6 +177,8 @@ text_ s = (coords $ boxExtents (boundingBox t) + r2 (0.2, 0.2) , t) where
 -}
 text__ ma mi s = ((max mi (min ma $ fromIntegral (length s) * 2/3) :& 1), text s)
 
+defcolor = sRGB 0.95 0.95 0.95
+
 tr :: forall m . EffIORef m => Double -> Widget m -> WithId m (CWidget (Modifier m))
 tr sca w = do
     w' <- lift w
@@ -193,8 +195,6 @@ tr sca w = do
                 ff _ _ _ = return ()
 
                 col' = maybe (return defcolor) id col
-
-                defcolor = sRGB 0.95 0.95 0.95
 
                 render (bv, se, color) is is' =
                      (te # fc (if se then black else gray)
@@ -366,7 +366,7 @@ tr sca w = do
                           <> (if bv == ind then mempty else line x # translate (r2 (-x/2, 0)))
                           <> bez' # closeLine # strokeLoop  # translate (r2 (-x/2,-y/2)) # lw 0
                                  # (if (bv == ind) then value mempty else value_ (br' ind) (Just' (ff ind, return ())) i)
-                                 # (if i `elem` is && bv /= ind then fc yellow else id)
+                                 # (if bv /= ind then fc (if i `elem` is then yellow else defcolor) else id)
                          where ((x_ :& y), te) = text__ 10 3 txt
                                x = x_ + 2
                                bez = fromSegments [ bezier3 (r2 (0.7,0)) (r2 (0.3,1)) (r2 (1,1))
