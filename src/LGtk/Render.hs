@@ -105,7 +105,7 @@ type FocFun m = [KeyModifier] -> String -> Maybe Char -> m ()
 
 type Foc m = (FocFun m, m ())
 
-type EventHandle m = MouseEvent () -> (Maybe' (m ()), Maybe' (Foc m), Maybe' Id)
+type EventHandle m = MouseEvent () -> (Maybe' (m ()), Maybe' (Foc m), Maybe' (Id, Id))
 
 type KeyHandle m = (m (), FocFun m, m (), Id)
 
@@ -116,10 +116,10 @@ data CWidget m
 
 ------------------
 
-value_ :: Monad m => m () -> Maybe' (Foc m) -> Id -> Dia Any -> Dia (EventHandle m)
-value_ a c b = value f where
-    f (Click _) = (Just' a, c, Just' b)
-    f (MoveTo _) = (Nothing', Nothing', Just' b)
+value_ :: Monad m => m () -> Maybe' (Foc m) -> Id -> Id -> Dia Any -> Dia (EventHandle m)
+value_ a c i i' = value f where
+    f (Click _) = (Just' a, c, Just' (i, i'))
+    f (MoveTo _) = (Nothing', Nothing', Just' (i, i'))
     f _ = mempty
 
 adjustFoc :: EffRef m => Ref m (Foc (Modifier m)) -> Modifier m ()
@@ -144,15 +144,15 @@ inCanvas width height scale w = do
             h2 m = do
                 adjustFoc foc
                 writeRef foc m
-            h3 i = writeRef (_1 `lensMap` hi) [i]
-            h4 (_,i) = do
+            h3 (i,_) = writeRef (_1 `lensMap` hi) [i]
+            h4 (_,(_,i)) = do
                 writeRef (_2 `lensMap` hi) i
 
             moveFoc f = do
                 (_, j) <- readRef' hi
                 (xs, _) <- liftReadRef b
                 let (a,bb,c,d) = maybe (head xs) snd $ find (\((_,_,_,x),_) -> x == j) $ pairs $ (if f then id else reverse) (xs ++ xs)
-                a >> h2 (bb,c) >> h4 (undefined, d)
+                a >> h2 (bb,c) >> h4 (undefined, (d,d))
 
             handleEvent (Click (MousePos p f)) = handle $ f $ Click $ MousePos p ()  :: Modifier m ()
             handleEvent (MoveTo (MousePos p f)) = handle $ f $ MoveTo $ MousePos p ()
@@ -166,7 +166,7 @@ inCanvas width height scale w = do
         return $ Canvas width height scale handleEvent (liftM2 (,) (readRef hi) $ liftM snd b) $ \((is,is'), x) -> 
               render x is is' # alignT # alignL # translate (r2 (-scale/2,scale/2* fromIntegral height / fromIntegral width))
               <> rect scale (scale / fromIntegral width * fromIntegral height)
-                    # value_ (return ()) (Just' df) i
+                    # value_ (return ()) (Just' df) i i
 
 focWidth = 0.1
 
@@ -201,7 +201,7 @@ tr sca w = do
                   <> roundedRect x y 0.3 # fc (if i `elem` is && se then yellow else color)
                          # (if is' == i && se then lc yellow . lw focWidth else lc black . lw 0.02)
                      )
-                        # (if se then value_ (a ()) (Just' (ff, return ())) i else value mempty)
+                        # (if se then value_ (a ()) (Just' (ff, return ())) i i else value mempty)
                         # clipBy' (rect (x+0.1) (y+0.1)) # freeze # frame 0.1
                    where ((x :& y), te) = text__ 15 3 bv
             return $ CWidget (liftM3 (\r se c -> ([(return (), ff, return (), i) | se], (r,se,c))) r sens col') render
@@ -236,7 +236,7 @@ tr sca w = do
                   (  te # clipped (rect x y) # value mempty
                   <> rect x y # (if i `elem` is then fc yellow else id)
                          # (if is' == i then lc yellow . lw focWidth else lc black . lw 0.02)
-                         # value_ fin (Just' (ff, fout)) i
+                         # value_ fin (Just' (ff, fout)) i i
                   ) # freeze # frame 0.1
                    where ((x :& y), te) = text__ 7 5 $ text' bv
             return $ CWidget (liftM ((,) [(fin, ff, fout, i)]) (readRef j)) render
@@ -251,7 +251,7 @@ tr sca w = do
                     (
                        (if bv then fromVertices [p2 (-0.3, 0), p2 (-0.1,-0.3), p2 (0.3,0.3)] 
                                 # lineCap LineCapRound else mempty) # value mempty # lw 0.15
-                    <> rect 1 1 # value_ (br (not bv)) (Just' (ff, return ())) i
+                    <> rect 1 1 # value_ (br (not bv)) (Just' (ff, return ())) i i
                                 # fc (if i `elem` is then yellow else sRGB 0.95 0.95 0.95)
                                 # (if is' == i then lc yellow . lw focWidth else lc black . lw 0.02)
                     ) # freeze # frame 0.1
@@ -287,8 +287,8 @@ tr sca w = do
 
             let ff x y z = r $ KeyPress x y z
 
-                gg (Just' ls) (Click (MousePos p _)) = (Just' $ r (Click $ MousePos p ls), Just' (ff, r LostFocus), Just' i)
-                gg (Just' ls) (MoveTo (MousePos p _)) = (Just' $ r (MoveTo $ MousePos p ls), Nothing', Just' i)
+                gg (Just' ls) (Click (MousePos p _)) = (Just' $ r (Click $ MousePos p ls), Just' (ff, r LostFocus), Just' (i,i))
+                gg (Just' ls) (MoveTo (MousePos p _)) = (Just' $ r (MoveTo $ MousePos p ls), Nothing', Just' (i,i))
                 gg _ _ = mempty
 
                 wi = fromIntegral w / sca
@@ -316,7 +316,7 @@ tr sca w = do
                       <> te # clipped (rect x y) # value mempty
                       <> rect x y # (if i `elem` is then fc yellow else id)
                              # (if is' == i then lc yellow . lw focWidth else lc black . lw 0.02)
-                             # value_ (br ind) (Just' (ff ind, return ())) i
+                             # value_ (br ind) (Just' (ff ind, return ())) i i
                             )  # frame 0.02
 
                      where ((x :& y), te) = text__ 15 3 txt
@@ -327,6 +327,7 @@ tr sca w = do
             let (names, wis) = unzip xs
                 n = length names
             iss <- replicateM n newId
+            ii <- newId
             ir <- lift $ newRef (0 :: Int)
             wisv <- mapM (tr sca) wis
 
@@ -339,14 +340,13 @@ tr sca w = do
             let br' :: Int -> Modifier m ()
                 br' ind = br ind' >> writeRef ir ind' where ind' = ind `mod` n
                 br'' f = readRef' ir >>= br' . f 
-                ff ind _ _ (Just ' ') = br' ind
+--                ff ind _ _ (Just ' ') = br' ind
                 ff _ _ "Left" _ = br'' (+(-1))
                 ff _ _ "Right" _ = br'' (+ 1)
                 ff _ _ _ _ = return ()
 
             do
                 let
-                    line dx = fromOffsets [r2 (dx,0)]  # strokeLine # lw 0.02 # translate (r2 (0,-0.5)) # value mempty
                     render (bv, UnsafeEqWrap _ d) is is' =
                         vcat
                             [ strutY 0.1
@@ -357,15 +357,18 @@ tr sca w = do
                             , alignL $ d is is'
                             ] # freeze
                       where
+                        line dx = fromOffsets [r2 (dx,0)] # strokeLine # translate (r2 (0,-0.5)) # value mempty # lcw
+
+                        lcw = if is' == ii then lc yellow . lw focWidth else lc black . lw 0.02
+
                         g ind i txt =
                              te # clipped (rect x y) # value mempty
                                  # fc black
-                          <> bez
-                                 # (if is' == i then lc yellow . lw focWidth else lc black . lw 0.02)
-                                 # value mempty
-                          <> (if bv == ind then mempty else line x # translate (r2 (-x/2, 0)))
+                          <> bez # value mempty
+                                 # lcw
+                          <> (if bv == ind then mempty else line x # translate (r2 (-x/2, 0))) # lcw
                           <> bez' # closeLine # strokeLoop  # translate (r2 (-x/2,-y/2)) # lw 0
-                                 # (if (bv == ind) then value mempty else value_ (br' ind) (Just' (ff ind, return ())) i)
+                                 # (if (bv == ind) then value mempty else value_ (br' ind) (Just' (ff ind, return ())) i ii)
                                  # (if bv /= ind then fc (if i `elem` is then yellow else defcolor) else id)
                          where ((x_ :& y), te) = text__ 10 3 txt
                                x = x_ + 2
@@ -379,7 +382,7 @@ tr sca w = do
                                           ]
 
                 return $ CWidget (liftM2 (\iv (ls,vv) ->
-                    ( [ (return (), ff ind, return (), i) | (ind,i) <- zip [0..] iss] ++ ls
+                    ( (return (), ff 0, return (), ii): ls
                     , (iv, vv)
                     )) (readRef ir) (join wr)) render
 
