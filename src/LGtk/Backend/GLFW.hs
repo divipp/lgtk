@@ -187,6 +187,7 @@ runWidget_  m = m >>= \i -> case i of
 
 
 copyToScreen win w h (Image width height dat) = do
+    makeContextCurrent (Just win)
     let iw = fromIntegral width
         ih = fromIntegral height
     fbo <- alloca $! \pbo -> glGenFramebuffers 1 pbo >> peek pbo
