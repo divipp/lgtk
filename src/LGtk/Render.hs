@@ -55,10 +55,6 @@ instance Functor Maybe' where
     fmap _ Nothing' = Nothing'
     fmap f (Just' x) = Just' $ f x
 
-whenMaybe :: Monad m => (a -> m ()) -> Maybe a -> m ()
-whenMaybe f (Just a) = f a
-whenMaybe _ Nothing = return ()
-
 -------------------------------------- better clipBy
 
 data X a = X a | Cancel | Z
@@ -144,15 +140,14 @@ inCanvas width height scale w = do
     case bhr of
        CWidget b render -> do
         let handle Nothing' = return ()
-            handle (Just' (a, bb, c)) = do
+            handle (Just' (a, bb, i)) = do
                 a
-                whenMaybe h2 bb
-                h3 c
+                maybe (return ()) h2 bb
+                writeRef hi [i]
 
             h2 m = do
                 adjustFoc foc
                 writeRef foc m
-            h3 i = writeRef hi [i]
 
             moveFoc f = do
                 (_, _, _, j) <- readRef' foc
