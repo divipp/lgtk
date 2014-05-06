@@ -121,9 +121,9 @@ data CWidget m
 
 ------------------
 
-value_ :: Monad m => m () -> Maybe' (KeyFocusHandler m) -> Id -> Dia Any -> Dia (EventHandler m)
+value_ :: Monad m => m () -> KeyFocusHandler m -> Id -> Dia Any -> Dia (EventHandler m)
 value_ a c i = value f where
-    f (Click _) = (Just' a, c, Just' i)
+    f (Click _) = (Just' a, Just' c, Just' i)
     f (MoveTo _) = (Nothing', Nothing', Just' i)
     f _ = mempty
 
@@ -172,7 +172,7 @@ inCanvas width height scale w = do
             \(is, is', x) -> 
               render x is is' # alignT # alignL # translate (r2 (-scale/2,scale/2* fromIntegral height / fromIntegral width))
               <> rect scale (scale / fromIntegral width * fromIntegral height)
-                    # value_ (return ()) (Just' df) i
+                    # value_ (return ()) df i
 
 focWidth = 0.1
 
@@ -208,7 +208,7 @@ tr sca w = do
                   <> roundedRect x y 0.3 # fc (if i `elem` is && se then yellow else defcolor)
                          # (if is' == i && se then lc yellow . lw focWidth else lc black . lw 0.02)
                      )
-                        # (if se then value_ (a ()) (Just' (return (), ff, return (), i)) i else value mempty)
+                        # (if se then value_ (a ()) (return (), ff, return (), i) i else value mempty)
                         # clipBy' (rect (x+0.1) (y+0.1)) # freeze # frame 0.1
                    where ((x :& y), te) = text__ 15 3 bv
             return $ CWidget (liftM3 (\r se c -> ([(return (), ff, return (), i) | se], (r,se,c))) r sens col') render
@@ -243,7 +243,7 @@ tr sca w = do
                   (  te # clipped (rect x y) # value mempty
                   <> rect x y # (if i `elem` is then fc yellow else id)
                          # (if is' == i then lc yellow . lw focWidth else lc black . lw 0.02)
-                         # value_ fin (Just' (fin, ff, fout, i)) i
+                         # value_ fin (fin, ff, fout, i) i
                   ) # freeze # frame 0.1
                    where ((x :& y), te) = text__ 7 5 $ text' bv
             return $ CWidget (liftM ((,) [(fin, ff, fout, i)]) (readRef j)) render
@@ -258,7 +258,7 @@ tr sca w = do
                     (
                        (if bv then fromVertices [p2 (-0.3, 0), p2 (-0.1,-0.3), p2 (0.3,0.3)] 
                                 # lineCap LineCapRound else mempty) # value mempty # lw 0.15
-                    <> rect 1 1 # value_ (br (not bv)) (Just' (return (), ff, return (), i)) i
+                    <> rect 1 1 # value_ (br (not bv)) (return (), ff, return (), i) i
                                 # fc (if i `elem` is then yellow else sRGB 0.95 0.95 0.95)
                                 # (if is' == i then lc yellow . lw focWidth else lc black . lw 0.02)
                     ) # freeze # frame 0.1
@@ -328,7 +328,7 @@ tr sca w = do
                       <> te # clipped (rect x y) # value mempty
                       <> rect x y # (if i `elem` is then fc yellow else id)
                              # (if is' == ii then lc yellow . lw focWidth else lc black . lw 0.02)
-                             # value_ (br ind) (Just' (return (), ff, return (), ii)) i
+                             # value_ (br ind) (return (), ff, return (), ii) i
                             )  # frame 0.02
 
                      where ((x :& y), te) = text__ 15 3 txt
@@ -384,7 +384,7 @@ tr sca w = do
                                  # lcw
                           <> (if bv == ind then mempty else line x # translate (r2 (-x/2, 0))) # lcw
                           <> bez' # closeLine # strokeLoop  # translate (r2 (-x/2,-y/2)) # lw 0
-                                 # (if (bv == ind) then value mempty else value_ (br' ind) (Just' (return (), ff, return (), ii)) i)
+                                 # (if (bv == ind) then value mempty else value_ (br' ind) (return (), ff, return (), ii) i)
                                  # (if bv /= ind then fc (if i `elem` is then yellow else defcolor) else id)
                          where ((x_ :& y), te) = text__ 10 3 txt
                                x = x_ + 2
