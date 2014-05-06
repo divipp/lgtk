@@ -109,8 +109,8 @@ type KeyHandler m = [KeyModifier] -> String -> Maybe Char -> m ()
 type KeyFocusHandler m = (m (), KeyHandler m, m (), Id)
 
 -- for each mouse event:
---  - what to do on mouse click
---  - the new keyboard focus handler in case of mouse click
+--  - what to do
+--  - the new keyboard focus handler
 --  - the id of the mouse-focused widget
 type EventHandler m = MouseEvent () -> (Maybe' (m ()), Maybe' (KeyFocusHandler m), Maybe' Id)
 
