@@ -193,6 +193,7 @@ tr sca w = do
             i <- newId
 
             let ff _ _ (Just ' ') = a ()
+                ff _ _ (Just '\n') = a ()
                 ff _ _ _ = return ()
 
                 col' = maybe (return black) id col
