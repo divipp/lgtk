@@ -23,6 +23,11 @@ import Data.LensRef
 import LGtk.Effects
 import LGtk.Widgets
 
+----------------------
+
+pairs xs = zip xs (tail xs)
+
+
 -------------------------------------- Maybe type with another semigroup structure
 
 data Maybe' a = Just' a | Nothing'
@@ -128,27 +133,31 @@ inCanvas width height scale w = do
     foc <- newRef df
     (i, bhr) <- newIds firstId $ liftM2 (,) newId $ tr (fromIntegral width / scale) w
     hi <- newRef ([i], i)
-    tab <- newRef (0 :: Int)
     case bhr of
        CWidget b render -> do
-        let handle (a, bb, c) = whenMaybe' id a >> whenMaybe' h2 bb >> whenMaybe' h3 c >> whenMaybe' h4 (liftM2 (,) bb c)
+        let handle (a, bb, c) = do
+                whenMaybe' id a
+                whenMaybe' h2 bb
+                whenMaybe' h3 c
+                whenMaybe' h4 (liftM2 (,) bb c)
 
-            h2 m = adjustFoc foc >> writeRef foc m
+            h2 m = do
+                adjustFoc foc
+                writeRef foc m
             h3 i = writeRef (_1 `lensMap` hi) [i]
-            h4 (_,i) = writeRef (_2 `lensMap` hi) i
+            h4 (_,i) = do
+                writeRef (_2 `lensMap` hi) i
 
             moveFoc f = do
-                j <- readRef' tab
+                (_, j) <- readRef' hi
                 (xs, _) <- liftReadRef b
-                let j' = f j `mod` length xs
-                writeRef tab j'
-                let (a,bb,c,d) = xs !! j'
+                let (Just (_,(a,bb,c,d))) = find (\((_,_,_,x),_) -> x == j) $ pairs $ (if f then id else reverse) (xs ++ xs)
                 a >> h2 (bb,c) >> h4 (undefined, d)
 
             handleEvent (Click (MousePos p f)) = handle $ f $ Click $ MousePos p ()  :: Modifier m ()
             handleEvent (MoveTo (MousePos p f)) = handle $ f $ MoveTo $ MousePos p ()
-            handleEvent (KeyPress [] "Tab" _) = moveFoc (+1)
-            handleEvent (KeyPress [c] "Tab" _) | c == ControlModifier = moveFoc (+(-1))
+            handleEvent (KeyPress [] "Tab" _) = moveFoc True
+            handleEvent (KeyPress [c] "Tab" _) | c == ControlModifier = moveFoc False
             handleEvent (KeyPress m n c) = do
                 (f,_) <- readRef' foc
                 f m n c
