@@ -194,11 +194,11 @@ tr sca w = do
             let ff _ _ (Just ' ') = a ()
                 ff _ _ _ = return ()
 
-                col' = maybe (return defcolor) id col
+                col' = maybe (return black) id col
 
                 render (bv, se, color) is is' =
-                     (te # fc (if se then black else gray)
-                  <> roundedRect x y 0.3 # fc (if i `elem` is && se then yellow else color)
+                     (te # fc (if se then color else gray)
+                  <> roundedRect x y 0.3 # fc (if i `elem` is && se then yellow else defcolor)
                          # (if is' == i && se then lc yellow . lw focWidth else lc black . lw 0.02)
                      )
                         # (if se then value_ (a ()) (Just' (ff, return ())) i i else value mempty)
