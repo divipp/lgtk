@@ -55,9 +55,9 @@ instance Functor Maybe' where
     fmap _ Nothing' = Nothing'
     fmap f (Just' x) = Just' $ f x
 
-whenMaybe' :: Monad m => (a -> m ()) -> Maybe' a -> m ()
-whenMaybe' f (Just' a) = f a
-whenMaybe' _ Nothing' = return ()
+whenMaybe :: Monad m => (a -> m ()) -> Maybe a -> m ()
+whenMaybe f (Just a) = f a
+whenMaybe _ Nothing = return ()
 
 -------------------------------------- better clipBy
 
@@ -112,7 +112,7 @@ type KeyFocusHandler m = (m (), KeyHandler m, m (), Id)
 --  - what to do
 --  - the new keyboard focus handler
 --  - the id of the mouse-focused widget
-type EventHandler m = MouseEvent () -> (Maybe' (m ()), Maybe' (KeyFocusHandler m), Maybe' Id)
+type EventHandler m = MouseEvent () -> Maybe' (m (), Maybe (KeyFocusHandler m), Id)
 
 -- compiled widget
 data CWidget m
@@ -123,8 +123,8 @@ data CWidget m
 
 value_ :: Monad m => m () -> KeyFocusHandler m -> Id -> Dia Any -> Dia (EventHandler m)
 value_ a c i = value f where
-    f (Click _) = (Just' a, Just' c, Just' i)
-    f (MoveTo _) = (Nothing', Nothing', Just' i)
+    f (Click _) = Just' (a, Just c, i)
+    f (MoveTo _) = Just' (return (), Nothing, i)
     f _ = mempty
 
 adjustFoc :: EffRef m => Ref m (KeyFocusHandler (Modifier m)) -> Modifier m ()
@@ -143,10 +143,11 @@ inCanvas width height scale w = do
     hi <- newRef [i]
     case bhr of
        CWidget b render -> do
-        let handle (a, bb, c) = do
-                whenMaybe' id a
-                whenMaybe' h2 bb
-                whenMaybe' h3 c
+        let handle Nothing' = return ()
+            handle (Just' (a, bb, c)) = do
+                a
+                whenMaybe h2 bb
+                h3 c
 
             h2 m = do
                 adjustFoc foc
@@ -297,8 +298,8 @@ tr sca w = do
 
             let ff x y z = r $ KeyPress x y z
 
-                gg (Just' ls) (Click (MousePos p _)) = (Just' $ r (Click $ MousePos p ls), Just' (return (), ff, r LostFocus, i), Just' i)
-                gg (Just' ls) (MoveTo (MousePos p _)) = (Just' $ r (MoveTo $ MousePos p ls), Nothing', Just' i)
+                gg (Just' ls) (Click (MousePos p _)) = Just' (r (Click $ MousePos p ls), Just (return (), ff, r LostFocus, i), i)
+                gg (Just' ls) (MoveTo (MousePos p _)) = Just' (r (MoveTo $ MousePos p ls), Nothing, i)
                 gg _ _ = mempty
 
                 wi = fromIntegral w / sca
