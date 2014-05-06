@@ -1,5 +1,6 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -345,10 +346,14 @@ tr sca w = do
             let br' :: Int -> Modifier m ()
                 br' ind = br ind' >> writeRef ir ind' where ind' = ind `mod` n
                 br'' f = readRef' ir >>= br' . f 
---                ff ind _ _ (Just ' ') = br' ind
-                ff _ _ "Left" _ = br'' (+(-1))
-                ff _ _ "Right" _ = br'' (+ 1)
-                ff _ _ _ _ = return ()
+                ff _ "Left" _ = br'' (+(-1))
+                ff _ "Right" _ = br'' (+ 1)
+                ff [AltModifier] _ (Just c) | Just i <- ind c = br'' (const i)
+                ff _ _ _ = return ()
+
+                ind c | 0 <= i && i < n = Just i
+                      | otherwise = Nothing
+                  where i = fromEnum c - fromEnum '1'
 
             do
                 let
@@ -373,7 +378,7 @@ tr sca w = do
                                  # lcw
                           <> (if bv == ind then mempty else line x # translate (r2 (-x/2, 0))) # lcw
                           <> bez' # closeLine # strokeLoop  # translate (r2 (-x/2,-y/2)) # lw 0
-                                 # (if (bv == ind) then value mempty else value_ (br' ind) (Just' (ff ind, return ())) i ii)
+                                 # (if (bv == ind) then value mempty else value_ (br' ind) (Just' (ff, return ())) i ii)
                                  # (if bv /= ind then fc (if i `elem` is then yellow else defcolor) else id)
                          where ((x_ :& y), te) = text__ 10 3 txt
                                x = x_ + 2
@@ -387,7 +392,7 @@ tr sca w = do
                                           ]
 
                 return $ CWidget (liftM2 (\iv (ls,vv) ->
-                    ( (return (), ff 0, return (), ii): ls
+                    ( (return (), ff, return (), ii): ls
                     , (iv, vv)
                     )) (readRef ir) (join wr)) render
 
