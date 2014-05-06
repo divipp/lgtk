@@ -102,12 +102,19 @@ newIds (Id i) = flip evalStateT $ Id (0:i)
 
 ---------------------------------------------------------
 
+-- how to handle keyboard events
 type FocFun m = [KeyModifier] -> String -> Maybe Char -> m ()
 
+-- keyboard event handle + what to do when the focus leaves the widget
 type Foc m = (FocFun m, m ())
 
+-- for each mouse event:
+--  - what to do
+--  - the new focus
+--  - the id of the mouse-focused widget and the keyboard-focused widget
 type EventHandle m = MouseEvent () -> (Maybe' (m ()), Maybe' (Foc m), Maybe' (Id, Id))
 
+-- focus enter action; keyboard event handler, focus leave action; id of the keyboard-focused widget
 type KeyHandle m = (m (), FocFun m, m (), Id)
 
 -- compiled widget
@@ -131,8 +138,11 @@ adjustFoc foc = join $ readRef' $ _2 `lensMap` foc
 inCanvas :: forall m . EffIORef m => Int -> Int -> Double -> Widget m -> Widget m
 inCanvas width height scale w = do
     let df = (\_ _ _ -> return (), return ())
-    foc <- newRef df
+    -- current keyboard focus :: Foc m
+    foc <- newRef df  
+    -- id of the root plane;  compiled widget
     (i, bhr) <- newIds firstId $ liftM2 (,) newId $ tr (fromIntegral width / scale) w
+    -- mouse-focused widget id; keyboard-focused widget id
     hi <- newRef ([i], i)
     case bhr of
        CWidget b render -> do
