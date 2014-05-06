@@ -15,7 +15,7 @@ import Control.Monad.State
 import Control.Lens hiding ((#), beside)
 import Data.List
 import Diagrams.Prelude
-import Diagrams.BoundingBox
+--import Diagrams.BoundingBox
 --import Graphics.SVGFonts
 import Data.Colour.SRGB
 import Unsafe.Coerce
@@ -130,9 +130,10 @@ adjustFoc foc = join $ readRef' $ _3 `lensMap` foc
 
 inCanvas :: forall m . EffIORef m => Int -> Int -> Double -> Widget m -> Widget m
 inCanvas width height scale w = do
+    let dkh _ _ _ = return ()
     -- id of the root plane;  compiled widget
-    (i, bhr) <- newIds firstId $ liftM2 (,) newId $ tr (fromIntegral width / scale) w
-    let df = (return (), \_ _ _ -> return (), return (), i)
+    (i, bhr) <- newIds firstId $ liftM2 (,) newId $ tr (fromIntegral width / scale) dkh w
+    let df = (return (), dkh, return (), i)
     -- current keyboard focus :: KeyFocusHandler m
     foc <- newRef df  
     -- mouse-focused widget id
@@ -181,8 +182,12 @@ text__ ma mi s = ((max mi (min ma $ fromIntegral (length s) * 2/3) :& 1), text s
 
 defcolor = sRGB 0.95 0.95 0.95
 
-tr :: forall m . EffIORef m => Double -> Widget m -> WithId m (CWidget (Modifier m))
-tr sca w = do
+tr  :: forall m . EffIORef m
+    => Double
+    -> KeyHandler (Modifier m)
+    -> Widget m
+    -> WithId m (CWidget (Modifier m))
+tr sca dkh w = do
     w' <- lift w
     case w' of
         Label r -> do
@@ -195,7 +200,7 @@ tr sca w = do
 
             let ff _ _ (Just ' ') = a ()
                 ff _ _ (Just '\n') = a ()
-                ff _ _ _ = return ()
+                ff a b c = dkh a b c
                 kh = (return (), ff, return (), i)
 
                 col' = maybe (return black) id col
@@ -250,7 +255,7 @@ tr sca w = do
             i <- newId
 
             let ff _ _ (Just ' ') = liftReadRef bs >>= br . not
-                ff _ _ _ = return ()
+                ff a b c = dkh a b c
                 kh = (return (), ff, return (), i)
 
                 render bv is is' = 
@@ -266,7 +271,7 @@ tr sca w = do
         Cell r f -> do
             i <- newId
             r' <- lift $ onChange r $ \x -> do   
-                     h <- f (newIds i . tr sca) x
+                     h <- f (newIds i . tr sca dkh) x
                      return $ do
                        hv <- h
                        return $ case hv of
@@ -275,7 +280,7 @@ tr sca w = do
                            return $ (es, UnsafeEqWrap (x, rrv) $ render rrv)
             return $ CWidget (join r') $ \(UnsafeEqWrap _ d) is is' -> d is is'
 
-        List layout ws -> liftM (foldr conc2 nil) $ mapM (tr sca) ws
+        List layout ws -> liftM (foldr conc2 nil) $ mapM (tr sca dkh) ws
           where
             nil :: ExtRef n => CWidget n
             nil = CWidget (return ([],())) mempty
@@ -317,7 +322,7 @@ tr sca w = do
                 br'' f = liftReadRef bs >>= br' . f 
                 ff _ "Down" _ = br'' (+1)
                 ff _ "Up" _ = br'' (+(-1))
-                ff _ _ _ = return ()
+                ff a b c = dkh a b c
                 kh = (return (), ff, return (), ii)
 
                 render bv is is' = vcat (zipWith3 g [0..] iss xs) # freeze # frame 0.1
@@ -341,13 +346,6 @@ tr sca w = do
             iss <- replicateM n newId
             ii <- newId
             ir <- lift $ newRef (0 :: Int)
-            wisv <- mapM (tr sca) wis
-
-            wr <- lift $ onChangeSimple (readRef ir) $ \x -> return $ case wisv !! x of
-                         CWidget rr render -> do
-                           (es, rrv) <- rr
-                           return $ (es, UnsafeEqWrap (x, rrv) $ render rrv)
-
 
             let br' :: Int -> Modifier m ()
                 br' ind = br ind' >> writeRef ir ind' where ind' = ind `mod` n
@@ -355,13 +353,20 @@ tr sca w = do
                 ff _ "Left" _ = br'' (+(-1))
                 ff _ "Right" _ = br'' (+ 1)
                 ff [AltModifier] _ (Just c) | Just i <- ind c = br'' (const i)
-                ff _ _ _ = return ()
+                ff a b c = dkh a b c
 
                 ind c | 0 <= i && i < n = Just i
                       | otherwise = Nothing
                   where i = fromEnum c - fromEnum '1'
 
-                kh = (return (), ff, return (), ii)
+            wisv <- mapM (tr sca ff) wis
+
+            wr <- lift $ onChangeSimple (readRef ir) $ \x -> return $ case wisv !! x of
+                         CWidget rr render -> do
+                           (es, rrv) <- rr
+                           return $ (es, UnsafeEqWrap (x, rrv) $ render rrv)
+
+            let kh = (return (), ff, return (), ii)
 
                 render (bv, UnsafeEqWrap _ d) is is' =
                     vcat
@@ -399,7 +404,7 @@ tr sca w = do
 
             return $ CWidget (liftM2 (\iv (ls,vv) -> (kh:ls, (iv, vv))) (readRef ir) (join wr)) render
 
-        Scale _ _ _ _ -> error "sc"
+        Scale _ _ _ _ -> error "scale is not implemented"
 
 
 --------------------
