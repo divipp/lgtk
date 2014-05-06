@@ -104,10 +104,12 @@ runWidget desc = do
                 post $ when (action `elem` [KeyState'Pressed, KeyState'Repeating]) $ do
                         let name = case key of
                                 Key'Backspace -> "BackSpace"
-                                Key'Delete -> "Delete"
-                                Key'Tab -> "Tab"
-                                Key'Left -> "Left"
-                                Key'Right -> "Right"
+                                Key'Delete  -> "Delete"
+                                Key'Tab     -> "Tab"
+                                Key'Left    -> "Left"
+                                Key'Right   -> "Right"
+                                Key'Up      -> "Up"
+                                Key'Down    -> "Down"
                                 _ -> ""
                         let char = case key of
                                 Key'Enter -> Just '\n'
@@ -115,7 +117,12 @@ runWidget desc = do
                                 _ -> case show key of
                                     ['K','e','y','\'',c] -> Just $ (if modifierKeysShift mods then id else toLower) c
                                     _ -> Nothing
-                        handle $ KeyPress [ControlModifier | modifierKeysControl mods] name char
+                        handle $ KeyPress
+                                    ( [ControlModifier | modifierKeysControl mods]
+                                   ++ [AltModifier     | modifierKeysAlt     mods]
+                                   ++ [ShiftModifier   | modifierKeysShift   mods]
+                                    )
+                                     name char
 
             logWinSize :: WindowSizeCallback
             logWinSize _win _w _h = do

@@ -40,6 +40,7 @@ data WidgetCore m
 data KeyModifier
     = ShiftModifier
     | ControlModifier
+    | AltModifier
         deriving (Eq, Ord)
 
 type Dia a = QDiagram Cairo R2 a

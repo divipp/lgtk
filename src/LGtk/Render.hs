@@ -304,9 +304,14 @@ tr sca w = do
         Combobox xs (bs, br) -> do
             let n = length xs
             iss <- replicateM n newId
+            ii <- newId
 
-            let ff ind _ _ (Just ' ') = br ind
-                ff _ _ _ _ = return ()
+            let -- ff ind _ _ (Just ' ') = br ind
+                br' ind = br (ind `mod` n)
+                br'' f = liftReadRef bs >>= br' . f 
+                ff _ "Down" _ = br'' (+1)
+                ff _ "Up" _ = br'' (+(-1))
+                ff _ _ _ = return ()
 
                 render bv is is' = vcat (zipWith3 g [0..] iss xs) # freeze # frame 0.1
                   where
@@ -315,13 +320,13 @@ tr sca w = do
                                 # lineCap LineCapRound else mempty) # value mempty # translate (r2 (x / 2,0)) # lw 0.15
                       <> te # clipped (rect x y) # value mempty
                       <> rect x y # (if i `elem` is then fc yellow else id)
-                             # (if is' == i then lc yellow . lw focWidth else lc black . lw 0.02)
-                             # value_ (br ind) (Just' (ff ind, return ())) i i
+                             # (if is' == ii then lc yellow . lw focWidth else lc black . lw 0.02)
+                             # value_ (br ind) (Just' (ff, return ())) i ii
                             )  # frame 0.02
 
                      where ((x :& y), te) = text__ 15 3 txt
 
-            return $ CWidget (liftM ((,) [(return (), ff ind, return (), i) | (ind,i) <- zip [0..] iss]) bs) render
+            return $ CWidget (liftM ((,) [(return (), ff, return (), ii)]) bs) render
 
         Notebook' br xs -> do
             let (names, wis) = unzip xs
