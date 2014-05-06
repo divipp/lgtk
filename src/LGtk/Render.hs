@@ -103,38 +103,35 @@ newIds (Id i) = flip evalStateT $ Id (0:i)
 ---------------------------------------------------------
 
 -- how to handle keyboard events
-type FocFun m = [KeyModifier] -> String -> Maybe Char -> m ()
+type KeyHandler m = [KeyModifier] -> String -> Maybe Char -> m ()
 
--- keyboard event handle; what to do when the focus leaves the widget; id of the keyboard-focused widget
-type Foc m = (FocFun m, m (), Id)
+-- focus enter action; keyboard event handler; focus leave action; id of the keyboard-focused widget
+type KeyFocusHandler m = (m (), KeyHandler m, m (), Id)
 
 -- for each mouse event:
---  - what to do
---  - the new keyboard focus
+--  - what to do on mouse click
+--  - the new keyboard focus handler in case of mouse click
 --  - the id of the mouse-focused widget
-type EventHandle m = MouseEvent () -> (Maybe' (m ()), Maybe' (Foc m), Maybe' Id)
-
--- focus enter action; keyboard event handler, focus leave action; id of the keyboard-focused widget
-type KeyHandle m = (m (), FocFun m, m (), Id)
+type EventHandler m = MouseEvent () -> (Maybe' (m ()), Maybe' (KeyFocusHandler m), Maybe' Id)
 
 -- compiled widget
 data CWidget m
     = forall x . Eq x
-    => CWidget (ReadRef m ([KeyHandle m], x)) (x -> [Id] -> Id -> Dia (EventHandle m))
+    => CWidget (ReadRef m ([KeyFocusHandler m], x)) (x -> [Id] -> Id -> Dia (EventHandler m))
 
 ------------------
 
---value_ :: Monad m => m () -> Maybe' (Foc m) -> Id -> Id -> Dia Any -> Dia (EventHandle m)
+--value_ :: Monad m => m () -> Maybe' (KeyFocusHandler m) -> Id -> Id -> Dia Any -> Dia (EventHandler m)
 value_ a c i i' = value f where
     f (Click _) = (Just' a, c', Just' i)
     f (MoveTo _) = (Nothing', Nothing', Just' i)
     f _ = mempty
     c' = case c of
-        Just' (x,y) -> Just' (x,y,i')
+        Just' (x,y) -> Just' (return (), x, y, i')
         Nothing' -> Nothing'
 
-adjustFoc :: EffRef m => Ref m (Foc (Modifier m)) -> Modifier m ()
-adjustFoc foc = join $ readRef' $ _2 `lensMap` foc
+adjustFoc :: EffRef m => Ref m (KeyFocusHandler (Modifier m)) -> Modifier m ()
+adjustFoc foc = join $ readRef' $ _3 `lensMap` foc
 
 -----------------
 
@@ -142,9 +139,9 @@ inCanvas :: forall m . EffIORef m => Int -> Int -> Double -> Widget m -> Widget 
 inCanvas width height scale w = do
     -- id of the root plane;  compiled widget
     (i, bhr) <- newIds firstId $ liftM2 (,) newId $ tr (fromIntegral width / scale) w
-    let df = (\_ _ _ -> return (), return (), i)
+    let df = (return (), \_ _ _ -> return (), return (), i)
     let df' = (\_ _ _ -> return (), return ())
-    -- current keyboard focus :: Foc m
+    -- current keyboard focus :: KeyFocusHandler m
     foc <- newRef df  
     -- mouse-focused widget id
     hi <- newRef [i]
@@ -155,27 +152,27 @@ inCanvas width height scale w = do
                 whenMaybe' h2 bb
                 whenMaybe' h3 c
 
-            h2 m@(_,_,i) = do
+            h2 m@(_,_,_,i) = do
                 adjustFoc foc
                 writeRef foc m
             h3 i = writeRef hi [i]
 
             moveFoc f = do
-                (_, _, j) <- readRef' foc
+                (_, _, _, j) <- readRef' foc
                 (xs, _) <- liftReadRef b
                 let (a,bb,c,d) = maybe (head xs) snd $ find (\((_,_,_,x),_) -> x == j) $ pairs $ (if f then id else reverse) (xs ++ xs)
-                a >> h2 (bb,c,d)
+                a >> h2 (a,bb,c,d)
 
             handleEvent (Click (MousePos p f)) = handle $ f $ Click $ MousePos p ()  :: Modifier m ()
             handleEvent (MoveTo (MousePos p f)) = handle $ f $ MoveTo $ MousePos p ()
             handleEvent (KeyPress [] "Tab" _) = moveFoc True
             handleEvent (KeyPress [c] "Tab" _) | c == ControlModifier = moveFoc False
             handleEvent (KeyPress m n c) = do
-                (f,_,_) <- readRef' foc
+                (_,f,_,_) <- readRef' foc
                 f m n c
             handleEvent LostFocus = adjustFoc foc
             handleEvent _ = return ()
-        return $ Canvas width height scale handleEvent (liftM3 (,,) (readRef hi) (readRef $ _3 `lensMap` foc) $ liftM snd b) $
+        return $ Canvas width height scale handleEvent (liftM3 (,,) (readRef hi) (readRef $ _4 `lensMap` foc) $ liftM snd b) $
             \(is, is', x) -> 
               render x is is' # alignT # alignL # translate (r2 (-scale/2,scale/2* fromIntegral height / fromIntegral width))
               <> rect scale (scale / fromIntegral width * fromIntegral height)
@@ -301,7 +298,7 @@ tr sca w = do
 
             let ff x y z = r $ KeyPress x y z
 
-                gg (Just' ls) (Click (MousePos p _)) = (Just' $ r (Click $ MousePos p ls), Just' (ff, r LostFocus, i), Just' i)
+                gg (Just' ls) (Click (MousePos p _)) = (Just' $ r (Click $ MousePos p ls), Just' (return (), ff, r LostFocus, i), Just' i)
                 gg (Just' ls) (MoveTo (MousePos p _)) = (Just' $ r (MoveTo $ MousePos p ls), Nothing', Just' i)
                 gg _ _ = mempty
 
