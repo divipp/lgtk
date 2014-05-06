@@ -110,6 +110,7 @@ runWidget desc = do
                                 Key'Right -> "Right"
                                 _ -> ""
                         let char = case key of
+                                Key'Enter -> Just '\n'
                                 Key'Space -> Just ' '
                                 _ -> case show key of
                                     ['K','e','y','\'',c] -> Just $ (if modifierKeysShift mods then id else toLower) c

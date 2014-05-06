@@ -19,8 +19,8 @@ import Graphics.SVGFonts
 import Data.Colour.SRGB
 import Unsafe.Coerce
 
---import LGtk
 import Data.LensRef
+import LGtk.Effects
 import LGtk.Widgets
 
 --------------------------------------
@@ -49,6 +49,9 @@ instance Functor Maybe' where
     fmap _ Nothing' = Nothing'
     fmap f (Just' x) = Just' $ f x
 
+mb f (Just' a) = f a
+mb _ Nothing' = return ()
+
 --------------------
 
 data X a = X a | Cancel | Z
@@ -73,47 +76,50 @@ clipBy' p d = fmap unX (fmap X d # clipBy p # withEnvelope p  <> fmap flipp (str
     unX (X a) = a
     unX Cancel = mempty
 
-------------------
+---------------------------------------------------------
 
-data WW m = forall x . Eq x => WW (ReadRef m ([(m (), FocFun m, m (), Pos)], x)) (x -> [Pos] -> Pos -> Dia (Mon m))
+newtype Id = Id [Int]
+    deriving Eq
 
-type WW' m = WW (Modifier m)
+type WithId = StateT Id
 
-type Pos = [Int]
+firstId :: Id
+firstId = Id []
 
-newId :: MonadState Pos m => m Pos
+newId :: Monad m => WithId m Id
 newId = do
-  (i:is) <- get
-  put $ i+1:is
-  return $ i:is
+  x@(Id (i:is)) <- get
+  put $ Id $ i+1:is
+  return x
 
-type Mon m = MouseEvent () -> (Maybe' (m ()), Maybe' (Foc m), Maybe' Pos)
+newIds :: Monad m => Id -> WithId m a -> m a
+newIds (Id i) = flip evalStateT $ Id (0:i)
+
+---------------------------------------------------------
+
+data WW m = forall x . Eq x => WW (ReadRef m ([(m (), FocFun m, m (), Id)], x)) (x -> [Id] -> Id -> Dia (Mon m))
+
+type Mon m = MouseEvent () -> (Maybe' (m ()), Maybe' (Foc m), Maybe' Id)
 
 type FocFun m = [KeyModifier] -> String -> Maybe Char -> m ()
+
+type Foc m = (FocFun m, m ())
 
 value_ a c b = value f where
     f (Click _) = (Just' a, c, Just' b)
     f (MoveTo _) = (Nothing', Nothing', Just' b)
     f _ = mempty
 
--------------------------
-
-type Foc m = (FocFun m, m ())
-type Foc' m = Foc (Modifier m)
-
-adjustFoc :: (EffRef m) => Ref m (Foc' m) -> Modifier m ()
+adjustFoc :: EffRef m => Ref m (Foc (Modifier m)) -> Modifier m ()
 adjustFoc foc = join $ readRef' $ _2 `lensMap` foc
 
 -----------------
 
-mb f (Just' a) = f a
-mb _ Nothing' = return ()
-
-inCanvas :: forall m . EffRef m => Int -> Int -> Double -> Widget m -> Widget m
+inCanvas :: forall m . EffIORef m => Int -> Int -> Double -> Widget m -> Widget m
 inCanvas width height scale w = do
     let df = (\_ _ _ -> return (), return ())
     foc <- newRef df
-    (i, bhr) <- flip evalStateT [0] $ liftM2 (,) newId $ tr (fromIntegral width / scale) w
+    (i, bhr) <- newIds firstId $ liftM2 (,) newId $ tr (fromIntegral width / scale) w
     hi <- newRef ([i], i)
     tab <- newRef (0 :: Int)
     case bhr of
@@ -155,7 +161,7 @@ text_ s = (coords $ boxExtents (boundingBox t) + r2 (0.2, 0.2) , t) where
 -}
 text__ ma mi s = ((max mi (min ma $ fromIntegral (length s) * 2/3) :& 1), text s)
 
-tr :: forall m . EffRef m => Double -> Widget m -> StateT Pos m (WW' m)
+tr :: forall m . EffIORef m => Double -> Widget m -> WithId m (WW (Modifier m))
 tr sca w = do
     w' <- lift w
     case w' of
@@ -186,7 +192,10 @@ tr sca w = do
 
         Entry (rs, rr) -> do
             i <- newId
-            j <- lift $ newRef (False, 0)
+--            s <- readRef rs
+            j <- lift $ newRef (False, ("", ""))
+            _ <- lift $ onChangeSimple rs $ \s -> asyncWrite 0 $ do
+                writeRef (_2 `lensMap` j) (reverse s, "")
 
             let f _ (Just c) (a,b) = (c:a,b)
                 f "BackSpace" _ (_:a,b) = (a,b)
@@ -195,16 +204,14 @@ tr sca w = do
                 f "Right" _ (a,c:b) = (c:a,b)
                 f _ _ x = x
 
+                ff _ _ (Just '\n') = do
+                    (_, (a, b)) <- readRef' j
+                    rr $ reverse a ++ b
                 ff _ e f' = do
-                    (_, x) <- readRef' j
-                    s <- liftReadRef rs
-                    let  (a,b) = splitAt x s
-                         (a', b') = f e f' (reverse a,b)
-                    rr $ reverse a' ++ b'
-                    writeRef (_2 `lensMap` j) $ length a'
+                    modRef (_2 `lensMap` j) $ f e f'
 
-                text' ((False,_),s) = s
-                text' ((True,i),s) = a ++ "|" ++ b where (a,b) = splitAt i s
+                text' (False,(a,b)) = reverse a ++ b
+                text' (True,(a,b)) = reverse a ++ "|" ++ b
 
                 fin = writeRef (_1 `lensMap` j) True
                 fout = writeRef (_1 `lensMap` j) False
@@ -216,7 +223,7 @@ tr sca w = do
                          # value_ fin (Just' (ff, fout)) i
                   ) # freeze # frame 0.1
                    where ((x :& y), te) = text__ 7 5 $ text' bv
-            return $ WW (liftM ((,) [(fin, ff, fout, i)]) (liftM2 (,) (readRef j) rs)) render
+            return $ WW (liftM ((,) [(fin, ff, fout, i)]) (readRef j)) render
 
         Checkbox (bs, br) -> do
             i <- newId
@@ -237,7 +244,7 @@ tr sca w = do
         Cell r f -> do
             i <- newId
             r' <- lift $ onChange r $ \x -> do   
-                     h <- f (flip evalStateT (0:i) . tr sca) x
+                     h <- f (newIds i . tr sca) x
                      return $ do
                        hv <- h
                        return $ case hv of
