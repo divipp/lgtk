@@ -146,8 +146,8 @@ inCanvas width height scale w = do
     let df' = (\_ _ _ -> return (), return ())
     -- current keyboard focus :: Foc m
     foc <- newRef df  
-    -- mouse-focused widget id; keyboard-focused widget id
-    hi <- newRef ([i], i)
+    -- mouse-focused widget id
+    hi <- newRef [i]
     case bhr of
        CWidget b render -> do
         let handle (a, bb, c) = do
@@ -158,11 +158,10 @@ inCanvas width height scale w = do
             h2 m@(_,_,i) = do
                 adjustFoc foc
                 writeRef foc m
-                writeRef (_2 `lensMap` hi) i
-            h3 (i,_) = writeRef (_1 `lensMap` hi) [i]
+            h3 (i,_) = writeRef hi [i]
 
             moveFoc f = do
-                (_, j) <- readRef' hi
+                (_, _, j) <- readRef' foc
                 (xs, _) <- liftReadRef b
                 let (a,bb,c,d) = maybe (head xs) snd $ find (\((_,_,_,x),_) -> x == j) $ pairs $ (if f then id else reverse) (xs ++ xs)
                 a >> h2 (bb,c,d)
@@ -176,7 +175,8 @@ inCanvas width height scale w = do
                 f m n c
             handleEvent LostFocus = adjustFoc foc
             handleEvent _ = return ()
-        return $ Canvas width height scale handleEvent (liftM2 (,) (readRef hi) $ liftM snd b) $ \((is,is'), x) -> 
+        return $ Canvas width height scale handleEvent (liftM3 (,,) (readRef hi) (readRef $ _3 `lensMap` foc) $ liftM snd b) $
+            \(is, is', x) -> 
               render x is is' # alignT # alignL # translate (r2 (-scale/2,scale/2* fromIntegral height / fromIntegral width))
               <> rect scale (scale / fromIntegral width * fromIntegral height)
                     # value_ (return ()) (Just' df') i i
