@@ -10,7 +10,7 @@ import Data.Semigroup
 import Data.Colour
 import Data.Colour.SRGB
 import Diagrams.Prelude (QDiagram, R2)
-import Diagrams.Backend.Cairo (Cairo)
+import Diagrams.Backend.Cairo (B)
 
 import Data.LensRef
 
@@ -43,7 +43,7 @@ data KeyModifier
     | AltModifier
         deriving (Eq, Ord)
 
-type Dia a = QDiagram Cairo R2 a
+type Dia a = QDiagram B R2 a
 
 data ListLayout
     = Horizontal
