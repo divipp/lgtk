@@ -111,6 +111,7 @@ data CWidget m
 
 ------------------
 
+value_ :: Monad m => m () -> Maybe' (Foc m) -> Id -> Dia Any -> Dia (EventHandle m)
 value_ a c b = value f where
     f (Click _) = (Just' a, c, Just' b)
     f (MoveTo _) = (Nothing', Nothing', Just' b)
