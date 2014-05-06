@@ -53,8 +53,8 @@ runWidget desc = do
       SWidget width height sc_ handle current iodia -> do
 
         _ <- GLFW.init
-        print =<< getVersion
-        Just win <- createWindow width height "Diagrams + Rasterific + GLFW" Nothing Nothing
+--        print =<< getVersion
+        Just win <- createWindow width height "Diagrams + GLFW" Nothing Nothing
         makeContextCurrent (Just win) -- for OpenGL
 
         exit <- newMVar False
@@ -127,6 +127,7 @@ runWidget desc = do
         setMouseButtonCallback win (Just logMouseButton)
         setCursorPosCallback win (Just logMousePos)
         setWindowSizeCallback win (Just logWinSize)
+        setWindowCloseCallback win $ Just $ \_ -> swapMVar exit True >> return ()
 
         let redraw = do
             dia_ <- tryTakeMVar iodia
