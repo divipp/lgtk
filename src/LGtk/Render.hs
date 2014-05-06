@@ -198,8 +198,8 @@ tr sca dkh w = do
         Button r sens col a -> do
             i <- newId
 
-            let ff _ _ (Just ' ') = a ()
-                ff _ _ (Just '\n') = a ()
+            let ff [] _ (Just ' ') = a ()
+                ff [] _ (Just '\n') = a ()
                 ff a b c = dkh a b c
                 kh = (return (), ff, return (), i)
 
@@ -257,7 +257,7 @@ tr sca dkh w = do
         Checkbox (bs, br) -> do
             i <- newId
 
-            let ff _ _ (Just ' ') = liftReadRef bs >>= br . not
+            let ff [] _ (Just ' ') = liftReadRef bs >>= br . not
                 ff a b c = dkh a b c
                 kh = (return (), ff, return (), i)
 
@@ -323,8 +323,8 @@ tr sca dkh w = do
             let -- ff ind _ _ (Just ' ') = br ind
                 br' ind = br (ind `mod` n)
                 br'' f = liftReadRef bs >>= br' . f 
-                ff _ "Down" _ = br'' (+1)
-                ff _ "Up" _ = br'' (+(-1))
+                ff [] "Down" _ = br'' (+1)
+                ff [] "Up" _ = br'' (+(-1))
                 ff a b c = dkh a b c
                 kh = (return (), ff, return (), ii)
 
@@ -353,8 +353,8 @@ tr sca dkh w = do
             let br' :: Int -> Modifier m ()
                 br' ind = br ind' >> writeRef ir ind' where ind' = ind `mod` n
                 br'' f = readRef' ir >>= br' . f 
-                ff _ "Left" _ = br'' (+(-1))
-                ff _ "Right" _ = br'' (+ 1)
+                ff [] "Left" _ = br'' (+(-1))
+                ff [] "Right" _ = br'' (+ 1)
                 ff [AltModifier] _ (Just c) | Just i <- ind c = br'' (const i)
                 ff a b c = dkh a b c
 
