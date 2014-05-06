@@ -23,7 +23,7 @@ import Data.LensRef
 import LGtk.Effects
 import LGtk.Widgets
 
---------------------------------------
+-------------------------------------- Maybe type with another semigroup structure
 
 data Maybe' a = Just' a | Nothing'
 
@@ -49,10 +49,11 @@ instance Functor Maybe' where
     fmap _ Nothing' = Nothing'
     fmap f (Just' x) = Just' $ f x
 
-mb f (Just' a) = f a
-mb _ Nothing' = return ()
+whenMaybe' :: Monad m => (a -> m ()) -> Maybe' a -> m ()
+whenMaybe' f (Just' a) = f a
+whenMaybe' _ Nothing' = return ()
 
---------------------
+-------------------------------------- better clipBy
 
 data X a = X a | Cancel | Z
 
@@ -66,8 +67,6 @@ instance Semigroup (X a) where
     _ <> Cancel = Cancel
     Cancel <> _ = Cancel
 
----------
-
 clipBy' p d = fmap unX (fmap X d # clipBy p # withEnvelope p  <> fmap flipp (stroke p # lw 0 # value Cancel))
   where
     flipp Cancel = Z
@@ -76,7 +75,7 @@ clipBy' p d = fmap unX (fmap X d # clipBy p # withEnvelope p  <> fmap flipp (str
     unX (X a) = a
     unX Cancel = mempty
 
----------------------------------------------------------
+--------------------------------------------------------- Identifiers
 
 newtype Id = Id [Int]
     deriving Eq
@@ -97,13 +96,20 @@ newIds (Id i) = flip evalStateT $ Id (0:i)
 
 ---------------------------------------------------------
 
-data WW m = forall x . Eq x => WW (ReadRef m ([(m (), FocFun m, m (), Id)], x)) (x -> [Id] -> Id -> Dia (Mon m))
-
-type Mon m = MouseEvent () -> (Maybe' (m ()), Maybe' (Foc m), Maybe' Id)
-
 type FocFun m = [KeyModifier] -> String -> Maybe Char -> m ()
 
 type Foc m = (FocFun m, m ())
+
+type EventHandle m = MouseEvent () -> (Maybe' (m ()), Maybe' (Foc m), Maybe' Id)
+
+type KeyHandle m = (m (), FocFun m, m (), Id)
+
+-- compiled widget
+data CWidget m
+    = forall x . Eq x
+    => CWidget (ReadRef m ([KeyHandle m], x)) (x -> [Id] -> Id -> Dia (EventHandle m))
+
+------------------
 
 value_ a c b = value f where
     f (Click _) = (Just' a, c, Just' b)
@@ -123,8 +129,8 @@ inCanvas width height scale w = do
     hi <- newRef ([i], i)
     tab <- newRef (0 :: Int)
     case bhr of
-       WW b render -> do
-        let handle (a, bb, c) = mb id a >> mb h2 bb >> mb h3 c >> mb h4 (liftM2 (,) bb c)
+       CWidget b render -> do
+        let handle (a, bb, c) = whenMaybe' id a >> whenMaybe' h2 bb >> whenMaybe' h3 c >> whenMaybe' h4 (liftM2 (,) bb c)
 
             h2 m = adjustFoc foc >> writeRef foc m
             h3 i = writeRef (_1 `lensMap` hi) [i]
@@ -161,14 +167,14 @@ text_ s = (coords $ boxExtents (boundingBox t) + r2 (0.2, 0.2) , t) where
 -}
 text__ ma mi s = ((max mi (min ma $ fromIntegral (length s) * 2/3) :& 1), text s)
 
-tr :: forall m . EffIORef m => Double -> Widget m -> WithId m (WW (Modifier m))
+tr :: forall m . EffIORef m => Double -> Widget m -> WithId m (CWidget (Modifier m))
 tr sca w = do
     w' <- lift w
     case w' of
         Label r -> do
             let render bv _ _ = ((rect x y # lw 0 <> te) # clipped (rect x y)) # value mempty
                      where ((x :& y), te) = text__ 15 5 bv
-            return $ WW (liftM ((,) []) r) render
+            return $ CWidget (liftM ((,) []) r) render
 
         Button r sens col a -> do
             i <- newId
@@ -188,7 +194,7 @@ tr sca w = do
                         # (if se then value_ (a ()) (Just' (ff, return ())) i else value mempty)
                         # clipBy' (rect (x+0.1) (y+0.1)) # freeze # frame 0.1
                    where ((x :& y), te) = text__ 15 3 bv
-            return $ WW (liftM3 (\r se c -> ([(return (), ff, return (), i) | se], (r,se,c))) r sens col') render
+            return $ CWidget (liftM3 (\r se c -> ([(return (), ff, return (), i) | se], (r,se,c))) r sens col') render
 
         Entry (rs, rr) -> do
             i <- newId
@@ -223,7 +229,7 @@ tr sca w = do
                          # value_ fin (Just' (ff, fout)) i
                   ) # freeze # frame 0.1
                    where ((x :& y), te) = text__ 7 5 $ text' bv
-            return $ WW (liftM ((,) [(fin, ff, fout, i)]) (readRef j)) render
+            return $ CWidget (liftM ((,) [(fin, ff, fout, i)]) (readRef j)) render
 
         Checkbox (bs, br) -> do
             i <- newId
@@ -239,7 +245,7 @@ tr sca w = do
                                 # fc (if i `elem` is then yellow else sRGB 0.95 0.95 0.95)
                                 # (if is' == i then lc yellow . lw focWidth else lc black . lw 0.02)
                     ) # freeze # frame 0.1
-            return $ WW (liftM ((,) [(return (), ff, return (), i)]) bs) render
+            return $ CWidget (liftM ((,) [(return (), ff, return (), i)]) bs) render
 
         Cell r f -> do
             i <- newId
@@ -248,18 +254,18 @@ tr sca w = do
                      return $ do
                        hv <- h
                        return $ case hv of
-                         WW rr render -> do
+                         CWidget rr render -> do
                            (es, rrv) <- rr
                            return $ (es, UnsafeEqWrap (x, rrv) $ render rrv)
-            return $ WW (join r') $ \(UnsafeEqWrap _ d) is is' -> d is is'
+            return $ CWidget (join r') $ \(UnsafeEqWrap _ d) is is' -> d is is'
 
         List layout ws -> liftM (foldr conc2 nil) $ mapM (tr sca) ws
           where
-            nil :: ExtRef n => WW n
-            nil = WW (return ([],())) mempty
+            nil :: ExtRef n => CWidget n
+            nil = CWidget (return ([],())) mempty
 
-            conc2 (WW b r) (WW b' r')
-              = WW (liftM2 (\(a,b)(c,d)->(a++c,(b,d))) b b') (\(x,y) -> liftM2 (liftM2 ff) (r x) (r' y))
+            conc2 (CWidget b r) (CWidget b' r')
+              = CWidget (liftM2 (\(a,b)(c,d)->(a++c,(b,d))) b b') (\(x,y) -> liftM2 (liftM2 ff) (r x) (r' y))
 
             ff = case layout of
                 Horizontal -> \a b -> a # alignT ||| b # alignT
@@ -283,7 +289,7 @@ tr sca w = do
                    <> rect wi hi # value mempty # lw 0.02
                          )  # freeze  # frame 0.1
 
-            return $ WW (liftM ((,) []) s) render
+            return $ CWidget (liftM ((,) []) s) render
 
         Combobox xs (bs, br) -> do
             let n = length xs
@@ -305,7 +311,7 @@ tr sca w = do
 
                      where ((x :& y), te) = text__ 15 3 txt
 
-            return $ WW (liftM ((,) [(return (), ff ind, return (), i) | (ind,i) <- zip [0..] iss]) bs) render
+            return $ CWidget (liftM ((,) [(return (), ff ind, return (), i) | (ind,i) <- zip [0..] iss]) bs) render
 
         Notebook' br xs -> do
             let (names, wis) = unzip xs
@@ -315,7 +321,7 @@ tr sca w = do
             wisv <- mapM (tr sca) wis
 
             wr <- lift $ onChangeSimple (readRef ir) $ \x -> return $ case wisv !! x of
-                         WW rr render -> do
+                         CWidget rr render -> do
                            (es, rrv) <- rr
                            return $ (es, UnsafeEqWrap (x, rrv) $ render rrv)
 
@@ -362,7 +368,7 @@ tr sca w = do
                                           , bezier3 (r2 (0.7,0)) (r2 (0.3,-1)) (r2 (1,-1))
                                           ]
 
-                return $ WW (liftM2 (\iv (ls,vv) ->
+                return $ CWidget (liftM2 (\iv (ls,vv) ->
                     ( [ (return (), ff ind, return (), i) | (ind,i) <- zip [0..] iss] ++ ls
                     , (iv, vv)
                     )) (readRef ir) (join wr)) render
