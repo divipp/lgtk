@@ -110,9 +110,9 @@ type Foc m = (FocFun m, m (), Id)
 
 -- for each mouse event:
 --  - what to do
---  - the new focus
---  - the id of the mouse-focused widget and the keyboard-focused widget
-type EventHandle m = MouseEvent () -> (Maybe' (m ()), Maybe' (Foc m), Maybe' (Id, Id))
+--  - the new keyboard focus
+--  - the id of the mouse-focused widget
+type EventHandle m = MouseEvent () -> (Maybe' (m ()), Maybe' (Foc m), Maybe' Id)
 
 -- focus enter action; keyboard event handler, focus leave action; id of the keyboard-focused widget
 type KeyHandle m = (m (), FocFun m, m (), Id)
@@ -126,8 +126,8 @@ data CWidget m
 
 --value_ :: Monad m => m () -> Maybe' (Foc m) -> Id -> Id -> Dia Any -> Dia (EventHandle m)
 value_ a c i i' = value f where
-    f (Click _) = (Just' a, c', Just' (i, i'))
-    f (MoveTo _) = (Nothing', Nothing', Just' (i, i'))
+    f (Click _) = (Just' a, c', Just' i)
+    f (MoveTo _) = (Nothing', Nothing', Just' i)
     f _ = mempty
     c' = case c of
         Just' (x,y) -> Just' (x,y,i')
@@ -158,7 +158,7 @@ inCanvas width height scale w = do
             h2 m@(_,_,i) = do
                 adjustFoc foc
                 writeRef foc m
-            h3 (i,_) = writeRef hi [i]
+            h3 i = writeRef hi [i]
 
             moveFoc f = do
                 (_, _, j) <- readRef' foc
@@ -301,8 +301,8 @@ tr sca w = do
 
             let ff x y z = r $ KeyPress x y z
 
-                gg (Just' ls) (Click (MousePos p _)) = (Just' $ r (Click $ MousePos p ls), Just' (ff, r LostFocus, i), Just' (i,i))
-                gg (Just' ls) (MoveTo (MousePos p _)) = (Just' $ r (MoveTo $ MousePos p ls), Nothing', Just' (i,i))
+                gg (Just' ls) (Click (MousePos p _)) = (Just' $ r (Click $ MousePos p ls), Just' (ff, r LostFocus, i), Just' i)
+                gg (Just' ls) (MoveTo (MousePos p _)) = (Just' $ r (MoveTo $ MousePos p ls), Nothing', Just' i)
                 gg _ _ = mempty
 
                 wi = fromIntegral w / sca
