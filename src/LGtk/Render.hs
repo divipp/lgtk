@@ -222,18 +222,21 @@ tr sca dkh w = do
             _ <- lift $ onChangeSimple rs $ \s -> asyncWrite 0 $ do
                 writeRef (_2 `lensMap` j) (reverse s, "")
 
-            let f _ (Just c) (a,b) = (c:a,b)
-                f "BackSpace" _ (_:a,b) = (a,b)
-                f "Delete" _ (a,_:b) = (a,b)
-                f "Left" _ (c:a,b) = (a,c:b)
-                f "Right" _ (a,c:b) = (c:a,b)
-                f _ _ x = x
+            let f [] _ (Just c) (a,b) = Just (c:a,b)
+                f [] "BackSpace" _ (_:a,b) = Just (a,b)
+                f [] "Delete" _ (a,_:b) = Just (a,b)
+                f [] "Left" _ (c:a,b) = Just (a,c:b)
+                f [] "Right" _ (a,c:b) = Just (c:a,b)
+                f _ _ _ _ = Nothing
 
                 ff _ _ (Just '\n') = do
                     (_, (a, b)) <- readRef' j
                     rr $ reverse a ++ b
-                ff _ e f' = do
-                    modRef (_2 `lensMap` j) $ f e f'
+                ff m e f' = do
+                    x <- readRef' (_2 `lensMap` j)
+                    case f m e f' x of
+                        Just x -> writeRef (_2 `lensMap` j) x
+                        _ -> dkh m e f'
 
                 text' (False,(a,b)) = reverse a ++ b
                 text' (True,(a,b)) = reverse a ++ "|" ++ b
