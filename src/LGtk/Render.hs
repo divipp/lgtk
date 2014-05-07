@@ -5,6 +5,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE RecursiveDo #-}
 module LGtk.Render
     ( inCanvas
     ) where
@@ -14,6 +15,7 @@ import Control.Monad
 import Control.Monad.State
 import Control.Lens hiding ((#), beside)
 import Data.List
+import Data.Maybe
 import Diagrams.Prelude
 --import Diagrams.BoundingBox
 --import Graphics.SVGFonts
@@ -80,7 +82,7 @@ clipBy' p d = fmap unX (fmap X d # clipBy p # withEnvelope p  <> fmap flipp (str
 --------------------------------------------------------- Identifiers
 
 newtype Id = Id [Int]
-    deriving Eq
+    deriving (Eq, Show)
 
 type WithId = StateT Id
 
@@ -113,7 +115,7 @@ type EventHandler m = MouseEvent () -> Maybe' (m (), Maybe (KeyFocusHandler m), 
 -- compiled widget
 data CWidget m
     = forall x . Eq x
-    => CWidget (ReadRef m ([KeyFocusHandler m], x)) (x -> [Id] -> Id -> Dia (EventHandler m))
+    => CWidget (ReadRef m (([KeyFocusHandler m], [[KeyFocusHandler m]]), x)) (x -> [Id] -> Id -> Dia (EventHandler m))
 
 ------------------
 
@@ -128,31 +130,70 @@ adjustFoc foc = join $ readRef' $ _3 `lensMap` foc
 
 -----------------
 
-inCanvas :: forall m . EffIORef m => Int -> Int -> Double -> Widget m -> Widget m
-inCanvas width height scale w = do
-    let dkh _ _ _ = return ()
-    -- id of the root plane;  compiled widget
-    (i, bhr) <- newIds firstId $ liftM2 (,) newId $ tr (fromIntegral width / scale) dkh w
-    let df = (return (), dkh, return (), i)
-    -- current keyboard focus :: KeyFocusHandler m
-    foc <- newRef df  
+[] !!! _ = Nothing
+_ !!! n | n < 0 = Nothing
+(x:_) !!! 0 = Just x
+(_:xs) !!! n = xs !!! (n-1 :: Int)
+
+[] !!!! _ = Nothing
+[x] !!!! _ = Just x
+(x:_) !!!! n | n <= 0 = Just x
+(_:xs) !!!! n = xs !!!! (n-1 :: Int)
+
+inCanvas :: forall m . (EffIORef m, MonadFix m) => Int -> Int -> Double -> Widget m -> Widget m
+inCanvas width height scale w = mdo
+
+    let i = firstId
+
+    foc <- newRef df
+
     -- mouse-focused widget id
     hi <- newRef [i]
+
+    let df = (return (), dkh, return (), i)
+
+        calcPos i jss = listToMaybe [(a,b) | (a,js) <- zip [0..] jss, (b, j) <- zip [0..] js, i == j]
+
+        changeFoc f = do
+            (_, _, _, j) <- readRef' foc
+            (_, xss) <- liftReadRef bb
+            let mp = calcPos j $ map (map (\(_,_,_,i)->i)) xss
+                handle (a,bb,c,d) = do
+                    a >> h2 (a,bb,c,d)
+            case mp of
+                Nothing -> return ()
+                Just (a,b) | a == a' -> maybe (return ()) handle $ (xss !! a') !!! b'
+                           | otherwise -> maybe (return ()) handle $ join $ fmap (!!!! b') (xss !!! a')
+                    where (a',b') = f (a,b)
+
+        dkh [] "Up"     _ = changeFoc $ \(a,b) -> (a-1,b)
+        dkh [] "Down"   _ = changeFoc $ \(a,b) -> (a+1,b)
+        dkh [] "Left"   _ = changeFoc $ \(a,b) -> (a,b-1)
+        dkh [] "Right"  _ = changeFoc $ \(a,b) -> (a,b+1)
+        dkh _ _ _ = return ()
+
+        h2 m = do
+            adjustFoc foc
+            writeRef foc m
+
+    -- compiled widget
+    bhr <- newIds firstId $ tr (fromIntegral width / scale) dkh w
+
+    let bb = case bhr of
+           CWidget b _ -> liftM fst b
+
     case bhr of
        CWidget b render -> do
+        
         let handle Nothing' = return ()
             handle (Just' (a, bb, i)) = do
                 a
                 maybe (return ()) h2 bb
                 writeRef hi [i]
 
-            h2 m = do
-                adjustFoc foc
-                writeRef foc m
-
             moveFoc f = do
                 (_, _, _, j) <- readRef' foc
-                (xs, _) <- liftReadRef b
+                ((xs, _), _) <- liftReadRef b
                 let (a,bb,c,d) = maybe (head xs) snd $ find (\((_,_,_,x),_) -> x == j) $ pairs $ (if f then id else reverse) (xs ++ xs)
                 a >> h2 (a,bb,c,d)
 
@@ -193,7 +234,7 @@ tr sca dkh w = do
         Label r -> do
             let render bv _ _ = ((rect x y # lw 0 <> te) # clipped (rect x y)) # value mempty
                      where ((x :& y), te) = text__ 15 5 bv
-            return $ CWidget (liftM ((,) []) r) render
+            return $ CWidget (liftM ((,) ([], [])) r) render
 
         Button r sens col a -> do
             i <- newId
@@ -213,7 +254,7 @@ tr sca dkh w = do
                         # (if se then value_ (a ()) kh i else value mempty)
                         # clipBy' (rect (x+0.1) (y+0.1)) # freeze # frame 0.1
                    where ((x :& y), te) = text__ 15 3 bv
-            return $ CWidget (liftM3 (\r se c -> ([kh | se], (r,se,c))) r sens col') render
+            return $ CWidget (liftM3 (\r se c -> (([kh | se], [[kh] | se]), (r,se,c))) r sens col') render
 
         Entry (rs, rr) -> do
             i <- newId
@@ -252,7 +293,7 @@ tr sca dkh w = do
                          # value_ fin kh i
                   ) # freeze # frame 0.1
                    where ((x :& y), te) = text__ 7 5 $ text' bv
-            return $ CWidget (liftM ((,) [kh]) (readRef j)) render
+            return $ CWidget (liftM ((,) ([kh],[[kh]])) (readRef j)) render
 
         Checkbox (bs, br) -> do
             i <- newId
@@ -269,7 +310,7 @@ tr sca dkh w = do
                                 # fc (if i `elem` is then yellow else sRGB 0.95 0.95 0.95)
                                 # (if is' == i then lc yellow . lw focWidth else lc black . lw 0.02)
                     ) # freeze # frame 0.1
-            return $ CWidget (liftM ((,) [kh]) bs) render
+            return $ CWidget (liftM ((,) ([kh],[[kh]])) bs) render
 
         Cell r f -> do
             i <- newId
@@ -286,10 +327,16 @@ tr sca dkh w = do
         List layout ws -> liftM (foldr conc2 nil) $ mapM (tr sca dkh) ws
           where
             nil :: ExtRef n => CWidget n
-            nil = CWidget (return ([],())) mempty
+            nil = CWidget (return (([],[]),())) mempty
 
             conc2 (CWidget b r) (CWidget b' r')
-              = CWidget (liftM2 (\(a,b)(c,d)->(a++c,(b,d))) b b') (\(x,y) -> liftM2 (liftM2 ff) (r x) (r' y))
+              = CWidget (liftM2 (\((a,a'),b)((c,c'),d)->((a++c,comb layout a' c'),(b,d))) b b') (\(x,y) -> liftM2 (liftM2 ff) (r x) (r' y))
+
+            comb Vertical = (++)
+            comb Horizontal = fx
+
+            fx (a:as) (b:bs) = (a++b): fx as bs
+            fx as bs = as ++ bs
 
             ff = case layout of
                 Horizontal -> \a b -> a # alignT ||| b # alignT
@@ -313,7 +360,7 @@ tr sca dkh w = do
                    <> rect wi hi # value mempty # lw 0.02
                          )  # freeze  # frame 0.1
 
-            return $ CWidget (liftM ((,) []) s) render
+            return $ CWidget (liftM ((,) ([],[])) s) render
 
         Combobox xs (bs, br) -> do
             let n = length xs
@@ -341,7 +388,7 @@ tr sca dkh w = do
 
                      where ((x :& y), te) = text__ 15 3 txt
 
-            return $ CWidget (liftM ((,) [kh]) bs) render
+            return $ CWidget (liftM ((,) ([kh],[[kh]])) bs) render
 
         Notebook' br xs -> do
             let (names, wis) = unzip xs
@@ -358,11 +405,14 @@ tr sca dkh w = do
                 ff [AltModifier] _ (Just c) | Just i <- ind c = br'' (const i)
                 ff a b c = dkh a b c
 
+                fff [AltModifier] _ (Just c) | Just i <- ind c = br'' (const i)
+                fff a b c = dkh a b c
+
                 ind c | 0 <= i && i < n = Just i
                       | otherwise = Nothing
                   where i = fromEnum c - fromEnum '1'
 
-            wisv <- mapM (tr sca ff) wis
+            wisv <- mapM (tr sca fff) wis
 
             wr <- lift $ onChangeSimple (readRef ir) $ \x -> return $ case wisv !! x of
                          CWidget rr render -> do
@@ -405,7 +455,7 @@ tr sca dkh w = do
                                       , bezier3 (r2 (0.7,0)) (r2 (0.3,-1)) (r2 (1,-1))
                                       ]
 
-            return $ CWidget (liftM2 (\iv (ls,vv) -> (kh:ls, (iv, vv))) (readRef ir) (join wr)) render
+            return $ CWidget (liftM2 (\iv ((ls,ls'),vv) -> ((kh:ls,[kh]:ls'), (iv, vv))) (readRef ir) (join wr)) render
 
         Scale _ _ _ _ -> error "scale is not implemented"
 
