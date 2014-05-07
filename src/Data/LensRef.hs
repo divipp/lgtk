@@ -215,6 +215,11 @@ class (ExtRef m, ExtRefWrite (Modifier m), RefCore (Modifier m) ~ RefCore m) => 
 
     toReceive :: Functor f => f (Modifier m ()) -> (Command -> EffectM m ()) -> m (f (EffectM m ()))
 
+    toReceive1 :: Modifier m () -> (Command -> EffectM m ()) -> m (EffectM m ())
+    toReceive1 m c = do
+        f <- toReceive (const m) c
+        return $ f ()
+
 data Command = Kill | Block | Unblock deriving (Eq, Ord, Show)
 
 

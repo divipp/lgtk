@@ -15,7 +15,7 @@ import Control.Exception (evaluate)
 import Control.Monad
 import Control.Monad.Fix
 import Control.Monad.Operational
-import Control.Monad.Reader
+--import Control.Monad.Reader
 import Control.Monad.Trans.Control
 import System.Directory
 import qualified System.FilePath as F
@@ -140,8 +140,8 @@ instance (EffRef m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m) where
 
     asyncWrite t r = do
         (u, f) <- liftEffectM forkIOs'
-        x <- toReceive (const r) u
-        liftEffectM $ f [ liftIO_ $ threadDelay t, x () ]
+        x <- toReceive1 r u
+        liftEffectM $ f [ liftIO_ $ threadDelay t, x ]
 
     fileRef f = do
         ms <- liftIO' r
@@ -198,7 +198,7 @@ instance (EffRef m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m) where
 
 getLine__ :: (String -> IO ()) -> IO (Command -> IO ())
 getLine__ f = do
-    forkIO $ forever $ getLine >>= f   -- todo
+    _ <- forkIO $ forever $ getLine >>= f   -- todo
     return $ const $ return ()
 
 --toReceive_ :: Functor f => f (Modifier m ()) -> (Command -> EffectM m ()) -> m (f (EffectM m ()))
