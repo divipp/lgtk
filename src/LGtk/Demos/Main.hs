@@ -8,10 +8,9 @@ module LGtk.Demos.Main
     ) where
 
 import Data.Maybe (isJust)
-import Control.Lens
+import Control.Lens hiding ((#))
 import Control.Monad
-import Diagrams.Prelude hiding (vcat, hcat, interval, tri, (#))
-import qualified Diagrams.Prelude as P
+import Diagrams.Prelude hiding (vcat, hcat, interval, tri)
 
 import LGtk
 #ifdef __GTK__
@@ -86,6 +85,15 @@ main = runWidget $ notebook
                     ]
 
             ]
+
+        , (,) "Canvas" $ do
+            r <- newRef (3 :: Double)
+            vcat
+                [ canvas 200 200 12 (const $ return ()) (readRef r) $
+                    \x -> circle x # lw 0.05 # fc blue # value ()
+                , hscale 0.1 5 0.05 r
+                ]
+
         ]
 
     , (,) "System" $ notebook
@@ -163,7 +171,8 @@ main = runWidget $ notebook
         [ (,) "T-Editor3" $ do
             t <- newRef $ iterate (Node Leaf) Leaf !! 10
             hcat
-                [ canvas 200 200 20 (const $ return ()) (readRef t) (value () {- . clipped (rect 200 200) -} . lw 0.05 . translate (r2 (0,10)) . tPic 0)
+                [ canvas 200 200 20 (const $ return ()) (readRef t) $
+                    \x -> tPic 0 x # value () # lw 0.05 # translate (r2 (0,10))
                 , tEditor3 t
                 ]
 
@@ -182,9 +191,9 @@ main = runWidget $ notebook
     ]
 
 tPic :: Int -> T -> Dia Any
-tPic _ Leaf = circle 0.5 P.# fc blue
-tPic i (Node a b) = tPic (i+1) a P.# translate (r2 (-w,-2))
-               <> tPic (i+1) b P.# translate (r2 (w,-1.8))
+tPic _ Leaf = circle 0.5 # fc blue
+tPic i (Node a b) = tPic (i+1) a # translate (r2 (-w,-2))
+               <> tPic (i+1) b # translate (r2 (w,-1.8))
                <> fromVertices [p2 (-w, -2), p2 (0,0), p2 (w,-1.8)]
   where w = 3 * 0.7 ^ i
 

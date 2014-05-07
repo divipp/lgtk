@@ -254,7 +254,13 @@ canvas
     -> Widget m
 canvas w h sc me r f = return $ Canvas w h sc me (r) f
 
-hscale :: (EffRef m) => Double -> Double -> Double -> Ref m Double -> Widget m
+hscale
+    :: (EffRef m)
+    => Double   -- ^ min
+    -> Double   -- ^ max
+    -> Double   -- ^ step
+    -> Ref m Double
+    -> Widget m
 hscale a b c r = return $ Scale a b c (readRef r, writeRef r)
 
 showLens :: (Show a, Read a) => Lens' a String

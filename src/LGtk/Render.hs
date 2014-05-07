@@ -106,11 +106,13 @@ type KeyHandler m = [KeyModifier] -> String -> Maybe Char -> m ()
 -- focus enter action; keyboard event handler; focus leave action; id of the keyboard-focused widget
 type KeyFocusHandler m = (m (), KeyHandler m, m (), Id)
 
+type CapturedEventHandler m = MouseEvent () -> m Bool
+
 -- for each mouse event:
 --  - what to do
 --  - the new keyboard focus handler
 --  - the id of the mouse-focused widget
-type EventHandler m = MouseEvent () -> Maybe' (m (), Maybe (KeyFocusHandler m), Id)
+type EventHandler m = MouseEvent () -> Maybe' (m (), Maybe (CapturedEventHandler m), Maybe (KeyFocusHandler m), Id)
 
 -- compiled widget
 data CWidget m
@@ -121,8 +123,8 @@ data CWidget m
 
 value_ :: Monad m => m () -> KeyFocusHandler m -> Id -> Dia Any -> Dia (EventHandler m)
 value_ a c i = value f where
-    f (Click _) = Just' (a, Just c, i)
-    f (MoveTo _) = Just' (return (), Nothing, i)
+    f (Click _) = Just' (a, Nothing, Just c, i)
+    f (MoveTo _) = Just' (return (), Nothing, Nothing, i)
     f _ = mempty
 
 adjustFoc :: EffRef m => Ref m (KeyFocusHandler (Modifier m)) -> Modifier m ()
@@ -146,6 +148,9 @@ inCanvas width height scale w = mdo
     let i = firstId
 
     foc <- newRef df
+
+    -- captured event handler
+    capt <- newRef Nothing
 
     -- mouse-focused widget id
     hi <- newRef [i]
@@ -185,11 +190,20 @@ inCanvas width height scale w = mdo
     case bhr of
        CWidget b render -> do
         
-        let handle Nothing' = return ()
-            handle (Just' (a, bb, i)) = do
+        let handle_ Nothing' = return ()
+            handle_ (Just' (a, cap, bb, i)) = do
                 a
+                maybe (return ()) (writeRef capt . Just) cap
                 maybe (return ()) h2 bb
                 writeRef hi [i]
+
+            handle f x = do
+                m <- readRef' capt
+                case m of
+                    Nothing -> handle_ $ f x
+                    Just f -> do
+                        b <- f x
+                        when (not b) $ writeRef capt Nothing
 
             moveFoc f = do
                 (_, _, _, j) <- readRef' foc
@@ -197,8 +211,9 @@ inCanvas width height scale w = mdo
                 let (a,bb,c,d) = maybe (head xs) snd $ find (\((_,_,_,x),_) -> x == j) $ pairs $ (if f then id else reverse) (xs ++ xs)
                 a >> h2 (a,bb,c,d)
 
-            handleEvent (Click (MousePos p f)) = handle $ f $ Click $ MousePos p ()  :: Modifier m ()
-            handleEvent (MoveTo (MousePos p f)) = handle $ f $ MoveTo $ MousePos p ()
+            handleEvent (Release (MousePos p f)) = handle f $ Release $ MousePos p ()  :: Modifier m ()
+            handleEvent (Click (MousePos p f)) = handle f $ Click $ MousePos p ()  :: Modifier m ()
+            handleEvent (MoveTo (MousePos p f)) = handle f $ MoveTo $ MousePos p ()
             handleEvent (KeyPress [] "Tab" _) = moveFoc True
             handleEvent (KeyPress [c] "Tab" _) | c == ControlModifier = moveFoc False
             handleEvent (KeyPress m n c) = do
@@ -348,8 +363,8 @@ tr sca dkh w = do
 
             let ff x y z = r $ KeyPress x y z
 
-                gg (Just' ls) (Click (MousePos p _)) = Just' (r (Click $ MousePos p ls), Just (return (), ff, r LostFocus, i), i)
-                gg (Just' ls) (MoveTo (MousePos p _)) = Just' (r (MoveTo $ MousePos p ls), Nothing, i)
+                gg (Just' ls) (Click (MousePos p _)) = Just' (r (Click $ MousePos p ls), Nothing, Just (return (), ff, r LostFocus, i), i)
+                gg (Just' ls) (MoveTo (MousePos p _)) = Just' (r (MoveTo $ MousePos p ls), Nothing, Nothing, i)
                 gg _ _ = mempty
 
                 wi = fromIntegral w / sca
@@ -457,7 +472,43 @@ tr sca dkh w = do
 
             return $ CWidget (liftM2 (\iv ((ls,ls'),vv) -> ((kh:ls,[kh]:ls'), (iv, vv))) (readRef ir) (join wr)) render
 
-        Scale _ _ _ _ -> error "scale is not implemented"
+        Scale mi ma step (sr,rr) -> do
+            i <- newId
+            mv <- lift $ newRef Nothing
+
+            let ff [] "Right" _ = modR $ min ma . (+step)
+                ff [] "Left" _  = modR $ max mi . (+(-step))
+                ff a b c = dkh a b c
+                kh = (return (), ff, return (), i)
+                modR f = do
+                    v <- liftReadRef sr
+                    rr $ f v
+
+                adj x = do
+                    m <- readRef' mv
+                    case m of
+                        Just (x_, v) -> rr $ min ma $ max mi $ v + (ma - mi) * (x - x_) / 10
+                        Nothing -> return ()
+
+                f (Click (MousePos (x,_) _)) = Just' (liftReadRef sr >>= \v -> writeRef mv $ Just (x, v), Just f', Just kh, i)
+                f (MoveTo _) = Just' (return (), Nothing, Nothing, i)
+                f _ = mempty
+
+                f' (Release (MousePos (x,_) _)) = adj x >> writeRef mv Nothing >> return False
+                f' (MoveTo  (MousePos (x,_) _)) = adj x >> return True
+                f' _ = return True
+
+                render r is is' =
+                    (  circle 0.38 # value f
+                                   # fc (if i `elem` is then yellow else sRGB 0.95 0.95 0.95)
+                                   # lw 0.02 -- (if is' == i then lc yellow . lw focWidth else lc black . lw 0.02)
+                                   # translate (r2 (10 * ((r - mi) / (ma - mi)) - 5, 0))
+                    <> (  fromVertices [p2 (-5, 0), p2 (5,0)] # lineCap LineCapRound # lw 0.05
+                       <> roundedRect 11 1 0.5 # lw 0 # fc (if is' == i then yellow else sRGB 0.95 0.95 0.95)
+                       )  # value mempty
+                    ) # freeze -- # frame 0.1
+
+            return $ CWidget (liftM ((,) ([kh],[[kh]])) sr) render
 
 
 --------------------
