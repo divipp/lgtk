@@ -166,12 +166,10 @@ inCanvas width height scale w = mdo
               then return ()
               else do
                 let mp = calcPos j $ map (map (\(_,_,_,i)->i)) xss
-                    handle (a,bb,c,d) = do
-                        a >> h2 (a,bb,c,d)
                     ((a,_), (a',b')) = maybe ((0,0), (0,0)) (\x -> (x, f x)) mp
                 if a == a'
-                  then maybe (return ()) handle $ (xss !! a') !!! b'
-                  else maybe (return ()) handle $ fmap (!!!! b') (xss !!! a')
+                  then maybe (return ()) h2 $ (xss !! a') !!! b'
+                  else maybe (return ()) h2 $ fmap (!!!! b') (xss !!! a')
 
         dkh [] "Up"     _ = changeFoc $ \(a,b) -> (a-1,b)
         dkh [] "Down"   _ = changeFoc $ \(a,b) -> (a+1,b)
@@ -181,15 +179,15 @@ inCanvas width height scale w = mdo
         dkh [c] "Tab" _ | c == ControlModifier = moveFoc False
         dkh _ _ _ = return ()
 
-        h2 m = do
+        h2 m@(a,_,_,_) = do
             adjustFoc foc
+            a
             writeRef foc m
 
         moveFoc f = do
             (_, _, _, j) <- readRef' foc
             (xs, _) <- liftReadRef bb
-            let (a,bb,c,d) = maybe (head xs) snd $ find (\((_,_,_,x),_) -> x == j) $ pairs $ (if f then id else reverse) (xs ++ xs)
-            a >> h2 (a,bb,c,d)
+            h2 $ maybe (head xs) snd $ find (\((_,_,_,x),_) -> x == j) $ pairs $ (if f then id else reverse) (xs ++ xs)
 
     -- compiled widget
     bhr <- newIds firstId $ tr (fromIntegral width / scale) dkh w
@@ -317,7 +315,7 @@ tr sca dkh w = do
                   (  te # clipped (rect x y) # value mempty
                   <> rect x y # (if isOk' bv then (if i `elem` is then fc yellow else (if orig /= value' (snd bv) then fc defcolor else id)) else fc red)
                          # (if is' == i then lc yellow . lw focWidth else lc black . lw 0.02)
-                         # value_ fin kh i
+                         # value_ (return ()) kh i
                   ) # freeze # frame 0.1
                    where ((x :& y), te) = text__ 7 5 $ text' bv
             return $ CWidget (liftM ((,) ([kh],[[kh]])) (liftM2 (,) rs (readRef j))) render
