@@ -18,6 +18,7 @@ import Data.Monoid
 import Control.Applicative hiding (empty)
 import Control.Monad.State
 import Control.Monad.Reader
+import Control.Monad.Fix
 import Control.Arrow ((***))
 import Data.Sequence hiding (singleton, filter)
 import Control.Lens hiding ((|>))
@@ -119,7 +120,7 @@ instance Monad m => ExtRefWrite (StateT LSt m) where
 
 type Register n m = ReaderT (Ref m (MonadMonoid m, Command -> MonadMonoid n)) m
 
-newtype Reg n a = Reg (ReaderT (SLSt n () -> n ()) (Register n (SLSt n)) a) deriving (Monad, Applicative, Functor)
+newtype Reg n a = Reg { unReg :: ReaderT (SLSt n () -> n ()) (Register n (SLSt n)) a } deriving (Monad, Applicative, Functor)
 
 type SLSt = StateT LSt
 
@@ -132,6 +133,8 @@ mapReg ff (Reg m) = Reg $ ReaderT $ \f -> ReaderT $ \r -> StateT $ \s ->
 instance MonadTrans Reg where
     lift = Reg . lift . lift . lift
 
+instance MonadFix m => MonadFix (Pure m) where
+    mfix f = Reg $ mfix $ unReg . f
 
 instance Monad n => ExtRef (Pure n) where
 
@@ -178,6 +181,10 @@ instance Monad m => ExtRef (Modifier (Pure m)) where
     memoRead = memoRead_
     memoWrite = memoWrite_
     future = future_
+
+instance MonadFix m => MonadFix (Modifier (Pure m)) where
+    mfix f = RegW $ mfix $ unRegW . f
+
 
 evalRegister ff (Reg m) = runReaderT m ff
 

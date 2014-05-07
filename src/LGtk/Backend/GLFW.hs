@@ -12,6 +12,7 @@ import Data.Char
 import Control.Applicative
 import Control.Concurrent
 import Control.Monad
+import Control.Monad.Fix
 --import Control.Lens hiding ((#))
 import Data.Vector.Storable (unsafeWith, unsafeFromForeignPtr0)
 import Foreign
@@ -42,7 +43,7 @@ import LGtk.Render
 
 -------------------------------
 
-runWidget :: (forall m . (EffIORef m) => Widget m) -> IO ()
+runWidget :: (forall m . (EffIORef m, MonadFix m) => Widget m) -> IO ()
 runWidget desc = do
     hSetBuffering stdout NoBuffering
 

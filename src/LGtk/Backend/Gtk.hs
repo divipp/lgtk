@@ -35,7 +35,7 @@ import Diagrams.Backend.Cairo.Internal
 
 -------------------------
 
-runWidget :: (forall m . (EffIORef m) => Widget m) -> IO ()
+runWidget :: (forall m . (EffIORef m, MonadFix m) => Widget m) -> IO ()
 runWidget w = runWidget' (\pa -> runPure (newChan' pa) . unWrap) w
   where
     newChan' pa = do

@@ -147,7 +147,7 @@ instance ExtRefWrite IO where
 
 type Register n m = ReaderT (Ref m (MonadMonoid m, Command -> MonadMonoid n)) m
 
-newtype Reg n a = Reg (ReaderT (SLSt n () -> n ()) (Register n (SLSt n)) a) deriving (Monad, Applicative, Functor)
+newtype Reg n a = Reg { unReg :: ReaderT (SLSt n () -> n ()) (Register n (SLSt n)) a } deriving (Monad, Applicative, Functor)
 
 type SLSt (n :: * -> *) = IO
 
@@ -160,6 +160,9 @@ mapReg ff (Reg m) = Reg $ ReaderT $ \f -> ReaderT $ \r -> StateT $ \s ->
 instance MonadTrans Reg where
     lift = Reg . lift . lift . lift
 -}
+
+instance MonadFix (Pure m) where
+    mfix f = Reg $ mfix $ unReg . f
 
 instance {-Monad n => -} ExtRef (Pure n) where
 
@@ -195,6 +198,9 @@ instance {-Monad n => -} EffRef (Pure n) where
         tell' (mempty, MonadMonoid . g)
         writerstate <- ask
         return $ fmap (ff . flip runReaderT writerstate . evalRegister ff . unRegW) f
+
+instance {- MonadFix m => -} MonadFix (Modifier (Pure m)) where
+    mfix f = RegW $ mfix $ unRegW . f
 
 instance {- Monad m => -} ExtRefWrite (Modifier (Pure m)) where
     liftWriteRef = RegW . liftWriteRef

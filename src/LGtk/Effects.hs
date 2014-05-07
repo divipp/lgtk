@@ -13,6 +13,7 @@ import Control.Applicative
 import Control.Concurrent
 import Control.Exception (evaluate)
 import Control.Monad
+import Control.Monad.Fix
 import Control.Monad.Operational
 import Control.Monad.Reader
 import Control.Monad.Trans.Control
@@ -83,6 +84,9 @@ putStrLn_ = putStr_ . (++ "\n")
 
 
 newtype Wrap m a = Wrap { unWrap :: m a } deriving (Functor, Applicative, Monad)
+
+instance MonadFix m => MonadFix (Wrap m) where
+    mfix f = Wrap $ mfix $ unWrap . f
 
 instance ExtRef m => ExtRef (Wrap m) where
     type RefCore (Wrap m) = RefCore m
