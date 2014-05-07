@@ -45,6 +45,7 @@ module LGtk
     -- * Dynamic networks
     , EffRef
     , onChange
+    , onChangeSimple
     , onChange_
 
     -- * I/O

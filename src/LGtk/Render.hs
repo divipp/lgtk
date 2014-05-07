@@ -506,7 +506,7 @@ tr sca dkh w = do
                     <> (  fromVertices [p2 (-5, 0), p2 (5,0)] # lineCap LineCapRound # lw 0.05
                        <> roundedRect 11 1 0.5 # lw 0 # fc (if is' == i then yellow else sRGB 0.95 0.95 0.95)
                        )  # value mempty
-                    ) # freeze -- # frame 0.1
+                    ) # freeze # frame 0.1
 
             return $ CWidget (liftM ((,) ([kh],[[kh]])) sr) render
 

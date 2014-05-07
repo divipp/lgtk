@@ -86,13 +86,54 @@ main = runWidget $ notebook
 
             ]
 
-        , (,) "Canvas" $ do
+        , (,) "Canvas" $ notebook
+
+            [ (,) "Dynamic" $ do
             r <- newRef (3 :: Double)
             vcat
                 [ canvas 200 200 12 (const $ return ()) (readRef r) $
                     \x -> circle x # lw 0.05 # fc blue # value ()
                 , hscale 0.1 5 0.05 r
                 ]
+
+            , (,) "Animation" $ do
+            fps <- newRef (50 :: Double)
+            speed <- newRef (1 :: Double)
+            phase <- newRef (0 :: Double)
+            t <- newRef 0
+            _ <- onChangeSimple (readRef phase) $ \x -> do
+                s <- readRef' speed
+                f <- readRef' fps
+                asyncWrite (round $ 1000000 / f) $ writeRef phase (x + 2 * pi * s / f)
+            vcat
+                [ canvas 200 200 10 (const $ return ()) (liftM2 (,) (readRef t) (readRef phase)) $
+                    \(t,x) -> (case t of
+                        0 -> circle (2 + 1.5*sin x)
+                        1 -> circle 1 # translate (r2 (3,0)) # rotate ((-x) @@ rad)
+                        2 -> rect 6 6 # rotate ((-x) @@ rad)
+                        3 -> mconcat [circle (i'/10) # translate (r2 (i'/3, 0) # rotate ((i') @@ rad)) | i<-[1 :: Int ..10], let i' = fromIntegral i] # rotate ((-x) @@ rad)
+                        4 -> mconcat [circle (i'/10) # translate (r2 (i'/3, 0) # rotate ((x/i') @@ rad)) | i<-[1 :: Int ..10], let i' = fromIntegral i]
+                        ) # lw 0.05 # fc blue # value ()
+                , combobox ["Pulse","Rotate","Rotate2","Spiral","Spiral2"] t
+                , hscale 0.1 5 0.1 speed
+                , hscale 1 100 1 fps
+                ]
+
+            , (,) "Reactive" $ do
+            phase <- newRef (0 :: Double)
+            col <- newRef True
+            _ <- onChangeSimple (readRef phase) $ \x -> do
+                let s = 0.5 :: Double
+                let f = 50 :: Double
+                asyncWrite (round $ 1000000 / f) $ writeRef phase (x + 2 * pi * s / f)
+            let handler (Click (MousePos _ l)) = when (not $ null l) $ modRef col not
+                handler _ = return ()
+            vcat
+                [ canvas 200 200 10 handler (liftM2 (,) (readRef col) (readRef phase)) $
+                    \(c,x) -> circle 1 # translate (r2 (3,0)) # rotate ((-x) @@ rad) # lw 0.05 # fc (if c then blue else red) # value [()]
+                ]
+
+            ]
 
         ]
 
