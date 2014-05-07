@@ -261,10 +261,11 @@ canvas
     -> Int   -- ^ height
     -> Double  -- ^ scale
     -> (MouseEvent a -> Modifier m ())
+    -> KeyboardHandler (Modifier m)
     -> ReadRef m b
     -> (b -> Dia a)
     -> Widget m
-canvas w h sc me r f = return $ Canvas w h sc me (r) f
+canvas w h sc me kh r f = return $ Canvas w h sc me kh r f
 
 hscale
     :: (EffRef m)

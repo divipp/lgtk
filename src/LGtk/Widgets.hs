@@ -34,7 +34,15 @@ data WidgetCore m
     | List ListLayout [Widget m]         -- ^ group interfaces into row or column
     | Notebook' (Receive m Int) [(String, Widget m)]     -- ^ actual tab index, tabs
     | forall b . Eq b => Cell (ReadRef m b) (forall x . (Widget m -> m x) -> b -> m (m x))
-    | forall a b . (Eq b, Monoid a, Semigroup a) => Canvas Int Int Double (Receive m (MouseEvent a)) (ReadRef m b) (b -> Dia a)
+    | forall a b . (Eq b, Monoid a, Semigroup a)
+    => Canvas
+        Int
+        Int
+        Double
+        (MouseEvent a -> Modifier m ())
+        (KeyboardHandler (Modifier m))
+        (ReadRef m b)
+        (b -> Dia a)
     | Scale Double Double Double (SendReceive m Double)
 
 data KeyModifier
@@ -52,6 +60,8 @@ data ListLayout
 
 type ScrollDirection = ListLayout
 
+type KeyboardHandler m = Maybe ([KeyModifier] -> String -> Maybe Char -> m Bool)
+
 data MouseEvent a
     = MoveTo (MousePos a)
     | MouseEnter (MousePos a)
@@ -60,7 +70,6 @@ data MouseEvent a
     | DragTo (MousePos a)
     | Release (MousePos a)
     | ScrollTo ScrollDirection (MousePos a)
-    | KeyPress [KeyModifier] String (Maybe Char)
     | LostFocus
         deriving (Eq)
 

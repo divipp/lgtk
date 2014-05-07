@@ -203,6 +203,7 @@ inCanvas width height scale w = mdo
                 maybe (return ()) (writeRef capt . Just) cap
                 maybe (return ()) h2 bb
                 writeRef hi [i]
+                return ()
 
             handle f x = do
                 m <- readRef' capt
@@ -215,12 +216,15 @@ inCanvas width height scale w = mdo
             handleEvent (Release (MousePos p f)) = handle f $ Release $ MousePos p ()
             handleEvent (Click   (MousePos p f)) = handle f $ Click   $ MousePos p ()
             handleEvent (MoveTo  (MousePos p f)) = handle f $ MoveTo  $ MousePos p ()
-            handleEvent (KeyPress m n c) = do
-                (_,f,_,_) <- readRef' foc
-                f m n c
             handleEvent LostFocus = h2 df
             handleEvent _ = return ()
-        return $ Canvas width height scale handleEvent (liftM3 (,,) (readRef hi) (readRef $ _4 `lensMap` foc) $ liftM snd b) $
+
+            handleKeys m n c = do
+                (_,f,_,_) <- readRef' foc
+                f m n c
+                return True
+
+        return $ Canvas width height scale handleEvent (Just handleKeys) (liftM3 (,,) (readRef hi) (readRef $ _4 `lensMap` foc) $ liftM snd b) $
             \(is, is', x) -> 
               render x is is' # alignT # alignL # translate (r2 (-scale/2,scale/2* fromIntegral height / fromIntegral width))
               <> rect scale (scale / fromIntegral width * fromIntegral height)
@@ -367,15 +371,17 @@ tr sca dkh w = do
                 Horizontal -> \a b -> a # alignT ||| b # alignT
                 Vertical -> \a b -> a # alignL === b # alignL
 
-        Canvas w h d r s f -> do
+        Canvas w h d r keyh s f -> do
 
             i <- newId
 
-            let ff x y z = r $ KeyPress x y z
+            let ff x y z = do
+                    b <- fromMaybe (\_ _ _ -> return False) keyh x y z
+                    when (not b) $ dkh x y z
 
-                gg (Just' ls) (Click (MousePos p _)) = Just' (r (Click $ MousePos p ls), Nothing, Just (return (), ff, r LostFocus, i), i)
-                gg (Just' ls) (Release (MousePos p _)) = Just' (r (Release $ MousePos p ls), Nothing, Nothing, i)
-                gg (Just' ls) (MoveTo  (MousePos p _)) = Just' (r (MoveTo  $ MousePos p ls), Nothing, Nothing, i)
+                gg (Just' ls) (Click (MousePos p _)) = Just' (r (Click $ MousePos p ls) >> return (), Nothing, Just (return (), ff, r LostFocus >> return (), i), i)
+                gg (Just' ls) (Release (MousePos p _)) = Just' (r (Release $ MousePos p ls) >> return (), Nothing, Nothing, i)
+                gg (Just' ls) (MoveTo  (MousePos p _)) = Just' (r (MoveTo  $ MousePos p ls) >> return (), Nothing, Nothing, i)
                 gg _ _ = mempty
 
                 wi = fromIntegral w / sca
@@ -388,7 +394,7 @@ tr sca dkh w = do
                    <> rect wi hi # value mempty # lw 0.02 # lc (if is' == i then yellow else black)
                          )  # freeze  # frame 0.1
 
-            return $ CWidget (liftM ((,) ([kh],[[kh]])) s) render
+            return $ CWidget (liftM ((,) ([kh | isJust keyh],[[kh] | isJust keyh])) s) render
 
         Combobox xs (bs, br) -> do
             let n = length xs

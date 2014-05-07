@@ -119,7 +119,7 @@ runWidget_ post' post = toWidget
             ger nhd s $ labelSetLabel w
             return' w
 
-        Canvas w h sc_ me r diaFun -> do
+        Canvas w h sc_ me keyh r diaFun -> do
 
           cur <- liftIO' $ newMVar Nothing
           cur' <- liftIO' $ newMVar Nothing
@@ -178,21 +178,28 @@ runWidget_ post' post = toWidget
               _ <- on' canvas motionNotifyEvent $ tryEvent $ do
                 p <- eventCoordinates >>= liftIO . compCoords
                 liftIO $ re $ MoveTo p
-              _ <- on' canvas scrollEvent $ tryEvent $ do
+              on' canvas scrollEvent $ tryEvent $ do
                 p <- eventCoordinates >>= liftIO . compCoords
                 dir <- eventScrollDirection
                 let tr _ = Horizontal -- TODO
                 liftIO $ re $ ScrollTo (tr dir) p
-              on' canvas keyPressEvent $ tryEvent $ do
---                p <- eventCoordinates >>= liftIO . compCoords
-                m <- eventModifier
-                c <- eventKeyVal
-                kn <- lift $ keyvalName c
-                kc <- lift $ keyvalToChar c
-                let tr Gtk.Shift = [ShiftModifier]
-                    tr Gtk.Control = [ControlModifier]
-                    tr _ = []
-                liftIO $ re $ KeyPress (concatMap tr m) kn kc
+
+          case keyh of
+            Nothing -> return ()
+            Just keyh -> do
+                _ <- reg (\(x,y,z) -> keyh x y z >> return ()) $ \re ->
+                  on' canvas keyPressEvent $ tryEvent $ do
+    --                p <- eventCoordinates >>= liftIO . compCoords
+                    m <- eventModifier
+                    c <- eventKeyVal
+                    kn <- lift $ keyvalName c
+                    kc <- lift $ keyvalToChar c
+                    let tr Gtk.Shift = [ShiftModifier]
+                        tr Gtk.Control = [ControlModifier]
+                        tr _ = []
+                    liftIO $ re (concatMap tr m, kn, kc)
+                return ()
+
           _ <- liftIO' $ on canvas exposeEvent $ tryEvent $ liftIO $ do
                 d <- readMVar cur'
                 case d of

@@ -91,7 +91,7 @@ main = runWidget $ notebook
             [ (,) "Dynamic" $ do
             r <- newRef (3 :: Double)
             vcat
-                [ canvas 200 200 12 (const $ return ()) (readRef r) $
+                [ canvas 200 200 12 (const $ return ()) Nothing (readRef r) $
                     \x -> circle x # lw 0.05 # fc blue # value ()
                 , hcat
                     [ hscale 0.1 5 0.05 r
@@ -109,7 +109,7 @@ main = runWidget $ notebook
                 f <- readRef' fps
                 asyncWrite (round $ 1000000 / f) $ writeRef phase (x + 2 * pi * s / f)
             vcat
-                [ canvas 200 200 10 (const $ return ()) (liftM2 (,) (readRef t) (readRef phase)) $
+                [ canvas 200 200 10 (const $ return ()) Nothing (liftM2 (,) (readRef t) (readRef phase)) $
                     \(t,x) -> (case t of
                         0 -> circle (2 + 1.5*sin x)
                         1 -> circle 1 # translate (r2 (3,0)) # rotate ((-x) @@ rad)
@@ -138,7 +138,7 @@ main = runWidget $ notebook
             let handler (Click (MousePos _ l)) = when (not $ null l) $ modRef col not
                 handler _ = return ()
             vcat
-                [ canvas 200 200 10 handler (liftM2 (,) (readRef col) (readRef phase)) $
+                [ canvas 200 200 10 handler Nothing (liftM2 (,) (readRef col) (readRef phase)) $
                     \(c,x) -> circle 1 # translate (r2 (3,0)) # rotate ((-x) @@ rad) # lw 0.05 # fc (if c then blue else red) # value [()]
                 , label $ return "Click on the circle to change color."
                 ]
@@ -155,7 +155,7 @@ main = runWidget $ notebook
             let handler (Click (MousePos _ l)) = when (not $ null l) $ modRef col (+1)
                 handler _ = return ()
             vcat
-                [ canvas 200 200 10 handler (liftM2 (,) (readRef col) (readRef phase)) $
+                [ canvas 200 200 10 handler Nothing (liftM2 (,) (readRef col) (readRef phase)) $
                     \(c,x) -> circle c # translate (r2 (3,0)) # rotate ((-x) @@ rad) # lw 0.05 # fc blue # value [()]
                 , label $ return "Click on the circle to temporarily enlarge it."
                 ]
@@ -241,7 +241,7 @@ main = runWidget $ notebook
         [ (,) "T-Editor3" $ do
             t <- newRef $ iterate (Node Leaf) Leaf !! 10
             hcat
-                [ canvas 200 200 20 (const $ return ()) (readRef t) $
+                [ canvas 200 200 20 (const $ return ()) Nothing (readRef t) $
                     \x -> tPic 0 x # value () # lw 0.05 # translate (r2 (0,10))
                 , tEditor3 t
                 ]

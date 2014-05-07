@@ -9,6 +9,7 @@ module LGtk.Backend.GLFW
     ) where
 
 import Data.Char
+import Data.Maybe
 import Control.Applicative
 import Control.Concurrent
 import Control.Monad
@@ -51,7 +52,7 @@ runWidget desc = do
     _ <- forkIO actions
 
     case widget of
-      SWidget width height sc_ handle current iodia -> do
+      SWidget width height sc_ handle keyhandle current iodia -> do
 
         _ <- GLFW.init
 --        print =<< getVersion
@@ -119,12 +120,14 @@ runWidget desc = do
                                 _ -> case show key of
                                     ['K','e','y','\'',c] -> Just $ (if modifierKeysShift mods then id else toLower) c
                                     _ -> Nothing
-                        handle $ KeyPress
+                        keyhandle (
                                     ( [ControlModifier | modifierKeysControl mods]
                                    ++ [AltModifier     | modifierKeysAlt     mods]
                                    ++ [ShiftModifier   | modifierKeysShift   mods]
                                     )
-                                     name char
+                                  , name
+                                  , char
+                                  )
 
             logWinSize :: WindowSizeCallback
             logWinSize _win _w _h = do
@@ -179,13 +182,14 @@ newChan' = do
     ch <- newChan
     return (readChan ch, writeChan ch)
 
-data SWidget = forall a . (Monoid a, Semigroup a) => SWidget Int Int Double (MouseEvent a -> IO ()) (IO (Dia a)) (MVar (Dia a))
+data SWidget = forall a . (Monoid a, Semigroup a)
+    => SWidget Int Int Double (MouseEvent a -> IO ()) (([KeyModifier], String, Maybe Char) -> IO ()) (IO (Dia a)) (MVar (Dia a))
 
 
 runWidget_
     :: forall m . (EffRef m, IO ~ EffectM m) => Widget m -> m SWidget
 runWidget_  m = m >>= \i -> case i of
-    Canvas w h sc_ me r diaFun -> do
+    Canvas w h sc_ me keyh r diaFun -> do
         rer <- liftIO' $ newMVar mempty
         rer' <- liftIO' $ newMVar mempty
         _ <- onChangeSimple r $ \b -> liftIO' $ do
@@ -196,7 +200,8 @@ runWidget_  m = m >>= \i -> case i of
             return ()
 
         handle <- toReceive me $ const $ return ()
-        return $ SWidget w h sc_ handle (readMVar rer') rer
+        keyhandle <- toReceive (\(m,s,c) -> fromMaybe (\_ _ _ -> return False) keyh m s c >> return ()) $ const $ return ()
+        return $ SWidget w h sc_ handle keyhandle (readMVar rer') rer
 
 
 copyToScreen win w h (Image width height dat) = do
