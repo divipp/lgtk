@@ -1,6 +1,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -206,11 +207,20 @@ combobox ss r = return $ Combobox ss ((readRef r), writeRef r)
 
 -- | Text entry.
 entry :: (EffRef m, Reference r, RefReader r ~ RefReader (RefCore m))  => MRef r String -> Widget m
-entry r = return $ Entry ((readRef r), writeRef r)
+entry r = return $ Entry (const True) ((readRef r), writeRef r)
 
 -- | Text entry.
-entryShow :: (EffRef m, Show a, Read a, Reference r, RefReader r ~ RefReader (RefCore m)) => MRef r a -> Widget m
-entryShow r = entry $ showLens `lensMap` r
+entryShow :: forall m a r . (EffRef m, Show a, Read a, Reference r, RefReader r ~ RefReader (RefCore m)) => MRef r a -> Widget m
+entryShow r_ = return $ Entry isOk ((readRef r), writeRef r)
+  where
+    r = showLens `lensMap` r_
+    isOk s = case (reads s :: [(a, String)]) of
+        ((_,""):_) -> True
+        _ -> False
+
+showLens :: (Show a, Read a) => Lens' a String
+showLens = lens show $ \def s -> maybe def fst $ listToMaybe $ reads s
+
 
 {- | Notebook (tabs).
 
@@ -264,9 +274,6 @@ hscale
     -> Ref m Double
     -> Widget m
 hscale a b c r = return $ Scale a b c (readRef r, writeRef r)
-
-showLens :: (Show a, Read a) => Lens' a String
-showLens = lens show $ \def s -> maybe def fst $ listToMaybe $ reads s
 
 listLens :: Lens' (Bool, (a, [a])) [a]
 listLens = lens get set where

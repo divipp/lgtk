@@ -30,7 +30,7 @@ data WidgetCore m
              }  -- ^ button
     | Checkbox (SendReceive m Bool)         -- ^ checkbox
     | Combobox [String] (SendReceive m Int) -- ^ combo box
-    | Entry (SendReceive m String)          -- ^ entry field
+    | Entry (String -> Bool) (SendReceive m String)          -- ^ entry field
     | List ListLayout [Widget m]         -- ^ group interfaces into row or column
     | Notebook' (Receive m Int) [(String, Widget m)]     -- ^ actual tab index, tabs
     | forall b . Eq b => Cell (ReadRef m b) (forall x . (Widget m -> m x) -> b -> m (m x))

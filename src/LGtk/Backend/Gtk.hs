@@ -234,7 +234,7 @@ runWidget_ post' post = toWidget
                     widgetModifyBg w StateNormal $ tr c
                     widgetModifyBg w StatePrelight $ tr c
             return' w
-        Entry (r, s) -> do
+        Entry _ (r, s) -> do        -- TODO: red background if not ok
             w <- liftIO'' entryNew
             hd <- reg s $ \re -> on' w entryActivate $ entryGetText w >>= re
             hd' <- reg s $ \re -> on' w focusOutEvent $ lift $ entryGetText w >>= re >> return False

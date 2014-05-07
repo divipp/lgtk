@@ -273,7 +273,7 @@ tr sca dkh w = do
                    where ((x :& y), te) = text__ 15 3 bv
             return $ CWidget (liftM3 (\r se c -> (([kh | se], [[kh] | se]), (r,se,c))) r sens col') render
 
-        Entry (rs, rr) -> do
+        Entry isOk (rs, rr) -> do
             i <- newId
 --            s <- readRef rs
             j <- lift $ newRef (False, ("", ""))
@@ -287,9 +287,12 @@ tr sca dkh w = do
                 f [] "Right" _ (a,c:b) = Just (c:a,b)
                 f _ _ _ _ = Nothing
 
+                rr' s | isOk s = rr s
+                      | otherwise = return ()
+
                 commit = do
                     (_, (a, b)) <- readRef' j
-                    rr $ reverse a ++ b
+                    rr' $ reverse a ++ b
 
                 ff _ _ (Just '\n') = commit
                 ff m e f' = do
@@ -300,6 +303,7 @@ tr sca dkh w = do
 
                 text' (False,(a,b)) = reverse a ++ b
                 text' (True,(a,b)) = reverse a ++ "|" ++ b
+                isOk' (_,(a,b)) = isOk $ reverse a ++ b
 
                 fin = writeRef (_1 `lensMap` j) True
                 fout = do
@@ -309,7 +313,7 @@ tr sca dkh w = do
 
                 render bv is is' = 
                   (  te # clipped (rect x y) # value mempty
-                  <> rect x y # (if i `elem` is then fc yellow else id)
+                  <> rect x y # (if isOk' bv then (if i `elem` is then fc yellow else id) else fc red)
                          # (if is' == i then lc yellow . lw focWidth else lc black . lw 0.02)
                          # value_ fin kh i
                   ) # freeze # frame 0.1
