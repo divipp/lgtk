@@ -248,7 +248,7 @@ tr sca dkh w = do
     case w' of
         Label r -> do
             let render bv _ _ = ((rect x y # lw 0 <> te) # clipped (rect x y)) # value mempty
-                     where ((x :& y), te) = text__ 15 5 bv
+                     where ((x :& y), te) = text__ 25 5 bv
             return $ CWidget (liftM ((,) ([], [])) r) render
 
         Button r sens col a -> do

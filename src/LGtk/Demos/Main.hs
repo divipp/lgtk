@@ -7,6 +7,7 @@ module LGtk.Demos.Main
     , main'
     ) where
 
+import Numeric
 import Data.Maybe (isJust)
 import Control.Lens hiding ((#))
 import Control.Monad
@@ -93,7 +94,10 @@ main = runWidget $ notebook
             vcat
                 [ canvas 200 200 12 (const $ return ()) (readRef r) $
                     \x -> circle x # lw 0.05 # fc blue # value ()
-                , hscale 0.1 5 0.05 r
+                , hcat
+                    [ hscale 0.1 5 0.05 r
+                    , label (liftM (("radius: " ++) . ($ "") . showFFloat (Just 2)) $ readRef r)
+                    ]
                 ]
 
             , (,) "Animation" $ do
@@ -117,7 +121,7 @@ main = runWidget $ notebook
                 , combobox ["Pulse","Rotate","Rotate2","Spiral","Spiral2"] t
                 , hcat
                     [ hscale 0.1 5 0.1 speed
-                    , label (liftM (("freq: " ++) . show) $ readRef speed)
+                    , label (liftM (("freq: " ++) . ($ "") . showFFloat (Just 2)) $ readRef speed)
                     ]
                 , hcat
                     [ hscale 1 100 1 fps
@@ -137,6 +141,24 @@ main = runWidget $ notebook
             vcat
                 [ canvas 200 200 10 handler (liftM2 (,) (readRef col) (readRef phase)) $
                     \(c,x) -> circle 1 # translate (r2 (3,0)) # rotate ((-x) @@ rad) # lw 0.05 # fc (if c then blue else red) # value [()]
+                , label $ return "Click on the circle to change color."
+                ]
+
+            , (,) "Reactive Anim" $ do
+            phase <- newRef (0 :: Double)
+            col <- newRef 1
+            _ <- onChangeSimple (readRef phase) $ \x -> do
+                let s = 0.5 :: Double
+                let f = 50 :: Double
+                asyncWrite (round $ 1000000 / f) $ do
+                    writeRef phase (x + 2 * pi * s / f)
+                    modRef col $ max 1 . (+(- 5/f))
+            let handler (Click (MousePos _ l)) = when (not $ null l) $ modRef col (+1)
+                handler _ = return ()
+            vcat
+                [ canvas 200 200 10 handler (liftM2 (,) (readRef col) (readRef phase)) $
+                    \(c,x) -> circle c # translate (r2 (3,0)) # rotate ((-x) @@ rad) # lw 0.05 # fc blue # value [()]
+                , label $ return "Click on the circle to temporarily enlarge it."
                 ]
 
             ]
