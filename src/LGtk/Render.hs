@@ -287,9 +287,11 @@ tr sca dkh w = do
                 f [] "Right" _ (a,c:b) = Just (c:a,b)
                 f _ _ _ _ = Nothing
 
-                ff _ _ (Just '\n') = do
+                commit = do
                     (_, (a, b)) <- readRef' j
                     rr $ reverse a ++ b
+
+                ff _ _ (Just '\n') = commit
                 ff m e f' = do
                     x <- readRef' (_2 `lensMap` j)
                     case f m e f' x of
@@ -300,7 +302,9 @@ tr sca dkh w = do
                 text' (True,(a,b)) = reverse a ++ "|" ++ b
 
                 fin = writeRef (_1 `lensMap` j) True
-                fout = writeRef (_1 `lensMap` j) False
+                fout = do
+                    commit
+                    writeRef (_1 `lensMap` j) False
                 kh = (fin, ff, fout, i)
 
                 render bv is is' = 
