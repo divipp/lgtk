@@ -160,7 +160,7 @@ class ExtRef m => ExtRefWrite m where
 
 
 -- | Monad for dynamic actions
-class (ExtRef m, ExtRefWrite (Modifier m), RefCore (Modifier m) ~ RefCore m) => EffRef m where
+class (ExtRef m, Monad (EffectM m), ExtRefWrite (Modifier m), RefCore (Modifier m) ~ RefCore m) => EffRef m where
 
     type EffectM m :: * -> *
 
@@ -215,11 +215,6 @@ class (ExtRef m, ExtRefWrite (Modifier m), RefCore (Modifier m) ~ RefCore m) => 
 
     toReceive :: Functor f => f (Modifier m ()) -> (Command -> EffectM m ()) -> m (f (EffectM m ()))
 
-    toReceive1 :: Modifier m () -> (Command -> EffectM m ()) -> m (EffectM m ())
-    toReceive1 m c = do
-        f <- toReceive (const m) c
-        return $ f ()
-
 data Command = Kill | Block | Unblock deriving (Eq, Ord, Show)
 
 
@@ -235,6 +230,19 @@ data Command = Kill | Block | Unblock deriving (Eq, Ord, Show)
 -}
 readRef' :: (ExtRef m, Reference r, ReadRef m ~ RefReader r) => MRef r a -> m a
 readRef' = liftReadRef . readRef
+
+
+toReceive1 :: EffRef m => Modifier m () -> (Command -> EffectM m ()) -> m (EffectM m ())
+toReceive1 m c = do
+    f <- toReceive (const m) c
+    return $ f ()
+
+
+iReallyWantToModify :: EffRef m => Modifier m () -> m ()
+iReallyWantToModify r = do
+    x <- toReceive1 r $ const $ return ()
+    liftEffectM x
+
 
 
 

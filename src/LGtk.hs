@@ -47,6 +47,7 @@ module LGtk
     , onChange
     , onChangeSimple
     , onChange_
+    , iReallyWantToModify
 
     -- * I/O
     , getArgs
