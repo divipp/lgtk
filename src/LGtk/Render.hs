@@ -23,7 +23,7 @@ import Data.Colour.SRGB
 import Unsafe.Coerce
 
 import Data.LensRef
-import LGtk.Effects
+--import LGtk.Effects
 import LGtk.Widgets
 
 ----------------------
@@ -291,8 +291,8 @@ tr sca dkh w = do
                       | otherwise = return ()
 
                 commit = do
-                    (_, (a, b)) <- readRef' j
-                    rr' $ reverse a ++ b
+                    (_, ab) <- readRef' j
+                    rr' $ value' ab
 
                 ff _ _ (Just '\n') = commit
                 ff m e f' = do
@@ -301,9 +301,11 @@ tr sca dkh w = do
                         Just x -> writeRef (_2 `lensMap` j) x
                         _ -> dkh m e f'
 
-                text' (False,(a,b)) = reverse a ++ b
+                value' (a,b) = reverse a ++ b
+
+                text' (False,ab) = value' ab
                 text' (True,(a,b)) = reverse a ++ "|" ++ b
-                isOk' (_,(a,b)) = isOk $ reverse a ++ b
+                isOk' (_,ab) = isOk $ value' ab
 
                 fin = writeRef (_1 `lensMap` j) True
                 fout = do
@@ -311,14 +313,14 @@ tr sca dkh w = do
                     writeRef (_1 `lensMap` j) False
                 kh = (fin, ff, fout, i)
 
-                render bv is is' = 
+                render (orig,bv) is is' = 
                   (  te # clipped (rect x y) # value mempty
-                  <> rect x y # (if isOk' bv then (if i `elem` is then fc yellow else id) else fc red)
+                  <> rect x y # (if isOk' bv then (if i `elem` is then fc yellow else (if orig /= value' (snd bv) then fc defcolor else id)) else fc red)
                          # (if is' == i then lc yellow . lw focWidth else lc black . lw 0.02)
                          # value_ fin kh i
                   ) # freeze # frame 0.1
                    where ((x :& y), te) = text__ 7 5 $ text' bv
-            return $ CWidget (liftM ((,) ([kh],[[kh]])) (readRef j)) render
+            return $ CWidget (liftM ((,) ([kh],[[kh]])) (liftM2 (,) rs (readRef j))) render
 
         Checkbox (bs, br) -> do
             i <- newId
