@@ -137,9 +137,8 @@ _ !!! n | n < 0 = Nothing
 (x:_) !!! 0 = Just x
 (_:xs) !!! n = xs !!! (n-1 :: Int)
 
-[] !!!! _ = Nothing
-[x] !!!! _ = Just x
-(x:_) !!!! n | n <= 0 = Just x
+[x] !!!! _ = x
+(x:_) !!!! n | n <= 0 = x
 (_:xs) !!!! n = xs !!!! (n-1 :: Int)
 
 inCanvas :: forall m . (EffIORef m, MonadFix m) => Int -> Int -> Double -> Widget m -> Widget m
@@ -161,15 +160,18 @@ inCanvas width height scale w = mdo
 
         changeFoc f = do
             (_, _, _, j) <- readRef' foc
-            (_, xss) <- liftReadRef bb
-            let mp = calcPos j $ map (map (\(_,_,_,i)->i)) xss
-                handle (a,bb,c,d) = do
-                    a >> h2 (a,bb,c,d)
-            case mp of
-                Nothing -> return ()
-                Just (a,b) | a == a' -> maybe (return ()) handle $ (xss !! a') !!! b'
-                           | otherwise -> maybe (return ()) handle $ join $ fmap (!!!! b') (xss !!! a')
-                    where (a',b') = f (a,b)
+            (_, xss_) <- liftReadRef bb
+            let xss = filter (not . null) xss_
+            if null xss
+              then return ()
+              else do
+                let mp = calcPos j $ map (map (\(_,_,_,i)->i)) xss
+                    handle (a,bb,c,d) = do
+                        a >> h2 (a,bb,c,d)
+                    ((a,_), (a',b')) = maybe ((0,0), (0,0)) (\x -> (x, f x)) mp
+                if a == a'
+                  then maybe (return ()) handle $ (xss !! a') !!! b'
+                  else maybe (return ()) handle $ fmap (!!!! b') (xss !!! a')
 
         dkh [] "Up"     _ = changeFoc $ \(a,b) -> (a-1,b)
         dkh [] "Down"   _ = changeFoc $ \(a,b) -> (a+1,b)
