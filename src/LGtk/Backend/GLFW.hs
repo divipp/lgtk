@@ -147,12 +147,12 @@ runWidget desc = do
 
                 -- Cairo
                 --image <- imageRGBA8FromUnsafePtr sw sh <$> renderForeignPtrOpaque sw sh dia
+                --copyToScreen win (fromIntegral sw) (fromIntegral sh) image gl_BGRA
 
                 -- Rasterific
                 let sizeSpec = mkSizeSpec (Just $ fromIntegral sw) (Just $ fromIntegral sh)
                 let image = renderDia Rasterific (RasterificOptions sizeSpec) dia
-
-                copyToScreen win (fromIntegral sw) (fromIntegral sh) image
+                copyToScreen win (fromIntegral sw) (fromIntegral sh) image gl_RGBA
 --                putStr "*"
 
         let eventCycle = do
@@ -194,7 +194,7 @@ runWidget_  m = m >>= \i -> case i of
         return $ SWidget w h sc_ handle (readMVar rer') rer
 
 
-copyToScreen win w h (Image width height dat) = do
+copyToScreen win w h (Image width height dat) fmt = do
     makeContextCurrent (Just win)
     let iw = fromIntegral width
         ih = fromIntegral height
@@ -206,7 +206,7 @@ copyToScreen win w h (Image width height dat) = do
     glBindTexture gl_TEXTURE_2D tex
     glTexParameteri gl_TEXTURE_2D gl_TEXTURE_MAG_FILTER $ fromIntegral gl_NEAREST
     glTexParameteri gl_TEXTURE_2D gl_TEXTURE_MIN_FILTER $ fromIntegral gl_NEAREST
-    unsafeWith dat $ glTexImage2D gl_TEXTURE_2D 0 (fromIntegral gl_RGBA) iw ih 0 (fromIntegral gl_BGRA) gl_UNSIGNED_BYTE
+    unsafeWith dat $ glTexImage2D gl_TEXTURE_2D 0 (fromIntegral gl_RGBA) iw ih 0 (fromIntegral fmt) gl_UNSIGNED_BYTE
     glFramebufferTexture2D gl_DRAW_FRAMEBUFFER gl_COLOR_ATTACHMENT0 gl_TEXTURE_2D tex 0
 
     status <- glCheckFramebufferStatus gl_FRAMEBUFFER
