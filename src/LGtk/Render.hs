@@ -385,10 +385,13 @@ tr sca dkh w = do
             let -- ff ind _ _ (Just ' ') = br ind
                 br' ind = br (ind `mod` n)
                 br'' f = liftReadRef bs >>= br' . f 
-                ff [] "Down" _ = br'' (+1)
-                ff [] "Up" _ = br'' (+(-1))
+                ff [] _ (Just '\n') = br'' (+1)
+                ff [] _ (Just ' ') = br'' (+1)
+                ff [] "BackSpace" _ = br'' (+(-1))
                 ff a b c = dkh a b c
                 kh = (return (), ff, return (), ii)
+
+                x = maximum [x | txt <- xs, let (x :& _) = fst $ text__ 15 3 txt ]
 
                 render bv is is' = vcat (zipWith3 g [0..] iss xs) # freeze # frame 0.1
                   where
@@ -401,7 +404,7 @@ tr sca dkh w = do
                              # value_ (br ind) kh i
                             )  # frame 0.02
 
-                     where ((x :& y), te) = text__ 15 3 txt
+                     where ((_ :& y), te) = text__ 15 3 txt
 
             return $ CWidget (liftM ((,) ([kh],[[kh]])) bs) render
 
