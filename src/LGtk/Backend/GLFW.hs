@@ -61,6 +61,7 @@ runWidget desc = do
         exit <- newMVar False
         postedActions <- newMVar $ return ()
         mc <- newMVar (0, Nothing)
+        current' <- newMVar mempty
 
         let
             post :: IO () -> IO ()
@@ -74,7 +75,7 @@ runWidget desc = do
 
             calcMousePos (x,y) = do
                 (sc, w, h, _, _) <- dims
-                d <- current
+                d <- readMVar current'
                 let p = ((x - w / 2) / sc, (h / 2 - y) / sc)
                     q = MousePos p $ d `sample` p2 p
                 return q
@@ -128,7 +129,7 @@ runWidget desc = do
             logWinSize :: WindowSizeCallback
             logWinSize _win _w _h = do
                 _ <- tryTakeMVar iodia
-                current >>= putMVar iodia . clearValue
+                current >>= putMVar iodia
 
         -- callbacks
         setKeyCallback win (Just logKey)
@@ -143,7 +144,7 @@ runWidget desc = do
               Nothing -> return ()
               Just dia_ -> do
                 (sc, w, h, sw, sh) <- dims
-                let dia = dia_ # freeze # scale sc # clipped (rect w h) <>
+                let dia = dia_ # clearValue # freeze # scale sc # clipped (rect w h) <>
                             rect w h # fc white # lw 0
 
                 -- Cairo
@@ -155,6 +156,9 @@ runWidget desc = do
 
                 copyToScreen win (fromIntegral sw) (fromIntegral sh) image
 --                putStr "*"
+
+                _ <- swapMVar current' dia_
+                return ()
 
         let eventCycle = do
                 pollEvents
@@ -175,7 +179,7 @@ newChan' = do
     ch <- newChan
     return (readChan ch, writeChan ch)
 
-data SWidget = forall a . (Monoid a, Semigroup a) => SWidget Int Int Double (MouseEvent a -> IO ()) (IO (Dia a)) (MVar (Dia Any))
+data SWidget = forall a . (Monoid a, Semigroup a) => SWidget Int Int Double (MouseEvent a -> IO ()) (IO (Dia a)) (MVar (Dia a))
 
 
 runWidget_
@@ -187,7 +191,7 @@ runWidget_  m = m >>= \i -> case i of
         _ <- onChangeSimple r $ \b -> liftIO' $ do
             let d = diaFun b
             _ <- tryTakeMVar rer
-            putMVar rer $ d # clearValue
+            putMVar rer d
             _ <- swapMVar rer' d
             return ()
 
