@@ -177,11 +177,19 @@ inCanvas width height scale w = mdo
         dkh [] "Down"   _ = changeFoc $ \(a,b) -> (a+1,b)
         dkh [] "Left"   _ = changeFoc $ \(a,b) -> (a,b-1)
         dkh [] "Right"  _ = changeFoc $ \(a,b) -> (a,b+1)
+        dkh [] "Tab"    _ = moveFoc True
+        dkh [c] "Tab" _ | c == ControlModifier = moveFoc False
         dkh _ _ _ = return ()
 
         h2 m = do
             adjustFoc foc
             writeRef foc m
+
+        moveFoc f = do
+            (_, _, _, j) <- readRef' foc
+            (xs, _) <- liftReadRef bb
+            let (a,bb,c,d) = maybe (head xs) snd $ find (\((_,_,_,x),_) -> x == j) $ pairs $ (if f then id else reverse) (xs ++ xs)
+            a >> h2 (a,bb,c,d)
 
     -- compiled widget
     bhr <- newIds firstId $ tr (fromIntegral width / scale) dkh w
@@ -207,17 +215,9 @@ inCanvas width height scale w = mdo
                         b <- f x
                         when (not b) $ writeRef capt Nothing
 
-            moveFoc f = do
-                (_, _, _, j) <- readRef' foc
-                ((xs, _), _) <- liftReadRef b
-                let (a,bb,c,d) = maybe (head xs) snd $ find (\((_,_,_,x),_) -> x == j) $ pairs $ (if f then id else reverse) (xs ++ xs)
-                a >> h2 (a,bb,c,d)
-
             handleEvent (Release (MousePos p f)) = handle f $ Release $ MousePos p ()  :: Modifier m ()
             handleEvent (Click (MousePos p f)) = handle f $ Click $ MousePos p ()  :: Modifier m ()
             handleEvent (MoveTo (MousePos p f)) = handle f $ MoveTo $ MousePos p ()
-            handleEvent (KeyPress [] "Tab" _) = moveFoc True
-            handleEvent (KeyPress [c] "Tab" _) | c == ControlModifier = moveFoc False
             handleEvent (KeyPress m n c) = do
                 (_,f,_,_) <- readRef' foc
                 f m n c
