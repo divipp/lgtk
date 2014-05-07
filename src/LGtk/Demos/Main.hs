@@ -24,7 +24,9 @@ import LGtk.Demos.IntListEditor
 import LGtk.Demos.TEditor
 
 main :: IO ()
-main = runWidget $ notebook
+main = runWidget mainWidget
+
+mainWidget = notebook
     [ (,) "Widget Elements" $ notebook
 
         [ (,) "Hello" $ label $ return "Hello World!"
@@ -258,6 +260,9 @@ main = runWidget $ notebook
             intListEditor (0 :: Integer, True) 15 list range
 
         ]
+
+    , (,) "InCanvas" $ inCanvas 800 600 30 mainWidget
+
     ]
 
 tPic :: Int -> T -> Dia Any
