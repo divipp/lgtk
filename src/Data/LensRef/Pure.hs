@@ -18,7 +18,6 @@ import Data.Monoid
 import Control.Applicative hiding (empty)
 import Control.Monad.State
 import Control.Monad.Reader
-import Control.Monad.Fix
 import Control.Arrow ((***))
 import Data.Sequence hiding (singleton, filter)
 import Control.Lens hiding ((|>))
@@ -120,35 +119,33 @@ instance Monad m => ExtRefWrite (StateT LSt m) where
 
 type Register n m = ReaderT (Ref m (MonadMonoid m, Command -> MonadMonoid n)) m
 
-newtype Reg n a = Reg { unReg :: ReaderT (SLSt n () -> n ()) (Register n (SLSt n)) a } deriving (Monad, Applicative, Functor)
+newtype Pure n a = Pure { unPure :: ReaderT (SLSt n () -> n ()) (Register n (SLSt n)) a } deriving (Monad, Applicative, Functor)
 
 type SLSt = StateT LSt
-
-type Pure m = Reg m
-
-mapReg :: (forall a . m a -> n a) -> Reg m a -> Reg n a
-mapReg ff (Reg m) = Reg $ ReaderT $ \f -> ReaderT $ \r -> StateT $ \s -> 
+{-
+mapReg :: (forall a . m a -> n a) -> Pure m a -> Pure n a
+mapReg ff (Pure m) = Pure $ ReaderT $ \f -> ReaderT $ \r -> StateT $ \s -> 
     ff $ flip runStateT s $ flip runReaderT (iso undefined undefined `lensMap` r) $ runReaderT m $ undefined f
-
-instance MonadTrans Reg where
-    lift = Reg . lift . lift . lift
+-}
+instance MonadTrans Pure where
+    lift = Pure . lift . lift . lift
 
 instance MonadFix m => MonadFix (Pure m) where
-    mfix f = Reg $ mfix $ unReg . f
+    mfix f = Pure $ mfix $ unPure . f
 
 instance Monad n => ExtRef (Pure n) where
 
     type RefCore (Pure n) = Lens_ LSt
 
-    liftReadRef = Reg . lift . lift . liftReadRef
-    extRef r l = Reg . lift . lift . extRef r l
-    newRef = Reg . lift . lift . newRef
+    liftReadRef = Pure . lift . lift . liftReadRef
+    extRef r l = Pure . lift . lift . extRef r l
+    newRef = Pure . lift . lift . newRef
     memoRead = memoRead_
     memoWrite = memoWrite_
     future = future_
 
 instance Monad n => ExtRefWrite (Pure n) where
-    liftWriteRef = Reg . lift . lift . liftWriteRef
+    liftWriteRef = Pure . lift . lift . liftWriteRef
 
 instance Monad n => EffRef (Pure n) where
 
@@ -160,10 +157,10 @@ instance Monad n => EffRef (Pure n) where
 
     liftModifier = RegW
 
-    onChange_ r b0 c0 f = Reg $ ReaderT $ \ff ->
+    onChange_ r b0 c0 f = Pure $ ReaderT $ \ff ->
         toSend lift r b0 c0 $ \b b' c' -> liftM (\x -> evalRegister ff . x) $ evalRegister ff $ f b b' c'
 
-    toReceive f g = Reg $ ReaderT $ \ff -> do
+    toReceive f g = Pure $ ReaderT $ \ff -> do
         tell' (mempty, MonadMonoid . g)
         writerstate <- ask
         return $ fmap (ff . flip runReaderT writerstate . evalRegister ff . unRegW) f
@@ -186,10 +183,10 @@ instance MonadFix m => MonadFix (Modifier (Pure m)) where
     mfix f = RegW $ mfix $ unRegW . f
 
 
-evalRegister ff (Reg m) = runReaderT m ff
+evalRegister ff (Pure m) = runReaderT m ff
 
 runPure :: Monad m => (forall a . m (m a, a -> m ())) -> Pure m a -> m (a, m ())
-runPure newChan (Reg m) = do
+runPure newChan (Pure m) = do
     (read, write) <- newChan
     ((a, tick), s) <- flip runStateT initLSt $ do
         (a, r) <- runRefWriterT $ runReaderT m write
