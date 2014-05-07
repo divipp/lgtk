@@ -425,14 +425,11 @@ tr sca dkh w = do
                 ff [AltModifier] _ (Just c) | Just i <- ind c = br'' (const i)
                 ff a b c = dkh a b c
 
-                fff [AltModifier] _ (Just c) | Just i <- ind c = br'' (const i)
-                fff a b c = dkh a b c
-
                 ind c | 0 <= i && i < n = Just i
                       | otherwise = Nothing
                   where i = fromEnum c - fromEnum '1'
 
-            wisv <- mapM (tr sca fff) wis
+            wisv <- mapM (tr sca dkh) wis
 
             wr <- lift $ onChangeSimple (readRef ir) $ \x -> return $ case wisv !! x of
                          CWidget rr render -> do
