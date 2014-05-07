@@ -212,9 +212,9 @@ inCanvas width height scale w = mdo
                         b <- f x
                         when (not b) $ writeRef capt Nothing
 
-            handleEvent (Release (MousePos p f)) = handle f $ Release $ MousePos p ()  :: Modifier m ()
-            handleEvent (Click (MousePos p f)) = handle f $ Click $ MousePos p ()  :: Modifier m ()
-            handleEvent (MoveTo (MousePos p f)) = handle f $ MoveTo $ MousePos p ()
+            handleEvent (Release (MousePos p f)) = handle f $ Release $ MousePos p ()
+            handleEvent (Click   (MousePos p f)) = handle f $ Click   $ MousePos p ()
+            handleEvent (MoveTo  (MousePos p f)) = handle f $ MoveTo  $ MousePos p ()
             handleEvent (KeyPress m n c) = do
                 (_,f,_,_) <- readRef' foc
                 f m n c
@@ -374,18 +374,21 @@ tr sca dkh w = do
             let ff x y z = r $ KeyPress x y z
 
                 gg (Just' ls) (Click (MousePos p _)) = Just' (r (Click $ MousePos p ls), Nothing, Just (return (), ff, r LostFocus, i), i)
-                gg (Just' ls) (MoveTo (MousePos p _)) = Just' (r (MoveTo $ MousePos p ls), Nothing, Nothing, i)
+                gg (Just' ls) (Release (MousePos p _)) = Just' (r (Release $ MousePos p ls), Nothing, Nothing, i)
+                gg (Just' ls) (MoveTo  (MousePos p _)) = Just' (r (MoveTo  $ MousePos p ls), Nothing, Nothing, i)
                 gg _ _ = mempty
 
                 wi = fromIntegral w / sca
                 hi = fromIntegral h / sca
+
+                kh = (return (), ff, return (), i)
 
                 render bv _is is' = (fmap gg (fmap Just' (f bv # freeze) # scale ((fromIntegral w / d) / sca)
                                             # clipBy' (rect wi hi))
                    <> rect wi hi # value mempty # lw 0.02 # lc (if is' == i then yellow else black)
                          )  # freeze  # frame 0.1
 
-            return $ CWidget (liftM ((,) ([],[])) s) render
+            return $ CWidget (liftM ((,) ([kh],[[kh]])) s) render
 
         Combobox xs (bs, br) -> do
             let n = length xs
