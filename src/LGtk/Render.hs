@@ -179,10 +179,12 @@ inCanvas width height scale w = mdo
         dkh [c] "Tab" _ | c == ControlModifier = moveFoc False
         dkh _ _ _ = return ()
 
-        h2 m@(a,_,_,_) = do
-            adjustFoc foc
-            a
-            writeRef foc m
+        h2 m@(a,_,_,i) = do
+            i' <- readRef' $ _4 `lensMap` foc
+            when (i /= i') $ do
+                adjustFoc foc
+                a
+                writeRef foc m
 
         moveFoc f = do
             (_, _, _, j) <- readRef' foc
@@ -305,11 +307,12 @@ tr sca dkh w = do
                 text' (True,(a,b)) = reverse a ++ "|" ++ b
                 isOk' (_,ab) = isOk $ value' ab
 
-                fin = writeRef (_1 `lensMap` j) True
-                fout = do
-                    commit
-                    writeRef (_1 `lensMap` j) False
                 kh = (fin, ff, fout, i)
+                  where
+                    fin = writeRef (_1 `lensMap` j) True
+                    fout = do
+                        commit
+                        writeRef (_1 `lensMap` j) False
 
                 render (orig,bv) is is' = 
                   (  te # clipped (rect x y) # value mempty
