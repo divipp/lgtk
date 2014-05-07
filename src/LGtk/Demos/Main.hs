@@ -4,7 +4,6 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 module LGtk.Demos.Main
     ( main
-    , main'
     ) where
 
 import Numeric
@@ -161,6 +160,8 @@ main = runWidget $ notebook
                 , label $ return "Click on the circle to temporarily enlarge it."
                 ]
 
+            , (,) "InCanvas" $ inCanvasExample
+
             ]
 
         ]
@@ -285,8 +286,7 @@ interval ab = (lens fst set1 `lensMap` ab, lens snd set2 `lensMap` ab) where
 
 ----------------------------------------------------------------------------
 
-main' :: IO ()
-main' = runWidget $ do
+inCanvasExample = do
     t <- newRef $ iterate (Node Leaf) Leaf !! 5
     i <- newRef (0 :: Int)
     j <- newRef 0
