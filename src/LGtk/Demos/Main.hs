@@ -115,8 +115,14 @@ main = runWidget $ notebook
                         4 -> mconcat [circle (i'/10) # translate (r2 (i'/3, 0) # rotate ((x/i') @@ rad)) | i<-[1 :: Int ..10], let i' = fromIntegral i]
                         ) # lw 0.05 # fc blue # value ()
                 , combobox ["Pulse","Rotate","Rotate2","Spiral","Spiral2"] t
-                , hscale 0.1 5 0.1 speed
-                , hscale 1 100 1 fps
+                , hcat
+                    [ hscale 0.1 5 0.1 speed
+                    , label (liftM (("freq: " ++) . show) $ readRef speed)
+                    ]
+                , hcat
+                    [ hscale 1 100 1 fps
+                    , label (liftM (("fps: " ++) . show) $ readRef fps)
+                    ]
                 ]
 
             , (,) "Reactive" $ do
