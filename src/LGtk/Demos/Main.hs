@@ -125,7 +125,7 @@ main = runWidget $ notebook
                     ]
                 , hcat
                     [ hscale 1 100 1 fps
-                    , label (liftM (("fps: " ++) . show) $ readRef fps)
+                    , label (liftM (("fps: " ++) . ($ "") . showFFloat (Just 2)) $ readRef fps)
                     ]
                 ]
 
