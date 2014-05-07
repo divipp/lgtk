@@ -127,9 +127,6 @@ value_ a c i = value f where
     f (MoveTo _) = Just' (return (), Nothing, Nothing, i)
     f _ = mempty
 
-adjustFoc :: EffRef m => Ref m (KeyFocusHandler (Modifier m)) -> Modifier m ()
-adjustFoc foc = join $ readRef' $ _3 `lensMap` foc
-
 -----------------
 
 [] !!! _ = Nothing
@@ -182,7 +179,7 @@ inCanvas width height scale w = mdo
         h2 m@(a,_,_,i) = do
             i' <- readRef' $ _4 `lensMap` foc
             when (i /= i') $ do
-                adjustFoc foc
+                join $ readRef' $ _3 `lensMap` foc
                 a
                 writeRef foc m
 
@@ -221,7 +218,7 @@ inCanvas width height scale w = mdo
             handleEvent (KeyPress m n c) = do
                 (_,f,_,_) <- readRef' foc
                 f m n c
-            handleEvent LostFocus = adjustFoc foc
+            handleEvent LostFocus = h2 df
             handleEvent _ = return ()
         return $ Canvas width height scale handleEvent (liftM3 (,,) (readRef hi) (readRef $ _4 `lensMap` foc) $ liftM snd b) $
             \(is, is', x) -> 
@@ -383,9 +380,9 @@ tr sca dkh w = do
                 wi = fromIntegral w / sca
                 hi = fromIntegral h / sca
 
-                render bv _is _is' = (fmap gg (fmap Just' (f bv # freeze) # scale ((fromIntegral w / d) / sca)
+                render bv _is is' = (fmap gg (fmap Just' (f bv # freeze) # scale ((fromIntegral w / d) / sca)
                                             # clipBy' (rect wi hi))
-                   <> rect wi hi # value mempty # lw 0.02
+                   <> rect wi hi # value mempty # lw 0.02 # lc (if is' == i then yellow else black)
                          )  # freeze  # frame 0.1
 
             return $ CWidget (liftM ((,) ([],[])) s) render
