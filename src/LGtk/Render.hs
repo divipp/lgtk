@@ -144,6 +144,7 @@ inCanvas width height scale w = mdo
     let i = firstId
 
     foc <- newRef df
+    rememberfoc <- newRef df
 
     -- captured event handler
     capt <- newRef Nothing
@@ -160,14 +161,13 @@ inCanvas width height scale w = mdo
             (_, xss_) <- liftReadRef bb
             let xss = filter (not . null) xss_
             if null xss
-              then return ()
+              then return False
               else do
                 let mp = calcPos j $ map (map (\(_,_,_,i)->i)) xss
                     ((a,_), (a',b')) = maybe ((0,0), (0,0)) (\x -> (x, f x)) mp
                 if a == a'
-                  then maybe (return ()) h2 $ (xss !! a') !!! b'
-                  else maybe (return ()) h2 $ fmap (!!!! b') (xss !!! a')
-            return True
+                  then maybe (return False) ((>> return True) . h2) $ (xss !! a') !!! b'
+                  else maybe (return False) ((>> return True) . h2) $ fmap (!!!! b') (xss !!! a')
 
         dkh [] "Up"     _ = changeFoc $ \(a,b) -> (a-1,b)
         dkh [] "Down"   _ = changeFoc $ \(a,b) -> (a+1,b)
@@ -218,7 +218,8 @@ inCanvas width height scale w = mdo
             handleEvent (Release (MousePos p f)) = handle f $ Release $ MousePos p ()
             handleEvent (Click   (MousePos p f)) = handle f $ Click   $ MousePos p ()
             handleEvent (MoveTo  (MousePos p f)) = handle f $ MoveTo  $ MousePos p ()
-            handleEvent LostFocus = h2 df
+            handleEvent GetFocus = readRef' rememberfoc >>= h2
+            handleEvent LostFocus = readRef' foc >>= writeRef rememberfoc >> h2 df
             handleEvent _ = return ()
 
             handleKeys m n c = do
@@ -388,7 +389,7 @@ tr sca dkh w = do
                 wi = fromIntegral w / sca
                 hi = fromIntegral h / sca
 
-                kh = (return (), ff, r LostFocus >> return (), i)
+                kh = (r GetFocus >> return (), ff, r LostFocus >> return (), i)
 
                 render bv _is is' = (fmap gg (fmap Just' (f bv # freeze) # scale ((fromIntegral w / d) / sca)
                                             # clipBy' (rect wi hi))

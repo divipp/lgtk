@@ -71,6 +71,7 @@ data MouseEvent a
     | Release (MousePos a)
     | ScrollTo ScrollDirection (MousePos a)
     | LostFocus
+    | GetFocus
         deriving (Eq)
 
 data MousePos a
