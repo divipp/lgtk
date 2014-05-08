@@ -194,8 +194,9 @@ runWidget_ post' post = toWidget
                     c <- eventKeyVal
                     kn <- lift $ keyvalName c
                     kc <- lift $ keyvalToChar c
-                    let tr Gtk.Shift = [ShiftModifier]
+                    let tr Gtk.Shift   = [ShiftModifier]
                         tr Gtk.Control = [ControlModifier]
+                        tr Gtk.Alt     = [AltModifier]
                         tr _ = []
                     liftIO $ re (concatMap tr m, kn, kc)
                 return ()
