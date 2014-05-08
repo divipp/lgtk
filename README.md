@@ -87,8 +87,10 @@ Only some Haddock documentation is available at the moment.
 
 ## Links
 
-TODO
-
+* [haskell.org wiki page](http://www.haskell.org/haskellwiki/LGtk)
+* [Haddock documentation on HackageDB](http://hackage.haskell.org/package/lgtk)
+* [Wordpress blog](http://lgtk.wordpress.com/)
+* [GitHub repository (this page)](https://github.com/divipp/lgtk)
 
 
 
