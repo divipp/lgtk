@@ -70,12 +70,12 @@ cabal install lgtk
 lgtkdemo
 ```
 
-To install lgtkdemo with the Gtk backend:
+To install lgtkdemo with the Gtk backend you have to enable the `gtk` flag:
 
 ```
 cabal update
 cabal install gtk2hs-buildtools
-cabal install lgtk
+cabal install lgtk -fgtk
 lgtkdemo
 ```
 
