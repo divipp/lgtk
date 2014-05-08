@@ -1,0 +1,59 @@
+
+= lgtk-0.8 =
+
+Lots of changes since the previously announced version, lgtk-0.5.3.
+
+== New features ==
+
+* New GLFW backend - Gtk is not strictly needed any more
+* Diagrams canvas with mouse and keyboard interaction support
+* Widget rendering in canvas
+* Horizontal sliders (called scales in Gtk)
+
+== Architectural changes ==
+
+* Updated demo application
+* Switch from data-lens to Edward Kmett's lens library
+* Upgrade to work with GHC 8.2
+* Repository moved to GitHub
+
+== Inner changes ==
+
+* Generalized interface of references
+* Cleanup in interface of references: eliminate `joinRef` and `SafeIO`; lots of other changes
+* Cleanup in interface of widgets: eliminate `action`
+* More efficient reference implementation
+
+== Other changes ==
+
+* Bugfixes
+
+
+= lgtk-0.5.3 =
+
+* bugfix: handle focus out events for entries
+* bugfix: run postponed actions at widget initialization
+
+= lgtk-0.5.2 =
+
+* Better support for references with equality
+* Documentation fixes and cleanup
+* Inner change: safer state handling with MVars
+
+= lgtk-0.5.1 =
+
+* Documentation fixes and cleanup
+* Try to support Haskell Platform 2012.4.0.0
+
+= lgtk-0.5 =
+
+* Do not use monadic lenses any more.
+* Support for asynchronous events.
+* Lazily created tabs.
+* Inactive tabs are really inactive (event handlers are detached).
+* File references watch the files. When the file changes, the GUI is updated.
+* References with inherent identity (makes defining auto-sensitive buttons easier)
+* Experimental support for coloured buttons.
+* More examples in the demo application.
+* Lots of inner changes.
+
