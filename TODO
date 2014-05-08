@@ -6,6 +6,7 @@ Items are sorted by priority
 * More test cases for references
 * Improve fast reference implementation
 * Split out references into a new repo
+* Prefer to use pure lenses
 * API for widget elements design
 * New feature: Scrollbar support
 * Improve widget placement on canvas
