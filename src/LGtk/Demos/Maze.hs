@@ -40,8 +40,8 @@ drawMaze (maze, hi) =
   where
     drawCell (p@(i,j), C cs) =
             (   (if b then mconcat (map drawWall $ complement cs) # lw 0.005 # value [] else mempty)
-            <>  (if p == q1 then circle 0.35 # lw 0.003 # fc blue # value [] else mempty)
             <>  (if p == q2 then circle 0.35 # lw 0.003 # fc green # value [] else mempty)
+            <>  (if p == q1 then circle 0.35 # lw 0.003 # fc blue # value [] else mempty)
             <>  rect 1 1 # lw 0 # (if b then fc yellow else id) # value [p]
             )   # translate (r2 (fromIntegral i, fromIntegral j))
         where b = S.member p hi
