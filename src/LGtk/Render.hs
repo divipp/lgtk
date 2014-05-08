@@ -1,6 +1,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -15,6 +16,7 @@ import Control.Monad
 import Control.Monad.State
 import Control.Lens hiding ((#), beside)
 import Data.List
+import Data.Typeable
 import Data.Maybe
 import Diagrams.Prelude
 --import Diagrams.BoundingBox
@@ -77,12 +79,12 @@ clipBy' p d = fmap unX (fmap X d # clipBy p # withEnvelope p  <> fmap flipp (str
     flipp Z = Cancel
 
     unX (X a) = a
-    unX Cancel = mempty
+    unX _ = mempty
 
 --------------------------------------------------------- Identifiers
 
 newtype Id = Id [Int]
-    deriving (Eq, Show)
+    deriving (Eq, Ord, Show, Typeable)
 
 type WithId = StateT Id
 
@@ -98,6 +100,8 @@ newId = do
 newIds :: Monad m => Id -> WithId m a -> m a
 newIds (Id i) = flip evalStateT $ Id (0:i)
 
+instance IsName Id where
+
 ---------------------------------------------------------
 
 -- how to handle keyboard events
@@ -106,13 +110,13 @@ type KeyHandler m = [KeyModifier] -> String -> Maybe Char -> m Bool
 -- focus enter action; keyboard event handler; focus leave action; id of the keyboard-focused widget
 type KeyFocusHandler m = (m (), KeyHandler m, m (), Id)
 
-type CapturedEventHandler m = MouseEvent () -> m Bool
+type CapturedEventHandler m = (MouseEvent (), Dia ()) -> m Bool
 
 -- for each mouse event:
 --  - what to do
 --  - the new keyboard focus handler
 --  - the id of the mouse-focused widget
-type EventHandler m = MouseEvent () -> Maybe' (m (), Maybe (CapturedEventHandler m), Maybe (KeyFocusHandler m), Id)
+type EventHandler m = (MouseEvent (), Dia ()) -> Maybe' (m (), Maybe (CapturedEventHandler m), Maybe (KeyFocusHandler m), Id)
 
 -- compiled widget
 data CWidget m
@@ -123,8 +127,8 @@ data CWidget m
 
 value_ :: Monad m => m () -> KeyFocusHandler m -> Id -> Dia Any -> Dia (EventHandler m)
 value_ a c i = value f where
-    f (Click _) = Just' (a, Nothing, Just c, i)
-    f (MoveTo _) = Just' (return (), Nothing, Nothing, i)
+    f (Click _, di) = Just' (a, Nothing, Just c, i)
+    f (MoveTo _, di) = Just' (return (), Nothing, Nothing, i)
     f _ = mempty
 
 -----------------
@@ -215,11 +219,11 @@ inCanvas width height scale w = mdo
                         b <- f x
                         when (not b) $ writeRef capt Nothing
 
-            handleEvent (Release (MousePos p f)) = handle f $ Release $ MousePos p ()
-            handleEvent (Click   (MousePos p f)) = handle f $ Click   $ MousePos p ()
-            handleEvent (MoveTo  (MousePos p f)) = handle f $ MoveTo  $ MousePos p ()
-            handleEvent GetFocus = readRef' rememberfoc >>= h2
-            handleEvent LostFocus = readRef' foc >>= writeRef rememberfoc >> h2 df
+            handleEvent (Release (MousePos p f), di) = handle f (Release $ MousePos p (), di # clearValue # value ())
+            handleEvent (Click   (MousePos p f), di) = handle f (Click   $ MousePos p (), di # clearValue # value ())
+            handleEvent (MoveTo  (MousePos p f), di) = handle f (MoveTo  $ MousePos p (), di # clearValue # value ())
+            handleEvent (GetFocus, di) = readRef' rememberfoc >>= h2
+            handleEvent (LostFocus, di) = readRef' foc >>= writeRef rememberfoc >> h2 df
             handleEvent _ = return ()
 
             handleKeys m n c = do
@@ -381,19 +385,25 @@ tr sca dkh w = do
                     b <- fromMaybe (\_ _ _ -> return False) keyh x y z
                     if b then return True else dkh x y z
 
-                gg (Just' ls) (Click (MousePos p _)) = Just' (r (Click $ MousePos p ls) >> return (), Nothing, Just kh, i)
-                gg (Just' ls) (Release (MousePos p _)) = Just' (r (Release $ MousePos p ls) >> return (), Nothing, Nothing, i)
-                gg (Just' ls) (MoveTo  (MousePos p _)) = Just' (r (MoveTo  $ MousePos p ls) >> return (), Nothing, Nothing, i)
+                tr di (a,b) = case lookupName i di of
+                            Just subd -> (a-x, b-y) # scale (1/((fromIntegral w / d) / sca))
+                                where (x :& y) = coords $ location subd
+
+                decomp (x :& y) = (x,y)
+
+                gg (Just' ls) (Click (MousePos p _), di) = Just' (r (Click $ MousePos (tr di p) ls, di # clearValue # value ls) >> return (), Nothing, Just kh, i)
+                gg (Just' ls) (Release (MousePos p _), di) = Just' (r (Release $ MousePos (tr di p) ls, di # clearValue # value ls) >> return (), Nothing, Nothing, i)
+                gg (Just' ls) (MoveTo  (MousePos p _), di) = Just' (r (MoveTo  $ MousePos (tr di p) ls, di # clearValue # value ls) >> return (), Nothing, Nothing, i)
                 gg _ _ = mempty
 
                 wi = fromIntegral w / sca
                 hi = fromIntegral h / sca
 
-                kh = (r GetFocus >> return (), ff, r LostFocus >> return (), i)
+                kh = (r (GetFocus, undefined) >> return (), ff, r (LostFocus, undefined) >> return (), i)
 
                 render bv _is is' = (fmap gg (fmap Just' (f bv # freeze) # scale ((fromIntegral w / d) / sca)
                                             # clipBy' (rect wi hi))
-                   <> rect wi hi # value mempty # lw 0.02 # lc (if is' == i then yellow else black)
+                   <> rect wi hi # named i # value mempty # lw 0.02 # lc (if is' == i then yellow else black)
                          )  # freeze  # frame 0.1
 
             return $ CWidget (liftM ((,) ([kh | isJust keyh],[[kh] | isJust keyh])) s) render
@@ -512,12 +522,12 @@ tr sca dkh w = do
                         Just (x_, v) -> rr $ min ma $ max mi $ v + (ma - mi) * (x - x_) / 10
                         Nothing -> return ()
 
-                f (Click (MousePos (x,_) _)) = Just' (liftReadRef sr >>= \v -> writeRef mv $ Just (x, v), Just f', Just kh, i)
-                f (MoveTo _) = Just' (return (), Nothing, Nothing, i)
+                f (Click (MousePos (x,_) _), _) = Just' (liftReadRef sr >>= \v -> writeRef mv $ Just (x, v), Just f', Just kh, i)
+                f (MoveTo _, _) = Just' (return (), Nothing, Nothing, i)
                 f _ = mempty
 
-                f' (Release (MousePos (x,_) _)) = adj x >> writeRef mv Nothing >> return False
-                f' (MoveTo  (MousePos (x,_) _)) = adj x >> return True
+                f' (Release (MousePos (x,_) _), _) = adj x >> writeRef mv Nothing >> return False
+                f' (MoveTo  (MousePos (x,_) _), _) = adj x >> return True
                 f' _ = return True
 
                 render r is is' =

@@ -79,7 +79,7 @@ runWidget desc = do
                 d <- readMVar current'
                 let p = ((x - w / 2) / sc, (h / 2 - y) / sc)
                     q = MousePos p $ d `sample` p2 p
-                return q
+                return (q, d)
 
             logMousePos :: CursorPosCallback
             logMousePos _win x y = do
@@ -88,7 +88,7 @@ runWidget desc = do
                     (t',q) <- readMVar mc
                     case q of
                         Just q | t==t' -> do
-                            calcMousePos q >>= handle . MoveTo
+                            calcMousePos q >>= \(q,d) -> handle (MoveTo q, d)
                         _ -> return ()
 
             logMouseButton :: MouseButtonCallback
@@ -96,8 +96,8 @@ runWidget desc = do
                 --putStrLn $ "MouseButtonCallback: " ++ show (button,state,mod)
                 (_, p) <- readMVar mc
                 case (state, p) of
-                  (MouseButtonState'Pressed, Just p) -> calcMousePos p >>= handle . Click
-                  (MouseButtonState'Released, Just p) -> calcMousePos p >>= handle . Release
+                  (MouseButtonState'Pressed, Just p) -> calcMousePos p >>= \(q,d) -> handle (Click q, d)
+                  (MouseButtonState'Released, Just p) -> calcMousePos p >>= \(q,d) -> handle (Release q, d)
                   _ -> return ()
 
             logKey :: KeyCallback
@@ -183,7 +183,7 @@ newChan' = do
     return (readChan ch, writeChan ch)
 
 data SWidget = forall a . (Monoid a, Semigroup a)
-    => SWidget Int Int Double (MouseEvent a -> IO ()) (([KeyModifier], String, Maybe Char) -> IO ()) (IO (Dia a)) (MVar (Dia a))
+    => SWidget Int Int Double ((MouseEvent a, Dia a) -> IO ()) (([KeyModifier], String, Maybe Char) -> IO ()) (IO (Dia a)) (MVar (Dia a))
 
 
 runWidget_

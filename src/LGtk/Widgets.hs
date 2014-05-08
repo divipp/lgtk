@@ -39,7 +39,7 @@ data WidgetCore m
         Int
         Int
         Double
-        (MouseEvent a -> Modifier m ())
+        ((MouseEvent a, Dia a) -> Modifier m ())
         (KeyboardHandler (Modifier m))
         (ReadRef m b)
         (b -> Dia a)

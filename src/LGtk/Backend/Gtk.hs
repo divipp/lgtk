@@ -158,31 +158,31 @@ runWidget_ post' post = toWidget
                 (sc, w, h, _, _) <- dims
                 d <- readMVar cur
                 let p = ((x - w / 2) / sc, (h / 2 - y) / sc)
-                return $ MousePos p $ maybe mempty (`sample` p2 p) d
+                return (MousePos p $ maybe mempty (`sample` p2 p) d, fromMaybe mempty d)
 
           _ <- reg me $ \re -> do
               _ <- on' canvas buttonPressEvent $ tryEvent $ do
 --                click <- eventClick
-                p <- eventCoordinates >>= liftIO . compCoords
-                liftIO $ re $ Click p
+                (p, d) <- eventCoordinates >>= liftIO . compCoords
+                liftIO $ re (Click p, d)
               _ <- on' canvas buttonReleaseEvent $ tryEvent $ do
 --                click <- eventClick
-                p <- eventCoordinates >>= liftIO . compCoords
-                liftIO $ re $ Release p
+                (p, d) <- eventCoordinates >>= liftIO . compCoords
+                liftIO $ re (Release p, d)
               _ <- on' canvas enterNotifyEvent $ tryEvent $ do
-                p <- eventCoordinates >>= liftIO . compCoords
-                liftIO $ re $ MouseEnter p
+                (p, d) <- eventCoordinates >>= liftIO . compCoords
+                liftIO $ re (MouseEnter p, d)
               _ <- on' canvas leaveNotifyEvent $ tryEvent $ do
-                p <- eventCoordinates >>= liftIO . compCoords
-                liftIO $ re $ MouseLeave p
+                (p, d) <- eventCoordinates >>= liftIO . compCoords
+                liftIO $ re (MouseLeave p, d)
               _ <- on' canvas motionNotifyEvent $ tryEvent $ do
-                p <- eventCoordinates >>= liftIO . compCoords
-                liftIO $ re $ MoveTo p
+                (p, d) <- eventCoordinates >>= liftIO . compCoords
+                liftIO $ re (MoveTo p, d)
               on' canvas scrollEvent $ tryEvent $ do
-                p <- eventCoordinates >>= liftIO . compCoords
+                (p, d) <- eventCoordinates >>= liftIO . compCoords
                 dir <- eventScrollDirection
                 let tr _ = Horizontal -- TODO
-                liftIO $ re $ ScrollTo (tr dir) p
+                liftIO $ re (ScrollTo (tr dir) p, d)
 
           case keyh of
             Nothing -> return ()
