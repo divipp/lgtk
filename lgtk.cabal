@@ -43,6 +43,8 @@ library
                   , lens == 4.1.*
 
                   , vector == 0.10.*
+                  , array == 0.5.*
+                  , random == 1.0.*
                   , containers == 0.5.*
                   , directory == 1.2.*
                   , filepath == 1.3.*
@@ -80,6 +82,9 @@ library
                     LGtk.Demos.Tri
                     LGtk.Demos.IntListEditor
                     LGtk.Demos.TEditor
+                    LGtk.Demos.Maze.Types
+                    LGtk.Demos.Maze.Maze
+                    LGtk.Demos.Maze
 
   if flag(Gtk)
     build-depends:

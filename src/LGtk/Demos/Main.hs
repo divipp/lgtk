@@ -22,6 +22,7 @@ import LGtk.Backend.GLFW
 import LGtk.Demos.Tri
 import LGtk.Demos.IntListEditor
 import LGtk.Demos.TEditor
+import LGtk.Demos.Maze
 
 main :: IO ()
 main = runWidget mainWidget
@@ -137,7 +138,7 @@ mainWidget = notebook
                 let s = 0.5 :: Double
                 let f = 50 :: Double
                 asyncWrite (round $ 1000000 / f) $ writeRef phase (x + 2 * pi * s / f)
-            let handler (Click (MousePos _ l)) = when (not $ null l) $ modRef col not
+            let handler (Click (MousePos _ l), _) = when (not $ null l) $ modRef col not
                 handler _ = return ()
             vcat
                 [ canvas 200 200 10 handler Nothing (liftM2 (,) (readRef col) (readRef phase)) $
@@ -154,7 +155,7 @@ mainWidget = notebook
                 asyncWrite (round $ 1000000 / f) $ do
                     writeRef phase (x + 2 * pi * s / f)
                     modRef col $ max 1 . (+(- 5/f))
-            let handler (Click (MousePos _ l)) = when (not $ null l) $ modRef col (+1)
+            let handler (Click (MousePos _ l), _) = when (not $ null l) $ modRef col (+1)
                 handler _ = return ()
             vcat
                 [ canvas 200 200 10 handler Nothing (liftM2 (,) (readRef col) (readRef phase)) $
@@ -260,6 +261,8 @@ mainWidget = notebook
             intListEditor (0 :: Integer, True) 15 list range
 
         ]
+
+    , (,) "Maze" $ mazeGame
 
     , (,) "InCanvas" $ inCanvas 800 600 30 mainWidget
 
