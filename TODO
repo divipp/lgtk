@@ -1,0 +1,22 @@
+
+Items are sorted by priority
+
+* Tutorial
+* Document ideas about state-based FRP and compare it with other FRP frameworks
+* More test cases for references
+* Improve fast reference implementation
+* Split out references into a new repo
+* API for widget elements design
+* New feature: Scrollbar support
+* Improve widget placement on canvas
+* GLFW+Rasterific backend
+* Efficiency: Update only changing parts on canvas
+* Split out backends into new repos
+* Browser backend with threepenny-gui
+* Browser backend with ghcjs
+* Widget styling support
+* New feature: Icon support
+* New feature: Linkbutton support
+
+
+
