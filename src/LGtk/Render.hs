@@ -101,7 +101,7 @@ newIds (Id i) = flip evalStateT $ Id (0:i)
 ---------------------------------------------------------
 
 -- how to handle keyboard events
-type KeyHandler m = [KeyModifier] -> String -> Maybe Char -> m ()
+type KeyHandler m = [KeyModifier] -> String -> Maybe Char -> m Bool
 
 -- focus enter action; keyboard event handler; focus leave action; id of the keyboard-focused widget
 type KeyFocusHandler m = (m (), KeyHandler m, m (), Id)
@@ -167,6 +167,7 @@ inCanvas width height scale w = mdo
                 if a == a'
                   then maybe (return ()) h2 $ (xss !! a') !!! b'
                   else maybe (return ()) h2 $ fmap (!!!! b') (xss !!! a')
+            return True
 
         dkh [] "Up"     _ = changeFoc $ \(a,b) -> (a-1,b)
         dkh [] "Down"   _ = changeFoc $ \(a,b) -> (a+1,b)
@@ -174,7 +175,7 @@ inCanvas width height scale w = mdo
         dkh [] "Right"  _ = changeFoc $ \(a,b) -> (a,b+1)
         dkh [] "Tab"    _ = moveFoc True
         dkh [c] "Tab" _ | c == ControlModifier = moveFoc False
-        dkh _ _ _ = return ()
+        dkh _ _ _ = return False
 
         h2 m@(a,_,_,i) = do
             i' <- readRef' $ _4 `lensMap` foc
@@ -187,6 +188,7 @@ inCanvas width height scale w = mdo
             (_, _, _, j) <- readRef' foc
             (xs, _) <- liftReadRef bb
             h2 $ maybe (head xs) snd $ find (\((_,_,_,x),_) -> x == j) $ pairs $ (if f then id else reverse) (xs ++ xs)
+            return $ if f then j /= last xs ^. _4 else j /= head xs ^. _4
 
     -- compiled widget
     bhr <- newIds firstId $ tr (fromIntegral width / scale) dkh w
@@ -222,7 +224,6 @@ inCanvas width height scale w = mdo
             handleKeys m n c = do
                 (_,f,_,_) <- readRef' foc
                 f m n c
-                return True
 
         return $ Canvas width height scale handleEvent (Just handleKeys) (liftM3 (,,) (readRef hi) (readRef $ _4 `lensMap` foc) $ liftM snd b) $
             \(is, is', x) -> 
@@ -257,8 +258,8 @@ tr sca dkh w = do
         Button r sens col a -> do
             i <- newId
 
-            let ff [] _ (Just ' ') = a ()
-                ff [] _ (Just '\n') = a ()
+            let ff [] _ (Just ' ') = a () >> return True
+                ff [] _ (Just '\n') = a () >> return True
                 ff a b c = dkh a b c
                 kh = (return (), ff, return (), i)
 
@@ -295,11 +296,11 @@ tr sca dkh w = do
                     (_, ab) <- readRef' j
                     rr' $ value' ab
 
-                ff _ _ (Just '\n') = commit
+                ff _ _ (Just '\n') = commit >> return True
                 ff m e f' = do
                     x <- readRef' (_2 `lensMap` j)
                     case f m e f' x of
-                        Just x -> writeRef (_2 `lensMap` j) x
+                        Just x -> writeRef (_2 `lensMap` j) x >> return True
                         _ -> dkh m e f'
 
                 value' (a,b) = reverse a ++ b
@@ -327,7 +328,7 @@ tr sca dkh w = do
         Checkbox (bs, br) -> do
             i <- newId
 
-            let ff [] _ (Just ' ') = liftReadRef bs >>= br . not
+            let ff [] _ (Just ' ') = liftReadRef bs >>= br . not >> return True
                 ff a b c = dkh a b c
                 kh = (return (), ff, return (), i)
 
@@ -377,9 +378,9 @@ tr sca dkh w = do
 
             let ff x y z = do
                     b <- fromMaybe (\_ _ _ -> return False) keyh x y z
-                    when (not b) $ dkh x y z
+                    if b then return True else dkh x y z
 
-                gg (Just' ls) (Click (MousePos p _)) = Just' (r (Click $ MousePos p ls) >> return (), Nothing, Just (return (), ff, r LostFocus >> return (), i), i)
+                gg (Just' ls) (Click (MousePos p _)) = Just' (r (Click $ MousePos p ls) >> return (), Nothing, Just kh, i)
                 gg (Just' ls) (Release (MousePos p _)) = Just' (r (Release $ MousePos p ls) >> return (), Nothing, Nothing, i)
                 gg (Just' ls) (MoveTo  (MousePos p _)) = Just' (r (MoveTo  $ MousePos p ls) >> return (), Nothing, Nothing, i)
                 gg _ _ = mempty
@@ -387,7 +388,7 @@ tr sca dkh w = do
                 wi = fromIntegral w / sca
                 hi = fromIntegral h / sca
 
-                kh = (return (), ff, return (), i)
+                kh = (return (), ff, r LostFocus >> return (), i)
 
                 render bv _is is' = (fmap gg (fmap Just' (f bv # freeze) # scale ((fromIntegral w / d) / sca)
                                             # clipBy' (rect wi hi))
@@ -403,7 +404,7 @@ tr sca dkh w = do
 
             let -- ff ind _ _ (Just ' ') = br ind
                 br' ind = br (ind `mod` n)
-                br'' f = liftReadRef bs >>= br' . f 
+                br'' f = liftReadRef bs >>= br' . f  >> return True
                 ff [] _ (Just '\n') = br'' (+1)
                 ff [] _ (Just ' ') = br'' (+1)
                 ff [] "BackSpace" _ = br'' (+(-1))
@@ -436,7 +437,7 @@ tr sca dkh w = do
 
             let br' :: Int -> Modifier m ()
                 br' ind = br ind' >> writeRef ir ind' where ind' = ind `mod` n
-                br'' f = readRef' ir >>= br' . f 
+                br'' f = readRef' ir >>= br' . f  >> return True
                 ff [] "Left" _ = br'' (+(-1))
                 ff [] "Right" _ = br'' (+ 1)
                 ff [AltModifier] _ (Just c) | Just i <- ind c = br'' (const i)
@@ -502,6 +503,7 @@ tr sca dkh w = do
                 modR f = do
                     v <- liftReadRef sr
                     rr $ f v
+                    return True
 
                 adj x = do
                     m <- readRef' mv
