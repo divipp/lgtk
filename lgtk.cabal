@@ -43,9 +43,6 @@ library
                   , lens == 4.1.*
 
                   , vector == 0.10.*
-                  , array == 0.5.*
-                  , random == 1.0.*
-                  , random-shuffle == 0.0.*
                   , containers == 0.5.*
                   , directory == 1.2.*
                   , filepath == 1.3.*
@@ -64,6 +61,11 @@ library
   exposed-modules:
                     -- lens-references
                     Data.LensRef
+
+                    -- lgtk
+                    LGtk
+  other-modules:
+                    -- lens-references
                     Data.LensRef.Pure
                     Data.LensRef.Fast
                     Data.LensRef.Test
@@ -72,28 +74,13 @@ library
                     LGtk.Effects
                     LGtk.Widgets
                     LGtk.Render
-                    LGtk
 
                     -- lgtk-glfw
                     LGtk.Backend.GLFW
-
-                    -- lgtk-demos
-                    Data.Equivalence.Persistent
-
-                    LGtk.ADTEditor
-                    LGtk.Demos.Main
-                    LGtk.Demos.Tri
-                    LGtk.Demos.IntListEditor
-                    LGtk.Demos.TEditor
-                    LGtk.Demos.Maze.Types
-                    LGtk.Demos.Maze.Maze
-                    LGtk.Demos.MazeGen
-                    LGtk.Demos.Maze
-
   if flag(Gtk)
     build-depends:
                     gtk == 0.12.*
-    exposed-modules:
+    other-modules:
                     LGtk.Backend.Gtk
     cpp-options:
                     -D__GTK__
@@ -115,9 +102,34 @@ library
 executable lgtkdemo
   build-depends:
                     base < 5
+
+                  , mtl == 2.1.*
+                  , lens == 4.1.*
+
+                  , containers == 0.5.*
+                  , vector == 0.10.*
+                  , array == 0.5.*
+                  , random == 1.0.*
+                  , random-shuffle == 0.0.*
+
+                  , diagrams-lib == 1.1.*
+
                   , lgtk
   main-is:
                     Main.hs
+  other-modules:
+                    Data.Equivalence.Persistent
+
+                    LGtk.ADTEditor
+                    LGtk.Demos.Main
+                    LGtk.Demos.Tri
+                    LGtk.Demos.IntListEditor
+                    LGtk.Demos.TEditor
+                    LGtk.Demos.Maze.Types
+                    LGtk.Demos.Maze.Maze
+                    LGtk.Demos.MazeGen
+                    LGtk.Demos.Maze
+
   hs-source-dirs:
                     main
   ghc-options:

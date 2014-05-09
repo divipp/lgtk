@@ -5,6 +5,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE CPP #-}
 -- | Main LGtk interface.
 module LGtk
     (
@@ -68,6 +69,7 @@ module LGtk
 
     -- ** Running
     , Widget
+    , runWidget
 
     -- ** GUI descriptions
     , label
@@ -118,8 +120,12 @@ import Data.LensRef
 import LGtk.Effects
 import LGtk.Widgets
 import LGtk.Render
---import LGtk.Backend.Gtk (runWidget)
---import qualified LGtk.Backend.GLFW as GLFW
+
+#ifdef __GTK__
+import LGtk.Backend.Gtk
+#else
+import LGtk.Backend.GLFW
+#endif
 
 
 {- |
