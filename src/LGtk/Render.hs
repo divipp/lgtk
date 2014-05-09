@@ -111,23 +111,25 @@ type KeyHandler m = ModifiedKey -> m Bool
 -- focus enter action; keyboard event handler; focus leave action; id of the keyboard-focused widget
 type KeyFocusHandler m = (m (), KeyHandler m, m (), Id)
 
-type CapturedEventHandler m = (MouseEvent (), Dia ()) -> m Bool
+type CapturedEventHandler a m = (MouseEvent a, Dia a) -> m Bool
 
 -- for each mouse event:
 --  - what to do
 --  - the new keyboard focus handler
 --  - the id of the mouse-focused widget
-type EventHandler m = (MouseEvent (), Dia ()) -> Maybe' (m (), Maybe (CapturedEventHandler m), Maybe (KeyFocusHandler m), Id)
+type EventHandler a m = (MouseEvent a, Dia a) -> Maybe' (m (), Maybe (CapturedEventHandler a m), Maybe (KeyFocusHandler m), Id)
 
 -- compiled widget
 data CWidget m
-    = forall x . Eq x
-    => CWidget (ReadRef m (([KeyFocusHandler m], [[KeyFocusHandler m]]), x)) (x -> [Id] -> Id -> Dia (EventHandler m))
+    = forall a x . (Eq x, Monoid a, Semigroup a)
+    => CWidget (ReadRef m (([KeyFocusHandler m], [[KeyFocusHandler m]]), x)) (a -> EventHandler () m) (x -> [Id] -> Id -> Dia a)
 
 ------------------
 
-value_ :: Monad m => m () -> KeyFocusHandler m -> Id -> Dia Any -> Dia (EventHandler m)
-value_ a c i = value f where
+value_ :: Monad m => m () -> KeyFocusHandler m -> Id -> Dia Any -> Dia (EventHandler () m)
+value_ a c i = value $ valueFun a c i
+
+valueFun a c i = f where
     f (Click _, di) = Just' (a, Nothing, Just c, i)
     f (MoveTo _, di) = Just' (return (), Nothing, Nothing, i)
     f _ = mempty
@@ -199,10 +201,10 @@ inCanvas width height scale w = mdo
     bhr <- newIds firstId $ tr (fromIntegral width / scale) dkh w
 
     let bb = case bhr of
-           CWidget b _ -> liftM fst b
+           CWidget b _ _ -> liftM fst b
 
     case bhr of
-       CWidget b render -> do
+       CWidget b hr render -> do
         
         let handle_ Nothing' = return ()
             handle_ (Just' (a, cap, bb, i)) = do
@@ -212,10 +214,13 @@ inCanvas width height scale w = mdo
                 writeRef hi [i]
                 return ()
 
+            hr_ (Just' x) = hr x
+            hr_ Nothing' = valueFun (return ()) df i
+
             handle f x = do
                 m <- readRef' capt
                 case m of
-                    Nothing -> handle_ $ f x
+                    Nothing -> handle_ $ hr_ f x
                     Just f -> do
                         b <- f x
                         when (not b) $ writeRef capt Nothing
@@ -233,9 +238,8 @@ inCanvas width height scale w = mdo
 
         return $ Canvas width height scale handleEvent (Just handleKeys) (liftM3 (,,) (readRef hi) (readRef $ _4 `lensMap` foc) $ liftM snd b) $
             \(is, is', x) -> 
-              render x is is' # alignT # alignL # translate (r2 (-scale/2,scale/2* fromIntegral height / fromIntegral width))
-              <> rect scale (scale / fromIntegral width * fromIntegral height)
-                    # value_ (return ()) df i
+                 fmap Just' (render x is is' # alignT # alignL # translate (r2 (-scale/2,scale/2* fromIntegral height / fromIntegral width)))
+              <> fmap (const Nothing') (rect scale (scale / fromIntegral width * fromIntegral height) # value ())
 
 focWidth = 0.1
 
@@ -259,7 +263,7 @@ tr sca dkh w = do
         Label r -> do
             let render bv _ _ = ((rect x y # lw 0 <> te) # clipped (rect x y)) # value mempty
                      where ((x :& y), te) = text__ 25 5 bv
-            return $ CWidget (liftM ((,) ([], [])) r) render
+            return $ CWidget (liftM ((,) ([], [])) r) id render
 
         Button r sens col a -> do
             i <- newId
@@ -279,7 +283,7 @@ tr sca dkh w = do
                         # (if se then value_ (a ()) kh i else value mempty)
                         # clipBy' (rect (x+0.1) (y+0.1)) # freeze # frame 0.1
                    where ((x :& y), te) = text__ 15 3 bv
-            return $ CWidget (liftM3 (\r se c -> (([kh | se], [[kh] | se]), (r,se,c))) r sens col') render
+            return $ CWidget (liftM3 (\r se c -> (([kh | se], [[kh] | se]), (r,se,c))) r sens col') id render
 
         Entry isOk (rs, rr) -> do
             i <- newId
@@ -329,7 +333,7 @@ tr sca dkh w = do
                          # value_ (return ()) kh i
                   ) # freeze # frame 0.1
                    where ((x :& y), te) = text__ 7 5 $ text' bv
-            return $ CWidget (liftM ((,) ([kh],[[kh]])) (liftM2 (,) rs (readRef j))) render
+            return $ CWidget (liftM ((,) ([kh],[[kh]])) (liftM2 (,) rs (readRef j))) id render
 
         Checkbox (bs, br) -> do
             i <- newId
@@ -346,7 +350,7 @@ tr sca dkh w = do
                                 # fc (if i `elem` is then yellow else sRGB 0.95 0.95 0.95)
                                 # (if is' == i then lc yellow . lw focWidth else lc black . lw 0.02)
                     ) # freeze # frame 0.1
-            return $ CWidget (liftM ((,) ([kh],[[kh]])) bs) render
+            return $ CWidget (liftM ((,) ([kh],[[kh]])) bs) id render
 
         Cell r f -> do
             i <- newId
@@ -355,18 +359,18 @@ tr sca dkh w = do
                      return $ do
                        hv <- h
                        return $ case hv of
-                         CWidget rr render -> do
+                         CWidget rr hr render -> do
                            (es, rrv) <- rr
-                           return $ (es, UnsafeEqWrap (x, rrv) $ render rrv)
-            return $ CWidget (join r') $ \(UnsafeEqWrap _ d) is is' -> d is is'
+                           return $ (es, UnsafeEqWrap (x, rrv) $ fmap (fmap (fmap hr)) $ render rrv)
+            return $ CWidget (join r') id $ \(UnsafeEqWrap _ d) is is' -> d is is'
 
         List layout ws -> liftM (foldr conc2 nil) $ mapM (tr sca dkh) ws
           where
             nil :: ExtRef n => CWidget n
-            nil = CWidget (return (([],[]),())) mempty
+            nil = CWidget (return (([],[]),())) id mempty
 
-            conc2 (CWidget b r) (CWidget b' r')
-              = CWidget (liftM2 (\((a,a'),b)((c,c'),d)->((a++c,comb layout a' c'),(b,d))) b b') (\(x,y) -> liftM2 (liftM2 ff) (r x) (r' y))
+            conc2 (CWidget b hr r) (CWidget b' hr' r')
+              = CWidget (liftM2 (\((a,a'),b)((c,c'),d)->((a++c,comb layout a' c'),(b,d))) b b') id (\(x,y) -> liftM2 (liftM2 ff) (fmap (fmap (fmap hr)) $ r x) (fmap (fmap (fmap hr')) $ r' y))
 
             comb Vertical = (++)
             comb Horizontal = fx
@@ -407,7 +411,7 @@ tr sca dkh w = do
                    <> rect wi hi # named i # value mempty # lw 0.02 # lc (if is' == i then yellow else black)
                          )  # freeze  # frame 0.1
 
-            return $ CWidget (liftM ((,) ([kh | isJust keyh],[[kh] | isJust keyh])) s) render
+            return $ CWidget (liftM ((,) ([kh | isJust keyh],[[kh] | isJust keyh])) s) id render
 
         Combobox xs (bs, br) -> do
             let n = length xs
@@ -438,7 +442,7 @@ tr sca dkh w = do
 
                      where ((_ :& y), te) = text__ 15 3 txt
 
-            return $ CWidget (liftM ((,) ([kh],[[kh]])) bs) render
+            return $ CWidget (liftM ((,) ([kh],[[kh]])) bs) id render
 
         Notebook' br xs -> do
             let (names, wis) = unzip xs
@@ -462,9 +466,9 @@ tr sca dkh w = do
             wisv <- mapM (tr sca dkh) wis
 
             wr <- lift $ onChangeSimple (readRef ir) $ \x -> return $ case wisv !! x of
-                         CWidget rr render -> do
+                         CWidget rr hr render -> do
                            (es, rrv) <- rr
-                           return $ (es, UnsafeEqWrap (x, rrv) $ render rrv)
+                           return $ (es, UnsafeEqWrap (x, rrv) $ fmap (fmap (fmap hr)) $ render rrv)
 
             let kh = (return (), ff, return (), ii)
 
@@ -502,7 +506,7 @@ tr sca dkh w = do
                                       , bezier3 (r2 (0.7,0)) (r2 (0.3,-1)) (r2 (1,-1))
                                       ]
 
-            return $ CWidget (liftM2 (\iv ((ls,ls'),vv) -> ((kh:ls,[kh]:ls'), (iv, vv))) (readRef ir) (join wr)) render
+            return $ CWidget (liftM2 (\iv ((ls,ls'),vv) -> ((kh:ls,[kh]:ls'), (iv, vv))) (readRef ir) (join wr)) id render
 
         Scale mi ma step (sr,rr) -> do
             i <- newId
@@ -543,7 +547,7 @@ tr sca dkh w = do
                        )  # value mempty
                     ) # freeze # frame 0.1
 
-            return $ CWidget (liftM ((,) ([kh],[[kh]])) sr) render
+            return $ CWidget (liftM ((,) ([kh],[[kh]])) sr) id render
 
 
 --------------------
