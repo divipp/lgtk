@@ -124,7 +124,7 @@ mazeGame = do
                     Start -> Just $ snd $ bounds maze
                     Explore p -> checkBounds (bounds maze) $ f p
                     _ -> Nothing
-            maybe (return False) ((>> return True) . domove) m
+            maybe (return True) ((>> return True) . domove) m
 
         key (SimpleKey Key'Left)  = move $ \(x,y)->(x-1,y)
         key (SimpleKey Key'Right) = move $ \(x,y)->(x+1,y)
