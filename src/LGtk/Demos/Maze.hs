@@ -62,8 +62,9 @@ complement = f [N,E,S,W] . sort
     f (x:xs) ys = x: f xs ys
     f [] _ = []
 
------------------------ check whether a move goes through a wall
+----------------------- game logic
 
+-- | check whether a move does not hit the wall
 isOk :: Maze -> Point -> Point -> Bool
 isOk maze p q = p == q || maybe False (`elem` unC (maze ! p)) (dir p q)
   where
@@ -76,32 +77,35 @@ isOk maze p q = p == q || maybe False (`elem` unC (maze ! p)) (dir p q)
         | a == c - 1 && b == d = Just S
         | otherwise = Nothing
 
-------------------------
+gameLogic b maze p (s, st) = case st of
+    Start | p == snd (bounds maze) -> commit
+    Explore q
+        | isOk maze q p || b && S.member p s -> commit
+        | not b -> (s, Fail)
+    _ -> (s, st)
+  where
+    commit = (S.insert p s, if p == fst (bounds maze) then Success else Explore p)
+
+------------------------ GUI
 
 mazeGame :: forall m . EffRef m => Widget m
 mazeGame = do
+    forgiving <- newRef False
     let init = (4,4)
     dim <- newRef init
     let dimX = (_2 . iso id (max 1 . min 20)) `lensMap` eqRef dim
     let dimY = (_1 . iso id (max 1 . min 20)) `lensMap` eqRef dim
     maze_ <- extRef_ dim (runState (genMaze init) (mkStdGen 323401)) $ \d (_, s) -> runState (genMaze d) s
-    r <- extRef_ maze_ (S.empty, Start) $ \(m, _) _ -> (S.empty, Start)
-    let render (MoveTo (MousePos _ v), _) = case v of
-            [p] -> do
-                (s, st) <- readRef' r
-                (maze, _) <- readRef' maze_
-                case st of
-                    Fail -> return ()
-                    Success -> return ()
-                    Start | p /= snd (bounds maze) -> return ()
-                    Explore (1,1) -> writeRef (_2 `lensMap` r) Success
-                    Explore q | not (isOk maze q p) -> writeRef (_2 `lensMap` r) Fail
-                    _ ->  writeRef r (S.insert p s, Explore p)
-            _ -> return ()
-        render _ = return ()
+    r <- extRef_ maze_ (S.empty, Start) $ \_ _ -> (S.empty, Start)
+
+    let handler (MoveTo (MousePos _ [p]), _) = do
+            (maze, _) <- readRef' maze_
+            b <- readRef' forgiving
+            modRef r $ gameLogic b maze p
+        handler _ = return ()
 
     vcat
-        [ canvas 400 400 1 render Nothing (liftM2 (\(m,_) (s,_) -> (m,s)) (readRef maze_) (readRef r)) drawMaze
+        [ canvas 400 400 1 handler Nothing (liftM2 (\(m,_) (s,_) -> (m,s)) (readRef maze_) (readRef r)) drawMaze
         , label $ liftM (show . snd) $ readRef r
         , hcat
             [ button (return "Try again") $ return $ Just $ modRef maze_ id
@@ -118,6 +122,10 @@ mazeGame = do
             , smartButton (return "+1") dimY succ
             , smartButton (return "-1") dimY pred
             , label $ return "height"
+            ]
+        , hcat
+            [ checkbox forgiving
+            , label $ return "forgiving mode"
             ]
         ]
 
