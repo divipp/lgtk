@@ -14,7 +14,8 @@ import Control.Lens hiding ((#))
 import LGtk
 
 import LGtk.Demos.Maze.Types
-import LGtk.Demos.Maze.Maze
+import qualified LGtk.Demos.MazeGen as Maze1
+import qualified LGtk.Demos.Maze.Maze as Maze2
 
 ---------------------------------- Game state
 
@@ -96,11 +97,15 @@ gameLogic b maze p (s, st) = case st of
 mazeGame :: forall m . EffRef m => Widget m
 mazeGame = do
     forgiving <- newRef False
-    let init = (4,4)
-    dim <- newRef init
-    let dimX = (_2 . iso id (max 1 . min 20)) `lensMap` eqRef dim
-    let dimY = (_1 . iso id (max 1 . min 20)) `lensMap` eqRef dim
-    maze_ <- extRef_ dim (runState (genMaze init) (mkStdGen 323401)) $ \d (_, s) -> runState (genMaze d) s
+    let init = (0,(4,4))
+    dim_ <- newRef init
+    let dim = _2 `lensMap` dim_
+        mazekind = _1 `lensMap` dim_
+        dimX = (_2 . iso id (max 1 . min 40)) `lensMap` eqRef dim
+        dimY = (_1 . iso id (max 1 . min 40)) `lensMap` eqRef dim
+        genMaze (0, d) = Maze1.genMaze d
+        genMaze (1, d) = Maze2.genMaze d
+    maze_ <- extRef_ dim_ (runState (genMaze init) (mkStdGen 323401)) $ \d (_, s) -> runState (genMaze d) s
     r <- extRef_ maze_ (S.empty, Start) $ \_ _ -> (S.empty, Start)
 
     let handler (MoveTo (MousePos _ [p]), _) = domove p
@@ -132,7 +137,19 @@ mazeGame = do
         pos _ _ = Nothing
 
     vcat
-        [ canvas 400 400 1 handler (Just key) (liftM2 (\(m,_) (s, st) -> (m,s, pos m st)) (readRef maze_) (readRef r)) drawMaze
+        [ hcat
+            [ canvas 400 400 1 handler (Just key) (liftM2 (\(m,_) (s, st) -> (m,s, pos m st)) (readRef maze_) (readRef r)) drawMaze
+
+            , vcat
+                [ hcat
+                    [ checkbox forgiving
+                    , label $ return "forgiving mode"
+                    ]
+                , combobox ["cdsmith's", "Mihai Maruseac's"] mazekind
+                , label $ return "maze generator"
+                ]
+            ]
+
         , label $ liftM (show . snd) $ readRef r
         , hcat
             [ button (return "Try again") $ return $ Just $ modRef maze_ id
@@ -149,10 +166,6 @@ mazeGame = do
             , smartButton (return "+1") dimY succ
             , smartButton (return "-1") dimY pred
             , label $ return "height"
-            ]
-        , hcat
-            [ checkbox forgiving
-            , label $ return "forgiving mode"
             ]
         ]
 
