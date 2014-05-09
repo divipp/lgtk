@@ -10,7 +10,7 @@ module LGtk.Widgets
 import Data.Semigroup
 import Data.Colour
 import Data.Colour.SRGB
-import Diagrams.Prelude (QDiagram, R2)
+import Diagrams.Prelude (QDiagram, R2, P2)
 import Diagrams.Backend.Cairo (B)
 
 ---------------------------------------------------------
@@ -39,11 +39,11 @@ data WidgetCore m
     | forall b . Eq b => Cell (ReadRef m b) (forall x . (Widget m -> m x) -> b -> m (m x))
     | forall a b . (Eq b, Monoid a, Semigroup a)
     => Canvas
-        Int
-        Int
-        Double
-        ((MouseEvent a, Dia a) -> Modifier m ())
-        (KeyboardHandler (Modifier m))
+        Int     -- ^ width
+        Int     -- ^ height
+        Double  -- ^ scale
+        ((MouseEvent a, Dia a) -> Modifier m ())    -- ^ mouse event handler
+        (KeyboardHandler (Modifier m))              -- ^ keyboard event handler
         (ReadRef m b)
         (b -> Dia a)
     | Scale Double Double Double (SendReceive m Double)
@@ -111,5 +111,5 @@ data MouseEvent a
         deriving (Eq)
 
 data MousePos a
-    = MousePos (Double, Double) a
+    = MousePos P2 a
         deriving (Eq)

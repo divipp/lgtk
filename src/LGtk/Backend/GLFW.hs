@@ -78,8 +78,8 @@ runWidget desc = do
             calcMousePos (x,y) = do
                 (sc, w, h, _, _) <- dims
                 d <- readMVar current'
-                let p = ((x - w / 2) / sc, (h / 2 - y) / sc)
-                    q = MousePos p $ d `sample` p2 p
+                let p = p2 ((x - w / 2) / sc, (h / 2 - y) / sc)
+                    q = MousePos p $ d `sample` p
                 return (q, d)
 
             logMousePos :: CursorPosCallback

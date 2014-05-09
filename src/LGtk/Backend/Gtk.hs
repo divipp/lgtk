@@ -157,8 +157,8 @@ runWidget_ post' post = toWidget
               compCoords (x,y) = do
                 (sc, w, h, _, _) <- dims
                 d <- readMVar cur
-                let p = ((x - w / 2) / sc, (h / 2 - y) / sc)
-                return (MousePos p $ maybe mempty (`sample` p2 p) d, fromMaybe mempty d)
+                let p = p2 ((x - w / 2) / sc, (h / 2 - y) / sc)
+                return (MousePos p $ maybe mempty (`sample` p) d, fromMaybe mempty d)
 
           _ <- reg me $ \re -> do
               _ <- on' canvas buttonPressEvent $ tryEvent $ do

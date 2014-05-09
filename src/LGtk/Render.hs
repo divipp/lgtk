@@ -386,9 +386,9 @@ tr sca dkh w = do
                     b <- fromMaybe (\_ -> return False) keyh key
                     if b then return True else dkh key
 
-                tr di (a,b) = case lookupName i di of
-                            Just subd -> (a-x, b-y) # scale (1/((fromIntegral w / d) / sca))
-                                where (x :& y) = coords $ location subd
+                tr di p = case lookupName i di of
+                            Just subd -> p # translate (p2 (0,0) .-. q) # scale (1/((fromIntegral w / d) / sca))
+                                where q = location subd
 
                 decomp (x :& y) = (x,y)
 
@@ -523,13 +523,15 @@ tr sca dkh w = do
                         Just (x_, v) -> rr $ min ma $ max mi $ v + (ma - mi) * (x - x_) / 10
                         Nothing -> return ()
 
-                f (Click (MousePos (x,_) _), _) = Just' (liftReadRef sr >>= \v -> writeRef mv $ Just (x, v), Just f', Just kh, i)
+                f (Click (MousePos p _), _) = Just' (liftReadRef sr >>= \v -> writeRef mv $ Just (getx p, v), Just f', Just kh, i)
                 f (MoveTo _, _) = Just' (return (), Nothing, Nothing, i)
                 f _ = mempty
 
-                f' (Release (MousePos (x,_) _), _) = adj x >> writeRef mv Nothing >> return False
-                f' (MoveTo  (MousePos (x,_) _), _) = adj x >> return True
+                f' (Release (MousePos p _), _) = adj (getx p) >> writeRef mv Nothing >> return False
+                f' (MoveTo  (MousePos p _), _) = adj (getx p) >> return True
                 f' _ = return True
+
+                getx p = case coords p of (x :& _) -> x
 
                 render r is is' =
                     (  circle 0.38 # value f
