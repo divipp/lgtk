@@ -19,7 +19,8 @@ import Data.Vector.Storable (unsafeWith, unsafeFromForeignPtr0)
 import Foreign
 import System.IO
 import Graphics.Rendering.OpenGL.Raw.Core31
-import Graphics.UI.GLFW as GLFW
+import Graphics.UI.GLFW hiding (Key (..), ModifierKeys (..))
+import qualified Graphics.UI.GLFW as GLFW
 
 import Diagrams.Prelude hiding (Image)
 
@@ -102,32 +103,9 @@ runWidget desc = do
 
             logKey :: KeyCallback
             logKey _win key _scancode action mods = do
-                when (key == Key'Escape) $ swapMVar exit True >> return ()
+                when (key == GLFW.Key'Escape) $ swapMVar exit True >> return ()
     --                putStrLn $ "KeyCallback: " ++ show (action, key,mods)
-                post $ when (action `elem` [KeyState'Pressed, KeyState'Repeating]) $ do
-                        let name = case key of
-                                Key'Backspace -> "BackSpace"
-                                Key'Delete  -> "Delete"
-                                Key'Tab     -> "Tab"
-                                Key'Left    -> "Left"
-                                Key'Right   -> "Right"
-                                Key'Up      -> "Up"
-                                Key'Down    -> "Down"
-                                _ -> ""
-                        let char = case key of
-                                Key'Enter -> Just '\n'
-                                Key'Space -> Just ' '
-                                _ -> case show key of
-                                    ['K','e','y','\'',c] -> Just $ (if modifierKeysShift mods then id else toLower) c
-                                    _ -> Nothing
-                        keyhandle (
-                                    ( [ControlModifier | modifierKeysControl mods]
-                                   ++ [AltModifier     | modifierKeysAlt     mods]
-                                   ++ [ShiftModifier   | modifierKeysShift   mods]
-                                    )
-                                  , name
-                                  , char
-                                  )
+                post $ when (action `elem` [KeyState'Pressed, KeyState'Repeating]) $ keyhandle $ trKey mods key
 
             logWinSize :: WindowSizeCallback
             logWinSize _win _w _h = do
@@ -177,13 +155,141 @@ runWidget desc = do
         terminate
 
 
+trKey :: GLFW.ModifierKeys -> GLFW.Key -> ModifiedKey
+trKey (GLFW.ModifierKeys s c a sup) k = ModifiedKey s c a sup $ case k of
+    GLFW.Key'Space -> Key'Char ' '
+    GLFW.Key'Apostrophe -> Key'Char '\''
+    GLFW.Key'Comma -> Key'Char ','
+    GLFW.Key'Minus -> Key'Char '-'
+    GLFW.Key'Period -> Key'Char '.'
+    GLFW.Key'Slash -> Key'Char '/'
+    GLFW.Key'0 -> Key'Char '0'
+    GLFW.Key'1 -> Key'Char '1'
+    GLFW.Key'2 -> Key'Char '2'
+    GLFW.Key'3 -> Key'Char '3'
+    GLFW.Key'4 -> Key'Char '4'
+    GLFW.Key'5 -> Key'Char '5'
+    GLFW.Key'6 -> Key'Char '6'
+    GLFW.Key'7 -> Key'Char '7'
+    GLFW.Key'8 -> Key'Char '8'
+    GLFW.Key'9 -> Key'Char '9'
+    GLFW.Key'Semicolon -> Key'Char ';'
+    GLFW.Key'Equal -> Key'Char '='
+    GLFW.Key'A -> key s 'a'
+    GLFW.Key'B -> key s 'b'
+    GLFW.Key'C -> key s 'c'
+    GLFW.Key'D -> key s 'd'
+    GLFW.Key'E -> key s 'e'
+    GLFW.Key'F -> key s 'f'
+    GLFW.Key'G -> key s 'g'
+    GLFW.Key'H -> key s 'h'
+    GLFW.Key'I -> key s 'i'
+    GLFW.Key'J -> key s 'j'
+    GLFW.Key'K -> key s 'k'
+    GLFW.Key'L -> key s 'l'
+    GLFW.Key'M -> key s 'm'
+    GLFW.Key'N -> key s 'n'
+    GLFW.Key'O -> key s 'o'
+    GLFW.Key'P -> key s 'p'
+    GLFW.Key'Q -> key s 'q'
+    GLFW.Key'R -> key s 'r'
+    GLFW.Key'S -> key s 's'
+    GLFW.Key'T -> key s 't'
+    GLFW.Key'U -> key s 'u'
+    GLFW.Key'V -> key s 'v'
+    GLFW.Key'W -> key s 'w'
+    GLFW.Key'X -> key s 'x'
+    GLFW.Key'Y -> key s 'y'
+    GLFW.Key'Z -> key s 'z'
+    GLFW.Key'LeftBracket -> Key'Char '['
+    GLFW.Key'Backslash -> Key'Char '\\'
+    GLFW.Key'RightBracket -> Key'Char ']'
+--    GLFW.Key'GraveAccent -> Key'
+--    GLFW.Key'World1 -> Key'
+--    GLFW.Key'World2 -> Key'
+    GLFW.Key'Escape -> Key'Escape
+    GLFW.Key'Enter -> Key'Char '\n'
+    GLFW.Key'Tab -> Key'Char '\t'
+    GLFW.Key'Backspace -> Key'Backspace
+    GLFW.Key'Insert -> Key'Insert
+    GLFW.Key'Delete -> Key'Delete
+    GLFW.Key'Right -> Key'Right
+    GLFW.Key'Left -> Key'Left
+    GLFW.Key'Down -> Key'Down
+    GLFW.Key'Up -> Key'Up
+    GLFW.Key'PageUp -> Key'PageUp
+    GLFW.Key'PageDown -> Key'PageDown
+    GLFW.Key'Home -> Key'Home
+    GLFW.Key'End -> Key'End
+{-
+    GLFW.Key'CapsLock -> Key'
+    GLFW.Key'ScrollLock -> Key'
+    GLFW.Key'NumLock -> Key'
+    GLFW.Key'PrintScreen -> Key'
+    GLFW.Key'Pause -> Key'
+    GLFW.Key'F1 -> Key'
+    GLFW.Key'F2 -> Key'
+    GLFW.Key'F3 -> Key'
+    GLFW.Key'F4 -> Key'
+    GLFW.Key'F5 -> Key'
+    GLFW.Key'F6 -> Key'
+    GLFW.Key'F7 -> Key'
+    GLFW.Key'F8 -> Key'
+    GLFW.Key'F9 -> Key'
+    GLFW.Key'F10 -> Key'
+    GLFW.Key'F11 -> Key'
+    GLFW.Key'F12 -> Key'
+    GLFW.Key'F13 -> Key'
+    GLFW.Key'F14 -> Key'
+    GLFW.Key'F15 -> Key'
+    GLFW.Key'F16 -> Key'
+    GLFW.Key'F17 -> Key'
+    GLFW.Key'F18 -> Key'
+    GLFW.Key'F19 -> Key'
+    GLFW.Key'F20 -> Key'
+    GLFW.Key'F21 -> Key'
+    GLFW.Key'F22 -> Key'
+    GLFW.Key'F23 -> Key'
+    GLFW.Key'F24 -> Key'
+    GLFW.Key'F25 -> Key'
+    GLFW.Key'Pad0 -> Key'
+    GLFW.Key'Pad1 -> Key'
+    GLFW.Key'Pad2 -> Key'
+    GLFW.Key'Pad3 -> Key'
+    GLFW.Key'Pad4 -> Key'
+    GLFW.Key'Pad5 -> Key'
+    GLFW.Key'Pad6 -> Key'
+    GLFW.Key'Pad7 -> Key'
+    GLFW.Key'Pad8 -> Key'
+    GLFW.Key'Pad9 -> Key'
+    GLFW.Key'PadDecimal -> Key'
+    GLFW.Key'PadDivide -> Key'
+    GLFW.Key'PadMultiply -> Key'
+    GLFW.Key'PadSubtract -> Key'
+    GLFW.Key'PadAdd -> Key'
+    GLFW.Key'PadEnter -> Key'
+    GLFW.Key'PadEqual -> Key'
+    GLFW.Key'LeftShift -> Key'
+    GLFW.Key'LeftControl -> Key'
+    GLFW.Key'LeftAlt -> Key'
+    GLFW.Key'LeftSuper -> Key'
+    GLFW.Key'RightShift -> Key'
+    GLFW.Key'RightControl -> Key'
+    GLFW.Key'RightAlt -> Key'
+    GLFW.Key'RightSuper -> Key'
+    GLFW.Key'Menu -> Key'
+-}
+    _ -> Key'Unknown
+  where
+    key False c = Key'Char c
+    key True c = Key'Char $ toUpper c
 
 newChan' = do
     ch <- newChan
     return (readChan ch, writeChan ch)
 
 data SWidget = forall a . (Monoid a, Semigroup a)
-    => SWidget Int Int Double ((MouseEvent a, Dia a) -> IO ()) (([KeyModifier], String, Maybe Char) -> IO ()) (IO (Dia a)) (MVar (Dia a))
+    => SWidget Int Int Double ((MouseEvent a, Dia a) -> IO ()) (ModifiedKey -> IO ()) (IO (Dia a)) (MVar (Dia a))
 
 
 runWidget_
@@ -200,7 +306,7 @@ runWidget_  m = m >>= \i -> case i of
             return ()
 
         handle <- toReceive me $ const $ return ()
-        keyhandle <- toReceive (\(m,s,c) -> fromMaybe (\_ _ _ -> return False) keyh m s c >> return ()) $ const $ return ()
+        keyhandle <- toReceive (\key -> fromMaybe (\_ -> return False) keyh key >> return ()) $ const $ return ()
         return $ SWidget w h sc_ handle keyhandle (readMVar rer') rer
 
 

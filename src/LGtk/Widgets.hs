@@ -1,5 +1,6 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE PatternSynonyms #-}
 -- | Lens-based Gtk interface
 module LGtk.Widgets
     ( module LGtk.Widgets
@@ -11,6 +12,8 @@ import Data.Colour
 import Data.Colour.SRGB
 import Diagrams.Prelude (QDiagram, R2)
 import Diagrams.Backend.Cairo (B)
+
+---------------------------------------------------------
 
 import Data.LensRef
 
@@ -45,11 +48,44 @@ data WidgetCore m
         (b -> Dia a)
     | Scale Double Double Double (SendReceive m Double)
 
-data KeyModifier
-    = ShiftModifier
-    | ControlModifier
-    | AltModifier
-        deriving (Eq, Ord)
+data Key
+    = Key'Char Char
+    | Key'Escape
+    | Key'Backspace
+    | Key'Insert
+    | Key'Delete
+    | Key'Right
+    | Key'Left
+    | Key'Down
+    | Key'Up
+    | Key'PageUp
+    | Key'PageDown
+    | Key'Home
+    | Key'End
+    | Key'Unknown
+        deriving (Eq, Ord, Read, Show)
+
+pattern Key'Tab   = Key'Char '\t'
+pattern Key'Enter = Key'Char '\n'
+pattern Key'Space = Key'Char ' '
+
+data ModifiedKey = ModifiedKey
+    { modifierKeysShift   :: Bool
+    , modifierKeysControl :: Bool
+    , modifierKeysAlt     :: Bool
+    , modifierKeysSuper   :: Bool
+    , theModifiedKey      :: Key
+    }
+        deriving (Eq, Ord, Read, Show)
+
+pattern SimpleKey k  = ModifiedKey False False False False k
+pattern ShiftKey k   = ModifiedKey True  False False False k
+pattern ControlKey k = ModifiedKey False True  False False k
+pattern AltKey k     = ModifiedKey False False True  False k
+pattern SuperKey k   = ModifiedKey False False False True  k
+
+pattern CharKey c   = SimpleKey (Key'Char c)
+
 
 type Dia a = QDiagram B R2 a
 
@@ -60,7 +96,7 @@ data ListLayout
 
 type ScrollDirection = ListLayout
 
-type KeyboardHandler m = Maybe ([KeyModifier] -> String -> Maybe Char -> m Bool)
+type KeyboardHandler m = Maybe (ModifiedKey -> m Bool)
 
 data MouseEvent a
     = MoveTo (MousePos a)

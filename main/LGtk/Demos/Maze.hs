@@ -1,4 +1,5 @@
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module LGtk.Demos.Maze where
 
@@ -125,11 +126,11 @@ mazeGame = do
                     _ -> Nothing
             maybe (return False) ((>> return True) . domove) m
 
-        key [] "Left" _  = move $ \(x,y)->(x-1,y)
-        key [] "Right" _ = move $ \(x,y)->(x+1,y)
-        key [] "Up" _    = move $ \(x,y)->(x,y+1)
-        key [] "Down" _  = move $ \(x,y)->(x,y-1)
-        key _ _ _ = return False
+        key (SimpleKey Key'Left)  = move $ \(x,y)->(x-1,y)
+        key (SimpleKey Key'Right) = move $ \(x,y)->(x+1,y)
+        key (SimpleKey Key'Up)    = move $ \(x,y)->(x,y+1)
+        key (SimpleKey Key'Down)  = move $ \(x,y)->(x,y-1)
+        key _ = return False
 
         pos maze Start = Just $ snd $ bounds maze
         pos maze Success = Just $ fst $ bounds maze

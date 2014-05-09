@@ -187,18 +187,14 @@ runWidget_ post' post = toWidget
           case keyh of
             Nothing -> return ()
             Just keyh -> do
-                _ <- reg (\(x,y,z) -> keyh x y z >> return ()) $ \re ->
+                _ <- reg (\k -> keyh k >> return ()) $ \re ->
                   on' canvas keyPressEvent $ tryEvent $ do
     --                p <- eventCoordinates >>= liftIO . compCoords
                     m <- eventModifier
                     c <- eventKeyVal
                     kn <- lift $ keyvalName c
                     kc <- lift $ keyvalToChar c
-                    let tr Gtk.Shift   = [ShiftModifier]
-                        tr Gtk.Control = [ControlModifier]
-                        tr Gtk.Alt     = [AltModifier]
-                        tr _ = []
-                    liftIO $ re (concatMap tr m, kn, kc)
+                    liftIO $ re $ trKey m kn kc
                 return ()
 
           _ <- liftIO' $ on canvas exposeEvent $ tryEvent $ liftIO $ do
@@ -317,5 +313,26 @@ containerAdd'' w x = do
     containerAdd w a
     set w [ boxChildPacking a := PackNatural ]
     return $ widgetShow a
+
+trKey mods name ch
+    = ModifiedKey (Gtk.Shift `elem` mods) (Gtk.Control `elem` mods) (Gtk.Alt `elem` mods) (Gtk.Super `elem` mods) k
+  where
+    k = case ch of
+        Just c -> Key'Char c
+        _ -> case name of
+            "Escape" -> Key'Escape
+            "BackSpace" -> Key'Backspace
+            "Insert" -> Key'Insert
+            "Delete" -> Key'Delete
+            "Right" -> Key'Right
+            "Left" -> Key'Left
+            "Down" -> Key'Down
+            "Up" -> Key'Up
+            "PageUp" -> Key'PageUp
+            "PageDown" -> Key'PageDown
+            "Home" -> Key'Home
+            "End" -> Key'End
+            "Return" -> Key'Char '\n'
+            _ -> Key'Unknown
 
 

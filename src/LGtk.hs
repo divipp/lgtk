@@ -48,7 +48,9 @@ module LGtk
     , Dia
     , MouseEvent (..)
     , MousePos (..)
-    , KeyModifier
+    , Key (..), ModifiedKey (..)
+    , module LGtk.Widgets
+--    , Key'Tab, Key'Enter, Key'Space, SimpleKey, AltKey, ControlKey, SuperKey, ShiftKey
     , hscale
 
     -- ** Rendering into a canvas

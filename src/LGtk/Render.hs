@@ -1,6 +1,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -105,7 +106,7 @@ instance IsName Id where
 ---------------------------------------------------------
 
 -- how to handle keyboard events
-type KeyHandler m = [KeyModifier] -> String -> Maybe Char -> m Bool
+type KeyHandler m = ModifiedKey -> m Bool
 
 -- focus enter action; keyboard event handler; focus leave action; id of the keyboard-focused widget
 type KeyFocusHandler m = (m (), KeyHandler m, m (), Id)
@@ -173,13 +174,13 @@ inCanvas width height scale w = mdo
                   then maybe (return False) ((>> return True) . h2) $ (xss !! a') !!! b'
                   else maybe (return False) ((>> return True) . h2) $ fmap (!!!! b') (xss !!! a')
 
-        dkh [] "Up"     _ = changeFoc $ \(a,b) -> (a-1,b)
-        dkh [] "Down"   _ = changeFoc $ \(a,b) -> (a+1,b)
-        dkh [] "Left"   _ = changeFoc $ \(a,b) -> (a,b-1)
-        dkh [] "Right"  _ = changeFoc $ \(a,b) -> (a,b+1)
-        dkh [] "Tab"    _ = moveFoc True
-        dkh [c] "Tab" _ | c == ControlModifier = moveFoc False
-        dkh _ _ _ = return False
+        dkh (SimpleKey Key'Up)     = changeFoc $ \(a,b) -> (a-1,b)
+        dkh (SimpleKey Key'Down)   = changeFoc $ \(a,b) -> (a+1,b)
+        dkh (SimpleKey Key'Left)   = changeFoc $ \(a,b) -> (a,b-1)
+        dkh (SimpleKey Key'Right)  = changeFoc $ \(a,b) -> (a,b+1)
+        dkh (SimpleKey Key'Tab)    = moveFoc True
+        dkh (ControlKey Key'Tab)   = moveFoc False
+        dkh _ = return False
 
         h2 m@(a,_,_,i) = do
             i' <- readRef' $ _4 `lensMap` foc
@@ -226,9 +227,9 @@ inCanvas width height scale w = mdo
             handleEvent (LostFocus, di) = readRef' foc >>= writeRef rememberfoc >> h2 df
             handleEvent _ = return ()
 
-            handleKeys m n c = do
+            handleKeys key = do
                 (_,f,_,_) <- readRef' foc
-                f m n c
+                f key
 
         return $ Canvas width height scale handleEvent (Just handleKeys) (liftM3 (,,) (readRef hi) (readRef $ _4 `lensMap` foc) $ liftM snd b) $
             \(is, is', x) -> 
@@ -263,9 +264,9 @@ tr sca dkh w = do
         Button r sens col a -> do
             i <- newId
 
-            let ff [] _ (Just ' ') = a () >> return True
-                ff [] _ (Just '\n') = a () >> return True
-                ff a b c = dkh a b c
+            let ff (CharKey ' ') = a () >> return True
+                ff (CharKey '\n') = a () >> return True
+                ff k = dkh k
                 kh = (return (), ff, return (), i)
 
                 col' = maybe (return black) id col
@@ -287,12 +288,12 @@ tr sca dkh w = do
             _ <- lift $ onChangeSimple rs $ \s -> iReallyWantToModify $ do
                 writeRef (_2 `lensMap` j) (reverse s, "")
 
-            let f [] _ (Just c) (a,b) = Just (c:a,b)
-                f [] "BackSpace" _ (_:a,b) = Just (a,b)
-                f [] "Delete" _ (a,_:b) = Just (a,b)
-                f [] "Left" _ (c:a,b) = Just (a,c:b)
-                f [] "Right" _ (a,c:b) = Just (c:a,b)
-                f _ _ _ _ = Nothing
+            let f (CharKey c) (a,b) = Just (c:a,b)
+                f (SimpleKey Key'Backspace) (_:a,b) = Just (a,b)
+                f (SimpleKey Key'Delete) (a,_:b) = Just (a,b)
+                f (SimpleKey Key'Left) (c:a,b) = Just (a,c:b)
+                f (SimpleKey Key'Right) (a,c:b) = Just (c:a,b)
+                f _ _ = Nothing
 
                 rr' s | isOk s = rr s
                       | otherwise = return ()
@@ -301,12 +302,12 @@ tr sca dkh w = do
                     (_, ab) <- readRef' j
                     rr' $ value' ab
 
-                ff _ _ (Just '\n') = commit >> return True
-                ff m e f' = do
+                ff (CharKey '\n') = commit >> return True
+                ff key = do
                     x <- readRef' (_2 `lensMap` j)
-                    case f m e f' x of
+                    case f key x of
                         Just x -> writeRef (_2 `lensMap` j) x >> return True
-                        _ -> dkh m e f'
+                        _ -> dkh key
 
                 value' (a,b) = reverse a ++ b
 
@@ -333,8 +334,8 @@ tr sca dkh w = do
         Checkbox (bs, br) -> do
             i <- newId
 
-            let ff [] _ (Just ' ') = liftReadRef bs >>= br . not >> return True
-                ff a b c = dkh a b c
+            let ff (CharKey ' ') = liftReadRef bs >>= br . not >> return True
+                ff k = dkh k
                 kh = (return (), ff, return (), i)
 
                 render bv is is' = 
@@ -381,9 +382,9 @@ tr sca dkh w = do
 
             i <- newId
 
-            let ff x y z = do
-                    b <- fromMaybe (\_ _ _ -> return False) keyh x y z
-                    if b then return True else dkh x y z
+            let ff key = do
+                    b <- fromMaybe (\_ -> return False) keyh key
+                    if b then return True else dkh key
 
                 tr di (a,b) = case lookupName i di of
                             Just subd -> (a-x, b-y) # scale (1/((fromIntegral w / d) / sca))
@@ -416,10 +417,10 @@ tr sca dkh w = do
             let -- ff ind _ _ (Just ' ') = br ind
                 br' ind = br (ind `mod` n)
                 br'' f = liftReadRef bs >>= br' . f  >> return True
-                ff [] _ (Just '\n') = br'' (+1)
-                ff [] _ (Just ' ') = br'' (+1)
-                ff [] "BackSpace" _ = br'' (+(-1))
-                ff a b c = dkh a b c
+                ff (CharKey '\n') = br'' (+1)
+                ff (CharKey ' ') = br'' (+1)
+                ff (SimpleKey Key'Backspace) = br'' (+(-1))
+                ff k = dkh k
                 kh = (return (), ff, return (), ii)
 
                 x = maximum [x | txt <- xs, let (x :& _) = fst $ text__ 15 3 txt ]
@@ -449,10 +450,10 @@ tr sca dkh w = do
             let br' :: Int -> Modifier m ()
                 br' ind = br ind' >> writeRef ir ind' where ind' = ind `mod` n
                 br'' f = readRef' ir >>= br' . f  >> return True
-                ff [] "Left" _ = br'' (+(-1))
-                ff [] "Right" _ = br'' (+ 1)
-                ff [AltModifier] _ (Just c) | Just i <- ind c = br'' (const i)
-                ff a b c = dkh a b c
+                ff (SimpleKey Key'Left) = br'' (+(-1))
+                ff (SimpleKey Key'Right) = br'' (+ 1)
+                ff (AltKey (Key'Char c)) | Just i <- ind c = br'' (const i)
+                ff k = dkh k
 
                 ind c | 0 <= i && i < n = Just i
                       | otherwise = Nothing
@@ -507,9 +508,9 @@ tr sca dkh w = do
             i <- newId
             mv <- lift $ newRef Nothing
 
-            let ff [] "Right" _ = modR $ min ma . (+step)
-                ff [] "Left" _  = modR $ max mi . (+(-step))
-                ff a b c = dkh a b c
+            let ff (SimpleKey Key'Right) = modR $ min ma . (+step)
+                ff (SimpleKey Key'Left) = modR $ max mi . (+(-step))
+                ff k = dkh k
                 kh = (return (), ff, return (), i)
                 modR f = do
                     v <- liftReadRef sr
