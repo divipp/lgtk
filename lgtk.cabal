@@ -1,9 +1,24 @@
 name:               lgtk
 version:            0.8
 category:           GUI
-synopsis:           lens-based API for Gtk
+synopsis:           Lens GUI Toolkit
 description:
-    The main interface module of LGtk is "LGtk".
+    LGtk is a GUI Toolkit.
+    .
+    Main goals of LGtk:
+    .
+    * Provide a Haskell EDSL for declarative description of interactive graphical applications
+    * Provide an API for custom widget design
+    * Provide a playground for high-level declarative features like
+      derived state-save and undo-redo operations and
+      type-driven GUI generation
+    .
+    For more information visit the following links:
+    .
+    * <http://www.haskell.org/haskellwiki/LGtk haskell.org wiki page>
+    * <http://lgtk.wordpress.com/ Wordpress blog>
+    * <https://github.com/divipp/lgtk GitHub repository>
+    * <http://hackage.haskell.org/package/lgtk Haddock documentation (this page)>
 stability:          experimental
 license:            BSD3
 license-file:       LICENSE
@@ -134,4 +149,10 @@ executable lgtkdemo
                     main
   ghc-options:
                     -threaded
+                    -Wall 
+                    -fno-warn-incomplete-patterns 
+                    -fno-warn-name-shadowing 
+                    -fno-warn-missing-signatures 
+                    -fno-warn-orphans
+                    -fno-warn-type-defaults
 
