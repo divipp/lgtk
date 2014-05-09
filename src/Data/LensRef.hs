@@ -1,7 +1,63 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
-module Data.LensRef where
+module Data.LensRef
+    (
+    -- * References
+
+      Reference, MRef
+    , RefReader
+    , readRef
+    , writeRef, modRef, Modifier
+    , lensMap
+    , join
+    , unitRef
+
+    -- ** Reference creation
+    , ExtRef
+    , Ref, RefCore
+    , extRef
+    , newRef
+    , ReadRef
+    , WriteRef
+    , liftReadRef
+
+    , EffectM
+    , RefState
+    , liftEffectM
+    , Command (..)
+    , toReceive, toReceive1, rEffect
+    , liftModifier
+    , ExtRefWrite (..)
+    , writeRef_
+    , memoWrite, future
+    , hasEffect
+
+    -- ** Derived constructs
+    , readRef'
+    , memoRead
+--    , undoTr
+
+    , EqReference (..)
+    , EqRef
+    , eqRef
+    , newEqRef
+    , toRef
+
+    , CorrRef
+    , corrRef
+    , fromCorrRef
+    , correction
+
+    -- * Dynamic networks
+    , EffRef
+    , onChange
+    , onChangeSimple
+    , onChange_
+    , iReallyWantToModify
+
+    ) where
+
 
 import Control.Monad (liftM, join)
 import Control.Lens (Lens', lens, set, (^.))

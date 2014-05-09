@@ -9,47 +9,7 @@
 -- | Main LGtk interface.
 module LGtk
     (
-    -- * References
-
-      Reference, MRef
-    , RefReader
-    , readRef
-    , writeRef, modRef, Modifier
-    , lensMap
-    , join
-    , unitRef
-
-    -- ** Reference creation
-    , ExtRef
-    , Ref, RefCore
-    , extRef
-    , newRef
-    , ReadRef
-    , WriteRef
-    , liftReadRef
-
-    -- ** Derived constructs
-    , readRef'
-    , memoRead
-    , undoTr
-
-    , EqReference (..)
-    , EqRef
-    , eqRef
-    , newEqRef
-    , toRef
-
-    , CorrRef
-    , corrRef
-    , fromCorrRef
-    , correction
-
-    -- * Dynamic networks
-    , EffRef
-    , onChange
-    , onChangeSimple
-    , onChange_
-    , iReallyWantToModify
+      module Data.LensRef
 
     -- * I/O
     , getArgs
@@ -64,6 +24,8 @@ module LGtk
 
     -- ** Derived constructs
     , putStrLn_
+
+    , undoTr
 
     -- * GUI
 
