@@ -27,21 +27,22 @@ data GameState
 instance Show GameState where
     show Success = "Congratulation!"
     show Fail = "Failure, try again!"
-    show Start = "Move the pointer to the green circle"
-    show (Explore _) = "Reach the blue circle"
+    show Start = "Move the pointer to the filled circle"
+    show (Explore _) = "Reach the bottom left corner"
 
 ------------------------ maze drawing
 
-drawMaze :: (Maze, S.Set Point) -> Dia [Point]
-drawMaze (maze, hi) =
+drawMaze :: (Maze, S.Set Point, Maybe Point) -> Dia [Point]
+drawMaze (maze, hi, pos) =
     (  mconcat (map drawCell $ assocs maze) # centerXY
     <> rect (fromIntegral $ x2-x1+1) (fromIntegral $ y2-y1+1) # lw 0.005 # fc (sRGB 0.95 0.95 0.95) # value []
     ) # scale (1 / fromIntegral (max (x2-x1+1) (y2-y1+1)))
   where
     drawCell (p@(i,j), C cs) =
             (   (if b then mconcat (map drawWall $ complement cs) # lw 0.005 # value [] else mempty)
-            <>  (if p == q2 then circle 0.35 # lw 0.003 # fc green # value [] else mempty)
-            <>  (if p == q1 then circle 0.35 # lw 0.003 # fc blue # value [] else mempty)
+            <>  (if Just p == pos then circle 0.35 # lw 0.003 # fc blue # value [] else mempty)
+            <>  (if p == q2 then circle 0.35 # lw 0.003 # value [] else mempty)
+            <>  (if p == q1 then circle 0.35 # lw 0.003 # value [] else mempty)
             <>  rect 1 1 # lw 0 # (if b then fc yellow else id) # value [p]
             )   # translate (r2 (fromIntegral i, fromIntegral j))
         where b = S.member p hi
@@ -77,6 +78,10 @@ isOk maze p q = p == q || maybe False (`elem` unC (maze ! p)) (dir p q)
         | a == c - 1 && b == d = Just S
         | otherwise = Nothing
 
+checkBounds ((a,b),(c,d)) (e,f)
+    | a <= e && e <= c && b <= f && f <= d = Just (e,f)
+    | otherwise = Nothing
+
 gameLogic b maze p (s, st) = case st of
     Start | p == snd (bounds maze) -> commit
     Explore q
@@ -98,14 +103,36 @@ mazeGame = do
     maze_ <- extRef_ dim (runState (genMaze init) (mkStdGen 323401)) $ \d (_, s) -> runState (genMaze d) s
     r <- extRef_ maze_ (S.empty, Start) $ \_ _ -> (S.empty, Start)
 
-    let handler (MoveTo (MousePos _ [p]), _) = do
+    let handler (MoveTo (MousePos _ [p]), _) = domove p
+        handler _ = return ()
+
+        domove p = do
             (maze, _) <- readRef' maze_
             b <- readRef' forgiving
             modRef r $ gameLogic b maze p
-        handler _ = return ()
+
+        move f = do
+            (maze, _) <- readRef' maze_
+            (_, st) <- readRef' r
+            let m = case st of
+                    Start -> Just $ snd $ bounds maze
+                    Explore p -> checkBounds (bounds maze) $ f p
+                    _ -> Nothing
+            maybe (return False) ((>> return True) . domove) m
+
+        key [] "Left" _  = move $ \(x,y)->(x-1,y)
+        key [] "Right" _ = move $ \(x,y)->(x+1,y)
+        key [] "Up" _    = move $ \(x,y)->(x,y+1)
+        key [] "Down" _  = move $ \(x,y)->(x,y-1)
+        key _ _ _ = return False
+
+        pos maze Start = Just $ snd $ bounds maze
+        pos maze Success = Just $ fst $ bounds maze
+        pos _ (Explore p) = Just p
+        pos _ _ = Nothing
 
     vcat
-        [ canvas 400 400 1 handler Nothing (liftM2 (\(m,_) (s,_) -> (m,s)) (readRef maze_) (readRef r)) drawMaze
+        [ canvas 400 400 1 handler (Just key) (liftM2 (\(m,_) (s, st) -> (m,s, pos m st)) (readRef maze_) (readRef r)) drawMaze
         , label $ liftM (show . snd) $ readRef r
         , hcat
             [ button (return "Try again") $ return $ Just $ modRef maze_ id
