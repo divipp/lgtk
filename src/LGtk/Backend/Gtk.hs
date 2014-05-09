@@ -257,7 +257,7 @@ runWidget_ post' post = toWidget
             return' w
         Combobox ss (r, s) -> do
             w <- liftIO'' comboBoxNewText
-            _ <- liftIO'' $ w `onSizeRequest` return (Requisition 50 30)
+            _ <- liftIO'' $ w `onSizeRequest` return (Requisition 100 30)
             liftIO'' $ flip mapM_ ss $ comboBoxAppendText w
             hd <- reg s $ \re -> on' w changed $ fmap (max 0) (comboBoxGetActive w) >>= re
             ger hd r $ comboBoxSetActive w
