@@ -34,14 +34,15 @@ import System.IO.Unsafe
 -----------------------------------------------------------------
 
 
-
-
--- | This instance is used in the implementation, end users do not need it.
-instance (ExtRef m, Monoid w) => ExtRef (WriterT w m) where
+instance (ExtRef m, Monoid w) => RefReader_ (WriterT w m) where
 
     type RefCore (WriterT w m) = RefCore m
 
     liftReadRef = lift . liftReadRef
+
+
+-- | This instance is used in the implementation, end users do not need it.
+instance (ExtRef m, Monoid w) => ExtRef (WriterT w m) where
 
     extRef x y a = lift $ extRef x y a
 

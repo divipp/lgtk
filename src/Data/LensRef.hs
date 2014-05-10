@@ -12,6 +12,9 @@ module Data.LensRef
     , RefWriter
     , MRef
 
+    , RefReader_ (..)
+    , readRef
+
     -- ** Reference creation
     , ExtRef (..)
     , Ref
@@ -61,7 +64,7 @@ If @(r :: RefReader r (MRef r a))@ then @(join r :: MRef r a)@.
 This is possible because reference operations work with @(RefReader r (r a))@ instead
 of just @(r a)@. For more compact type signatures, @(RefReader r (r a))@ is called @(MRef r a)@.
 -}
-class (Monad (RefReader r), Monad (RefWriter r)) => Reference r where
+class (Monad (RefReader r), Monad (RefWriter r), RefReader_ (RefReader r), RefReader (RefCore (RefReader r)) ~ RefReader r) => Reference r where
 
     {- | unit reference
 
@@ -93,7 +96,7 @@ class (Monad (RefReader r), Monad (RefWriter r)) => Reference r where
 
     prop> readRef r >> return ())  =  return ()
     -}
-    readRef  :: MRef r a -> RefReader r a
+    readRef_  :: MRef r a -> RefReader r a
 
     {- | Reference write.
 
@@ -123,15 +126,7 @@ type MRef r a = RefReader r (r a)
 infixr 8 `lensMap`
 
 
-{- | Monad for reference creation. Reference creation is not a method
-of the 'Reference' type class to make possible to
-create the same type of references in multiple monads.
-
-@(Extref m) === (StateT s m)@, where 's' is an extendible state.
-
-For basic usage examples, look into the source of @Data.LensRef.Pure.Test@.
--}
-class (Monad m, Reference (RefCore m)) => ExtRef m where
+class (Monad m) => RefReader_ m where
 
     type RefCore m :: * -> *
 
@@ -141,6 +136,31 @@ class (Monad m, Reference (RefCore m)) => ExtRef m where
     in the LGtk interface; this is a feature.
     -}
     liftReadRef :: ReadRef m a -> m a
+
+--readRef' :: (ExtRef m, Reference r, ReadRef m ~ RefReader r) => MRef r a -> m a
+readRef' :: (RefReader_ m, Reference r, ReadRef m ~ RefReader r) => MRef r a -> m a
+readRef' = readRef
+
+
+{- | @readRef@ lifted to the reference creation class.
+
+@readRef@ === @liftReadRef . readRef_@
+-}
+readRef :: (RefReader_ m, Reference r, ReadRef m ~ RefReader r) => MRef r a -> m a
+readRef = liftReadRef . readRef_
+
+
+
+
+{- | Monad for reference creation. Reference creation is not a method
+of the 'Reference' type class to make possible to
+create the same type of references in multiple monads.
+
+@(Extref m) === (StateT s m)@, where 's' is an extendible state.
+
+For basic usage examples, look into the source of @Data.LensRef.Pure.Test@.
+-}
+class (Monad m, Reference (RefCore m), RefReader_ m) => ExtRef m where
 
     {- | Reference creation by extending the state of an existing reference.
 
@@ -190,14 +210,17 @@ class (Monad m, Reference (RefCore m)) => ExtRef m where
 
     future :: (ReadRef m a -> m a) -> m a
 
-
+-- | TODO
 type Ref m a = ReadRef m (RefCore m a)
 
+-- | TODO
 type ReadRef m = RefReader (RefCore m)
 
+-- | TODO
 type WriteRef m = RefWriter (RefCore m)
 
 
+-- | TODO
 class ExtRef m => ExtRefWrite m where
 
     liftWriteRef :: WriteRef m a -> m a
@@ -263,6 +286,7 @@ class (ExtRef m, Monad (EffectM m), ExtRefWrite (Modifier m), RefCore (Modifier 
 
     toReceive :: Functor f => f (Modifier m ()) -> (Command -> EffectM m ()) -> m (f (EffectM m ()))
 
+-- | TODO
 data Command = Kill | Block | Unblock deriving (Eq, Ord, Show)
 
 
@@ -272,19 +296,13 @@ data Command = Kill | Block | Unblock deriving (Eq, Ord, Show)
 -------------- derived constructs
 
 
-{- | @readRef@ lifted to the reference creation class.
-
-@readRef'@ === @liftReadRef . readRef@
--}
-readRef' :: (ExtRef m, Reference r, ReadRef m ~ RefReader r) => MRef r a -> m a
-readRef' = liftReadRef . readRef
-
-
+-- | TODO
 toReceive1 :: EffRef m => Modifier m () -> (Command -> EffectM m ()) -> m (EffectM m ())
 toReceive1 m c = do
     f <- toReceive (const m) c
     return $ f ()
 
+-- | TODO
 rEffect  :: (EffRef m, Eq a) => ReadRef m a -> (a -> EffectM m b) -> m (ReadRef m b)
 rEffect r f = onChangeSimple r $ liftEffectM . f
 
@@ -293,7 +311,7 @@ modRef :: (ExtRefWrite m, Reference r, RefReader r ~ ReadRef m) => MRef r a -> (
 r `modRef` f = readRef' r >>= writeRef r . f
 
 
-
+-- | TODO
 iReallyWantToModify :: EffRef m => Modifier m () -> m ()
 iReallyWantToModify r = do
     x <- toReceive1 r $ const $ return ()
@@ -325,6 +343,7 @@ hasEffect r f = do
     return $ ch $ f a
 
 
+-- | TODO
 data EqRefCore r a = EqRefCore (r a) (a -> Bool{-changed-})
 
 {- | References with inherent equivalence.
@@ -345,6 +364,7 @@ eqRef r = do
     r_ <- r
     return $ EqRefCore r_ $ (/= a)
 
+-- | TODO
 newEqRef :: (ExtRef m, Eq a) => a -> m (EqRef (RefCore m) a) 
 newEqRef = liftM eqRef . newRef
 
@@ -364,7 +384,7 @@ instance Reference r => Reference (EqRefCore r) where
 
     type (RefReader (EqRefCore r)) = RefReader r
 
-    readRef = readRef . toRef
+    readRef_ = readRef . toRef
 
     writeRef_ = writeRef_ . toRef
 

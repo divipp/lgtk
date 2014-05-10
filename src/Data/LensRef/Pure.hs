@@ -49,19 +49,24 @@ data CC = forall a . CC (LSt -> a -> a) a
 initLSt :: LSt
 initLSt = empty
 
+instance RefReader_ (Reader LSt) where
+    type RefCore (Reader LSt) = Lens_ LSt
+    liftReadRef = id
+
 instance Reference (Lens_ LSt) where
     type RefReader (Lens_ LSt) = Reader LSt
 
-    readRef = view . runLens_
+    readRef_ = view . runLens_
     writeRef_ r a = runLens_ r .= a
     lensMap l r = return $ Lens_ $ runLens_ r . l
     unitRef = return $ Lens_ united
 
-instance Monad m => ExtRef (StateT LSt m) where
+instance Monad m => RefReader_ (StateT LSt m) where
     type RefCore (StateT LSt m) = Lens_ LSt
 
     liftReadRef m = state $ \s -> (runReader m s, s)
 
+instance Monad m => ExtRef (StateT LSt m) where
     extRef r r2 a0 = state extend
       where
         rk = set (runLens_ r) . (^. r2)
@@ -134,11 +139,13 @@ instance MonadTrans Pure where
 instance MonadFix m => MonadFix (Pure m) where
     mfix f = Pure $ mfix $ unPure . f
 
-instance Monad n => ExtRef (Pure n) where
+instance Monad m => RefReader_ (Pure m) where
 
     type RefCore (Pure n) = Lens_ LSt
 
     liftReadRef = Pure . lift . lift . liftReadRef
+
+instance Monad n => ExtRef (Pure n) where
     extRef r l = Pure . lift . lift . extRef r l
     newRef = Pure . lift . lift . newRef
     memoRead = memoRead_
@@ -169,11 +176,13 @@ instance Monad n => EffRef (Pure n) where
 instance Monad m => ExtRefWrite (Modifier (Pure m)) where
     liftWriteRef = RegW . liftWriteRef
 
-instance Monad m => ExtRef (Modifier (Pure m)) where
+instance Monad m => RefReader_ (Modifier (Pure m)) where
 
     type RefCore (Modifier (Pure m)) = Lens_ LSt
 
     liftReadRef = RegW . liftReadRef
+
+instance Monad m => ExtRef (Modifier (Pure m)) where
     extRef r l = RegW . extRef r l
     newRef = RegW . newRef
     memoRead = memoRead_

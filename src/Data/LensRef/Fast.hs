@@ -52,7 +52,7 @@ joinLens m = Lens_
 instance Reference Lens_ where
     type RefReader Lens_ = IO
 
-    readRef = readPart . joinLens
+    readRef_ = readPart . joinLens
     writeRef_ m = RefWriterOfIO . writePart (joinLens m)
     lensMap l m = do
         Lens_ r w t <- m
@@ -67,11 +67,13 @@ instance Reference Lens_ where
                 , register = \_ -> return ()
                 }
 
-instance ExtRef IO where
+instance {- Monad m => -} RefReader_ IO where
 
     type RefCore IO = Lens_
 
     liftReadRef = id
+
+instance ExtRef IO where
 
     extRef r r2 a0 = do
         Lens_ rb wb tb <- r
@@ -165,11 +167,13 @@ instance MonadTrans Reg where
 instance MonadFix (Pure m) where
     mfix f = Reg $ mfix $ unReg . f
 
-instance {-Monad n => -} ExtRef (Pure n) where
+instance {- Monad m => -} RefReader_ (Pure m) where
 
     type RefCore (Pure IO) = Lens_
 
     liftReadRef = Reg . lift . lift . liftReadRef
+
+instance {-Monad n => -} ExtRef (Pure n) where
     extRef r l = Reg . lift . lift . extRef r l
     newRef = Reg . lift . lift . newRef
     memoRead = memoRead_
@@ -206,11 +210,13 @@ instance {- MonadFix m => -} MonadFix (Modifier (Pure m)) where
 instance {- Monad m => -} ExtRefWrite (Modifier (Pure m)) where
     liftWriteRef = RegW . liftWriteRef
 
-instance {- Monad m => -} ExtRef (Modifier (Pure m)) where
+instance {- Monad m => -} RefReader_ (Modifier (Pure m)) where
 
     type RefCore (Modifier (Pure IO)) = Lens_
 
     liftReadRef = RegW . liftReadRef
+
+instance {- Monad m => -} ExtRef (Modifier (Pure m)) where
     extRef r l = RegW . extRef r l
     newRef = RegW . newRef
     memoRead = memoRead_
