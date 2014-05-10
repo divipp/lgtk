@@ -357,6 +357,7 @@ As a reference, @(m :: EqRefSimple r a)@ behaves as
 -}
 type EqRefSimple r a = RefReaderSimple r (EqRefCore r a)
 
+-- | TODO
 type EqRef m a = EqRefSimple (BaseRef m) a
 
 {- | @EqRefSimple@ construction.
