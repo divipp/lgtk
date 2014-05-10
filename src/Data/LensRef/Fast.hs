@@ -121,7 +121,7 @@ instance MonadRefCreator IO where
                 }
 
     memoRead = memoRead_
-
+{-
     memoWrite = memoWrite_
 
     future = future_
@@ -133,7 +133,7 @@ future_ f = do
     a <- f $ readRef s
     writeRef s a
     return a
-
+-}
 memoRead_ g = do
     s <- newRef Nothing
     return $ readRef s >>= \x -> case x of
@@ -141,7 +141,7 @@ memoRead_ g = do
         _ -> g >>= \a -> do
             writeRef s $ Just a
             return a
-
+{-
 memoWrite_ g = do
     s <- newRef Nothing
     return $ \b -> readRef s >>= \x -> case x of
@@ -149,7 +149,7 @@ memoWrite_ g = do
         _ -> g b >>= \a -> do
             writeRef s $ Just (b, a)
             return a
-
+-}
 
 
 instance MonadRefWriter IO where
@@ -187,9 +187,10 @@ instance {-Monad n => -} MonadRefCreator (Pure n) where
     extRef r l = Reg . lift . lift . extRef r l
     newRef = Reg . lift . lift . newRef
     memoRead = memoRead_
+{-
     memoWrite = memoWrite_
     future = future_
-
+-}
 instance {-Monad n => -} MonadRefWriter (Pure n) where
     liftRefWriter = Reg . lift . lift . liftRefWriter
 
@@ -230,9 +231,10 @@ instance {- Monad m => -} MonadRefCreator (Modifier (Pure m)) where
     extRef r l = RegW . extRef r l
     newRef = RegW . newRef
     memoRead = memoRead_
+{-
     memoWrite = memoWrite_
     future = future_
-
+-}
 evalRegister ff (Reg m) = runReaderT m ff
 
 runPure :: (Monad m, m ~ IO) => (forall a . m (m a, a -> m ())) -> Pure m a -> m (a, m ())

@@ -95,7 +95,7 @@ instance Monad m => MonadRefCreator (StateT LSt m) where
         unsafeData (CC _ a) = unsafeCoerce a
 
     memoRead = memoRead_
-
+{-
     memoWrite = memoWrite_
 
     future = future_
@@ -106,7 +106,7 @@ future_ f = do
     a <- f $ readRef s
     writeRef s a
     return a
-
+-}
 memoRead_ g = do
     s <- newRef Nothing
     return $ readRef s >>= \x -> case x of
@@ -114,7 +114,7 @@ memoRead_ g = do
         _ -> g >>= \a -> do
             writeRef s $ Just a
             return a
-
+{-
 memoWrite_ g = do
     s <- newRef Nothing
     return $ \b -> readRef s >>= \x -> case x of
@@ -122,7 +122,7 @@ memoWrite_ g = do
         _ -> g b >>= \a -> do
             writeRef s $ Just (b, a)
             return a
-
+-}
 instance Monad m => MonadRefWriter (StateT LSt m) where
     liftRefWriter = state . runState . runRefWriterOfReaderT
 
@@ -156,9 +156,10 @@ instance Monad n => MonadRefCreator (Pure n) where
     extRef r l = Pure . lift . lift . extRef r l
     newRef = Pure . lift . lift . newRef
     memoRead = memoRead_
+{-
     memoWrite = memoWrite_
     future = future_
-
+-}
 instance Monad n => MonadRefWriter (Pure n) where
     liftRefWriter = Pure . lift . lift . liftRefWriter
 
@@ -193,9 +194,10 @@ instance Monad m => MonadRefCreator (Modifier (Pure m)) where
     extRef r l = RegW . extRef r l
     newRef = RegW . newRef
     memoRead = memoRead_
+{-
     memoWrite = memoWrite_
     future = future_
-
+-}
 instance MonadFix m => MonadFix (Modifier (Pure m)) where
     mfix f = RegW $ mfix $ unRegW . f
 

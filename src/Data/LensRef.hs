@@ -220,11 +220,11 @@ class (Monad m, Reference (BaseRef m), MonadRefReader m) => MonadRefCreator m wh
      *  ...
     -}
     memoRead :: m a -> m (m a)
-
+{-
     memoWrite :: Eq b => (b -> m a) -> m (b -> m a)
 
     future :: (RefReader m a -> m a) -> m a
-
+-}
 
 -- | Monad for dynamic actions
 class (MonadRefCreator m, Monad (EffectM m), MonadRefWriter (Modifier m), MonadRefCreator (Modifier m), BaseRef (Modifier m) ~ BaseRef m) => MonadRegister m where
