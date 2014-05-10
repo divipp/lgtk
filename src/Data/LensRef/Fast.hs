@@ -8,7 +8,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# OPTIONS_HADDOCK hide #-}
 {- |
-Fast reference implementation for the @MonadRefCreator@ interface.
+Fast implementation for the @MonadRefCreator@ interface.
 
 TODO
 - elim mem leak: registered events don't allow to release unused refs
