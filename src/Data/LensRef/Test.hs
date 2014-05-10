@@ -38,7 +38,7 @@ instance (MonadRefCreator m, Monoid w) => MonadRefReader (WriterT w m) where
 
     type BaseRef (WriterT w m) = BaseRef m
 
-    liftReadRef = lift . liftReadRef
+    liftRefReader = lift . liftRefReader
 
 
 -- | This instance is used in the implementation, end users do not need it.
@@ -48,7 +48,7 @@ instance (MonadRefCreator m, Monoid w) => MonadRefCreator (WriterT w m) where
 
 instance (MonadRefCreator m, MonadRefWriter m, Monoid w) => MonadRefWriter (WriterT w m) where
 
-    liftWriteRef = lift . liftWriteRef
+    liftRefWriter = lift . liftRefWriter
 
 {-
 -- | Consistency tests for the pure implementation of @Ext@, should give an empty list of errors.
@@ -318,7 +318,7 @@ mkTests runTest
 
     undoTest3 = runTest $ do
         r <- newRef (3 :: Int)
-        (undo, redo) <- liftM (liftReadRef *** liftReadRef) $ undoTr (==) r
+        (undo, redo) <- liftM (liftRefReader *** liftRefReader) $ undoTr (==) r
         r ==> 3
         redo === False
         undo === False
@@ -347,7 +347,7 @@ mkTests runTest
         redo === False
         undo === True
       where
-        push m = m >>= \x -> maybe (return ()) liftWriteRef x
+        push m = m >>= \x -> maybe (return ()) liftRefWriter x
         m === t = m >>= \x -> isJust x ==? t
 
 

@@ -154,7 +154,7 @@ button
     => RefReader m String     -- ^ dynamic label of the button
     -> RefReader m (Maybe (Modifier m ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
     -> Widget m
-button r fm = button_ r (liftM isJust fm) (liftReadRef fm >>= maybe (return ()) id)
+button r fm = button_ r (liftM isJust fm) (liftRefReader fm >>= maybe (return ()) id)
 
 
 

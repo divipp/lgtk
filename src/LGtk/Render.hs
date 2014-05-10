@@ -165,7 +165,7 @@ inCanvas width height scale w = mdo
 
         changeFoc f = do
             (_, _, _, j) <- readRef foc
-            (_, xss_) <- liftReadRef bb
+            (_, xss_) <- liftRefReader bb
             let xss = filter (not . null) xss_
             if null xss
               then return False
@@ -193,7 +193,7 @@ inCanvas width height scale w = mdo
 
         moveFoc f = do
             (_, _, _, j) <- readRef foc
-            (xs, _) <- liftReadRef bb
+            (xs, _) <- liftRefReader bb
             h2 $ maybe (head xs) snd $ find (\((_,_,_,x),_) -> x == j) $ pairs $ (if f then id else reverse) (xs ++ xs)
             return $ if f then j /= last xs ^. _4 else j /= head xs ^. _4
 
@@ -338,7 +338,7 @@ tr sca dkh w = do
         Checkbox (bs, br) -> do
             i <- newId
 
-            let ff (CharKey ' ') = liftReadRef bs >>= br . not >> return True
+            let ff (CharKey ' ') = liftRefReader bs >>= br . not >> return True
                 ff k = dkh k
                 kh = (return (), ff, return (), i)
 
@@ -420,7 +420,7 @@ tr sca dkh w = do
 
             let -- ff ind _ _ (Just ' ') = br ind
                 br' ind = br (ind `mod` n)
-                br'' f = liftReadRef bs >>= br' . f  >> return True
+                br'' f = liftRefReader bs >>= br' . f  >> return True
                 ff (CharKey '\n') = br'' (+1)
                 ff (CharKey ' ') = br'' (+1)
                 ff (SimpleKey Key'Backspace) = br'' (+(-1))
@@ -517,7 +517,7 @@ tr sca dkh w = do
                 ff k = dkh k
                 kh = (return (), ff, return (), i)
                 modR f = do
-                    v <- liftReadRef sr
+                    v <- liftRefReader sr
                     rr $ f v
                     return True
 
@@ -527,7 +527,7 @@ tr sca dkh w = do
                         Just (x_, v) -> rr $ min ma $ max mi $ v + (ma - mi) * (x - x_) / 10
                         Nothing -> return ()
 
-                f (Click (MousePos p _), _) = Just' (liftReadRef sr >>= \v -> writeRef mv $ Just (getx p, v), Just f', Just kh, i)
+                f (Click (MousePos p _), _) = Just' (liftRefReader sr >>= \v -> writeRef mv $ Just (getx p, v), Just f', Just kh, i)
                 f (MoveTo _, _) = Just' (return (), Nothing, Nothing, i)
                 f _ = mempty
 

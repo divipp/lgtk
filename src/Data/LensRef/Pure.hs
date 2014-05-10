@@ -51,14 +51,14 @@ initLSt = empty
 
 instance MonadRefReader (Reader LSt) where
     type BaseRef (Reader LSt) = Lens_ LSt
-    liftReadRef = id
+    liftRefReader = id
 
 instance Monad m => MonadRefReader (RefWriterOf (ReaderT LSt m)) where
     type BaseRef (RefWriterOf (ReaderT LSt m)) = Lens_ LSt
-    liftReadRef = RefWriterOfReaderT . gets . runReader
+    liftRefReader = RefWriterOfReaderT . gets . runReader
 
 instance MonadRefWriter (RefWriterOf (Reader LSt)) where
-    liftWriteRef = id
+    liftRefWriter = id
 
 instance Reference (Lens_ LSt) where
     type RefReaderSimple (Lens_ LSt) = Reader LSt
@@ -71,7 +71,7 @@ instance Reference (Lens_ LSt) where
 instance Monad m => MonadRefReader (StateT LSt m) where
     type BaseRef (StateT LSt m) = Lens_ LSt
 
-    liftReadRef = gets . runReader
+    liftRefReader = gets . runReader
 
 instance Monad m => MonadRefCreator (StateT LSt m) where
     extRef r r2 a0 = state extend
@@ -124,7 +124,7 @@ memoWrite_ g = do
             return a
 
 instance Monad m => MonadRefWriter (StateT LSt m) where
-    liftWriteRef = state . runState . runRefWriterOfReaderT
+    liftRefWriter = state . runState . runRefWriterOfReaderT
 
 
 ---------------------------------
@@ -150,7 +150,7 @@ instance Monad m => MonadRefReader (Pure m) where
 
     type BaseRef (Pure n) = Lens_ LSt
 
-    liftReadRef = Pure . lift . lift . liftReadRef
+    liftRefReader = Pure . lift . lift . liftRefReader
 
 instance Monad n => MonadRefCreator (Pure n) where
     extRef r l = Pure . lift . lift . extRef r l
@@ -160,7 +160,7 @@ instance Monad n => MonadRefCreator (Pure n) where
     future = future_
 
 instance Monad n => MonadRefWriter (Pure n) where
-    liftWriteRef = Pure . lift . lift . liftWriteRef
+    liftRefWriter = Pure . lift . lift . liftRefWriter
 
 instance Monad n => MonadRegister (Pure n) where
 
@@ -181,13 +181,13 @@ instance Monad n => MonadRegister (Pure n) where
         return $ fmap (ff . flip runReaderT writerstate . evalRegister ff . unRegW) f
 
 instance Monad m => MonadRefWriter (Modifier (Pure m)) where
-    liftWriteRef = RegW . liftWriteRef
+    liftRefWriter = RegW . liftRefWriter
 
 instance Monad m => MonadRefReader (Modifier (Pure m)) where
 
     type BaseRef (Modifier (Pure m)) = Lens_ LSt
 
-    liftReadRef = RegW . liftReadRef
+    liftRefReader = RegW . liftRefReader
 
 instance Monad m => MonadRefCreator (Modifier (Pure m)) where
     extRef r l = RegW . extRef r l
@@ -227,7 +227,7 @@ toSend li rb b0 c0 fb = do
         reg st msg = readRef st >>= li . runMonadMonoid . ($ msg) . snd
 
     memoref <- lift $ do
-        b <- liftReadRef rb
+        b <- liftRefReader rb
         (c, st1) <- runRefWriterT $ fb b b0 $ c0 b0
         (val, st2) <- runRefWriterT $ c $ c0 b0
         doit st1
@@ -235,7 +235,7 @@ toSend li rb b0 c0 fb = do
         newRef ((b, (c, val, st1, st2)), [])      -- memo table
 
     let act = MonadMonoid $ do
-            b <- liftReadRef rb
+            b <- liftRefReader rb
             (last@(b', cc@(_, oldval, st1, st2)), memo) <- readRef memoref
             (_, _, st1, st2) <- if b' == b
               then

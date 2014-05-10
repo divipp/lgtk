@@ -133,14 +133,14 @@ class Monad m => MonadRefReader m where
     Note that we do not lift @RefWriter@ to the reference creation class, which a crucial restriction
     in the LGtk interface; this is a feature.
     -}
-    liftReadRef :: RefReader m a -> m a
+    liftRefReader :: RefReader m a -> m a
 
     {- | @readRef@ lifted to the reference creation class.
 
-    @readRef@ === @liftReadRef . readRefSimple@
+    @readRef@ === @liftRefReader . readRefSimple@
     -}
     readRef :: (Reference r, RefReader m ~ RefReaderSimple r) => RefSimple r a -> m a
-    readRef = liftReadRef . readRefSimple
+    readRef = liftRefReader . readRefSimple
 
 
 -- | TODO
@@ -157,10 +157,10 @@ type Ref m a = RefSimple (BaseRef m) a
 -- | TODO
 class MonadRefReader m => MonadRefWriter m where
 
-    liftWriteRef :: RefWriter m a -> m a
+    liftRefWriter :: RefWriter m a -> m a
 
     writeRef :: (Reference r, RefReaderSimple r ~ RefReader m) => RefSimple r a -> a -> m ()
-    writeRef r = liftWriteRef . writeRefSimple r
+    writeRef r = liftRefWriter . writeRefSimple r
 
 
 

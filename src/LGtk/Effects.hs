@@ -90,7 +90,7 @@ instance MonadFix m => MonadFix (Wrap m) where
 
 instance MonadRefReader m => MonadRefReader (Wrap m) where
     type BaseRef (Wrap m) = BaseRef m
-    liftReadRef = Wrap . liftReadRef
+    liftRefReader = Wrap . liftRefReader
 
 instance MonadRefCreator m => MonadRefCreator (Wrap m) where
     extRef r l = Wrap . extRef r l
@@ -101,14 +101,14 @@ deriving instance (MonadRegister m) => Monad (Modifier (Wrap m))
 
 instance MonadRegister m => MonadRefReader (Modifier (Wrap m)) where
     type BaseRef (Modifier (Wrap m)) = BaseRef m
-    liftReadRef = WrapM . liftReadRef
+    liftRefReader = WrapM . liftRefReader
 
 instance MonadRegister m => MonadRefCreator (Modifier (Wrap m)) where
     extRef r l = WrapM . extRef r l
     newRef = WrapM . newRef
 
 instance MonadRegister m => MonadRefWriter (Modifier (Wrap m)) where
-    liftWriteRef = WrapM . liftWriteRef
+    liftRefWriter = WrapM . liftRefWriter
 
 instance MonadRegister m => MonadRegister (Wrap m) where
     type EffectM (Wrap m) = EffectM m
