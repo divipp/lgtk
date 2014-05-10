@@ -285,6 +285,14 @@ toReceive1 m c = do
     f <- toReceive (const m) c
     return $ f ()
 
+rEffect  :: (EffRef m, Eq a) => ReadRef m a -> (a -> EffectM m b) -> m (ReadRef m b)
+rEffect r f = onChangeSimple r $ liftEffectM . f
+
+-- | @modRef r f@ === @readRef' r >>= writeRef r . f@
+modRef :: (ExtRefWrite m, Reference r, RefReader r ~ ReadRef m) => MRef r a -> (a -> a) -> m ()
+r `modRef` f = readRef' r >>= writeRef r . f
+
+
 
 iReallyWantToModify :: EffRef m => Modifier m () -> m ()
 iReallyWantToModify r = do
@@ -368,7 +376,7 @@ instance Reference r => Reference (EqRefCore r) where
 
     unitRef = eqRef unitRef
 
-
+{-
 data CorrRefCore r a = CorrRefCore (r a) (a -> Maybe a{-corrected-})
 
 type CorrRef r a = RefReader r (CorrRefCore r a)
@@ -401,16 +409,6 @@ correction :: Reference r => CorrRef r a -> RefReader r (a -> Maybe a)
 correction r = do
     CorrRefCore _ f <- r
     return f
-
-----------------
-
-rEffect  :: (EffRef m, Eq a) => ReadRef m a -> (a -> EffectM m b) -> m (ReadRef m b)
-rEffect r f = onChangeSimple r $ liftEffectM . f
-
--- | @modRef r f@ === @readRef' r >>= writeRef r . f@
-modRef :: (ExtRefWrite m, Reference r, RefReader r ~ ReadRef m) => MRef r a -> (a -> a) -> m ()
-r `modRef` f = readRef' r >>= writeRef r . f
-
-
+-}
 
 
