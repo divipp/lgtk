@@ -31,7 +31,7 @@ import Data.LensRef
 --------------------------------------------------------------------------
 
 -- | Type class for IO actions.
-class EffRef m => EffIORef m where
+class MonadRegister m => EffIORef m where
 
     -- | The program's command line arguments (not including the program name). 
     getArgs     :: m [String]
@@ -97,20 +97,20 @@ instance MonadRefCreator m => MonadRefCreator (Wrap m) where
     newRef = Wrap . newRef
     memoRead (Wrap m) = liftM Wrap $ Wrap $ memoRead m
 
-deriving instance (EffRef m) => Monad (Modifier (Wrap m))
+deriving instance (MonadRegister m) => Monad (Modifier (Wrap m))
 
-instance EffRef m => MonadRefReader (Modifier (Wrap m)) where
+instance MonadRegister m => MonadRefReader (Modifier (Wrap m)) where
     type BaseRef (Modifier (Wrap m)) = BaseRef m
     liftReadRef = WrapM . liftReadRef
 
-instance EffRef m => MonadRefCreator (Modifier (Wrap m)) where
+instance MonadRegister m => MonadRefCreator (Modifier (Wrap m)) where
     extRef r l = WrapM . extRef r l
     newRef = WrapM . newRef
 
-instance EffRef m => MonadRefWriter (Modifier (Wrap m)) where
+instance MonadRegister m => MonadRefWriter (Modifier (Wrap m)) where
     liftWriteRef = WrapM . liftWriteRef
 
-instance EffRef m => EffRef (Wrap m) where
+instance MonadRegister m => MonadRegister (Wrap m) where
     type EffectM (Wrap m) = EffectM m
     newtype Modifier (Wrap m) a = WrapM { unWrapM :: Modifier m a}
     liftEffectM = Wrap . liftEffectM -- :: EffectM m a -> m a
@@ -132,7 +132,7 @@ type SIO = Program IOInstruction
 
 type Handle = Command -> SIO ()
 
-instance (EffRef m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m) where
+instance (MonadRegister m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m) where
 
     getArgs     = liftIO' Env.getArgs
 
@@ -207,7 +207,7 @@ getLine__ f = do
 
 --toReceive_ :: Functor f => f (Modifier m ()) -> (Command -> EffectM m ()) -> m (f (EffectM m ()))
 toReceive_
-    :: (EffRef m, EffectM m ~ IO, Functor f)
+    :: (MonadRegister m, EffectM m ~ IO, Functor f)
     => f (Modifier m ())
     -> (f (EffectM m ()) -> EffectM m (Command -> EffectM m ()))
     -> m ()

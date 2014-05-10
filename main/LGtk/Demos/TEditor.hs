@@ -34,11 +34,11 @@ instance ADTLens T where
         set _ (Node l r) = (1, ElemsCons l (ElemsCons r ElemsNil))
 
 -- | @T@ editor with comboboxes, as an ADTEditor
-tEditor1 :: EffRef m => Widget m
+tEditor1 :: MonadRegister m => Widget m
 tEditor1 = join $ newRef Leaf >>= adtEditor
 
 -- | @T@ editor with checkboxes, given directly
-tEditor3 :: EffRef m => Ref m T -> Widget m
+tEditor3 :: MonadRegister m => Ref m T -> Widget m
 tEditor3 r = do
     q <- extRef r tLens (False, (Leaf, Leaf))
     hcat

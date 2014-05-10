@@ -145,7 +145,7 @@ _ !!! n | n < 0 = Nothing
 (x:_) !!!! n | n <= 0 = x
 (_:xs) !!!! n = xs !!!! (n-1 :: Int)
 
-inCanvas :: forall m . (EffRef m, MonadFix m) => Int -> Int -> Double -> Widget m -> Widget m
+inCanvas :: forall m . (MonadRegister m, MonadFix m) => Int -> Int -> Double -> Widget m -> Widget m
 inCanvas width height scale w = mdo
 
     let i = firstId
@@ -252,7 +252,7 @@ text__ ma mi s = ((max mi (min ma $ fromIntegral (length s) * 2/3) :& 1), text s
 
 defcolor = sRGB 0.95 0.95 0.95
 
-tr  :: forall m . EffRef m
+tr  :: forall m . MonadRegister m
     => Double
     -> KeyHandler (Modifier m)
     -> Widget m

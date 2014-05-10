@@ -48,7 +48,7 @@ Run a Gtk widget description.
 The widget is shown in a window and the thread enters into the Gtk event cycle.
 It leaves the event cycle when the window is closed.
 -}
-runWidget' :: (EffRef m, MonadBaseControl IO (EffectM m))
+runWidget' :: (MonadRegister m, MonadBaseControl IO (EffectM m))
     => (forall a . IO () -> m a -> IO (a, IO ())) -> Widget m -> IO ()
 runWidget' run desc = gtkContext $ \postGUISync -> do
     postActionsRef <- newMVar $ return ()
@@ -80,7 +80,7 @@ type SWidget = (IO (), Gtk.Widget)
 
 -- | Run an @IO@ parametrized interface description with Gtk backend
 runWidget_
-    :: forall m . (EffRef m, MonadBaseControl IO (EffectM m))
+    :: forall m . (MonadRegister m, MonadBaseControl IO (EffectM m))
     => (IO () -> IO ())
     -> (forall a . IO a -> IO a)
     -> Widget m

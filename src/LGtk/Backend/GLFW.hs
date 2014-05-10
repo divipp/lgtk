@@ -293,7 +293,7 @@ data SWidget = forall a . (Monoid a, Semigroup a)
 
 
 runWidget_
-    :: forall m . (EffRef m, IO ~ EffectM m) => Widget m -> m SWidget
+    :: forall m . (MonadRegister m, IO ~ EffectM m) => Widget m -> m SWidget
 runWidget_  m = m >>= \i -> case i of
     Canvas w h sc_ me keyh r diaFun -> do
         rer <- liftIO' $ newMVar mempty

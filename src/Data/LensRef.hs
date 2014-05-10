@@ -22,7 +22,7 @@ module Data.LensRef
     , RefWriter
 
     -- ** Dynamic networks
-    , EffRef (..)
+    , MonadRegister (..)
     , Command (..)
 
     -- * Derived constructs
@@ -227,7 +227,7 @@ class (Monad m, Reference (BaseRef m), MonadRefReader m) => MonadRefCreator m wh
 
 
 -- | Monad for dynamic actions
-class (MonadRefCreator m, Monad (EffectM m), MonadRefWriter (Modifier m), MonadRefCreator (Modifier m), BaseRef (Modifier m) ~ BaseRef m) => EffRef m where
+class (MonadRefCreator m, Monad (EffectM m), MonadRefWriter (Modifier m), MonadRefCreator (Modifier m), BaseRef (Modifier m) ~ BaseRef m) => MonadRegister m where
 
     type EffectM m :: * -> *
 
@@ -293,13 +293,13 @@ data Command = Kill | Block | Unblock deriving (Eq, Ord, Show)
 
 
 -- | TODO
-toReceive1 :: EffRef m => Modifier m () -> (Command -> EffectM m ()) -> m (EffectM m ())
+toReceive1 :: MonadRegister m => Modifier m () -> (Command -> EffectM m ()) -> m (EffectM m ())
 toReceive1 m c = do
     f <- toReceive (const m) c
     return $ f ()
 
 -- | TODO
-rEffect  :: (EffRef m, Eq a) => RefReader m a -> (a -> EffectM m b) -> m (RefReader m b)
+rEffect  :: (MonadRegister m, Eq a) => RefReader m a -> (a -> EffectM m b) -> m (RefReader m b)
 rEffect r f = onChangeSimple r $ liftEffectM . f
 
 -- | @modRef r f@ === @readRef r >>= writeRef r . f@
@@ -308,7 +308,7 @@ r `modRef` f = readRef r >>= writeRef r . f
 
 
 -- | TODO
-iReallyWantToModify :: EffRef m => Modifier m () -> m ()
+iReallyWantToModify :: MonadRegister m => Modifier m () -> m ()
 iReallyWantToModify r = do
     x <- toReceive1 r $ const $ return ()
     liftEffectM x

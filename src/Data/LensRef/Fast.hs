@@ -193,7 +193,7 @@ instance {-Monad n => -} MonadRefCreator (Pure n) where
 instance {-Monad n => -} MonadRefWriter (Pure n) where
     liftWriteRef = Reg . lift . lift . liftWriteRef
 
-instance {-Monad n => -} EffRef (Pure n) where
+instance {-Monad n => -} MonadRegister (Pure n) where
 
     type EffectM (Pure IO) = IO
 

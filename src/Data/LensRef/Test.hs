@@ -89,11 +89,11 @@ testExtFast = mkTests $ \t -> unsafePerformIO $ do
 
 
 -- | Check an equality.
-(==?) :: (Eq a, Show a, MonadWriter [String] (EffectM m), EffRef m) => a -> a -> m ()
+(==?) :: (Eq a, Show a, MonadWriter [String] (EffectM m), MonadRegister m) => a -> a -> m ()
 rv ==? v = liftEffectM $ when (rv /= v) $ tell . return $ "runTest failed: " ++ show rv ++ " /= " ++ show v
 
 -- | Check the current value of a given reference.
-(==>) :: (Eq a, Show a, MonadWriter [String] (EffectM m), EffRef m) => Ref m a -> a -> m ()
+(==>) :: (Eq a, Show a, MonadWriter [String] (EffectM m), MonadRegister m) => Ref m a -> a -> m ()
 r ==> v = readRef r >>= (==? v)
 
 infix 0 ==>, ==?
@@ -109,7 +109,7 @@ writeRef' = writeRef
 
 Look inside the sources for the tests.
 -}
-mkTests :: ((forall m . (MonadWriter [String] (EffectM m), EffRef m, MonadRefWriter m) => m ()) -> [String]) -> [String]
+mkTests :: ((forall m . (MonadWriter [String] (EffectM m), MonadRegister m, MonadRefWriter m) => m ()) -> [String]) -> [String]
 mkTests runTest
       = newRefTest
      ++ writeRefsTest
@@ -391,7 +391,7 @@ mkTests runTest
 
 -- | Undo-redo state transformation.
 undoTr
-    :: EffRef m =>
+    :: MonadRegister m =>
        (a -> a -> Bool)     -- ^ equality on state
     -> Ref m a             -- ^ reference of state
     ->   m ( RefReader m (Maybe (RefWriter m ()))
