@@ -11,10 +11,9 @@
 Fast reference implementation for the @MonadRefCreator@ interface.
 
 TODO
-- elim mem leak: regitered events don't allow to release unused refs
+- elim mem leak: registered events don't allow to release unused refs
 - optimiziation: do not remember values
 - optimiziation: equality check
-- generalize it to be a monad transformer
 -}
 module Data.LensRef.Fast
     ( Pure
