@@ -3,59 +3,47 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Data.LensRef
     (
-    -- * References
+    -- * Core
 
-      Reference, MRef
-    , RefReader
-    , readRef
-    , writeRef, modRef, Modifier
-    , lensMap
-    , join
-    , unitRef
+    -- ** References
+      Reference (..)
+    , RefState
+    , RefWriter
+    , MRef
 
     -- ** Reference creation
-    , ExtRef
-    , Ref, RefCore
-    , extRef
-    , newRef
+    , ExtRef (..)
+    , Ref
     , ReadRef
     , WriteRef
-    , liftReadRef
 
-    , EffectM
-    , RefState
-    , liftEffectM
-    , Command (..)
-    , toReceive, toReceive1, rEffect
-    , liftModifier
     , ExtRefWrite (..)
-    , writeRef_
-    , memoWrite, future
-    , hasEffect
 
-    -- ** Derived constructs
+    -- ** Dynamic networks
+    , EffRef (..)
+    , Command (..)
+
+    -- * Derived constructs
+    , modRef
     , readRef'
     , memoRead
+    , toReceive1
+    , rEffect
+    , iReallyWantToModify
 --    , undoTr
 
     , EqReference (..)
     , EqRef
+    , hasEffect
     , eqRef
     , newEqRef
     , toRef
-
+{-
     , CorrRef
     , corrRef
     , fromCorrRef
     , correction
-
-    -- * Dynamic networks
-    , EffRef
-    , onChange
-    , onChangeSimple
-    , onChange_
-    , iReallyWantToModify
-
+-}
     ) where
 
 
@@ -70,6 +58,12 @@ Type class for references which can be joined and on which lenses can be applied
 
 The join operation is 'join' from "Control.Monad":
 If @(r :: RefReader r (MRef r a))@ then @(join r :: MRef r a)@.
+This is possible because reference operations work with @(RefReader r (r a))@ instead
+of just @(r a)@. For more compact type signatures, @(RefReader r (r a))@ is called @(MRef r a)@.
+
+There are two associated type of a reference, 'RefReader' and 'RefWriter' which determines each-other.
+This is implemented by putting only 'RefReader' into the 'Reference' class and
+adding a 'RefState' data family outside of 'Reference'.
 -}
 class (Monad (RefReader r), Monad (RefWriter r)) => Reference r where
 
@@ -77,7 +71,7 @@ class (Monad (RefReader r), Monad (RefWriter r)) => Reference r where
 
     Laws:
 
-     * @(writeRef unitRef () >> m)@ === @m@
+    prop> writeRef unitRef () >> m  =  m
     -}
     unitRef :: MRef r ()
 
@@ -93,7 +87,7 @@ class (Monad (RefReader r), Monad (RefWriter r)) => Reference r where
 
     Laws:
 
-    @(readRef r >> return ())@ === @return ()@
+    prop> readRef r >> return ())  =  return ()
     -}
     readRef  :: MRef r a -> RefReader r a
 
@@ -101,11 +95,9 @@ class (Monad (RefReader r), Monad (RefWriter r)) => Reference r where
 
     Properties derived from the set-get, get-set and set-set laws for lenses:
 
-     *  @(readRef r >>= writeRef r)@ === @return ()@
-
-     *  @(writeRef r a >> readRef r)@ === @return a@
-
-     *  @(writeRef r a >> writeRef r a')@ === @writeRef r a'@
+    prop> readRef r >>= writeRef r  =  return ()
+    prop> writeRef r a >> readRef r)  =  return a
+    prop> writeRef r a >> writeRef r a')  =  writeRef r a'
     -}
     writeRef_ :: MRef r a -> a -> RefWriter r ()
 
@@ -125,7 +117,7 @@ data family RefState (m :: * -> *) a :: *
 type RefWriter m = RefState (RefReader m)
 
 
--- | Reference wrapped into a RefReader monad
+-- | Reference wrapped into a RefReader monad. See the documentation of 'Reference'.
 type MRef r a = RefReader r (r a)
 
 infixr 8 `lensMap`

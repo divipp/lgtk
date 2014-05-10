@@ -39,11 +39,11 @@ data WidgetCore m
     | forall b . Eq b => Cell (ReadRef m b) (forall x . (Widget m -> m x) -> b -> m (m x))
     | forall a b . (Eq b, Monoid a, Semigroup a)
     => Canvas
-        Int     -- ^ width
-        Int     -- ^ height
-        Double  -- ^ scale
-        ((MouseEvent a, Dia a) -> Modifier m ())    -- ^ mouse event handler
-        (KeyboardHandler (Modifier m))              -- ^ keyboard event handler
+        Int     -- width
+        Int     -- height
+        Double  -- scale
+        ((MouseEvent a, Dia a) -> Modifier m ())    -- mouse event handler
+        (KeyboardHandler (Modifier m))              -- keyboard event handler
         (ReadRef m b)
         (b -> Dia a)
     | Scale Double Double Double (SendReceive m Double)
