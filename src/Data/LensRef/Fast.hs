@@ -50,7 +50,7 @@ joinLens m = Lens_
     }
 
 instance Reference Lens_ where
-    type RefReader Lens_ = IO
+    type RefReaderSimple Lens_ = IO
 
     readRefSimple = readPart . joinLens
     writeRefSimple m = RefWriterOfIO . writePart (joinLens m)
@@ -127,7 +127,7 @@ instance ExtRef IO where
     future = future_
 
 
-future_ :: (ExtRef m, MonadRefWriter m) => (ReadRef m a -> m a) -> m a
+future_ :: (ExtRef m, MonadRefWriter m) => (RefReader m a -> m a) -> m a
 future_ f = do
     s <- newRef $ error "can't see the future"
     a <- f $ readRef s
@@ -252,10 +252,10 @@ toSend
     :: (Eq b, ExtRef m, MonadRefWriter m, Monad n)
     => Bool
     -> (n () -> m ())
-    -> ReadRef m b
+    -> RefReader m b
     -> b -> (b -> c)
     -> (b -> b -> c -> {-Either (Register m c)-} (Register n m (c -> Register n m c)))
-    -> Register n m (ReadRef m c)
+    -> Register n m (RefReader m c)
 toSend memoize li rb b0 c0 fb = do
     let doit st = readRef st >>= runMonadMonoid . fst
         reg st msg = readRef st >>= li . runMonadMonoid . ($ msg) . snd

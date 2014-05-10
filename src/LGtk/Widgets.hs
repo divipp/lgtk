@@ -19,16 +19,16 @@ import Data.LensRef
 
 type Receive m a = a -> Modifier m ()
 
-type SendReceive m a = (ReadRef m a, Receive m a)
+type SendReceive m a = (RefReader m a, Receive m a)
 
 type Widget m = m (WidgetCore m)
 
 -- | Widget descriptions
 data WidgetCore m
-    = Label (ReadRef m String)     -- ^ label
-    | Button { label_  :: ReadRef m String
-             , sensitive_ :: ReadRef m Bool
-             , color_ :: Maybe (ReadRef m (Colour Double))
+    = Label (RefReader m String)     -- ^ label
+    | Button { label_  :: RefReader m String
+             , sensitive_ :: RefReader m Bool
+             , color_ :: Maybe (RefReader m (Colour Double))
              , action_ :: Receive m ()
              }  -- ^ button
     | Checkbox (SendReceive m Bool)         -- ^ checkbox
@@ -36,7 +36,7 @@ data WidgetCore m
     | Entry (String -> Bool) (SendReceive m String)          -- ^ entry field
     | List ListLayout [Widget m]         -- ^ group interfaces into row or column
     | Notebook' (Receive m Int) [(String, Widget m)]     -- ^ actual tab index, tabs
-    | forall b . Eq b => Cell (ReadRef m b) (forall x . (Widget m -> m x) -> b -> m (m x))
+    | forall b . Eq b => Cell (RefReader m b) (forall x . (Widget m -> m x) -> b -> m (m x))
     | forall a b . (Eq b, Monoid a, Semigroup a)
     => Canvas
         Int     -- width
@@ -44,7 +44,7 @@ data WidgetCore m
         Double  -- scale
         ((MouseEvent a, Dia a) -> Modifier m ())    -- mouse event handler
         (KeyboardHandler (Modifier m))              -- keyboard event handler
-        (ReadRef m b)
+        (RefReader m b)
         (b -> Dia a)
     | Scale Double Double Double (SendReceive m Double)
 

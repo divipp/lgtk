@@ -9,7 +9,7 @@ module Data.LensRef
     -- ** References
       Reference (..)
     , RefWriterOf
-    , RefWriter
+    , RefWriterSimple
     , RefSimple
 
     , MonadRefReader (..)
@@ -18,8 +18,8 @@ module Data.LensRef
     -- ** Reference creation
     , ExtRef (..)
     , Ref
-    , ReadRef
-    , WriteRef
+    , RefReader
+    , RefWriter
 
     -- ** Dynamic networks
     , EffRef (..)
@@ -57,11 +57,11 @@ import Control.Lens (Lens', lens, set, (^.))
 Type class for references which can be joined and on which lenses can be applied.
 
 The join operation is 'join' from "Control.Monad":
-If @(r :: RefReader r (RefSimple r a))@ then @(join r :: RefSimple r a)@.
-This is possible because reference operations work with @(RefReader r (r a))@ instead
-of just @(r a)@. For more compact type signatures, @(RefReader r (r a))@ is called @(RefSimple r a)@.
+If @(r :: RefReaderSimple r (RefSimple r a))@ then @(join r :: RefSimple r a)@.
+This is possible because reference operations work with @(RefReaderSimple r (r a))@ instead
+of just @(r a)@. For more compact type signatures, @(RefReaderSimple r (r a))@ is called @(RefSimple r a)@.
 -}
-class (MonadRefWriter (RefWriter r), MonadRefReader (RefReader r), ReadRef (RefReader r) ~ RefReader r) => Reference r where
+class (MonadRefWriter (RefWriterSimple r), MonadRefReader (RefReaderSimple r), RefReader (RefReaderSimple r) ~ RefReaderSimple r) => Reference r where
 
     {- | unit reference
 
@@ -77,15 +77,15 @@ class (MonadRefWriter (RefWriter r), MonadRefReader (RefReader r), ReadRef (RefR
 
     {- | Associated reader monad.
 
-    @(RefReader m)@ is ismoroprhic to @('Reader' x)@ for some @x@.
-    Laws which ensures this isomorphism (@(r :: RefReader m a)@ is arbitrary):
+    @(RefReaderSimple m)@ is ismoroprhic to @('Reader' x)@ for some @x@.
+    Laws which ensures this isomorphism (@(r :: RefReaderSimple m a)@ is arbitrary):
 
     prop> r >> return ()  =  return ()
     prop> liftM2 (,) r r  =  liftM (\a -> (a, a)) r
 
     See also <http://stackoverflow.com/questions/16123588/what-is-this-special-functor-structure-called>
     -}
-    type RefReader r :: * -> *
+    type RefReaderSimple r :: * -> *
 
     {- | Reference read.
 
@@ -93,7 +93,7 @@ class (MonadRefWriter (RefWriter r), MonadRefReader (RefReader r), ReadRef (RefR
 
     prop> readRef r >> return ())  =  return ()
     -}
-    readRefSimple  :: RefSimple r a -> RefReader r a
+    readRefSimple  :: RefSimple r a -> RefReaderSimple r a
 
     {- | Reference write.
 
@@ -103,50 +103,51 @@ class (MonadRefWriter (RefWriter r), MonadRefReader (RefReader r), ReadRef (RefR
     prop> writeRef r a >> readRef r)  =  return a
     prop> writeRef r a >> writeRef r a')  =  writeRef r a'
     -}
-    writeRefSimple :: RefSimple r a -> a -> RefWriter r ()
+    writeRefSimple :: RefSimple r a -> a -> RefWriterSimple r ()
 
 
 data family RefWriterOf (m :: * -> *) a :: *
 
 {- |
-There are two associated types of a reference, 'RefReader' and 'RefWriter' which determines each-other.
-This is implemented by putting only 'RefReader' into the 'Reference' class and
+There are two associated types of a reference, 'RefReaderSimple' and 'RefWriterSimple' which determines each-other.
+This is implemented by putting only 'RefReaderSimple' into the 'Reference' class and
 adding a @RefWriterOf@ data family outside of 'Reference'.
 
 @RefWriterOf@ is hidden from the documentation because you never need it explicitly.
 -}
-type RefWriter m = RefWriterOf (RefReader m)
+type RefWriterSimple m = RefWriterOf (RefReaderSimple m)
 
--- | Reference wrapped into a RefReader monad. See the documentation of 'Reference'.
-type RefSimple r a = RefReader r (r a)
+-- | Reference wrapped into a RefReaderSimple monad. See the documentation of 'Reference'.
+type RefSimple r a = RefReaderSimple r (r a)
 
 infixr 8 `lensMap`
 
 -- | TODO
 class Monad m => MonadRefReader m where
 
+    -- | Base reference associated to the reference reader monad
     type BaseRef m :: * -> *
 
-    {- | @ReadRef@ lifted to the reference creation class.
+    {- | @RefReader@ lifted to the reference creation class.
 
-    Note that we do not lift @WriteRef@ to the reference creation class, which a crucial restriction
+    Note that we do not lift @RefWriter@ to the reference creation class, which a crucial restriction
     in the LGtk interface; this is a feature.
     -}
-    liftReadRef :: ReadRef m a -> m a
+    liftReadRef :: RefReader m a -> m a
 
     {- | @readRef@ lifted to the reference creation class.
 
     @readRef@ === @liftReadRef . readRefSimple@
     -}
-    readRef :: (Reference r, ReadRef m ~ RefReader r) => RefSimple r a -> m a
+    readRef :: (Reference r, RefReader m ~ RefReaderSimple r) => RefSimple r a -> m a
     readRef = liftReadRef . readRefSimple
 
 
 -- | TODO
-type ReadRef m = RefReader (BaseRef m)
+type RefReader m = RefReaderSimple (BaseRef m)
 
 -- | TODO
-type WriteRef m = RefWriter (BaseRef m)
+type RefWriter m = RefWriterSimple (BaseRef m)
 
 -- | TODO
 type Ref m a = RefSimple (BaseRef m) a
@@ -156,9 +157,9 @@ type Ref m a = RefSimple (BaseRef m) a
 -- | TODO
 class MonadRefReader m => MonadRefWriter m where
 
-    liftWriteRef :: WriteRef m a -> m a
+    liftWriteRef :: RefWriter m a -> m a
 
-    writeRef :: (Reference r, RefReader r ~ ReadRef m) => RefSimple r a -> a -> m ()
+    writeRef :: (Reference r, RefReaderSimple r ~ RefReader m) => RefSimple r a -> a -> m ()
     writeRef r = liftWriteRef . writeRefSimple r
 
 
@@ -222,7 +223,7 @@ class (Monad m, Reference (BaseRef m), MonadRefReader m) => ExtRef m where
 
     memoWrite :: Eq b => (b -> m a) -> m (b -> m a)
 
-    future :: (ReadRef m a -> m a) -> m a
+    future :: (RefReader m a -> m a) -> m a
 
 
 -- | Monad for dynamic actions
@@ -233,7 +234,7 @@ class (ExtRef m, Monad (EffectM m), MonadRefWriter (Modifier m), ExtRef (Modifie
     liftEffectM :: EffectM m a -> m a
 
     {- |
-    Let @r@ be an effectless action (@ReadRef@ guarantees this).
+    Let @r@ be an effectless action (@RefReader@ guarantees this).
 
     @(onChange init r fmm)@ has the following effect:
 
@@ -264,15 +265,15 @@ class (ExtRef m, Monad (EffectM m), MonadRefWriter (Modifier m), ExtRef (Modifie
     -}
     onChange_
         :: Eq b
-        => ReadRef m b
+        => RefReader m b
         -> b -> (b -> c)
         -> (b -> b -> c -> m (c -> m c))
-        -> m (ReadRef m c)
+        -> m (RefReader m c)
 
-    onChange :: Eq a => ReadRef m a -> (a -> m (m b)) -> m (ReadRef m b)
+    onChange :: Eq a => RefReader m a -> (a -> m (m b)) -> m (RefReader m b)
     onChange r f = onChange_ r undefined undefined $ \b _ _ -> liftM (\x _ -> x) $ f b
 
-    onChangeSimple :: Eq a => ReadRef m a -> (a -> m b) -> m (ReadRef m b)
+    onChangeSimple :: Eq a => RefReader m a -> (a -> m b) -> m (RefReader m b)
     onChangeSimple r f = onChange r $ return . f
 
     data Modifier m a :: *
@@ -298,11 +299,11 @@ toReceive1 m c = do
     return $ f ()
 
 -- | TODO
-rEffect  :: (EffRef m, Eq a) => ReadRef m a -> (a -> EffectM m b) -> m (ReadRef m b)
+rEffect  :: (EffRef m, Eq a) => RefReader m a -> (a -> EffectM m b) -> m (RefReader m b)
 rEffect r f = onChangeSimple r $ liftEffectM . f
 
 -- | @modRef r f@ === @readRef r >>= writeRef r . f@
-modRef :: (MonadRefWriter m, Reference r, RefReader r ~ ReadRef m) => RefSimple r a -> (a -> a) -> m ()
+modRef :: (MonadRefWriter m, Reference r, RefReaderSimple r ~ RefReader m) => RefSimple r a -> (a -> a) -> m ()
 r `modRef` f = readRef r >>= writeRef r . f
 
 
@@ -319,7 +320,7 @@ iReallyWantToModify r = do
 
 -}
 class Reference r => EqReference r where
-    valueIsChanging :: RefSimple r a -> RefReader r (a -> Bool)
+    valueIsChanging :: RefSimple r a -> RefReaderSimple r (a -> Bool)
 
 {- | @hasEffect r f@ returns @False@ iff @(modRef m f)@ === @(return ())@.
 
@@ -331,7 +332,7 @@ hasEffect
     :: EqReference r
     => RefSimple r a
     -> (a -> a)
-    -> RefReader r Bool
+    -> RefReaderSimple r Bool
 hasEffect r f = do
     a <- readRef r
     ch <- valueIsChanging r
@@ -343,13 +344,13 @@ data EqBaseRef r a = EqBaseRef (r a) (a -> Bool{-changed-})
 
 {- | References with inherent equivalence.
 
-@EqRef r a@ === @RefReader r (exist b . Eq b => (Lens' b a, r b))@
+@EqRef r a@ === @RefReaderSimple r (exist b . Eq b => (Lens' b a, r b))@
 
 As a reference, @(m :: EqRef r a)@ behaves as
 
 @join $ liftM (uncurry lensMap) m@
 -}
-type EqRef r a = RefReader r (EqBaseRef r a)
+type EqRef r a = RefReaderSimple r (EqBaseRef r a)
 
 {- | @EqRef@ construction.
 -}
@@ -377,7 +378,7 @@ instance Reference r => EqReference (EqBaseRef r) where
 
 instance Reference r => Reference (EqBaseRef r) where
 
-    type (RefReader (EqBaseRef r)) = RefReader r
+    type (RefReaderSimple (EqBaseRef r)) = RefReaderSimple r
 
     readRefSimple = readRef . toRef
 
@@ -394,11 +395,11 @@ instance Reference r => Reference (EqBaseRef r) where
 {-
 data CorrBaseRef r a = CorrBaseRef (r a) (a -> Maybe a{-corrected-})
 
-type CorrRef r a = RefReader r (CorrBaseRef r a)
+type CorrRef r a = RefReaderSimple r (CorrBaseRef r a)
 
 instance Reference r => Reference (CorrBaseRef r) where
 
-    type (RefReader (CorrBaseRef r)) = RefReader r
+    type (RefReaderSimple (CorrBaseRef r)) = RefReaderSimple r
 
     readRef = readRef . fromCorrRef
 
@@ -420,7 +421,7 @@ corrRef f r = do
     r_ <- r
     return $ CorrBaseRef r_ f
 
-correction :: Reference r => CorrRef r a -> RefReader r (a -> Maybe a)
+correction :: Reference r => CorrRef r a -> RefReaderSimple r (a -> Maybe a)
 correction r = do
     CorrBaseRef _ f <- r
     return f

@@ -102,7 +102,7 @@ runWidget_ post' post = toWidget
         liftIO' $ putMVar rer re
         return u
 
-    ger :: Eq a => (Command -> IO ()) -> ReadRef m a -> (a -> IO ()) -> m ()
+    ger :: Eq a => (Command -> IO ()) -> RefReader m a -> (a -> IO ()) -> m ()
     ger hd s f = liftM (const ()) $ rEffect s $ \a -> liftBaseWith . const $ post $ do
         hd Block
         f a

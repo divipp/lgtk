@@ -122,7 +122,7 @@ type EventHandler a m = (MouseEvent a, Dia a) -> Maybe' (m (), Maybe (CapturedEv
 -- compiled widget
 data CWidget m
     = forall a x . (Eq x, Monoid a, Semigroup a)
-    => CWidget (ReadRef m (([KeyFocusHandler m], [[KeyFocusHandler m]]), x)) (a -> EventHandler () m) (x -> [Id] -> Id -> Dia a)
+    => CWidget (RefReader m (([KeyFocusHandler m], [[KeyFocusHandler m]]), x)) (a -> EventHandler () m) (x -> [Id] -> Id -> Dia a)
 
 ------------------
 

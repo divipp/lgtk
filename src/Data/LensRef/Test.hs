@@ -394,8 +394,8 @@ undoTr
     :: EffRef m =>
        (a -> a -> Bool)     -- ^ equality on state
     -> Ref m a             -- ^ reference of state
-    ->   m ( ReadRef m (Maybe (WriteRef m ()))
-           , ReadRef m (Maybe (WriteRef m ()))
+    ->   m ( RefReader m (Maybe (RefWriter m ()))
+           , RefReader m (Maybe (RefWriter m ()))
            )  -- ^ undo and redo actions
 undoTr eq r = do
     ku <- extRef r (undoLens eq) ([], [])
