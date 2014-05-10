@@ -28,6 +28,7 @@ import Control.Monad.Reader
 import Control.Lens
 
 import Data.LensRef
+import Data.LensRef.Pure (memoRead_)
 
 ----------------------
 
@@ -120,35 +121,12 @@ instance MonadRefCreator IO where
                 , register = \m -> modifyMVar reg $ \x -> return (x >> m, ())
                 }
 
+instance {- Monad m => -} MonadMemo IO where
     memoRead = memoRead_
 {-
     memoWrite = memoWrite_
 
     future = future_
-
-
-future_ :: (MonadRefCreator m, MonadRefWriter m) => (RefReader m a -> m a) -> m a
-future_ f = do
-    s <- newRef $ error "can't see the future"
-    a <- f $ readRef s
-    writeRef s a
-    return a
--}
-memoRead_ g = do
-    s <- newRef Nothing
-    return $ readRef s >>= \x -> case x of
-        Just a -> return a
-        _ -> g >>= \a -> do
-            writeRef s $ Just a
-            return a
-{-
-memoWrite_ g = do
-    s <- newRef Nothing
-    return $ \b -> readRef s >>= \x -> case x of
-        Just (b', a) | b' == b -> return a
-        _ -> g b >>= \a -> do
-            writeRef s $ Just (b, a)
-            return a
 -}
 
 
@@ -186,6 +164,8 @@ instance {- Monad m => -} MonadRefReader (Pure m) where
 instance {-Monad n => -} MonadRefCreator (Pure n) where
     extRef r l = Reg . lift . lift . extRef r l
     newRef = Reg . lift . lift . newRef
+
+instance {- Monad m => -} MonadMemo (Pure m) where
     memoRead = memoRead_
 {-
     memoWrite = memoWrite_
@@ -230,6 +210,8 @@ instance {- Monad m => -} MonadRefReader (Modifier (Pure m)) where
 instance {- Monad m => -} MonadRefCreator (Modifier (Pure m)) where
     extRef r l = RegW . extRef r l
     newRef = RegW . newRef
+
+instance {- Monad m => -} MonadMemo (Modifier (Pure m)) where
     memoRead = memoRead_
 {-
     memoWrite = memoWrite_

@@ -95,6 +95,8 @@ instance MonadRefReader m => MonadRefReader (Wrap m) where
 instance MonadRefCreator m => MonadRefCreator (Wrap m) where
     extRef r l = Wrap . extRef r l
     newRef = Wrap . newRef
+
+instance MonadMemo m => MonadMemo (Wrap m) where
     memoRead (Wrap m) = liftM Wrap $ Wrap $ memoRead m
 
 deriving instance (MonadRegister m) => Monad (Modifier (Wrap m))
@@ -102,6 +104,9 @@ deriving instance (MonadRegister m) => Monad (Modifier (Wrap m))
 instance MonadRegister m => MonadRefReader (Modifier (Wrap m)) where
     type BaseRef (Modifier (Wrap m)) = BaseRef m
     liftRefReader = WrapM . liftRefReader
+
+instance MonadRegister m => MonadMemo (Modifier (Wrap m)) where
+    memoRead (WrapM m) = liftM WrapM $ WrapM $ memoRead m
 
 instance MonadRegister m => MonadRefCreator (Modifier (Wrap m)) where
     extRef r l = WrapM . extRef r l

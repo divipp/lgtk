@@ -25,6 +25,9 @@ module Data.LensRef
     , MonadRegister (..)
     , RegisteredCallbackCommand (..)
 
+    -- ** Other
+    , MonadMemo (..)
+
     -- * Derived constructs
     , modRef
     , registerCallbackSimple
@@ -175,7 +178,7 @@ create the same type of references in multiple monads.
 
 For basic usage examples, look into the source of @Data.LensRef.Pure.Test@.
 -}
-class (Monad m, RefClass (BaseRef m), MonadRefReader m) => MonadRefCreator m where
+class (Monad m, RefClass (BaseRef m), MonadRefReader m, MonadMemo m) => MonadRefCreator m where
 
     {- | Reference creation by extending the state of an existing reference.
 
@@ -204,6 +207,7 @@ class (Monad m, RefClass (BaseRef m), MonadRefReader m) => MonadRefCreator m whe
     newRef = extRef unitRef $ lens (const ()) (flip $ const id)
 
 
+class Monad m => MonadMemo m where
     {- | Lazy monadic evaluation.
     In case of @y <- memoRead x@, invoking @y@ will invoke @x@ at most once.
 

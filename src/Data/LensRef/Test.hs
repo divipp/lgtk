@@ -50,6 +50,10 @@ instance (MonadRefCreator m, MonadRefWriter m, Monoid w) => MonadRefWriter (Writ
 
     liftRefWriter = lift . liftRefWriter
 
+instance (MonadRefCreator m, Monoid w) => MonadMemo (WriterT w m) where
+
+    -- memoRead (Wrap m) = liftM Wrap $ Wrap $ memoRead m
+
 {-
 -- | Consistency tests for the pure implementation of @Ext@, should give an empty list of errors.
 testExtPure :: [String]

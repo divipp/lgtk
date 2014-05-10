@@ -13,6 +13,7 @@ The implementation uses @unsafeCoerce@ internally, but its effect cannot escape.
 module Data.LensRef.Pure
     ( Pure
     , runPure
+    , memoRead_
     ) where
 
 import Data.Monoid
@@ -94,7 +95,6 @@ instance Monad m => MonadRefCreator (StateT LSt m) where
         unsafeData :: CC -> a
         unsafeData (CC _ a) = unsafeCoerce a
 
-    memoRead = memoRead_
 {-
     memoWrite = memoWrite_
 
@@ -107,6 +107,7 @@ future_ f = do
     writeRef s a
     return a
 -}
+memoRead_ :: (MonadRefWriter m, MonadRefCreator m) => m a -> m (m a) 
 memoRead_ g = do
     s <- newRef Nothing
     return $ readRef s >>= \x -> case x of
@@ -114,6 +115,13 @@ memoRead_ g = do
         _ -> g >>= \a -> do
             writeRef s $ Just a
             return a
+
+instance Monad m => MonadMemo (StateT LSt m) where
+    memoRead = memoRead_
+
+--instance MonadMemo (RefWriterOf (Reader LSt)) where
+--    memoRead = memoRead_
+
 {-
 memoWrite_ g = do
     s <- newRef Nothing
@@ -155,6 +163,8 @@ instance Monad m => MonadRefReader (Pure m) where
 instance Monad n => MonadRefCreator (Pure n) where
     extRef r l = Pure . lift . lift . extRef r l
     newRef = Pure . lift . lift . newRef
+
+instance Monad m => MonadMemo (Pure m) where
     memoRead = memoRead_
 {-
     memoWrite = memoWrite_
@@ -193,6 +203,8 @@ instance Monad m => MonadRefReader (Modifier (Pure m)) where
 instance Monad m => MonadRefCreator (Modifier (Pure m)) where
     extRef r l = RegW . extRef r l
     newRef = RegW . newRef
+
+instance Monad m => MonadMemo (Modifier (Pure m)) where
     memoRead = memoRead_
 {-
     memoWrite = memoWrite_
