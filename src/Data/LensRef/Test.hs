@@ -399,7 +399,7 @@ undoTr
            )  -- ^ undo and redo actions
 undoTr eq r = do
     ku <- extRef r (undoLens eq) ([], [])
-    let try f = liftM (liftM (writeRef_ ku) . f) $ readRef ku
+    let try f = liftM (liftM (writeRefSimple ku) . f) $ readRef ku
     return (try undo, try redo)
   where
     undo (x: xs@(_:_), ys) = Just (xs, x: ys)

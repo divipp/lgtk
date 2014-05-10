@@ -93,7 +93,7 @@ class (MonadRefWriter (RefWriter r), MonadRefReader (RefReader r), ReadRef (RefR
 
     prop> readRef r >> return ())  =  return ()
     -}
-    readRef_  :: MRef r a -> RefReader r a
+    readRefSimple  :: MRef r a -> RefReader r a
 
     {- | Reference write.
 
@@ -103,7 +103,7 @@ class (MonadRefWriter (RefWriter r), MonadRefReader (RefReader r), ReadRef (RefR
     prop> writeRef r a >> readRef r)  =  return a
     prop> writeRef r a >> writeRef r a')  =  writeRef r a'
     -}
-    writeRef_ :: MRef r a -> a -> RefWriter r ()
+    writeRefSimple :: MRef r a -> a -> RefWriter r ()
 
 
 data family RefWriterOf (m :: * -> *) a :: *
@@ -136,10 +136,10 @@ class Monad m => MonadRefReader m where
 
     {- | @readRef@ lifted to the reference creation class.
 
-    @readRef@ === @liftReadRef . readRef_@
+    @readRef@ === @liftReadRef . readRefSimple@
     -}
     readRef :: (Reference r, ReadRef m ~ RefReader r) => MRef r a -> m a
-    readRef = liftReadRef . readRef_
+    readRef = liftReadRef . readRefSimple
 
 
 -- | TODO
@@ -159,7 +159,7 @@ class MonadRefReader m => MonadRefWriter m where
     liftWriteRef :: WriteRef m a -> m a
 
     writeRef :: (Reference r, RefReader r ~ ReadRef m) => MRef r a -> a -> m ()
-    writeRef r = liftWriteRef . writeRef_ r
+    writeRef r = liftWriteRef . writeRefSimple r
 
 
 
@@ -379,9 +379,9 @@ instance Reference r => Reference (EqRefCore r) where
 
     type (RefReader (EqRefCore r)) = RefReader r
 
-    readRef_ = readRef . toRef
+    readRefSimple = readRef . toRef
 
-    writeRef_ = writeRef_ . toRef
+    writeRefSimple = writeRefSimple . toRef
 
     lensMap l m = do
         a <- readRef m
@@ -402,7 +402,7 @@ instance Reference r => Reference (CorrRefCore r) where
 
     readRef = readRef . fromCorrRef
 
-    writeRef_ = writeRef_ . fromCorrRef
+    writeRefSimple = writeRefSimple . fromCorrRef
 
     lensMap l m = do
         a <- readRef m

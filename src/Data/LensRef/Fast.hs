@@ -52,8 +52,8 @@ joinLens m = Lens_
 instance Reference Lens_ where
     type RefReader Lens_ = IO
 
-    readRef_ = readPart . joinLens
-    writeRef_ m = RefWriterOfIO . writePart (joinLens m)
+    readRefSimple = readPart . joinLens
+    writeRefSimple m = RefWriterOfIO . writePart (joinLens m)
     lensMap l m = do
         Lens_ r w t <- m
         return $ Lens_

@@ -63,8 +63,8 @@ instance MonadRefWriter (RefWriterOf (Reader LSt)) where
 instance Reference (Lens_ LSt) where
     type RefReader (Lens_ LSt) = Reader LSt
 
-    readRef_ = view . runLens_
-    writeRef_ r a = runLens_ r .= a
+    readRefSimple = view . runLens_
+    writeRefSimple r a = runLens_ r .= a
     lensMap l r = return $ Lens_ $ runLens_ r . l
     unitRef = return $ Lens_ united
 
