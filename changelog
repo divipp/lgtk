@@ -9,20 +9,18 @@ Lots of changes since the previously announced version, lgtk-0.5.3.
 * Diagrams canvas with mouse and keyboard interaction support
 * Widget rendering in canvas
 * Horizontal sliders (called scales in Gtk)
+* Updated demo application
 
 == Architectural changes ==
 
-* Updated demo application
+* Lens references splitted off to the separate package lensref.
 * Switch from data-lens to Edward Kmett's lens library
 * Upgrade to work with GHC 8.2
 * Repository moved to GitHub
 
 == Inner changes ==
 
-* Generalized interface of references
-* Cleanup in interface of references: eliminate `joinRef` and `SafeIO`; lots of other changes
-* Cleanup in interface of widgets: eliminate `action`
-* More efficient reference implementation
+* Cleaned up widgets interface: simpler inner representation of widgets; eliminate `SafeIO` and `action`
 
 == Other changes ==
 

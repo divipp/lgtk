@@ -50,7 +50,7 @@ Status per goals:
 * Use high-level abstractions like lenses
   -- lenses are used but needs documentation
 * Try out an FRP variant which is built on state-based signals instead of time-based signals
-  -- state-base FRP is used but needs documentation
+  -- state-base FRP from the lensref package is used but needs documentation
 
 
 ## Demo application
