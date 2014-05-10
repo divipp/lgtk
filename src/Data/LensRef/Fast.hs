@@ -2,6 +2,8 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# OPTIONS_HADDOCK hide #-}
@@ -23,6 +25,7 @@ import Data.Monoid
 --import qualified Data.Map
 import Control.Concurrent
 import Control.Applicative hiding (empty)
+import Control.Monad.Trans.Control
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Lens
@@ -32,26 +35,34 @@ import Data.LensRef.Pure (memoRead_)
 
 ----------------------
 
-newtype instance RefWriterOf IO a
-    = RefWriterOfIO { runRefWriterOfIO :: IO a }
+newtype Wrap (m :: * -> *) a = Wrap {unWrap :: m a} deriving (Monad, Functor, Applicative, MonadFix)
+
+instance MonadTrans Wrap where
+    lift = Wrap
+
+newtype instance RefWriterOf (Wrap m) a
+    = RefWriterOfIO { runRefWriterOfIO :: Wrap m a }
         deriving (Monad, Applicative, Functor)
 
 ----------------------
 
-data Lens_ a = Lens_ 
-    { readPart :: IO a
-    , writePart :: a -> IO ()
-    , register :: IO () -> IO ()
+data Lens__ (m :: * -> *) a = Lens_ 
+    { readPart :: m a
+    , writePart :: a -> m ()
+    , register :: m () -> m ()
     }
 
+type Lens_ m = Lens__ (Wrap m)
+
+joinLens :: Monad m => Wrap m (Lens_ m a) -> Lens_ m a
 joinLens m = Lens_
     { readPart = m >>= readPart
     , writePart = \a -> m >>= \r -> writePart r a
     , register = \e -> m >>= \r -> register r e
     }
 
-instance RefClass Lens_ where
-    type RefReaderSimple Lens_ = IO
+instance MonadBaseControl IO m => RefClass (Lens_ m) where
+    type RefReaderSimple (Lens_ m) = Wrap m
 
     readRefSimple = readPart . joinLens
     writeRefSimple m = RefWriterOfIO . writePart (joinLens m)
@@ -68,60 +79,63 @@ instance RefClass Lens_ where
                 , register = \_ -> return ()
                 }
 
-instance {- Monad m => -} MonadRefReader IO where
+instance MonadBaseControl IO m => MonadRefReader (Wrap m) where
 
-    type BaseRef IO = Lens_
+    type BaseRef (Wrap m) = Lens_ m
 
     liftRefReader = id
 
-instance MonadRefReader (RefWriterOf IO) where
+instance MonadBaseControl IO m => MonadRefReader (RefWriterOf (Wrap m)) where
 
-    type BaseRef (RefWriterOf IO) = Lens_
+    type BaseRef (RefWriterOf (Wrap m)) = Lens_ m
 
     liftRefReader = RefWriterOfIO
 
-instance MonadRefWriter (RefWriterOf IO) where
+instance MonadBaseControl IO m => MonadRefWriter (RefWriterOf (Wrap m)) where
     liftRefWriter = id -- RefWriterOfIO . runRefWriterOfIO
 
 
-instance MonadRefCreator IO where
+wrap :: MonadBaseControl IO m => IO a -> Wrap m a
+wrap m = Wrap $ liftBaseWith $ \_ -> m
+
+instance MonadBaseControl IO m => MonadRefCreator (Wrap m) where
 
     extRef r r2 a0 = do
         Lens_ rb wb tb <- r
         b0 <- rb
-        va <- newMVar $ set r2 b0 a0
-        reg <- newMVar $ return ()
-        status <- newMVar True -- True: normal; False:
+        va <- wrap $ newMVar $ set r2 b0 a0
+        reg <- wrap $ newMVar $ return ()
+        status <- wrap $ newMVar True -- True: normal; False:
         tb $ do
-            s <- readMVar status
+            s <- wrap $ readMVar status
             when s $ do
                 b <- rb
-                modifyMVar va $ \a -> return (set r2 b a, ())
-                join $ readMVar reg
+                wrap $ modifyMVar va $ \a -> return (set r2 b a, ())
+                join $ wrap $ readMVar reg
         return $ do
             return $ Lens_
-                { readPart = readMVar va
+                { readPart = wrap $ readMVar va
                 , writePart = \a -> do
-                    _ <- swapMVar va a
-                    _ <- swapMVar status False
+                    _ <- wrap $ swapMVar va a
+                    _ <- wrap $ swapMVar status False
                     wb $ a ^. r2
-                    _ <- swapMVar status True
-                    join $ readMVar reg
-                , register = \m -> modifyMVar reg $ \x -> return (x >> m, ())
+                    _ <- wrap $ swapMVar status True
+                    join $ wrap $ readMVar reg
+                , register = \m -> wrap $ modifyMVar reg $ \x -> return (x >> m, ())
                 }
 
     newRef a0 = do
-        va <- newMVar a0
-        reg <- newMVar $ return ()
+        va <- wrap $ newMVar a0
+        reg <- wrap $ newMVar $ return ()
         return $ return $ Lens_
-                { readPart = readMVar va
+                { readPart = wrap $ readMVar va
                 , writePart = \a -> do
-                    _ <- swapMVar va a
-                    join $ readMVar reg
-                , register = \m -> modifyMVar reg $ \x -> return (x >> m, ())
+                    _ <- wrap $ swapMVar va a
+                    join $ wrap $ readMVar reg
+                , register = \m -> wrap $ modifyMVar reg $ \x -> return (x >> m, ())
                 }
 
-instance {- Monad m => -} MonadMemo IO where
+instance MonadBaseControl IO m => MonadMemo (Wrap m) where
     memoRead = memoRead_
 {-
     memoWrite = memoWrite_
@@ -130,7 +144,7 @@ instance {- Monad m => -} MonadMemo IO where
 -}
 
 
-instance MonadRefWriter IO where
+instance MonadBaseControl IO m => MonadRefWriter (Wrap m) where
     liftRefWriter = runRefWriterOfIO
 
 
@@ -140,9 +154,9 @@ type Register n m = ReaderT (Ref m (MonadMonoid m, RegisteredCallbackCommand -> 
 
 newtype Reg n a = Reg { unReg :: ReaderT (SLSt n () -> n ()) (Register n (SLSt n)) a } deriving (Monad, Applicative, Functor)
 
-type SLSt (n :: * -> *) = IO
+type SLSt (m :: * -> *) = m
 
-type Pure (n :: * -> *) = Reg IO
+type Pure m = Reg (Wrap m)
 {-
 mapReg :: (forall a . m a -> n a) -> Reg m a -> Reg n a
 mapReg ff (Reg m) = Reg $ ReaderT $ \f -> ReaderT $ \r -> StateT $ \s -> 
@@ -152,35 +166,35 @@ instance MonadTrans Reg where
     lift = Reg . lift . lift . lift
 -}
 
-instance MonadFix (Pure m) where
+instance MonadFix m => MonadFix (Pure m) where
     mfix f = Reg $ mfix $ unReg . f
 
-instance {- Monad m => -} MonadRefReader (Pure m) where
+instance MonadBaseControl IO m => MonadRefReader (Pure m) where
 
-    type BaseRef (Pure IO) = Lens_
+    type BaseRef (Pure m) = Lens_ m
 
     liftRefReader = Reg . lift . lift . liftRefReader
 
-instance {-Monad n => -} MonadRefCreator (Pure n) where
+instance MonadBaseControl IO m => MonadRefCreator (Pure m) where
     extRef r l = Reg . lift . lift . extRef r l
     newRef = Reg . lift . lift . newRef
 
-instance {- Monad m => -} MonadMemo (Pure m) where
+instance MonadBaseControl IO m => MonadMemo (Pure m) where
     memoRead = memoRead_
 {-
     memoWrite = memoWrite_
     future = future_
 -}
-instance {-Monad n => -} MonadRefWriter (Pure n) where
+instance MonadBaseControl IO m => MonadRefWriter (Pure m) where
     liftRefWriter = Reg . lift . lift . liftRefWriter
 
-instance {-Monad n => -} MonadRegister (Pure n) where
+instance MonadBaseControl IO m => MonadRegister (Pure m) where
 
-    type EffectM (Pure IO) = IO
+    type EffectM (Pure m) = m
 
-    newtype Modifier (Pure IO) a = RegW {unRegW :: Pure IO a} deriving (Monad, Applicative, Functor)
+    newtype Modifier (Pure m) a = RegW {unRegW :: Pure m a} deriving (Monad, Applicative, Functor)
 
-    liftEffectM = Reg . lift . lift
+    liftEffectM = Reg . lift . lift . lift
 
     liftModifier = RegW
 
@@ -191,27 +205,27 @@ instance {-Monad n => -} MonadRegister (Pure n) where
         toSend False id r undefined undefined $ \b _ _ -> return $ \_ -> evalRegister ff $ f b
 
     registerCallback f g = Reg $ ReaderT $ \ff -> do
-        tell' (mempty, MonadMonoid . g)
+        tell' (mempty, MonadMonoid . Wrap . g)
         writerstate <- ask
-        return $ fmap (ff . flip runReaderT writerstate . evalRegister ff . unRegW) f
+        return $ fmap (unWrap . ff . flip runReaderT writerstate . evalRegister ff . unRegW) f
 
-instance {- MonadFix m => -} MonadFix (Modifier (Pure m)) where
+instance (MonadBaseControl IO m, MonadFix m) => MonadFix (Modifier (Pure m)) where
     mfix f = RegW $ mfix $ unRegW . f
 
-instance {- Monad m => -} MonadRefWriter (Modifier (Pure m)) where
+instance MonadBaseControl IO m => MonadRefWriter (Modifier (Pure m)) where
     liftRefWriter = RegW . liftRefWriter
 
-instance {- Monad m => -} MonadRefReader (Modifier (Pure m)) where
+instance MonadBaseControl IO m => MonadRefReader (Modifier (Pure m)) where
 
-    type BaseRef (Modifier (Pure IO)) = Lens_
+    type BaseRef (Modifier (Pure m)) = Lens_ m
 
     liftRefReader = RegW . liftRefReader
 
-instance {- Monad m => -} MonadRefCreator (Modifier (Pure m)) where
+instance MonadBaseControl IO m => MonadRefCreator (Modifier (Pure m)) where
     extRef r l = RegW . extRef r l
     newRef = RegW . newRef
 
-instance {- Monad m => -} MonadMemo (Modifier (Pure m)) where
+instance MonadBaseControl IO m => MonadMemo (Modifier (Pure m)) where
     memoRead = memoRead_
 {-
     memoWrite = memoWrite_
@@ -219,15 +233,15 @@ instance {- Monad m => -} MonadMemo (Modifier (Pure m)) where
 -}
 evalRegister ff (Reg m) = runReaderT m ff
 
-runPure :: (Monad m, m ~ IO) => (forall a . m (m a, a -> m ())) -> Pure m a -> m (a, m ())
-runPure newChan (Reg m) = do
-    (read, write) <- newChan
+runPure :: MonadBaseControl IO m => (forall a . m (m a, a -> m ())) -> Pure m a -> m (a, m ())
+runPure newChan (Reg m) = unWrap $ do
+    (read, write) <- Wrap newChan
     (a, tick) <- do
-        (a, r) <- runRefWriterT $ runReaderT m write
+        (a, r) <- runRefWriterT $ runReaderT m $ Wrap . write
         (w, _) <- readRef r
         return (a, runMonadMonoid w)
-    return $ (,) a $ forever $ do
-        join $ read
+    return $ (,) a $ unWrap $ forever $ do
+        join $ Wrap read
         tick
 
 
