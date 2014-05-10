@@ -117,7 +117,7 @@ instance ExtRef IO where
     future = future_
 
 
-future_ :: (ExtRef m, ExtRefWrite m) => (ReadRef m a -> m a) -> m a
+future_ :: (ExtRef m, MonadRefWriter m) => (ReadRef m a -> m a) -> m a
 future_ f = do
     s <- newRef $ error "can't see the future"
     a <- f $ readRef s
@@ -142,7 +142,7 @@ memoWrite_ g = do
 
 
 
-instance ExtRefWrite IO where
+instance MonadRefWriter IO where
     liftWriteRef = runRefWriterOfIO
 
 
@@ -180,7 +180,7 @@ instance {-Monad n => -} ExtRef (Pure n) where
     memoWrite = memoWrite_
     future = future_
 
-instance {-Monad n => -} ExtRefWrite (Pure n) where
+instance {-Monad n => -} MonadRefWriter (Pure n) where
     liftWriteRef = Reg . lift . lift . liftWriteRef
 
 instance {-Monad n => -} EffRef (Pure n) where
@@ -207,7 +207,7 @@ instance {-Monad n => -} EffRef (Pure n) where
 instance {- MonadFix m => -} MonadFix (Modifier (Pure m)) where
     mfix f = RegW $ mfix $ unRegW . f
 
-instance {- Monad m => -} ExtRefWrite (Modifier (Pure m)) where
+instance {- Monad m => -} MonadRefWriter (Modifier (Pure m)) where
     liftWriteRef = RegW . liftWriteRef
 
 instance {- Monad m => -} RefReader_ (Modifier (Pure m)) where
@@ -239,7 +239,7 @@ runPure newChan (Reg m) = do
 
 
 toSend
-    :: (Eq b, ExtRef m, ExtRefWrite m, Monad n)
+    :: (Eq b, ExtRef m, MonadRefWriter m, Monad n)
     => Bool
     -> (n () -> m ())
     -> ReadRef m b
@@ -295,7 +295,7 @@ runRefWriterT m = do
     a <- runReaderT m r
     return (a, r)
 
-tell' :: (Monoid w, ExtRef m, ExtRefWrite m) => w -> RefWriterT w m ()
+tell' :: (Monoid w, ExtRef m, MonadRefWriter m) => w -> RefWriterT w m ()
 tell' w = ReaderT $ \m -> readRef m >>= writeRef m . (`mappend` w)
 
 -------------

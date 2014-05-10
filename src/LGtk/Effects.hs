@@ -107,7 +107,7 @@ instance EffRef m => ExtRef (Modifier (Wrap m)) where
     extRef r l = WrapM . extRef r l
     newRef = WrapM . newRef
 
-instance EffRef m => ExtRefWrite (Modifier (Wrap m)) where
+instance EffRef m => MonadRefWriter (Modifier (Wrap m)) where
     liftWriteRef = WrapM . liftWriteRef
 
 instance EffRef m => EffRef (Wrap m) where

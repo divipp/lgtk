@@ -13,15 +13,13 @@ module Data.LensRef
     , MRef
 
     , RefReader_ (..)
-    , readRef
+    , MonadRefWriter (..)
 
     -- ** Reference creation
     , ExtRef (..)
     , Ref
     , ReadRef
     , WriteRef
-
-    , ExtRefWrite (..)
 
     -- ** Dynamic networks
     , EffRef (..)
@@ -137,20 +135,20 @@ class (Monad m) => RefReader_ m where
     -}
     liftReadRef :: ReadRef m a -> m a
 
-{- | @readRef@ lifted to the reference creation class.
+    {- | @readRef@ lifted to the reference creation class.
 
-@readRef@ === @liftReadRef . readRef_@
--}
-readRef :: (RefReader_ m, Reference r, ReadRef m ~ RefReader r) => MRef r a -> m a
-readRef = liftReadRef . readRef_
+    @readRef@ === @liftReadRef . readRef_@
+    -}
+    readRef :: (RefReader_ m, Reference r, ReadRef m ~ RefReader r) => MRef r a -> m a
+    readRef = liftReadRef . readRef_
 
 
 -- | TODO
-class RefReader_ m => ExtRefWrite m where
+class RefReader_ m => MonadRefWriter m where
 
     liftWriteRef :: WriteRef m a -> m a
 
-    writeRef :: (Reference r, RefReader r ~ ReadRef m) => MRef r a -> a -> m ()
+    writeRef :: (MonadRefWriter m, Reference r, RefReader r ~ ReadRef m) => MRef r a -> a -> m ()
     writeRef r a = liftWriteRef $ writeRef_ r a
 
 
@@ -227,7 +225,7 @@ type WriteRef m = RefWriter (RefCore m)
 
 
 -- | Monad for dynamic actions
-class (ExtRef m, Monad (EffectM m), ExtRefWrite (Modifier m), ExtRef (Modifier m), RefCore (Modifier m) ~ RefCore m) => EffRef m where
+class (ExtRef m, Monad (EffectM m), MonadRefWriter (Modifier m), ExtRef (Modifier m), RefCore (Modifier m) ~ RefCore m) => EffRef m where
 
     type EffectM m :: * -> *
 
@@ -303,7 +301,7 @@ rEffect  :: (EffRef m, Eq a) => ReadRef m a -> (a -> EffectM m b) -> m (ReadRef 
 rEffect r f = onChangeSimple r $ liftEffectM . f
 
 -- | @modRef r f@ === @readRef r >>= writeRef r . f@
-modRef :: (ExtRefWrite m, Reference r, RefReader r ~ ReadRef m) => MRef r a -> (a -> a) -> m ()
+modRef :: (MonadRefWriter m, Reference r, RefReader r ~ ReadRef m) => MRef r a -> (a -> a) -> m ()
 r `modRef` f = readRef r >>= writeRef r . f
 
 

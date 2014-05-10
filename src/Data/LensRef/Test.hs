@@ -46,7 +46,7 @@ instance (ExtRef m, Monoid w) => ExtRef (WriterT w m) where
 
     extRef x y a = lift $ extRef x y a
 
-instance (ExtRef m, ExtRefWrite m, Monoid w) => ExtRefWrite (WriterT w m) where
+instance (ExtRef m, MonadRefWriter m, Monoid w) => MonadRefWriter (WriterT w m) where
 
     liftWriteRef = lift . liftWriteRef
 
@@ -109,7 +109,7 @@ writeRef' = writeRef
 
 Look inside the sources for the tests.
 -}
-mkTests :: ((forall m . (MonadWriter [String] (EffectM m), EffRef m, ExtRefWrite m) => m ()) -> [String]) -> [String]
+mkTests :: ((forall m . (MonadWriter [String] (EffectM m), EffRef m, MonadRefWriter m) => m ()) -> [String]) -> [String]
 mkTests runTest
       = newRefTest
      ++ writeRefsTest
