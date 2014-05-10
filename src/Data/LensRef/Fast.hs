@@ -67,7 +67,7 @@ instance Reference Lens_ where
                 , register = \_ -> return ()
                 }
 
-instance {- Monad m => -} RefReader_ IO where
+instance {- Monad m => -} MonadRefReader IO where
 
     type RefCore IO = Lens_
 
@@ -167,7 +167,7 @@ instance MonadTrans Reg where
 instance MonadFix (Pure m) where
     mfix f = Reg $ mfix $ unReg . f
 
-instance {- Monad m => -} RefReader_ (Pure m) where
+instance {- Monad m => -} MonadRefReader (Pure m) where
 
     type RefCore (Pure IO) = Lens_
 
@@ -210,7 +210,7 @@ instance {- MonadFix m => -} MonadFix (Modifier (Pure m)) where
 instance {- Monad m => -} MonadRefWriter (Modifier (Pure m)) where
     liftWriteRef = RegW . liftWriteRef
 
-instance {- Monad m => -} RefReader_ (Modifier (Pure m)) where
+instance {- Monad m => -} MonadRefReader (Modifier (Pure m)) where
 
     type RefCore (Modifier (Pure IO)) = Lens_
 

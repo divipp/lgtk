@@ -88,7 +88,7 @@ newtype Wrap m a = Wrap { unWrap :: m a } deriving (Functor, Applicative, Monad)
 instance MonadFix m => MonadFix (Wrap m) where
     mfix f = Wrap $ mfix $ unWrap . f
 
-instance RefReader_ m => RefReader_ (Wrap m) where
+instance MonadRefReader m => MonadRefReader (Wrap m) where
     type RefCore (Wrap m) = RefCore m
     liftReadRef = Wrap . liftReadRef
 
@@ -99,7 +99,7 @@ instance ExtRef m => ExtRef (Wrap m) where
 
 deriving instance (EffRef m) => Monad (Modifier (Wrap m))
 
-instance EffRef m => RefReader_ (Modifier (Wrap m)) where
+instance EffRef m => MonadRefReader (Modifier (Wrap m)) where
     type RefCore (Modifier (Wrap m)) = RefCore m
     liftReadRef = WrapM . liftReadRef
 

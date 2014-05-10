@@ -49,7 +49,7 @@ data CC = forall a . CC (LSt -> a -> a) a
 initLSt :: LSt
 initLSt = empty
 
-instance RefReader_ (Reader LSt) where
+instance MonadRefReader (Reader LSt) where
     type RefCore (Reader LSt) = Lens_ LSt
     liftReadRef = id
 
@@ -61,7 +61,7 @@ instance Reference (Lens_ LSt) where
     lensMap l r = return $ Lens_ $ runLens_ r . l
     unitRef = return $ Lens_ united
 
-instance Monad m => RefReader_ (StateT LSt m) where
+instance Monad m => MonadRefReader (StateT LSt m) where
     type RefCore (StateT LSt m) = Lens_ LSt
 
     liftReadRef m = state $ \s -> (runReader m s, s)
@@ -139,7 +139,7 @@ instance MonadTrans Pure where
 instance MonadFix m => MonadFix (Pure m) where
     mfix f = Pure $ mfix $ unPure . f
 
-instance Monad m => RefReader_ (Pure m) where
+instance Monad m => MonadRefReader (Pure m) where
 
     type RefCore (Pure n) = Lens_ LSt
 
@@ -176,7 +176,7 @@ instance Monad n => EffRef (Pure n) where
 instance Monad m => MonadRefWriter (Modifier (Pure m)) where
     liftWriteRef = RegW . liftWriteRef
 
-instance Monad m => RefReader_ (Modifier (Pure m)) where
+instance Monad m => MonadRefReader (Modifier (Pure m)) where
 
     type RefCore (Modifier (Pure m)) = Lens_ LSt
 

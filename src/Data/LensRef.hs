@@ -12,7 +12,7 @@ module Data.LensRef
     , RefWriter
     , MRef
 
-    , RefReader_ (..)
+    , MonadRefReader (..)
     , MonadRefWriter (..)
 
     -- ** Reference creation
@@ -62,7 +62,7 @@ If @(r :: RefReader r (MRef r a))@ then @(join r :: MRef r a)@.
 This is possible because reference operations work with @(RefReader r (r a))@ instead
 of just @(r a)@. For more compact type signatures, @(RefReader r (r a))@ is called @(MRef r a)@.
 -}
-class (Monad (RefReader r), Monad (RefWriter r), RefReader_ (RefReader r), RefReader (RefCore (RefReader r)) ~ RefReader r) => Reference r where
+class (Monad (RefReader r), Monad (RefWriter r), MonadRefReader (RefReader r), RefReader (RefCore (RefReader r)) ~ RefReader r) => Reference r where
 
     {- | unit reference
 
@@ -124,7 +124,7 @@ type MRef r a = RefReader r (r a)
 infixr 8 `lensMap`
 
 
-class (Monad m) => RefReader_ m where
+class (Monad m) => MonadRefReader m where
 
     type RefCore m :: * -> *
 
@@ -139,12 +139,12 @@ class (Monad m) => RefReader_ m where
 
     @readRef@ === @liftReadRef . readRef_@
     -}
-    readRef :: (RefReader_ m, Reference r, ReadRef m ~ RefReader r) => MRef r a -> m a
+    readRef :: (MonadRefReader m, Reference r, ReadRef m ~ RefReader r) => MRef r a -> m a
     readRef = liftReadRef . readRef_
 
 
 -- | TODO
-class RefReader_ m => MonadRefWriter m where
+class MonadRefReader m => MonadRefWriter m where
 
     liftWriteRef :: WriteRef m a -> m a
 
@@ -163,7 +163,7 @@ create the same type of references in multiple monads.
 
 For basic usage examples, look into the source of @Data.LensRef.Pure.Test@.
 -}
-class (Monad m, Reference (RefCore m), RefReader_ m) => ExtRef m where
+class (Monad m, Reference (RefCore m), MonadRefReader m) => ExtRef m where
 
     {- | Reference creation by extending the state of an existing reference.
 

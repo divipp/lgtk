@@ -34,7 +34,7 @@ import System.IO.Unsafe
 -----------------------------------------------------------------
 
 
-instance (ExtRef m, Monoid w) => RefReader_ (WriterT w m) where
+instance (ExtRef m, Monoid w) => MonadRefReader (WriterT w m) where
 
     type RefCore (WriterT w m) = RefCore m
 
