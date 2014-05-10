@@ -94,7 +94,7 @@ rv ==? v = liftEffectM $ when (rv /= v) $ tell . return $ "runTest failed: " ++ 
 
 -- | Check the current value of a given reference.
 (==>) :: (Eq a, Show a, MonadWriter [String] (EffectM m), EffRef m) => Ref m a -> a -> m ()
-r ==> v = readRef' r >>= (==? v)
+r ==> v = readRef r >>= (==? v)
 
 infix 0 ==>, ==?
 

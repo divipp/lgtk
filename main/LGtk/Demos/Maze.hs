@@ -113,13 +113,13 @@ mazeGame = do
         handler _ = return ()
 
         domove p = do
-            (maze, _) <- readRef' maze_
-            b <- readRef' forgiving
+            (maze, _) <- readRef maze_
+            b <- readRef forgiving
             modRef r $ gameLogic b maze p
 
         move f = do
-            (maze, _) <- readRef' maze_
-            (_, st) <- readRef' r
+            (maze, _) <- readRef maze_
+            (_, st) <- readRef r
             let m = case st of
                     Start -> Just $ snd $ bounds maze
                     Explore p -> checkBounds (bounds maze) $ f p
@@ -174,7 +174,7 @@ mazeGame = do
 
 extRef_ :: EffRef m => Ref m b -> a -> (b -> a -> a) -> m (Ref m a)
 extRef_ r def f = do
-    r0 <- readRef' r
+    r0 <- readRef r
     v <- extRef r (lens fst set) (r0, def)
     return $ _2 `lensMap` v
   where

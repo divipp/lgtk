@@ -29,7 +29,7 @@ module Data.LensRef
 
     -- * Derived constructs
     , modRef
-    , readRef'
+    , readRef
     , toReceive1
     , rEffect
     , iReallyWantToModify
@@ -136,11 +136,6 @@ class (Monad m) => RefReader_ m where
     in the LGtk interface; this is a feature.
     -}
     liftReadRef :: ReadRef m a -> m a
-
---readRef' :: (ExtRef m, Reference r, ReadRef m ~ RefReader r) => MRef r a -> m a
-readRef' :: (RefReader_ m, Reference r, ReadRef m ~ RefReader r) => MRef r a -> m a
-readRef' = readRef
-
 
 {- | @readRef@ lifted to the reference creation class.
 
@@ -306,9 +301,9 @@ toReceive1 m c = do
 rEffect  :: (EffRef m, Eq a) => ReadRef m a -> (a -> EffectM m b) -> m (ReadRef m b)
 rEffect r f = onChangeSimple r $ liftEffectM . f
 
--- | @modRef r f@ === @readRef' r >>= writeRef r . f@
+-- | @modRef r f@ === @readRef r >>= writeRef r . f@
 modRef :: (ExtRefWrite m, Reference r, RefReader r ~ ReadRef m) => MRef r a -> (a -> a) -> m ()
-r `modRef` f = readRef' r >>= writeRef r . f
+r `modRef` f = readRef r >>= writeRef r . f
 
 
 -- | TODO

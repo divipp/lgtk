@@ -164,7 +164,7 @@ inCanvas width height scale w = mdo
         calcPos i jss = listToMaybe [(a,b) | (a,js) <- zip [0..] jss, (b, j) <- zip [0..] js, i == j]
 
         changeFoc f = do
-            (_, _, _, j) <- readRef' foc
+            (_, _, _, j) <- readRef foc
             (_, xss_) <- liftReadRef bb
             let xss = filter (not . null) xss_
             if null xss
@@ -185,14 +185,14 @@ inCanvas width height scale w = mdo
         dkh _ = return False
 
         h2 m@(a,_,_,i) = do
-            i' <- readRef' $ _4 `lensMap` foc
+            i' <- readRef $ _4 `lensMap` foc
             when (i /= i') $ do
-                join $ readRef' $ _3 `lensMap` foc
+                join $ readRef $ _3 `lensMap` foc
                 a
                 writeRef foc m
 
         moveFoc f = do
-            (_, _, _, j) <- readRef' foc
+            (_, _, _, j) <- readRef foc
             (xs, _) <- liftReadRef bb
             h2 $ maybe (head xs) snd $ find (\((_,_,_,x),_) -> x == j) $ pairs $ (if f then id else reverse) (xs ++ xs)
             return $ if f then j /= last xs ^. _4 else j /= head xs ^. _4
@@ -218,7 +218,7 @@ inCanvas width height scale w = mdo
             hr_ Nothing' = valueFun (return ()) df i
 
             handle f x = do
-                m <- readRef' capt
+                m <- readRef capt
                 case m of
                     Nothing -> handle_ $ hr_ f x
                     Just f -> do
@@ -228,12 +228,12 @@ inCanvas width height scale w = mdo
             handleEvent (Release (MousePos p f), di) = handle f (Release $ MousePos p (), di # clearValue # value ())
             handleEvent (Click   (MousePos p f), di) = handle f (Click   $ MousePos p (), di # clearValue # value ())
             handleEvent (MoveTo  (MousePos p f), di) = handle f (MoveTo  $ MousePos p (), di # clearValue # value ())
-            handleEvent (GetFocus, di) = readRef' rememberfoc >>= h2
-            handleEvent (LostFocus, di) = readRef' foc >>= writeRef rememberfoc >> h2 df
+            handleEvent (GetFocus, di) = readRef rememberfoc >>= h2
+            handleEvent (LostFocus, di) = readRef foc >>= writeRef rememberfoc >> h2 df
             handleEvent _ = return ()
 
             handleKeys key = do
-                (_,f,_,_) <- readRef' foc
+                (_,f,_,_) <- readRef foc
                 f key
 
         return $ Canvas width height scale handleEvent (Just handleKeys) (liftM3 (,,) (readRef hi) (readRef $ _4 `lensMap` foc) $ liftM snd b) $
@@ -303,12 +303,12 @@ tr sca dkh w = do
                       | otherwise = return ()
 
                 commit = do
-                    (_, ab) <- readRef' j
+                    (_, ab) <- readRef j
                     rr' $ value' ab
 
                 ff (CharKey '\n') = commit >> return True
                 ff key = do
-                    x <- readRef' (_2 `lensMap` j)
+                    x <- readRef (_2 `lensMap` j)
                     case f key x of
                         Just x -> writeRef (_2 `lensMap` j) x >> return True
                         _ -> dkh key
@@ -453,7 +453,7 @@ tr sca dkh w = do
 
             let br' :: Int -> Modifier m ()
                 br' ind = br ind' >> writeRef ir ind' where ind' = ind `mod` n
-                br'' f = readRef' ir >>= br' . f  >> return True
+                br'' f = readRef ir >>= br' . f  >> return True
                 ff (SimpleKey Key'Left) = br'' (+(-1))
                 ff (SimpleKey Key'Right) = br'' (+ 1)
                 ff (AltKey (Key'Char c)) | Just i <- ind c = br'' (const i)
@@ -522,7 +522,7 @@ tr sca dkh w = do
                     return True
 
                 adj x = do
-                    m <- readRef' mv
+                    m <- readRef mv
                     case m of
                         Just (x_, v) -> rr $ min ma $ max mi $ v + (ma - mi) * (x - x_) / 10
                         Nothing -> return ()

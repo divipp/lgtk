@@ -102,8 +102,8 @@ mainWidget = notebook
             phase <- newRef (0 :: Double)
             t <- newRef 0
             _ <- onChangeSimple (readRef phase) $ \x -> do
-                s <- readRef' speed
-                f <- readRef' fps
+                s <- readRef speed
+                f <- readRef fps
                 asyncWrite (round $ 1000000 / f) $ writeRef phase (x + 2 * pi * s / f)
             vcat
                 [ canvas 200 200 10 (const $ return ()) Nothing (liftM2 (,) (readRef t) (readRef phase)) $
@@ -180,7 +180,7 @@ mainWidget = notebook
             _ <- onChange (readRef ready) $ \b -> return $ case b of
                 True -> return ()
                 False -> do
-                    d <- readRef' delay
+                    d <- readRef delay
                     asyncWrite (ceiling $ 1000000 * d) $ writeRef ready True
             vcat
                 [ hcat [ entryShow delay, label $ return "sec" ]

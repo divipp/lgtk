@@ -126,7 +126,7 @@ future_ f = do
 
 memoRead_ g = do
     s <- newRef Nothing
-    return $ readRef' s >>= \x -> case x of
+    return $ readRef s >>= \x -> case x of
         Just a -> return a
         _ -> g >>= \a -> do
             writeRef s $ Just a
@@ -134,7 +134,7 @@ memoRead_ g = do
 
 memoWrite_ g = do
     s <- newRef Nothing
-    return $ \b -> readRef' s >>= \x -> case x of
+    return $ \b -> readRef s >>= \x -> case x of
         Just (b', a) | b' == b -> return a
         _ -> g b >>= \a -> do
             writeRef s $ Just (b, a)
@@ -230,7 +230,7 @@ runPure newChan (Reg m) = do
     (read, write) <- newChan
     (a, tick) <- do
         (a, r) <- runRefWriterT $ runReaderT m write
-        (w, _) <- readRef' r
+        (w, _) <- readRef r
         return (a, runMonadMonoid w)
     return $ (,) a $ forever $ do
         join $ read
@@ -247,8 +247,8 @@ toSend
     -> (b -> b -> c -> {-Either (Register m c)-} (Register n m (c -> Register n m c)))
     -> Register n m (ReadRef m c)
 toSend memoize li rb b0 c0 fb = do
-    let doit st = readRef' st >>= runMonadMonoid . fst
-        reg st msg = readRef' st >>= li . runMonadMonoid . ($ msg) . snd
+    let doit st = readRef st >>= runMonadMonoid . fst
+        reg st msg = readRef st >>= li . runMonadMonoid . ($ msg) . snd
 
     memoref <- lift $ do
         b <- liftReadRef rb
@@ -260,7 +260,7 @@ toSend memoize li rb b0 c0 fb = do
 
     let act = MonadMonoid $ do
             b <- liftReadRef rb
-            (last@(b', cc@(_, oldval, st1, st2)), memo) <- readRef' memoref
+            (last@(b', cc@(_, oldval, st1, st2)), memo) <- readRef memoref
             (_, _, st1, st2) <- if b' == b
               then
                 return cc
@@ -296,7 +296,7 @@ runRefWriterT m = do
     return (a, r)
 
 tell' :: (Monoid w, ExtRefWrite m) => w -> RefWriterT w m ()
-tell' w = ReaderT $ \m -> readRef' m >>= writeRef m . (`mappend` w)
+tell' w = ReaderT $ \m -> readRef m >>= writeRef m . (`mappend` w)
 
 -------------
 
