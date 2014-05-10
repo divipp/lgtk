@@ -6,7 +6,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# OPTIONS_HADDOCK hide #-}
 {- |
-Pure reference implementation for the @ExtRef@ interface.
+Pure reference implementation for the @MonadRefCreator@ interface.
 
 The implementation uses @unsafeCoerce@ internally, but its effect cannot escape.
 -}
@@ -73,7 +73,7 @@ instance Monad m => MonadRefReader (StateT LSt m) where
 
     liftReadRef = gets . runReader
 
-instance Monad m => ExtRef (StateT LSt m) where
+instance Monad m => MonadRefCreator (StateT LSt m) where
     extRef r r2 a0 = state extend
       where
         rk = set (runLens_ r) . (^. r2)
@@ -100,7 +100,7 @@ instance Monad m => ExtRef (StateT LSt m) where
 
     future = future_
 
-future_ :: (ExtRef m, MonadRefWriter m) => (RefReader m a -> m a) -> m a
+future_ :: (MonadRefCreator m, MonadRefWriter m) => (RefReader m a -> m a) -> m a
 future_ f = do
     s <- newRef $ error "can't see the future"
     a <- f $ readRef s
@@ -152,7 +152,7 @@ instance Monad m => MonadRefReader (Pure m) where
 
     liftReadRef = Pure . lift . lift . liftReadRef
 
-instance Monad n => ExtRef (Pure n) where
+instance Monad n => MonadRefCreator (Pure n) where
     extRef r l = Pure . lift . lift . extRef r l
     newRef = Pure . lift . lift . newRef
     memoRead = memoRead_
@@ -189,7 +189,7 @@ instance Monad m => MonadRefReader (Modifier (Pure m)) where
 
     liftReadRef = RegW . liftReadRef
 
-instance Monad m => ExtRef (Modifier (Pure m)) where
+instance Monad m => MonadRefCreator (Modifier (Pure m)) where
     extRef r l = RegW . extRef r l
     newRef = RegW . newRef
     memoRead = memoRead_
@@ -216,7 +216,7 @@ runPure newChan (Pure m) = do
 
 
 toSend
-    :: (Eq b, ExtRef m, MonadRefWriter m, Monad n)
+    :: (Eq b, MonadRefCreator m, MonadRefWriter m, Monad n)
     => (n () -> m ())
     -> RefReader m b
     -> b -> (b -> c)
@@ -265,13 +265,13 @@ toSend li rb b0 c0 fb = do
 -- Ref-based RefWriterT
 type RefWriterT w m = ReaderT (Ref m w) m
 
-runRefWriterT :: (ExtRef m, Monoid w) => RefWriterT w m a -> m (a, Ref m w)
+runRefWriterT :: (MonadRefCreator m, Monoid w) => RefWriterT w m a -> m (a, Ref m w)
 runRefWriterT m = do
     r <- newRef mempty
     a <- runReaderT m r
     return (a, r)
 
-tell' :: (Monoid w, ExtRef m, MonadRefWriter m) => w -> RefWriterT w m ()
+tell' :: (Monoid w, MonadRefCreator m, MonadRefWriter m) => w -> RefWriterT w m ()
 tell' w = ReaderT $ \m -> readRef m >>= writeRef m . (`mappend` w)
 
 -------------

@@ -6,7 +6,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
--- | Tests for the @ExtRef@ interface.
+-- | Tests for the @MonadRefCreator@ interface.
 module Data.LensRef.Test
     ( -- * Tests for the interface
       mkTests
@@ -34,7 +34,7 @@ import System.IO.Unsafe
 -----------------------------------------------------------------
 
 
-instance (ExtRef m, Monoid w) => MonadRefReader (WriterT w m) where
+instance (MonadRefCreator m, Monoid w) => MonadRefReader (WriterT w m) where
 
     type BaseRef (WriterT w m) = BaseRef m
 
@@ -42,11 +42,11 @@ instance (ExtRef m, Monoid w) => MonadRefReader (WriterT w m) where
 
 
 -- | This instance is used in the implementation, end users do not need it.
-instance (ExtRef m, Monoid w) => ExtRef (WriterT w m) where
+instance (MonadRefCreator m, Monoid w) => MonadRefCreator (WriterT w m) where
 
     extRef x y a = lift $ extRef x y a
 
-instance (ExtRef m, MonadRefWriter m, Monoid w) => MonadRefWriter (WriterT w m) where
+instance (MonadRefCreator m, MonadRefWriter m, Monoid w) => MonadRefWriter (WriterT w m) where
 
     liftWriteRef = lift . liftWriteRef
 

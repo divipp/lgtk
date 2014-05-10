@@ -366,7 +366,7 @@ tr sca dkh w = do
 
         List layout ws -> liftM (foldr conc2 nil) $ mapM (tr sca dkh) ws
           where
-            nil :: ExtRef n => CWidget n
+            nil :: MonadRefCreator n => CWidget n
             nil = CWidget (return (([],[]),())) id mempty
 
             conc2 (CWidget b hr r) (CWidget b' hr' r')

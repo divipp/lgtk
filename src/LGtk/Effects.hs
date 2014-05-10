@@ -92,7 +92,7 @@ instance MonadRefReader m => MonadRefReader (Wrap m) where
     type BaseRef (Wrap m) = BaseRef m
     liftReadRef = Wrap . liftReadRef
 
-instance ExtRef m => ExtRef (Wrap m) where
+instance MonadRefCreator m => MonadRefCreator (Wrap m) where
     extRef r l = Wrap . extRef r l
     newRef = Wrap . newRef
     memoRead (Wrap m) = liftM Wrap $ Wrap $ memoRead m
@@ -103,7 +103,7 @@ instance EffRef m => MonadRefReader (Modifier (Wrap m)) where
     type BaseRef (Modifier (Wrap m)) = BaseRef m
     liftReadRef = WrapM . liftReadRef
 
-instance EffRef m => ExtRef (Modifier (Wrap m)) where
+instance EffRef m => MonadRefCreator (Modifier (Wrap m)) where
     extRef r l = WrapM . extRef r l
     newRef = WrapM . newRef
 

@@ -16,7 +16,7 @@ module Data.LensRef
     , MonadRefWriter (..)
 
     -- ** Reference creation
-    , ExtRef (..)
+    , MonadRefCreator (..)
     , Ref
     , RefReader
     , RefWriter
@@ -175,7 +175,7 @@ create the same type of references in multiple monads.
 
 For basic usage examples, look into the source of @Data.LensRef.Pure.Test@.
 -}
-class (Monad m, Reference (BaseRef m), MonadRefReader m) => ExtRef m where
+class (Monad m, Reference (BaseRef m), MonadRefReader m) => MonadRefCreator m where
 
     {- | Reference creation by extending the state of an existing reference.
 
@@ -227,7 +227,7 @@ class (Monad m, Reference (BaseRef m), MonadRefReader m) => ExtRef m where
 
 
 -- | Monad for dynamic actions
-class (ExtRef m, Monad (EffectM m), MonadRefWriter (Modifier m), ExtRef (Modifier m), BaseRef (Modifier m) ~ BaseRef m) => EffRef m where
+class (MonadRefCreator m, Monad (EffectM m), MonadRefWriter (Modifier m), MonadRefCreator (Modifier m), BaseRef (Modifier m) ~ BaseRef m) => EffRef m where
 
     type EffectM m :: * -> *
 
@@ -361,7 +361,7 @@ eqRef r = do
     return $ EqBaseRef r_ $ (/= a)
 
 -- | TODO
-newEqRef :: (ExtRef m, Eq a) => a -> m (EqRef (BaseRef m) a) 
+newEqRef :: (MonadRefCreator m, Eq a) => a -> m (EqRef (BaseRef m) a) 
 newEqRef = liftM eqRef . newRef
 
 {- | An @EqRef@ is a normal reference if we forget about the equality.
