@@ -159,7 +159,7 @@ button r fm = button_ r (liftM isJust fm) (liftRefReader fm >>= maybe (return ()
 
 
 smartButton
-    :: (MonadRegister m, EqReference r, RefReaderSimple r ~ RefReader m) 
+    :: (MonadRegister m, EqRefClass r, RefReaderSimple r ~ RefReader m) 
     => RefReader m String     -- ^ dynamic label of the button
     -> RefSimple r a              -- ^ underlying reference
     -> (a -> a)   -- ^ The button is active when this function is not identity on value of the reference. When the button is pressed, the value of the reference is modified with this function.
@@ -176,11 +176,11 @@ combobox :: MonadRegister m => [String] -> Ref m Int -> Widget m
 combobox ss r = return $ Combobox ss ((readRef r), writeRef r)
 
 -- | Text entry.
-entry :: (MonadRegister m, Reference r, RefReaderSimple r ~ RefReader m)  => RefSimple r String -> Widget m
+entry :: (MonadRegister m, RefClass r, RefReaderSimple r ~ RefReader m)  => RefSimple r String -> Widget m
 entry r = return $ Entry (const True) ((readRef r), writeRef r)
 
 -- | Text entry.
-entryShow :: forall m a r . (MonadRegister m, Show a, Read a, Reference r, RefReaderSimple r ~ RefReader m) => RefSimple r a -> Widget m
+entryShow :: forall m a r . (MonadRegister m, Show a, Read a, RefClass r, RefReaderSimple r ~ RefReader m) => RefSimple r a -> Widget m
 entryShow r_ = return $ Entry isOk ((readRef r), writeRef r)
   where
     r = showLens `lensMap` r_

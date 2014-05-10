@@ -6,8 +6,8 @@ module Data.LensRef
     (
     -- * Core
 
-    -- ** References
-      Reference (..)
+    -- ** RefClasss
+      RefClass (..)
     , RefWriterOf
     , RefWriterSimple
     , RefSimple
@@ -32,7 +32,7 @@ module Data.LensRef
     , iReallyWantToModify
 --    , undoTr
 
-    , EqReference (..)
+    , EqRefClass (..)
     , EqRef
     , hasEffect
     , eqRef
@@ -48,7 +48,7 @@ module Data.LensRef
 
 
 import Control.Monad (liftM, join)
-import Control.Lens (Lens', lens, set, (^.))
+import Control.Lens (Lens', lens, set)
 
 --------------------------------
 
@@ -61,7 +61,7 @@ If @(r :: RefReaderSimple r (RefSimple r a))@ then @(join r :: RefSimple r a)@.
 This is possible because reference operations work with @(RefReaderSimple r (r a))@ instead
 of just @(r a)@. For more compact type signatures, @(RefReaderSimple r (r a))@ is called @(RefSimple r a)@.
 -}
-class (MonadRefWriter (RefWriterSimple r), MonadRefReader (RefReaderSimple r), RefReader (RefReaderSimple r) ~ RefReaderSimple r) => Reference r where
+class (MonadRefWriter (RefWriterSimple r), MonadRefReader (RefReaderSimple r), RefReader (RefReaderSimple r) ~ RefReaderSimple r) => RefClass r where
 
     {- | unit reference
 
@@ -110,14 +110,14 @@ data family RefWriterOf (m :: * -> *) a :: *
 
 {- |
 There are two associated types of a reference, 'RefReaderSimple' and 'RefWriterSimple' which determines each-other.
-This is implemented by putting only 'RefReaderSimple' into the 'Reference' class and
-adding a @RefWriterOf@ data family outside of 'Reference'.
+This is implemented by putting only 'RefReaderSimple' into the 'RefClass' class and
+adding a @RefWriterOf@ data family outside of 'RefClass'.
 
 @RefWriterOf@ is hidden from the documentation because you never need it explicitly.
 -}
 type RefWriterSimple m = RefWriterOf (RefReaderSimple m)
 
--- | Reference wrapped into a RefReaderSimple monad. See the documentation of 'Reference'.
+-- | Reference wrapped into a RefReaderSimple monad. See the documentation of 'RefClass'.
 type RefSimple r a = RefReaderSimple r (r a)
 
 infixr 8 `lensMap`
@@ -139,7 +139,7 @@ class Monad m => MonadRefReader m where
 
     @readRef@ === @liftRefReader . readRefSimple@
     -}
-    readRef :: (Reference r, RefReader m ~ RefReaderSimple r) => RefSimple r a -> m a
+    readRef :: (RefClass r, RefReader m ~ RefReaderSimple r) => RefSimple r a -> m a
     readRef = liftRefReader . readRefSimple
 
 
@@ -159,7 +159,7 @@ class MonadRefReader m => MonadRefWriter m where
 
     liftRefWriter :: RefWriter m a -> m a
 
-    writeRef :: (Reference r, RefReaderSimple r ~ RefReader m) => RefSimple r a -> a -> m ()
+    writeRef :: (RefClass r, RefReaderSimple r ~ RefReader m) => RefSimple r a -> a -> m ()
     writeRef r = liftRefWriter . writeRefSimple r
 
 
@@ -168,14 +168,14 @@ class MonadRefReader m => MonadRefWriter m where
 
 
 {- | Monad for reference creation. Reference creation is not a method
-of the 'Reference' type class to make possible to
+of the 'RefClass' type class to make possible to
 create the same type of references in multiple monads.
 
 @(Extref m) === (StateT s m)@, where 's' is an extendible state.
 
 For basic usage examples, look into the source of @Data.LensRef.Pure.Test@.
 -}
-class (Monad m, Reference (BaseRef m), MonadRefReader m) => MonadRefCreator m where
+class (Monad m, RefClass (BaseRef m), MonadRefReader m) => MonadRefCreator m where
 
     {- | Reference creation by extending the state of an existing reference.
 
@@ -303,7 +303,7 @@ onChangeEffect  :: (MonadRegister m, Eq a) => RefReader m a -> (a -> EffectM m b
 onChangeEffect r f = onChangeSimple r $ liftEffectM . f
 
 -- | @modRef r f@ === @readRef r >>= writeRef r . f@
-modRef :: (MonadRefWriter m, Reference r, RefReaderSimple r ~ RefReader m) => RefSimple r a -> (a -> a) -> m ()
+modRef :: (MonadRefWriter m, RefClass r, RefReaderSimple r ~ RefReader m) => RefSimple r a -> (a -> a) -> m ()
 r `modRef` f = readRef r >>= writeRef r . f
 
 
@@ -316,10 +316,10 @@ iReallyWantToModify r = do
 
 
 
-{- | References with inherent equivalence.
+{- | RefClasss with inherent equivalence.
 
 -}
-class Reference r => EqReference r where
+class RefClass r => EqRefClass r where
     valueIsChanging :: RefSimple r a -> RefReaderSimple r (a -> Bool)
 
 {- | @hasEffect r f@ returns @False@ iff @(modRef m f)@ === @(return ())@.
@@ -329,7 +329,7 @@ class Reference r => EqReference r where
 @hasEffect@ makes defining auto-sensitive buttons easier, for example.
 -}
 hasEffect
-    :: EqReference r
+    :: EqRefClass r
     => RefSimple r a
     -> (a -> a)
     -> RefReaderSimple r Bool
@@ -342,7 +342,7 @@ hasEffect r f = do
 -- | TODO
 data EqBaseRef r a = EqBaseRef (r a) (a -> Bool{-changed-})
 
-{- | References with inherent equivalence.
+{- | RefClasss with inherent equivalence.
 
 @EqRef r a@ === @RefReaderSimple r (exist b . Eq b => (Lens' b a, r b))@
 
@@ -354,7 +354,7 @@ type EqRef r a = RefReaderSimple r (EqBaseRef r a)
 
 {- | @EqRef@ construction.
 -}
-eqRef :: (Reference r, Eq a) => RefSimple r a -> EqRef r a
+eqRef :: (RefClass r, Eq a) => RefSimple r a -> EqRef r a
 eqRef r = do
     a <- readRef r
     r_ <- r
@@ -368,15 +368,15 @@ newEqRef = liftM eqRef . newRef
 
 @toRef m@ === @join $ liftM (uncurry lensMap) m@
 -}
-toRef :: Reference r => EqRef r a -> RefSimple r a
+toRef :: RefClass r => EqRef r a -> RefSimple r a
 toRef m = m >>= \(EqBaseRef r _) -> return r
 
-instance Reference r => EqReference (EqBaseRef r) where
+instance RefClass r => EqRefClass (EqBaseRef r) where
     valueIsChanging m = do
         EqBaseRef _r k <- m
         return k
 
-instance Reference r => Reference (EqBaseRef r) where
+instance RefClass r => RefClass (EqBaseRef r) where
 
     type (RefReaderSimple (EqBaseRef r)) = RefReaderSimple r
 
@@ -397,7 +397,7 @@ data CorrBaseRef r a = CorrBaseRef (r a) (a -> Maybe a{-corrected-})
 
 type CorrRef r a = RefReaderSimple r (CorrBaseRef r a)
 
-instance Reference r => Reference (CorrBaseRef r) where
+instance RefClass r => RefClass (CorrBaseRef r) where
 
     type (RefReaderSimple (CorrBaseRef r)) = RefReaderSimple r
 
@@ -413,15 +413,15 @@ instance Reference r => Reference (CorrBaseRef r) where
 
     unitRef = corrRef (const Nothing) unitRef
 
-fromCorrRef :: Reference r => CorrRef r a -> RefSimple r a
+fromCorrRef :: RefClass r => CorrRef r a -> RefSimple r a
 fromCorrRef m = m >>= \(CorrBaseRef r _) -> return r
 
-corrRef :: Reference r => (a -> Maybe a) -> RefSimple r a -> CorrRef r a
+corrRef :: RefClass r => (a -> Maybe a) -> RefSimple r a -> CorrRef r a
 corrRef f r = do
     r_ <- r
     return $ CorrBaseRef r_ f
 
-correction :: Reference r => CorrRef r a -> RefReaderSimple r (a -> Maybe a)
+correction :: RefClass r => CorrRef r a -> RefReaderSimple r (a -> Maybe a)
 correction r = do
     CorrBaseRef _ f <- r
     return f

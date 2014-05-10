@@ -60,7 +60,7 @@ instance Monad m => MonadRefReader (RefWriterOf (ReaderT LSt m)) where
 instance MonadRefWriter (RefWriterOf (Reader LSt)) where
     liftRefWriter = id
 
-instance Reference (Lens_ LSt) where
+instance RefClass (Lens_ LSt) where
     type RefReaderSimple (Lens_ LSt) = Reader LSt
 
     readRefSimple = view . runLens_

@@ -280,7 +280,7 @@ counter x ab = do
     fix :: Lens' (a, (a,a)) (a, (a,a))
     fix = lens id $ \_ (x, ab@(a, b)) -> (min b $ max a x, ab)
 
-interval :: (Reference r, Ord a) => RefSimple r (a, a) -> (RefSimple r a, RefSimple r a)
+interval :: (RefClass r, Ord a) => RefSimple r (a, a) -> (RefSimple r a, RefSimple r a)
 interval ab = (lens fst set1 `lensMap` ab, lens snd set2 `lensMap` ab) where
     set1 (_, b) a = (min b a, b)
     set2 (a, _) b = (a, max a b)

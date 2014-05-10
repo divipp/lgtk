@@ -49,7 +49,7 @@ joinLens m = Lens_
     , register = \e -> m >>= \r -> register r e
     }
 
-instance Reference Lens_ where
+instance RefClass Lens_ where
     type RefReaderSimple Lens_ = IO
 
     readRefSimple = readPart . joinLens
