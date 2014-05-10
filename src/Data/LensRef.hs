@@ -6,11 +6,11 @@ module Data.LensRef
     (
     -- * Core
 
-    -- ** RefClasss
+    -- ** References
       RefClass (..)
+    , RefSimple
     , RefWriterOf
     , RefWriterSimple
-    , RefSimple
 
     , MonadRefReader (..)
     , MonadRefWriter (..)
@@ -207,6 +207,7 @@ class (Monad m, RefClass (BaseRef m), MonadRefReader m, MonadMemo m) => MonadRef
     newRef = extRef unitRef $ lens (const ()) (flip $ const id)
 
 
+-- | TODO
 class Monad m => MonadMemo m where
     {- | Lazy monadic evaluation.
     In case of @y <- memoRead x@, invoking @y@ will invoke @x@ at most once.
