@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -21,11 +20,7 @@ import Graphics.UI.Gtk hiding (Widget, Release)
 import qualified Graphics.UI.Gtk as Gtk
 
 import Data.LensRef
-#ifdef __PURE__
-import Data.LensRef.Pure
-#else
-import Data.LensRef.Fast
-#endif
+import Data.LensRef.Default
 import LGtk.Effects
 import LGtk.Widgets
 
@@ -36,7 +31,7 @@ import Diagrams.Backend.Cairo.Internal
 -------------------------
 
 runWidget :: (forall m . (EffIORef m, MonadFix m) => Widget m) -> IO ()
-runWidget w = runWidget' (\pa -> runPure (newChan' pa) . unWrap) w
+runWidget w = runWidget' (\pa -> runRegister (newChan' pa) . unWrap) w
   where
     newChan' pa = do
         ch <- newChan

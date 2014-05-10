@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ExistentialQuantification #-}
@@ -34,11 +33,7 @@ import Diagrams.Backend.Cairo.Ptr
 import Codec.Picture
 
 import Data.LensRef
-#ifdef __PURE__
-import Data.LensRef.Pure
-#else
-import Data.LensRef.Fast
-#endif
+import Data.LensRef.Default
 import LGtk.Effects
 import LGtk.Widgets
 import LGtk.Render
@@ -49,7 +44,7 @@ runWidget :: (forall m . (EffIORef m, MonadFix m) => Widget m) -> IO ()
 runWidget desc = do
     hSetBuffering stdout NoBuffering
 
-    (widget, actions) <- runPure newChan' $ unWrap $ runWidget_ $ inCanvas 800 600 30 desc
+    (widget, actions) <- runRegister newChan' $ unWrap $ runWidget_ $ inCanvas 800 600 30 desc
     _ <- forkIO actions
 
     case widget of

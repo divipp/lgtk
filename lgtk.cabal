@@ -37,11 +37,6 @@ Flag Gtk
   Description:      Build the Gtk backend
   Default:          False
 
-Flag Pure
-  Description:      Use the pure but slow implementation of lens-references
-  Default:          False
-
-
 library
 
   hs-source-dirs:
@@ -73,18 +68,12 @@ library
                   , GLFW-b == 1.4.*
 --                  , threepenny-gui == 0.4.1.*
 
-  exposed-modules:
-                    -- lens-references
-                    Data.LensRef
+                  , lensref == 0.1.*
 
+  exposed-modules:
                     -- lgtk
                     LGtk
   other-modules:
-                    -- lens-references
-                    Data.LensRef.Pure
-                    Data.LensRef.Fast
-                    Data.LensRef.Test
-
                     -- lgtk
                     LGtk.Effects
                     LGtk.Widgets
@@ -99,10 +88,6 @@ library
                     LGtk.Backend.Gtk
     cpp-options:
                     -D__GTK__
-
-  if flag(Pure)
-    cpp-options:
-                    -D__PURE__
 
   ghc-options: 
                     -threaded
