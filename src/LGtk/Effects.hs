@@ -89,7 +89,7 @@ instance MonadFix m => MonadFix (Wrap m) where
     mfix f = Wrap $ mfix $ unWrap . f
 
 instance MonadRefReader m => MonadRefReader (Wrap m) where
-    type RefCore (Wrap m) = RefCore m
+    type BaseRef (Wrap m) = BaseRef m
     liftReadRef = Wrap . liftReadRef
 
 instance ExtRef m => ExtRef (Wrap m) where
@@ -100,7 +100,7 @@ instance ExtRef m => ExtRef (Wrap m) where
 deriving instance (EffRef m) => Monad (Modifier (Wrap m))
 
 instance EffRef m => MonadRefReader (Modifier (Wrap m)) where
-    type RefCore (Modifier (Wrap m)) = RefCore m
+    type BaseRef (Modifier (Wrap m)) = BaseRef m
     liftReadRef = WrapM . liftReadRef
 
 instance EffRef m => ExtRef (Modifier (Wrap m)) where

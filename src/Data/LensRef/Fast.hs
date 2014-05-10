@@ -69,13 +69,13 @@ instance Reference Lens_ where
 
 instance {- Monad m => -} MonadRefReader IO where
 
-    type RefCore IO = Lens_
+    type BaseRef IO = Lens_
 
     liftReadRef = id
 
 instance MonadRefReader (RefWriterOf IO) where
 
-    type RefCore (RefWriterOf IO) = Lens_
+    type BaseRef (RefWriterOf IO) = Lens_
 
     liftReadRef = RefWriterOfIO
 
@@ -179,7 +179,7 @@ instance MonadFix (Pure m) where
 
 instance {- Monad m => -} MonadRefReader (Pure m) where
 
-    type RefCore (Pure IO) = Lens_
+    type BaseRef (Pure IO) = Lens_
 
     liftReadRef = Reg . lift . lift . liftReadRef
 
@@ -222,7 +222,7 @@ instance {- Monad m => -} MonadRefWriter (Modifier (Pure m)) where
 
 instance {- Monad m => -} MonadRefReader (Modifier (Pure m)) where
 
-    type RefCore (Modifier (Pure IO)) = Lens_
+    type BaseRef (Modifier (Pure IO)) = Lens_
 
     liftReadRef = RegW . liftReadRef
 

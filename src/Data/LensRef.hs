@@ -125,7 +125,7 @@ infixr 8 `lensMap`
 -- | TODO
 class Monad m => MonadRefReader m where
 
-    type RefCore m :: * -> *
+    type BaseRef m :: * -> *
 
     {- | @ReadRef@ lifted to the reference creation class.
 
@@ -143,13 +143,13 @@ class Monad m => MonadRefReader m where
 
 
 -- | TODO
-type ReadRef m = RefReader (RefCore m)
+type ReadRef m = RefReader (BaseRef m)
 
 -- | TODO
-type WriteRef m = RefWriter (RefCore m)
+type WriteRef m = RefWriter (BaseRef m)
 
 -- | TODO
-type Ref m a = RefSimple (RefCore m) a
+type Ref m a = RefSimple (BaseRef m) a
 
 
 
@@ -174,7 +174,7 @@ create the same type of references in multiple monads.
 
 For basic usage examples, look into the source of @Data.LensRef.Pure.Test@.
 -}
-class (Monad m, Reference (RefCore m), MonadRefReader m) => ExtRef m where
+class (Monad m, Reference (BaseRef m), MonadRefReader m) => ExtRef m where
 
     {- | Reference creation by extending the state of an existing reference.
 
@@ -226,7 +226,7 @@ class (Monad m, Reference (RefCore m), MonadRefReader m) => ExtRef m where
 
 
 -- | Monad for dynamic actions
-class (ExtRef m, Monad (EffectM m), MonadRefWriter (Modifier m), ExtRef (Modifier m), RefCore (Modifier m) ~ RefCore m) => EffRef m where
+class (ExtRef m, Monad (EffectM m), MonadRefWriter (Modifier m), ExtRef (Modifier m), BaseRef (Modifier m) ~ BaseRef m) => EffRef m where
 
     type EffectM m :: * -> *
 
@@ -339,7 +339,7 @@ hasEffect r f = do
 
 
 -- | TODO
-data EqRefCore r a = EqRefCore (r a) (a -> Bool{-changed-})
+data EqBaseRef r a = EqBaseRef (r a) (a -> Bool{-changed-})
 
 {- | References with inherent equivalence.
 
@@ -349,7 +349,7 @@ As a reference, @(m :: EqRef r a)@ behaves as
 
 @join $ liftM (uncurry lensMap) m@
 -}
-type EqRef r a = RefReader r (EqRefCore r a)
+type EqRef r a = RefReader r (EqBaseRef r a)
 
 {- | @EqRef@ construction.
 -}
@@ -357,10 +357,10 @@ eqRef :: (Reference r, Eq a) => RefSimple r a -> EqRef r a
 eqRef r = do
     a <- readRef r
     r_ <- r
-    return $ EqRefCore r_ $ (/= a)
+    return $ EqBaseRef r_ $ (/= a)
 
 -- | TODO
-newEqRef :: (ExtRef m, Eq a) => a -> m (EqRef (RefCore m) a) 
+newEqRef :: (ExtRef m, Eq a) => a -> m (EqRef (BaseRef m) a) 
 newEqRef = liftM eqRef . newRef
 
 {- | An @EqRef@ is a normal reference if we forget about the equality.
@@ -368,16 +368,16 @@ newEqRef = liftM eqRef . newRef
 @toRef m@ === @join $ liftM (uncurry lensMap) m@
 -}
 toRef :: Reference r => EqRef r a -> RefSimple r a
-toRef m = m >>= \(EqRefCore r _) -> return r
+toRef m = m >>= \(EqBaseRef r _) -> return r
 
-instance Reference r => EqReference (EqRefCore r) where
+instance Reference r => EqReference (EqBaseRef r) where
     valueIsChanging m = do
-        EqRefCore _r k <- m
+        EqBaseRef _r k <- m
         return k
 
-instance Reference r => Reference (EqRefCore r) where
+instance Reference r => Reference (EqBaseRef r) where
 
-    type (RefReader (EqRefCore r)) = RefReader r
+    type (RefReader (EqBaseRef r)) = RefReader r
 
     readRefSimple = readRef . toRef
 
@@ -385,20 +385,20 @@ instance Reference r => Reference (EqRefCore r) where
 
     lensMap l m = do
         a <- readRef m
-        EqRefCore r k <- m
+        EqBaseRef r k <- m
         lr <- lensMap l $ return r
-        return $ EqRefCore lr $ \b -> k $ set l b a
+        return $ EqBaseRef lr $ \b -> k $ set l b a
 
     unitRef = eqRef unitRef
 
 {-
-data CorrRefCore r a = CorrRefCore (r a) (a -> Maybe a{-corrected-})
+data CorrBaseRef r a = CorrBaseRef (r a) (a -> Maybe a{-corrected-})
 
-type CorrRef r a = RefReader r (CorrRefCore r a)
+type CorrRef r a = RefReader r (CorrBaseRef r a)
 
-instance Reference r => Reference (CorrRefCore r) where
+instance Reference r => Reference (CorrBaseRef r) where
 
-    type (RefReader (CorrRefCore r)) = RefReader r
+    type (RefReader (CorrBaseRef r)) = RefReader r
 
     readRef = readRef . fromCorrRef
 
@@ -406,23 +406,23 @@ instance Reference r => Reference (CorrRefCore r) where
 
     lensMap l m = do
         a <- readRef m
-        CorrRefCore r k <- m
+        CorrBaseRef r k <- m
         lr <- lensMap l $ return r
-        return $ CorrRefCore lr $ \b -> fmap (^. l) $ k $ set l b a
+        return $ CorrBaseRef lr $ \b -> fmap (^. l) $ k $ set l b a
 
     unitRef = corrRef (const Nothing) unitRef
 
 fromCorrRef :: Reference r => CorrRef r a -> RefSimple r a
-fromCorrRef m = m >>= \(CorrRefCore r _) -> return r
+fromCorrRef m = m >>= \(CorrBaseRef r _) -> return r
 
 corrRef :: Reference r => (a -> Maybe a) -> RefSimple r a -> CorrRef r a
 corrRef f r = do
     r_ <- r
-    return $ CorrRefCore r_ f
+    return $ CorrBaseRef r_ f
 
 correction :: Reference r => CorrRef r a -> RefReader r (a -> Maybe a)
 correction r = do
-    CorrRefCore _ f <- r
+    CorrBaseRef _ f <- r
     return f
 -}
 

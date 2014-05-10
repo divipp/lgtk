@@ -36,7 +36,7 @@ import System.IO.Unsafe
 
 instance (ExtRef m, Monoid w) => MonadRefReader (WriterT w m) where
 
-    type RefCore (WriterT w m) = RefCore m
+    type BaseRef (WriterT w m) = BaseRef m
 
     liftReadRef = lift . liftReadRef
 

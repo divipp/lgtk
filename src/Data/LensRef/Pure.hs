@@ -50,11 +50,11 @@ initLSt :: LSt
 initLSt = empty
 
 instance MonadRefReader (Reader LSt) where
-    type RefCore (Reader LSt) = Lens_ LSt
+    type BaseRef (Reader LSt) = Lens_ LSt
     liftReadRef = id
 
 instance Monad m => MonadRefReader (RefWriterOf (ReaderT LSt m)) where
-    type RefCore (RefWriterOf (ReaderT LSt m)) = Lens_ LSt
+    type BaseRef (RefWriterOf (ReaderT LSt m)) = Lens_ LSt
     liftReadRef = RefWriterOfReaderT . gets . runReader
 
 instance MonadRefWriter (RefWriterOf (Reader LSt)) where
@@ -69,7 +69,7 @@ instance Reference (Lens_ LSt) where
     unitRef = return $ Lens_ united
 
 instance Monad m => MonadRefReader (StateT LSt m) where
-    type RefCore (StateT LSt m) = Lens_ LSt
+    type BaseRef (StateT LSt m) = Lens_ LSt
 
     liftReadRef = gets . runReader
 
@@ -148,7 +148,7 @@ instance MonadFix m => MonadFix (Pure m) where
 
 instance Monad m => MonadRefReader (Pure m) where
 
-    type RefCore (Pure n) = Lens_ LSt
+    type BaseRef (Pure n) = Lens_ LSt
 
     liftReadRef = Pure . lift . lift . liftReadRef
 
@@ -185,7 +185,7 @@ instance Monad m => MonadRefWriter (Modifier (Pure m)) where
 
 instance Monad m => MonadRefReader (Modifier (Pure m)) where
 
-    type RefCore (Modifier (Pure m)) = Lens_ LSt
+    type BaseRef (Modifier (Pure m)) = Lens_ LSt
 
     liftReadRef = RegW . liftReadRef
 
