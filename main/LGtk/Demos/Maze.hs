@@ -102,8 +102,8 @@ mazeGame = do
     dim_ <- newRef init
     let dim = _2 `lensMap` dim_
         mazekind = _1 `lensMap` dim_
-        dimX = (_2 . iso id (max 1 . min 40)) `lensMap` eqRef dim
-        dimY = (_1 . iso id (max 1 . min 40)) `lensMap` eqRef dim
+        dimX = (_2 . iso id (max 1 . min 40)) `lensMap` toEqRef dim
+        dimY = (_1 . iso id (max 1 . min 40)) `lensMap` toEqRef dim
         genMaze (0, d) = Maze1.genMaze d
         genMaze (1, d) = Maze2.genMaze d
     maze_ <- extRef_ dim_ (runState (genMaze init) (mkStdGen 323401)) $ \d (_, s) -> runState (genMaze d) s

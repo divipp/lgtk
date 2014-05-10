@@ -62,7 +62,7 @@ intListEditor def maxi list_ range = do
             ]
         ]
  where
-    list = eqRef list_
+    list = toEqRef list_
 
     itemEditor i r = hcat
         [ label $ return $ show (i+1) ++ "."

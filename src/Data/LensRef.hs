@@ -36,11 +36,11 @@ module Data.LensRef
 --    , undoTr
 
     , EqRefClass (..)
-    , EqRef
+    , EqRefSimple, EqRef
     , hasEffect
-    , eqRef
+    , toEqRef
+    , fromEqRef
     , newEqRef
-    , toRef
 {-
     , CorrRef
     , corrRef
@@ -329,7 +329,7 @@ class RefClass r => EqRefClass r where
 
 {- | @hasEffect r f@ returns @False@ iff @(modRef m f)@ === @(return ())@.
 
-@hasEffect@ is correct only if @eqRef@ is applied on a pure reference (a reference which is a pure lens on the hidden state).
+@hasEffect@ is correct only if @toEqRef@ is applied on a pure reference (a reference which is a pure lens on the hidden state).
 
 @hasEffect@ makes defining auto-sensitive buttons easier, for example.
 -}
@@ -345,57 +345,59 @@ hasEffect r f = do
 
 
 -- | TODO
-data EqBaseRef r a = EqBaseRef (r a) (a -> Bool{-changed-})
+data EqRefCore r a = EqRefCore (r a) (a -> Bool{-changed-})
 
 {- | RefClasss with inherent equivalence.
 
-@EqRef r a@ === @RefReaderSimple r (exist b . Eq b => (Lens' b a, r b))@
+@EqRefSimple r a@ === @RefReaderSimple r (exist b . Eq b => (Lens' b a, r b))@
 
-As a reference, @(m :: EqRef r a)@ behaves as
+As a reference, @(m :: EqRefSimple r a)@ behaves as
 
 @join $ liftM (uncurry lensMap) m@
 -}
-type EqRef r a = RefReaderSimple r (EqBaseRef r a)
+type EqRefSimple r a = RefReaderSimple r (EqRefCore r a)
 
-{- | @EqRef@ construction.
+type EqRef m a = EqRefSimple (BaseRef m) a
+
+{- | @EqRefSimple@ construction.
 -}
-eqRef :: (RefClass r, Eq a) => RefSimple r a -> EqRef r a
-eqRef r = do
+toEqRef :: (RefClass r, Eq a) => RefSimple r a -> EqRefSimple r a
+toEqRef r = do
     a <- readRef r
     r_ <- r
-    return $ EqBaseRef r_ $ (/= a)
+    return $ EqRefCore r_ $ (/= a)
 
 -- | TODO
-newEqRef :: (MonadRefCreator m, Eq a) => a -> m (EqRef (BaseRef m) a) 
-newEqRef = liftM eqRef . newRef
+newEqRef :: (MonadRefCreator m, Eq a) => a -> m (EqRef m a) 
+newEqRef = liftM toEqRef . newRef
 
-{- | An @EqRef@ is a normal reference if we forget about the equality.
+{- | An @EqRefSimple@ is a normal reference if we forget about the equality.
 
-@toRef m@ === @join $ liftM (uncurry lensMap) m@
+@fromEqRef m@ === @join $ liftM (uncurry lensMap) m@
 -}
-toRef :: RefClass r => EqRef r a -> RefSimple r a
-toRef m = m >>= \(EqBaseRef r _) -> return r
+fromEqRef :: RefClass r => EqRefSimple r a -> RefSimple r a
+fromEqRef m = m >>= \(EqRefCore r _) -> return r
 
-instance RefClass r => EqRefClass (EqBaseRef r) where
+instance RefClass r => EqRefClass (EqRefCore r) where
     valueIsChanging m = do
-        EqBaseRef _r k <- m
+        EqRefCore _r k <- m
         return k
 
-instance RefClass r => RefClass (EqBaseRef r) where
+instance RefClass r => RefClass (EqRefCore r) where
 
-    type (RefReaderSimple (EqBaseRef r)) = RefReaderSimple r
+    type (RefReaderSimple (EqRefCore r)) = RefReaderSimple r
 
-    readRefSimple = readRef . toRef
+    readRefSimple = readRef . fromEqRef
 
-    writeRefSimple = writeRefSimple . toRef
+    writeRefSimple = writeRefSimple . fromEqRef
 
     lensMap l m = do
         a <- readRef m
-        EqBaseRef r k <- m
+        EqRefCore r k <- m
         lr <- lensMap l $ return r
-        return $ EqBaseRef lr $ \b -> k $ set l b a
+        return $ EqRefCore lr $ \b -> k $ set l b a
 
-    unitRef = eqRef unitRef
+    unitRef = toEqRef unitRef
 
 {-
 data CorrBaseRef r a = CorrBaseRef (r a) (a -> Maybe a{-corrected-})
