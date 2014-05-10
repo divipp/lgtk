@@ -53,6 +53,13 @@ instance MonadRefReader (Reader LSt) where
     type RefCore (Reader LSt) = Lens_ LSt
     liftReadRef = id
 
+instance Monad m => MonadRefReader (RefWriterOf (ReaderT LSt m)) where
+    type RefCore (RefWriterOf (ReaderT LSt m)) = Lens_ LSt
+    liftReadRef = RefWriterOfReaderT . gets . runReader
+
+instance MonadRefWriter (RefWriterOf (Reader LSt)) where
+    liftWriteRef = id
+
 instance Reference (Lens_ LSt) where
     type RefReader (Lens_ LSt) = Reader LSt
 
@@ -64,7 +71,7 @@ instance Reference (Lens_ LSt) where
 instance Monad m => MonadRefReader (StateT LSt m) where
     type RefCore (StateT LSt m) = Lens_ LSt
 
-    liftReadRef m = state $ \s -> (runReader m s, s)
+    liftReadRef = gets . runReader
 
 instance Monad m => ExtRef (StateT LSt m) where
     extRef r r2 a0 = state extend

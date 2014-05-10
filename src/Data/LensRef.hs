@@ -27,7 +27,6 @@ module Data.LensRef
 
     -- * Derived constructs
     , modRef
-    , readRef
     , toReceive1
     , rEffect
     , iReallyWantToModify
@@ -62,7 +61,7 @@ If @(r :: RefReader r (MRef r a))@ then @(join r :: MRef r a)@.
 This is possible because reference operations work with @(RefReader r (r a))@ instead
 of just @(r a)@. For more compact type signatures, @(RefReader r (r a))@ is called @(MRef r a)@.
 -}
-class (Monad (RefReader r), Monad (RefWriter r), MonadRefReader (RefReader r), RefReader (RefCore (RefReader r)) ~ RefReader r) => Reference r where
+class (MonadRefWriter (RefWriter r), MonadRefReader (RefReader r), ReadRef (RefReader r) ~ RefReader r) => Reference r where
 
     {- | unit reference
 
@@ -123,8 +122,8 @@ type MRef r a = RefReader r (r a)
 
 infixr 8 `lensMap`
 
-
-class (Monad m) => MonadRefReader m where
+-- | TODO
+class Monad m => MonadRefReader m where
 
     type RefCore m :: * -> *
 
@@ -139,8 +138,19 @@ class (Monad m) => MonadRefReader m where
 
     @readRef@ === @liftReadRef . readRef_@
     -}
-    readRef :: (MonadRefReader m, Reference r, ReadRef m ~ RefReader r) => MRef r a -> m a
+    readRef :: (Reference r, ReadRef m ~ RefReader r) => MRef r a -> m a
     readRef = liftReadRef . readRef_
+
+
+-- | TODO
+type ReadRef m = RefReader (RefCore m)
+
+-- | TODO
+type WriteRef m = RefWriter (RefCore m)
+
+-- | TODO
+type Ref m a = ReadRef m (RefCore m a)
+
 
 
 -- | TODO
@@ -148,8 +158,9 @@ class MonadRefReader m => MonadRefWriter m where
 
     liftWriteRef :: WriteRef m a -> m a
 
-    writeRef :: (MonadRefWriter m, Reference r, RefReader r ~ ReadRef m) => MRef r a -> a -> m ()
-    writeRef r a = liftWriteRef $ writeRef_ r a
+    writeRef :: (Reference r, RefReader r ~ ReadRef m) => MRef r a -> a -> m ()
+    writeRef r = liftWriteRef . writeRef_ r
+
 
 
 
@@ -212,16 +223,6 @@ class (Monad m, Reference (RefCore m), MonadRefReader m) => ExtRef m where
     memoWrite :: Eq b => (b -> m a) -> m (b -> m a)
 
     future :: (ReadRef m a -> m a) -> m a
-
--- | TODO
-type Ref m a = ReadRef m (RefCore m a)
-
--- | TODO
-type ReadRef m = RefReader (RefCore m)
-
--- | TODO
-type WriteRef m = RefWriter (RefCore m)
-
 
 
 -- | Monad for dynamic actions

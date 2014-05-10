@@ -73,6 +73,16 @@ instance {- Monad m => -} MonadRefReader IO where
 
     liftReadRef = id
 
+instance MonadRefReader (RefWriterOf IO) where
+
+    type RefCore (RefWriterOf IO) = Lens_
+
+    liftReadRef = RefWriterOfIO
+
+instance MonadRefWriter (RefWriterOf IO) where
+    liftWriteRef = id -- RefWriterOfIO . runRefWriterOfIO
+
+
 instance ExtRef IO where
 
     extRef r r2 a0 = do
