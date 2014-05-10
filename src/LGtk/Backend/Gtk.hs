@@ -103,7 +103,7 @@ runWidget_ post' post = toWidget
         return u
 
     ger :: Eq a => (RegisteredCallbackCommand -> IO ()) -> RefReader m a -> (a -> IO ()) -> m ()
-    ger hd s f = liftM (const ()) $ rEffect s $ \a -> liftBaseWith . const $ post $ do
+    ger hd s f = liftM (const ()) $ onChangeEffect s $ \a -> liftBaseWith . const $ post $ do
         hd Block
         f a
         hd Unblock

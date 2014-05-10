@@ -172,7 +172,7 @@ instance Monad n => MonadRegister (Pure n) where
 
     liftModifier = RegW
 
-    onChange_ r b0 c0 f = Pure $ ReaderT $ \ff ->
+    onChangeAcc r b0 c0 f = Pure $ ReaderT $ \ff ->
         toSend lift r b0 c0 $ \b b' c' -> liftM (\x -> evalRegister ff . x) $ evalRegister ff $ f b b' c'
 
     registerCallback f g = Pure $ ReaderT $ \ff -> do

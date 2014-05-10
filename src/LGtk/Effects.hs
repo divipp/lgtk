@@ -115,7 +115,7 @@ instance MonadRegister m => MonadRegister (Wrap m) where
     newtype Modifier (Wrap m) a = WrapM { unWrapM :: Modifier m a}
     liftEffectM = Wrap . liftEffectM -- :: EffectM m a -> m a
     liftModifier = WrapM . liftModifier . unWrap -- :: m a -> Modifier m a
-    onChange_ r b bc f = Wrap $ onChange_ r b bc $ (fmap . fmap . fmap) (liftM (fmap unWrap) . unWrap) f
+    onChangeAcc r b bc f = Wrap $ onChangeAcc r b bc $ (fmap . fmap . fmap) (liftM (fmap unWrap) . unWrap) f
     onChangeSimple r f = Wrap $ onChangeSimple r $ fmap unWrap f
     registerCallback r f = Wrap $ registerCallback (fmap unWrapM r) f
 
@@ -176,7 +176,7 @@ instance (MonadRegister m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m)
         re <- registerCallback (writeRef ref) u
         liftEffectM $ ff $ repeat $ liftIO_ (takeMVar v >> r) >>= re
 
-        _ <- rEffect (readRef ref) $ \x -> liftIO_ $ do
+        _ <- onChangeEffect (readRef ref) $ \x -> liftIO_ $ do
             join $ takeMVar vman
             _ <- tryTakeMVar v
             w x

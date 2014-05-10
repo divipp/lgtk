@@ -28,7 +28,7 @@ module Data.LensRef
     -- * Derived constructs
     , modRef
     , registerCallbackSimple
-    , rEffect
+    , onChangeEffect
     , iReallyWantToModify
 --    , undoTr
 
@@ -263,7 +263,7 @@ class (MonadRefCreator m, Monad (EffectM m), MonadRefWriter (Modifier m), MonadR
 
     @k a2 >>= \\b2 -> h b2 >> k a1 >>= \\b1 -> h b1 >> h b2@
     -}
-    onChange_
+    onChangeAcc
         :: Eq b
         => RefReader m b
         -> b -> (b -> c)
@@ -271,7 +271,7 @@ class (MonadRefCreator m, Monad (EffectM m), MonadRefWriter (Modifier m), MonadR
         -> m (RefReader m c)
 
     onChange :: Eq a => RefReader m a -> (a -> m (m b)) -> m (RefReader m b)
-    onChange r f = onChange_ r undefined undefined $ \b _ _ -> liftM (\x _ -> x) $ f b
+    onChange r f = onChangeAcc r undefined undefined $ \b _ _ -> liftM (\x _ -> x) $ f b
 
     onChangeSimple :: Eq a => RefReader m a -> (a -> m b) -> m (RefReader m b)
     onChangeSimple r f = onChange r $ return . f
@@ -299,8 +299,8 @@ registerCallbackSimple m c = do
     return $ f ()
 
 -- | TODO
-rEffect  :: (MonadRegister m, Eq a) => RefReader m a -> (a -> EffectM m b) -> m (RefReader m b)
-rEffect r f = onChangeSimple r $ liftEffectM . f
+onChangeEffect  :: (MonadRegister m, Eq a) => RefReader m a -> (a -> EffectM m b) -> m (RefReader m b)
+onChangeEffect r f = onChangeSimple r $ liftEffectM . f
 
 -- | @modRef r f@ === @readRef r >>= writeRef r . f@
 modRef :: (MonadRefWriter m, Reference r, RefReaderSimple r ~ RefReader m) => RefSimple r a -> (a -> a) -> m ()

@@ -203,7 +203,7 @@ instance {-Monad n => -} MonadRegister (Pure n) where
 
     liftModifier = RegW
 
-    onChange_ r b0 c0 f = Reg $ ReaderT $ \ff ->
+    onChangeAcc r b0 c0 f = Reg $ ReaderT $ \ff ->
         toSend True id r b0 c0 $ \b b' c' -> liftM (\x -> evalRegister ff . x) $ evalRegister ff $ f b b' c'
 
     onChangeSimple r f = Reg $ ReaderT $ \ff ->

@@ -168,7 +168,7 @@ mainWidget = notebook
     {-
         , (,) "Accumulator" $ do
             x <- newRef (0 :: Integer)
-            y <- onChange_ (readRef x) 0 (const 0) $ \x _ y -> Left $ return $ x+y
+            y <- onChangeAcc (readRef x) 0 (const 0) $ \x _ y -> Left $ return $ x+y
             hcat
                 [ entryShow x
                 , label $ liftM show y
