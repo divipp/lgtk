@@ -158,7 +158,7 @@ instance MonadRefWriter IO where
 
 ---------------------------------
 
-type Register n m = ReaderT (Ref m (MonadMonoid m, Command -> MonadMonoid n)) m
+type Register n m = ReaderT (Ref m (MonadMonoid m, RegisteredCallbackCommand -> MonadMonoid n)) m
 
 newtype Reg n a = Reg { unReg :: ReaderT (SLSt n () -> n ()) (Register n (SLSt n)) a } deriving (Monad, Applicative, Functor)
 
@@ -209,7 +209,7 @@ instance {-Monad n => -} MonadRegister (Pure n) where
     onChangeSimple r f = Reg $ ReaderT $ \ff ->
         toSend False id r undefined undefined $ \b _ _ -> return $ \_ -> evalRegister ff $ f b
 
-    toReceive f g = Reg $ ReaderT $ \ff -> do
+    registerCallback f g = Reg $ ReaderT $ \ff -> do
         tell' (mempty, MonadMonoid . g)
         writerstate <- ask
         return $ fmap (ff . flip runReaderT writerstate . evalRegister ff . unRegW) f

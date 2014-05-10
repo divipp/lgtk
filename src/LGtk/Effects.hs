@@ -117,7 +117,7 @@ instance MonadRegister m => MonadRegister (Wrap m) where
     liftModifier = WrapM . liftModifier . unWrap -- :: m a -> Modifier m a
     onChange_ r b bc f = Wrap $ onChange_ r b bc $ (fmap . fmap . fmap) (liftM (fmap unWrap) . unWrap) f
     onChangeSimple r f = Wrap $ onChangeSimple r $ fmap unWrap f
-    toReceive r f = Wrap $ toReceive (fmap unWrapM r) f
+    registerCallback r f = Wrap $ registerCallback (fmap unWrapM r) f
 
 data IOInstruction a where
     GetArgs :: IOInstruction [String]
@@ -130,7 +130,7 @@ data IOInstruction a where
 
 type SIO = Program IOInstruction
 
-type Handle = Command -> SIO ()
+type Handle = RegisteredCallbackCommand -> SIO ()
 
 instance (MonadRegister m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m) where
 
@@ -144,7 +144,7 @@ instance (MonadRegister m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m)
 
     asyncWrite t r = do
         (u, f) <- liftEffectM forkIOs'
-        x <- toReceive1 r u
+        x <- registerCallback1 r u
         liftEffectM $ f [ liftIO_ $ threadDelay t, x ]
 
     fileRef f = do
@@ -173,7 +173,7 @@ instance (MonadRegister m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m)
                 watchDir man (directory cf') filt act
 
         (u, ff) <- liftEffectM  forkIOs'
-        re <- toReceive (writeRef ref) u
+        re <- registerCallback (writeRef ref) u
         liftEffectM $ ff $ repeat $ liftIO_ (takeMVar v >> r) >>= re
 
         _ <- rEffect (readRef ref) $ \x -> liftIO_ $ do
@@ -196,26 +196,26 @@ instance (MonadRegister m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m)
 
     getLine_ w = do
         (u, f) <- liftEffectM forkIOs'
-        x <- toReceive w u
+        x <- registerCallback w u
         liftEffectM $ f [ liftIO_ getLine >>= x ]   -- TODO
     putStr_ s = liftIO' $ putStr s
 
-getLine__ :: (String -> IO ()) -> IO (Command -> IO ())
+getLine__ :: (String -> IO ()) -> IO (RegisteredCallbackCommand -> IO ())
 getLine__ f = do
     _ <- forkIO $ forever $ getLine >>= f   -- todo
     return $ const $ return ()
 
---toReceive_ :: Functor f => f (Modifier m ()) -> (Command -> EffectM m ()) -> m (f (EffectM m ()))
-toReceive_
+--registerCallback_ :: Functor f => f (Modifier m ()) -> (RegisteredCallbackCommand -> EffectM m ()) -> m (f (EffectM m ()))
+registerCallback_
     :: (MonadRegister m, EffectM m ~ IO, Functor f)
     => f (Modifier m ())
-    -> (f (EffectM m ()) -> EffectM m (Command -> EffectM m ()))
+    -> (f (EffectM m ()) -> EffectM m (RegisteredCallbackCommand -> EffectM m ()))
     -> m ()
-toReceive_ w g = do
+registerCallback_ w g = do
     r <- liftIO' $ newMVar $ const $ return ()
     let h_ comm = do
             readMVar r >>= ($ comm)
-    c <- toReceive w h_
+    c <- registerCallback w h_
     h <- liftEffectM $ g c
     liftIO' $ putMVar r h
     return ()
@@ -227,7 +227,7 @@ canonicalizePath' p = liftM (F.</> f) $ canonicalizePath d
 liftIO' m = liftEffectM $ liftIO_ m
 
 
-forkIOs' :: MonadBaseControl IO m => m (Command -> m (), [m ()] -> m ())
+forkIOs' :: MonadBaseControl IO m => m (RegisteredCallbackCommand -> m (), [m ()] -> m ())
 forkIOs' = liftBaseWith $ \run -> do
     x <- newMVar ()
     s <- newEmptyMVar

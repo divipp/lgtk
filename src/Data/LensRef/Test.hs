@@ -355,8 +355,8 @@ mkTests runTest
     writeRefTest = runTest $ do
         r <- newRef (3 :: Int)
         k <- newRef (3 :: Int)
-        sr <- toReceive (writeRef' r) (const $ return ())
-        sk <- toReceive (writeRef' k) (const $ return ())
+        sr <- registerCallback (writeRef' r) (const $ return ())
+        sk <- registerCallback (writeRef' k) (const $ return ())
 
         _ <- onChange (readRef r) $ \x -> do
             when (x == 3) $ do

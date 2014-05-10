@@ -305,8 +305,8 @@ runWidget_  m = m >>= \i -> case i of
             _ <- swapMVar rer' d
             return ()
 
-        handle <- toReceive me $ const $ return ()
-        keyhandle <- toReceive (\key -> fromMaybe (\_ -> return False) keyh key >> return ()) $ const $ return ()
+        handle <- registerCallback me $ const $ return ()
+        keyhandle <- registerCallback (\key -> fromMaybe (\_ -> return False) keyh key >> return ()) $ const $ return ()
         return $ SWidget w h sc_ handle keyhandle (readMVar rer') rer
 
 

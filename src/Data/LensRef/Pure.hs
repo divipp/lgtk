@@ -130,7 +130,7 @@ instance Monad m => MonadRefWriter (StateT LSt m) where
 ---------------------------------
 
 
-type Register n m = ReaderT (Ref m (MonadMonoid m, Command -> MonadMonoid n)) m
+type Register n m = ReaderT (Ref m (MonadMonoid m, RegisteredCallbackCommand -> MonadMonoid n)) m
 
 newtype Pure n a = Pure { unPure :: ReaderT (SLSt n () -> n ()) (Register n (SLSt n)) a } deriving (Monad, Applicative, Functor)
 
@@ -175,7 +175,7 @@ instance Monad n => MonadRegister (Pure n) where
     onChange_ r b0 c0 f = Pure $ ReaderT $ \ff ->
         toSend lift r b0 c0 $ \b b' c' -> liftM (\x -> evalRegister ff . x) $ evalRegister ff $ f b b' c'
 
-    toReceive f g = Pure $ ReaderT $ \ff -> do
+    registerCallback f g = Pure $ ReaderT $ \ff -> do
         tell' (mempty, MonadMonoid . g)
         writerstate <- ask
         return $ fmap (ff . flip runReaderT writerstate . evalRegister ff . unRegW) f

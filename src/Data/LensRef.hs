@@ -23,11 +23,11 @@ module Data.LensRef
 
     -- ** Dynamic networks
     , MonadRegister (..)
-    , Command (..)
+    , RegisteredCallbackCommand (..)
 
     -- * Derived constructs
     , modRef
-    , toReceive1
+    , registerCallback1
     , rEffect
     , iReallyWantToModify
 --    , undoTr
@@ -280,10 +280,10 @@ class (MonadRefCreator m, Monad (EffectM m), MonadRefWriter (Modifier m), MonadR
 
     liftModifier :: m a -> Modifier m a
 
-    toReceive :: Functor f => f (Modifier m ()) -> (Command -> EffectM m ()) -> m (f (EffectM m ()))
+    registerCallback :: Functor f => f (Modifier m ()) -> (RegisteredCallbackCommand -> EffectM m ()) -> m (f (EffectM m ()))
 
 -- | TODO
-data Command = Kill | Block | Unblock deriving (Eq, Ord, Show)
+data RegisteredCallbackCommand = Kill | Block | Unblock deriving (Eq, Ord, Show)
 
 
 
@@ -293,9 +293,9 @@ data Command = Kill | Block | Unblock deriving (Eq, Ord, Show)
 
 
 -- | TODO
-toReceive1 :: MonadRegister m => Modifier m () -> (Command -> EffectM m ()) -> m (EffectM m ())
-toReceive1 m c = do
-    f <- toReceive (const m) c
+registerCallback1 :: MonadRegister m => Modifier m () -> (RegisteredCallbackCommand -> EffectM m ()) -> m (EffectM m ())
+registerCallback1 m c = do
+    f <- registerCallback (const m) c
     return $ f ()
 
 -- | TODO
@@ -310,7 +310,7 @@ r `modRef` f = readRef r >>= writeRef r . f
 -- | TODO
 iReallyWantToModify :: MonadRegister m => Modifier m () -> m ()
 iReallyWantToModify r = do
-    x <- toReceive1 r $ const $ return ()
+    x <- registerCallback1 r $ const $ return ()
     liftEffectM x
 
 
