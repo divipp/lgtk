@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# OPTIONS_HADDOCK hide #-}
 {- |
 Fast reference implementation for the @ExtRef@ interface.
 
@@ -30,8 +31,8 @@ import Data.LensRef
 
 ----------------------
 
-newtype instance RefState IO a
-    = RSR { runRSR :: IO a }
+newtype instance RefWriterOf IO a
+    = RefWriterOfIO { runRefWriterOfIO :: IO a }
         deriving (Monad, Applicative, Functor)
 
 ----------------------
@@ -52,7 +53,7 @@ instance Reference Lens_ where
     type RefReader Lens_ = IO
 
     readRef = readPart . joinLens
-    writeRef_ m = RSR . writePart (joinLens m)
+    writeRef_ m = RefWriterOfIO . writePart (joinLens m)
     lensMap l m = do
         Lens_ r w t <- m
         return $ Lens_
@@ -140,7 +141,7 @@ memoWrite_ g = do
 
 
 instance ExtRefWrite IO where
-    liftWriteRef = runRSR
+    liftWriteRef = runRefWriterOfIO
 
 
 ---------------------------------

@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# OPTIONS_HADDOCK hide #-}
 {- |
 Pure reference implementation for the @ExtRef@ interface.
 
@@ -30,8 +31,8 @@ import Data.LensRef
 
 ----------------------
 
-newtype instance RefState (ReaderT s m) a
-    = RSR { runRSR :: StateT s m a }
+newtype instance RefWriterOf (ReaderT s m) a
+    = RefWriterOfReaderT { runRefWriterOfReaderT :: StateT s m a }
         deriving (Monad, Applicative, Functor, MonadReader s, MonadState s)
 
 ----------------------
@@ -111,7 +112,7 @@ memoWrite_ g = do
             return a
 
 instance Monad m => ExtRefWrite (StateT LSt m) where
-    liftWriteRef = state . runState . runRSR
+    liftWriteRef = state . runState . runRefWriterOfReaderT
 
 
 ---------------------------------

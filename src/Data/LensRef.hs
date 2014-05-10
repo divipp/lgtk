@@ -1,13 +1,14 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# OPTIONS_HADDOCK prune #-}
 module Data.LensRef
     (
     -- * Core
 
     -- ** References
       Reference (..)
-    , RefState
+    , RefWriterOf
     , RefWriter
     , MRef
 
@@ -26,7 +27,6 @@ module Data.LensRef
     -- * Derived constructs
     , modRef
     , readRef'
-    , memoRead
     , toReceive1
     , rEffect
     , iReallyWantToModify
@@ -60,10 +60,6 @@ The join operation is 'join' from "Control.Monad":
 If @(r :: RefReader r (MRef r a))@ then @(join r :: MRef r a)@.
 This is possible because reference operations work with @(RefReader r (r a))@ instead
 of just @(r a)@. For more compact type signatures, @(RefReader r (r a))@ is called @(MRef r a)@.
-
-There are two associated type of a reference, 'RefReader' and 'RefWriter' which determines each-other.
-This is implemented by putting only 'RefReader' into the 'Reference' class and
-adding a 'RefState' data family outside of 'Reference'.
 -}
 class (Monad (RefReader r), Monad (RefWriter r)) => Reference r where
 
@@ -80,6 +76,14 @@ class (Monad (RefReader r), Monad (RefWriter r)) => Reference r where
     lensMap :: Lens' a b -> MRef r a -> MRef r b
 
     {- | Associated reader monad.
+
+    @(RefReader m)@ is ismoroprhic to @('Reader' x)@ for some @x@.
+    Laws which ensures this isomorphism (@(r :: RefReader m a)@ is arbitrary):
+
+    prop> r >> return ()  =  return ()
+    prop> liftM2 (,) r r  =  liftM (\a -> (a, a)) r
+
+    See also <http://stackoverflow.com/questions/16123588/what-is-this-special-functor-structure-called>
     -}
     type RefReader r :: * -> *
 
@@ -102,20 +106,16 @@ class (Monad (RefReader r), Monad (RefWriter r)) => Reference r where
     writeRef_ :: MRef r a -> a -> RefWriter r ()
 
 
-{- | Law: @(RefState m)@  ===  @('Reader' x)@ for some @x@.
+data family RefWriterOf (m :: * -> *) a :: *
 
-Alternative laws which ensures this isomorphism (@r :: (RefState m a)@ is arbitrary):
+{- |
+There are two associated types of a reference, 'RefReader' and 'RefWriter' which determines each-other.
+This is implemented by putting only 'RefReader' into the 'Reference' class and
+adding a @RefWriterOf@ data family outside of 'Reference'.
 
- *  @(r >> return ())@ === @return ()@
-
- *  @liftM2 (,) r r@ === @liftM (\a -> (a, a)) r@
-
-See also <http://stackoverflow.com/questions/16123588/what-is-this-special-functor-structure-called>
+@RefWriterOf@ is hidden from the documentation because you never need it explicitly.
 -}
-data family RefState (m :: * -> *) a :: *
-
-type RefWriter m = RefState (RefReader m)
-
+type RefWriter m = RefWriterOf (RefReader m)
 
 -- | Reference wrapped into a RefReader monad. See the documentation of 'Reference'.
 type MRef r a = RefReader r (r a)
@@ -407,7 +407,7 @@ correction r = do
 rEffect  :: (EffRef m, Eq a) => ReadRef m a -> (a -> EffectM m b) -> m (ReadRef m b)
 rEffect r f = onChangeSimple r $ liftEffectM . f
 
--- | @modRef r f@ === @liftRefStateReader (readRef r) >>= writeRef r . f@
+-- | @modRef r f@ === @readRef' r >>= writeRef r . f@
 modRef :: (ExtRefWrite m, Reference r, RefReader r ~ ReadRef m) => MRef r a -> (a -> a) -> m ()
 r `modRef` f = readRef' r >>= writeRef r . f
 
