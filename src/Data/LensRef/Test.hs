@@ -46,7 +46,7 @@ instance (ExtRef m, Monoid w) => ExtRef (WriterT w m) where
 
     extRef x y a = lift $ extRef x y a
 
-instance (ExtRefWrite m, Monoid w) => ExtRefWrite (WriterT w m) where
+instance (ExtRef m, ExtRefWrite m, Monoid w) => ExtRefWrite (WriterT w m) where
 
     liftWriteRef = lift . liftWriteRef
 

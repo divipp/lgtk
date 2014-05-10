@@ -93,7 +93,7 @@ instance Monad m => ExtRef (StateT LSt m) where
 
     future = future_
 
-future_ :: ExtRefWrite m => (ReadRef m a -> m a) -> m a
+future_ :: (ExtRef m, ExtRefWrite m) => (ReadRef m a -> m a) -> m a
 future_ f = do
     s <- newRef $ error "can't see the future"
     a <- f $ readRef s
@@ -209,7 +209,7 @@ runPure newChan (Pure m) = do
 
 
 toSend
-    :: (Eq b, ExtRefWrite m, Monad n)
+    :: (Eq b, ExtRef m, ExtRefWrite m, Monad n)
     => (n () -> m ())
     -> ReadRef m b
     -> b -> (b -> c)
@@ -264,7 +264,7 @@ runRefWriterT m = do
     a <- runReaderT m r
     return (a, r)
 
-tell' :: (Monoid w, ExtRefWrite m) => w -> RefWriterT w m ()
+tell' :: (Monoid w, ExtRef m, ExtRefWrite m) => w -> RefWriterT w m ()
 tell' w = ReaderT $ \m -> readRef m >>= writeRef m . (`mappend` w)
 
 -------------

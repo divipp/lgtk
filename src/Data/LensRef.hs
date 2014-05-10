@@ -145,6 +145,16 @@ readRef :: (RefReader_ m, Reference r, ReadRef m ~ RefReader r) => MRef r a -> m
 readRef = liftReadRef . readRef_
 
 
+-- | TODO
+class RefReader_ m => ExtRefWrite m where
+
+    liftWriteRef :: WriteRef m a -> m a
+
+    writeRef :: (Reference r, RefReader r ~ ReadRef m) => MRef r a -> a -> m ()
+    writeRef r a = liftWriteRef $ writeRef_ r a
+
+
+
 
 
 {- | Monad for reference creation. Reference creation is not a method
@@ -215,18 +225,9 @@ type ReadRef m = RefReader (RefCore m)
 type WriteRef m = RefWriter (RefCore m)
 
 
--- | TODO
-class ExtRef m => ExtRefWrite m where
-
-    liftWriteRef :: WriteRef m a -> m a
-
-    writeRef :: (Reference r, RefReader r ~ ReadRef m) => MRef r a -> a -> m ()
-    writeRef r a = liftWriteRef $ writeRef_ r a
-
-
 
 -- | Monad for dynamic actions
-class (ExtRef m, Monad (EffectM m), ExtRefWrite (Modifier m), RefCore (Modifier m) ~ RefCore m) => EffRef m where
+class (ExtRef m, Monad (EffectM m), ExtRefWrite (Modifier m), ExtRef (Modifier m), RefCore (Modifier m) ~ RefCore m) => EffRef m where
 
     type EffectM m :: * -> *
 
