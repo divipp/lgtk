@@ -10,7 +10,7 @@ module Data.LensRef
       Reference (..)
     , RefWriterOf
     , RefWriter
-    , MRef
+    , RefSimple
 
     , MonadRefReader (..)
     , MonadRefWriter (..)
@@ -57,9 +57,9 @@ import Control.Lens (Lens', lens, set, (^.))
 Type class for references which can be joined and on which lenses can be applied.
 
 The join operation is 'join' from "Control.Monad":
-If @(r :: RefReader r (MRef r a))@ then @(join r :: MRef r a)@.
+If @(r :: RefReader r (RefSimple r a))@ then @(join r :: RefSimple r a)@.
 This is possible because reference operations work with @(RefReader r (r a))@ instead
-of just @(r a)@. For more compact type signatures, @(RefReader r (r a))@ is called @(MRef r a)@.
+of just @(r a)@. For more compact type signatures, @(RefReader r (r a))@ is called @(RefSimple r a)@.
 -}
 class (MonadRefWriter (RefWriter r), MonadRefReader (RefReader r), ReadRef (RefReader r) ~ RefReader r) => Reference r where
 
@@ -69,11 +69,11 @@ class (MonadRefWriter (RefWriter r), MonadRefReader (RefReader r), ReadRef (RefR
 
     prop> writeRef unitRef () >> m  =  m
     -}
-    unitRef :: MRef r ()
+    unitRef :: RefSimple r ()
 
     {- | Apply a lens on a reference.
     -}
-    lensMap :: Lens' a b -> MRef r a -> MRef r b
+    lensMap :: Lens' a b -> RefSimple r a -> RefSimple r b
 
     {- | Associated reader monad.
 
@@ -93,7 +93,7 @@ class (MonadRefWriter (RefWriter r), MonadRefReader (RefReader r), ReadRef (RefR
 
     prop> readRef r >> return ())  =  return ()
     -}
-    readRefSimple  :: MRef r a -> RefReader r a
+    readRefSimple  :: RefSimple r a -> RefReader r a
 
     {- | Reference write.
 
@@ -103,7 +103,7 @@ class (MonadRefWriter (RefWriter r), MonadRefReader (RefReader r), ReadRef (RefR
     prop> writeRef r a >> readRef r)  =  return a
     prop> writeRef r a >> writeRef r a')  =  writeRef r a'
     -}
-    writeRefSimple :: MRef r a -> a -> RefWriter r ()
+    writeRefSimple :: RefSimple r a -> a -> RefWriter r ()
 
 
 data family RefWriterOf (m :: * -> *) a :: *
@@ -118,7 +118,7 @@ adding a @RefWriterOf@ data family outside of 'Reference'.
 type RefWriter m = RefWriterOf (RefReader m)
 
 -- | Reference wrapped into a RefReader monad. See the documentation of 'Reference'.
-type MRef r a = RefReader r (r a)
+type RefSimple r a = RefReader r (r a)
 
 infixr 8 `lensMap`
 
@@ -138,7 +138,7 @@ class Monad m => MonadRefReader m where
 
     @readRef@ === @liftReadRef . readRefSimple@
     -}
-    readRef :: (Reference r, ReadRef m ~ RefReader r) => MRef r a -> m a
+    readRef :: (Reference r, ReadRef m ~ RefReader r) => RefSimple r a -> m a
     readRef = liftReadRef . readRefSimple
 
 
@@ -149,7 +149,7 @@ type ReadRef m = RefReader (RefCore m)
 type WriteRef m = RefWriter (RefCore m)
 
 -- | TODO
-type Ref m a = ReadRef m (RefCore m a)
+type Ref m a = RefSimple (RefCore m) a
 
 
 
@@ -158,7 +158,7 @@ class MonadRefReader m => MonadRefWriter m where
 
     liftWriteRef :: WriteRef m a -> m a
 
-    writeRef :: (Reference r, RefReader r ~ ReadRef m) => MRef r a -> a -> m ()
+    writeRef :: (Reference r, RefReader r ~ ReadRef m) => RefSimple r a -> a -> m ()
     writeRef r = liftWriteRef . writeRefSimple r
 
 
@@ -302,7 +302,7 @@ rEffect  :: (EffRef m, Eq a) => ReadRef m a -> (a -> EffectM m b) -> m (ReadRef 
 rEffect r f = onChangeSimple r $ liftEffectM . f
 
 -- | @modRef r f@ === @readRef r >>= writeRef r . f@
-modRef :: (MonadRefWriter m, Reference r, RefReader r ~ ReadRef m) => MRef r a -> (a -> a) -> m ()
+modRef :: (MonadRefWriter m, Reference r, RefReader r ~ ReadRef m) => RefSimple r a -> (a -> a) -> m ()
 r `modRef` f = readRef r >>= writeRef r . f
 
 
@@ -319,7 +319,7 @@ iReallyWantToModify r = do
 
 -}
 class Reference r => EqReference r where
-    valueIsChanging :: MRef r a -> RefReader r (a -> Bool)
+    valueIsChanging :: RefSimple r a -> RefReader r (a -> Bool)
 
 {- | @hasEffect r f@ returns @False@ iff @(modRef m f)@ === @(return ())@.
 
@@ -329,7 +329,7 @@ class Reference r => EqReference r where
 -}
 hasEffect
     :: EqReference r
-    => MRef r a
+    => RefSimple r a
     -> (a -> a)
     -> RefReader r Bool
 hasEffect r f = do
@@ -353,7 +353,7 @@ type EqRef r a = RefReader r (EqRefCore r a)
 
 {- | @EqRef@ construction.
 -}
-eqRef :: (Reference r, Eq a) => MRef r a -> EqRef r a
+eqRef :: (Reference r, Eq a) => RefSimple r a -> EqRef r a
 eqRef r = do
     a <- readRef r
     r_ <- r
@@ -367,7 +367,7 @@ newEqRef = liftM eqRef . newRef
 
 @toRef m@ === @join $ liftM (uncurry lensMap) m@
 -}
-toRef :: Reference r => EqRef r a -> MRef r a
+toRef :: Reference r => EqRef r a -> RefSimple r a
 toRef m = m >>= \(EqRefCore r _) -> return r
 
 instance Reference r => EqReference (EqRefCore r) where
@@ -412,10 +412,10 @@ instance Reference r => Reference (CorrRefCore r) where
 
     unitRef = corrRef (const Nothing) unitRef
 
-fromCorrRef :: Reference r => CorrRef r a -> MRef r a
+fromCorrRef :: Reference r => CorrRef r a -> RefSimple r a
 fromCorrRef m = m >>= \(CorrRefCore r _) -> return r
 
-corrRef :: Reference r => (a -> Maybe a) -> MRef r a -> CorrRef r a
+corrRef :: Reference r => (a -> Maybe a) -> RefSimple r a -> CorrRef r a
 corrRef f r = do
     r_ <- r
     return $ CorrRefCore r_ f

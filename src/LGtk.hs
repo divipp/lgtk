@@ -161,7 +161,7 @@ button r fm = button_ r (liftM isJust fm) (liftReadRef fm >>= maybe (return ()) 
 smartButton
     :: (EffRef m, EqReference r, RefReader r ~ ReadRef m) 
     => ReadRef m String     -- ^ dynamic label of the button
-    -> MRef r a              -- ^ underlying reference
+    -> RefSimple r a              -- ^ underlying reference
     -> (a -> a)   -- ^ The button is active when this function is not identity on value of the reference. When the button is pressed, the value of the reference is modified with this function.
     -> Widget m
 smartButton s r f
@@ -176,11 +176,11 @@ combobox :: EffRef m => [String] -> Ref m Int -> Widget m
 combobox ss r = return $ Combobox ss ((readRef r), writeRef r)
 
 -- | Text entry.
-entry :: (EffRef m, Reference r, RefReader r ~ ReadRef m)  => MRef r String -> Widget m
+entry :: (EffRef m, Reference r, RefReader r ~ ReadRef m)  => RefSimple r String -> Widget m
 entry r = return $ Entry (const True) ((readRef r), writeRef r)
 
 -- | Text entry.
-entryShow :: forall m a r . (EffRef m, Show a, Read a, Reference r, RefReader r ~ ReadRef m) => MRef r a -> Widget m
+entryShow :: forall m a r . (EffRef m, Show a, Read a, Reference r, RefReader r ~ ReadRef m) => RefSimple r a -> Widget m
 entryShow r_ = return $ Entry isOk ((readRef r), writeRef r)
   where
     r = showLens `lensMap` r_
