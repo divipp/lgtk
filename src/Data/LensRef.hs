@@ -27,7 +27,7 @@ module Data.LensRef
 
     -- * Derived constructs
     , modRef
-    , registerCallback1
+    , registerCallbackSimple
     , rEffect
     , iReallyWantToModify
 --    , undoTr
@@ -293,8 +293,8 @@ data RegisteredCallbackCommand = Kill | Block | Unblock deriving (Eq, Ord, Show)
 
 
 -- | TODO
-registerCallback1 :: MonadRegister m => Modifier m () -> (RegisteredCallbackCommand -> EffectM m ()) -> m (EffectM m ())
-registerCallback1 m c = do
+registerCallbackSimple :: MonadRegister m => Modifier m () -> (RegisteredCallbackCommand -> EffectM m ()) -> m (EffectM m ())
+registerCallbackSimple m c = do
     f <- registerCallback (const m) c
     return $ f ()
 
@@ -310,7 +310,7 @@ r `modRef` f = readRef r >>= writeRef r . f
 -- | TODO
 iReallyWantToModify :: MonadRegister m => Modifier m () -> m ()
 iReallyWantToModify r = do
-    x <- registerCallback1 r $ const $ return ()
+    x <- registerCallbackSimple r $ const $ return ()
     liftEffectM x
 
 

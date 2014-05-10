@@ -144,7 +144,7 @@ instance (MonadRegister m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m)
 
     asyncWrite t r = do
         (u, f) <- liftEffectM forkIOs'
-        x <- registerCallback1 r u
+        x <- registerCallbackSimple r u
         liftEffectM $ f [ liftIO_ $ threadDelay t, x ]
 
     fileRef f = do
