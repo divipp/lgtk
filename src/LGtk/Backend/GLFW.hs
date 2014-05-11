@@ -26,7 +26,12 @@ import Diagrams.Prelude hiding (Image)
 --import Diagrams.Backend.Rasterific
 
 -- Cairo
-import Diagrams.Backend.Cairo.Ptr
+import Diagrams.Backend.Cairo.Internal
+import Graphics.Rendering.Cairo ( Format (..)
+                                , formatStrideForWidth
+                                , renderWith
+                                , withImageSurfaceForData
+                                )
 
 import Data.LensRef
 import Data.LensRef.Default
@@ -320,12 +325,8 @@ data Image
 
 createImage :: GLFW.Window -> Int -> Int -> Dia Any -> IO Image -- width height
 createImage win width height dia = do
-    -- render image with cairo backend
-    pixelData <- renderForeignPtrOpaque width height dia
-
     makeContextCurrent (Just win)
-    let iw = fromIntegral width
-        ih = fromIntegral height
+
     fbo <- alloca $! \pbo -> glGenFramebuffers 1 pbo >> peek pbo
     glBindFramebuffer gl_DRAW_FRAMEBUFFER fbo
 
@@ -334,7 +335,22 @@ createImage win width height dia = do
     glBindTexture gl_TEXTURE_2D tex
     glTexParameteri gl_TEXTURE_2D gl_TEXTURE_MAG_FILTER $ fromIntegral gl_NEAREST
     glTexParameteri gl_TEXTURE_2D gl_TEXTURE_MIN_FILTER $ fromIntegral gl_NEAREST
-    withForeignPtr pixelData $ glTexImage2D gl_TEXTURE_2D 0 (fromIntegral gl_RGBA) iw ih 0 (fromIntegral gl_BGRA) gl_UNSIGNED_BYTE
+
+    -- render image with cairo backend
+    let stride = formatStrideForWidth fmt width
+        fmt    = FormatRGB24
+        size   = stride * height
+    allocaArray size $ \pixelData -> do
+        let opt    = CairoOptions
+                { _cairoSizeSpec     = Dims (fromIntegral width) (fromIntegral height)
+                , _cairoOutputType   = RenderOnly
+                , _cairoBypassAdjust = False
+                , _cairoFileName     = ""
+                }
+            (_, r) = renderDia Cairo opt dia
+        withImageSurfaceForData pixelData fmt width height stride (`renderWith` r)
+        glTexImage2D gl_TEXTURE_2D 0 (fromIntegral gl_RGBA) (fromIntegral width) (fromIntegral height) 0 (fromIntegral gl_BGRA) gl_UNSIGNED_BYTE pixelData
+
     glFramebufferTexture2D gl_DRAW_FRAMEBUFFER gl_COLOR_ATTACHMENT0 gl_TEXTURE_2D tex 0
 
     status <- glCheckFramebufferStatus gl_FRAMEBUFFER
