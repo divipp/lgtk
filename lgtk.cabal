@@ -131,7 +131,7 @@ executable lgtkdemo
                     LGtk.Demos.Maze
 
   hs-source-dirs:
-                    main
+                    lgtkdemo
   ghc-options:
                     -threaded
                     -Wall 
