@@ -125,7 +125,7 @@ runWidget desc = do
 
                 -- Cairo
                 image <- createImage win sw sh dia
-                copyImageToScreen (image,Rect 0 0 sw sh) (Screen win,Rect 0 sh sw 0)
+                copyImage (image,Rect 0 0 sw sh) (Screen win,Rect 0 sh sw 0)
                 disposeImage image
 
                 swapBuffers win
@@ -352,10 +352,10 @@ disposeImage img = do
     Foreign.with (imgGLFramebufferObj img) $ glDeleteFramebuffers 1
     Foreign.with (imgGLTextureObj img) $ glDeleteTextures 1
 
-copyImageToScreen :: (Image,Rect) -> (Image,Rect) -> IO ()
-copyImageToScreen (srcImg,Rect srcX1 srcY1 srcX2 srcY2) (dstImg,Rect dstX1 dstY1 dstX2 dstY2)
+copyImage :: (Image,Rect) -> (Image,Rect) -> IO ()
+copyImage (srcImg,Rect srcX1 srcY1 srcX2 srcY2) (dstImg,Rect dstX1 dstY1 dstX2 dstY2)
     | imgGLContext srcImg /= imgGLContext dstImg =
-        putStrLn "copyImageToScreen error: images are from different GL contexts"
+        putStrLn "copyImage error: images are from different GL contexts"
     | otherwise = do
         makeContextCurrent (Just $ imgGLContext srcImg)
         glBindFramebuffer gl_READ_FRAMEBUFFER $ case srcImg of
