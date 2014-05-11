@@ -14,7 +14,6 @@ import Control.Concurrent
 import Control.Monad
 import Control.Monad.Fix
 --import Control.Lens hiding ((#))
-import Data.Vector.Storable (unsafeWith, unsafeFromForeignPtr0)
 import Foreign
 import System.IO
 import Graphics.Rendering.OpenGL.Raw.Core31
@@ -27,10 +26,7 @@ import Diagrams.Prelude hiding (Image)
 --import Diagrams.Backend.Rasterific
 
 -- Cairo
---import Diagrams.Backend.Cairo
 import Diagrams.Backend.Cairo.Ptr
-
-import Codec.Picture
 
 import Data.LensRef
 import Data.LensRef.Default
@@ -123,14 +119,16 @@ runWidget desc = do
                 let dia = dia_ # clearValue # freeze # scale sc # clipped (rect w h) <>
                             rect w h # fc white # lw 0
 
-                -- Cairo
-                image <- imageRGBA8FromUnsafePtr sw sh <$> renderForeignPtrOpaque sw sh dia
-
                 -- Rasterific
                 --let sizeSpec = mkSizeSpec (Just $ fromIntegral w) (Just $ fromIntegral h)
                 --let image = renderDia Rasterific (RasterificOptions sizeSpec) dia
 
-                copyToScreen win (fromIntegral sw) (fromIntegral sh) image
+                -- Cairo
+                image <- createImage win sw sh dia
+                copyImageToScreen (image,Rect 0 0 sw sh) (Screen win,Rect 0 sh sw 0)
+                disposeImage image
+
+                swapBuffers win
 --                putStr "*"
 
                 _ <- swapMVar current' dia_
@@ -305,7 +303,26 @@ runWidget_  m = m >>= \i -> case i of
         return $ SWidget w h sc_ handle keyhandle (readMVar rer') rer
 
 
-copyToScreen win w h (Image width height dat) = do
+-----------------------
+-- backend drawing operations
+
+data Rect = Rect !Int !Int !Int !Int -- x1, y1, x2, y2
+
+data Image
+    = Screen
+        { imgGLContext          :: GLFW.Window
+        }
+    | Image
+        { imgGLContext          :: GLFW.Window
+        , imgGLTextureObj       :: GLuint
+        , imgGLFramebufferObj   :: GLuint
+        }
+
+createImage :: GLFW.Window -> Int -> Int -> Dia Any -> IO Image -- width height
+createImage win width height dia = do
+    -- render image with cairo backend
+    pixelData <- renderForeignPtrOpaque width height dia
+
     makeContextCurrent (Just win)
     let iw = fromIntegral width
         ih = fromIntegral height
@@ -317,53 +334,37 @@ copyToScreen win w h (Image width height dat) = do
     glBindTexture gl_TEXTURE_2D tex
     glTexParameteri gl_TEXTURE_2D gl_TEXTURE_MAG_FILTER $ fromIntegral gl_NEAREST
     glTexParameteri gl_TEXTURE_2D gl_TEXTURE_MIN_FILTER $ fromIntegral gl_NEAREST
-    unsafeWith dat $ glTexImage2D gl_TEXTURE_2D 0 (fromIntegral gl_RGBA) iw ih 0 (fromIntegral gl_BGRA) gl_UNSIGNED_BYTE
+    withForeignPtr pixelData $ glTexImage2D gl_TEXTURE_2D 0 (fromIntegral gl_RGBA) iw ih 0 (fromIntegral gl_BGRA) gl_UNSIGNED_BYTE
     glFramebufferTexture2D gl_DRAW_FRAMEBUFFER gl_COLOR_ATTACHMENT0 gl_TEXTURE_2D tex 0
 
     status <- glCheckFramebufferStatus gl_FRAMEBUFFER
-    if (status /= gl_FRAMEBUFFER_COMPLETE)
-      then do
+    when (status /= gl_FRAMEBUFFER_COMPLETE) $
         putStrLn $ "incomplete framebuffer: " ++ show status
-        glClearColor 1 0 0 1
-        glClear gl_COLOR_BUFFER_BIT
-      else do
-        glBindFramebuffer gl_READ_FRAMEBUFFER fbo
-        glBindFramebuffer gl_DRAW_FRAMEBUFFER 0
-        glBlitFramebuffer 0 ih iw 0 0 0 w h gl_COLOR_BUFFER_BIT gl_LINEAR
+    return $ Image
+        { imgGLContext          = win
+        , imgGLTextureObj       = tex
+        , imgGLFramebufferObj   = fbo
+        }
 
-    glBindFramebuffer gl_READ_FRAMEBUFFER 0
-    glBindFramebuffer gl_DRAW_FRAMEBUFFER 0
-    Foreign.with fbo $ glDeleteFramebuffers 1
-    Foreign.with tex $ glDeleteTextures 1
+disposeImage :: Image -> IO ()
+disposeImage img = do
+    makeContextCurrent (Just $ imgGLContext img)
+    Foreign.with (imgGLFramebufferObj img) $ glDeleteFramebuffers 1
+    Foreign.with (imgGLTextureObj img) $ glDeleteTextures 1
 
-    swapBuffers win
-
-
-imageRGBA8FromUnsafePtr :: Int -> Int -> ForeignPtr Word8 -> Image PixelRGBA8
-imageRGBA8FromUnsafePtr w h ptr = Image w h $ unsafeFromForeignPtr0 ptr (w * h * 4)
-
------------------------
-
-{-
-low level primitives
-
-data Image = { width, height :: Int, Ptr }
-data Point
-data Rect = { corner1, corner2 :: Point }
-
-1.
-resizeCopy :: (Rect, Image) -> (Rect, Image) -> ReaderT x IO ()
-2.
-render :: (Rect, Dia) -> (Rect, Image) -> ReaderT x IO ()
-3.
--- to full screen
-toScreen :: (Rect, Image) -> ReaderT x IO ()
-
-
--}
-
-
-
-
-
-
+copyImageToScreen :: (Image,Rect) -> (Image,Rect) -> IO ()
+copyImageToScreen (srcImg,Rect srcX1 srcY1 srcX2 srcY2) (dstImg,Rect dstX1 dstY1 dstX2 dstY2)
+    | imgGLContext srcImg /= imgGLContext dstImg =
+        putStrLn "copyImageToScreen error: images are from different GL contexts"
+    | otherwise = do
+        makeContextCurrent (Just $ imgGLContext srcImg)
+        glBindFramebuffer gl_READ_FRAMEBUFFER $ case srcImg of
+            Screen {}   -> 0
+            Image {}    -> imgGLFramebufferObj srcImg
+        glBindFramebuffer gl_DRAW_FRAMEBUFFER $ case dstImg of
+            Screen {}   -> 0
+            Image {}    -> imgGLFramebufferObj dstImg
+        let f = fromIntegral
+        glBlitFramebuffer (f $ srcX1) (f $ srcY1) (f $ srcX2) (f $ srcY2)
+                          (f $ dstX1) (f $ dstY1) (f $ dstX2) (f $ dstY2)
+                          gl_COLOR_BUFFER_BIT gl_LINEAR
