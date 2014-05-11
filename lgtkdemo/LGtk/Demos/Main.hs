@@ -1,4 +1,5 @@
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 module LGtk.Demos.Main
@@ -155,6 +156,28 @@ mainWidget = notebook
                 [ canvas 200 200 10 handler Nothing (liftM2 (,) (readRef col) (readRef phase)) $
                     \(c,x) -> circle c # translate (r2 (3,0)) # rotate ((-x) @@ rad) # lw 0.05 # fc blue # value [()]
                 , label $ return "Click on the circle to temporarily enlarge it."
+                ]
+
+            , (,) "Chooser" $ do
+            i <- newRef (0 :: Int, 0 :: Rational)
+            let i1 = _1 `lensMap` i
+                i2 = _2 `lensMap` i
+            _ <- onChangeSimple (readRef i) $ \(i,d) -> do
+                let dd = fromIntegral i - d
+                if dd == 0
+                  then return ()
+                  else do
+                    let s = 2 :: Rational
+                    let f = 25 :: Rational
+                    asyncWrite (round $ 1000000 / f) $ do
+                        writeRef i2 $ d + signum dd * min (abs dd) (s / f)
+            let keyh (SimpleKey Key'Left)  = modRef i1 pred >> return True
+                keyh (SimpleKey Key'Right) = modRef i1 succ >> return True
+                keyh _ = return False
+            vcat
+                [ canvas 200 200 10 (const $ return ()) (Just keyh) (readRef i2) $
+                    \d -> text "12345" # translate (r2 (realToFrac d, 0)) # scale 2 # value ()
+                , label $ liftM show $ readRef i1
                 ]
 
             , (,) "InCanvas" $ inCanvasExample
