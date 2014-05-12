@@ -88,13 +88,11 @@ runWidget_ post' post = toWidget
     -- type Receive n m k a = (RegisteredCallbackCommand -> n ()) -> m (a -> k ())
     reg :: Receive m a -> ((a -> IO ()) -> IO (RegisteredCallbackCommand -> IO ())) -> m (RegisteredCallbackCommand -> IO ())
     reg s f = do
-        rer <- liftIO' newEmptyMVar
+        re <- registerCallback s
         u <- liftEffectM $ liftBaseWith $ \unr -> f $ \x -> do
-            re <- readMVar rer
             _ <- unr $ re x
             return ()
-        re <- registerCallback s $ \x -> liftIO_ . post . u $ x
-        liftIO' $ putMVar rer re
+        getRegionStatus $ \x -> liftIO_ . post . u $ x
         return u
 
     ger :: Eq a => (RegisteredCallbackCommand -> IO ()) -> RefReader m a -> (a -> IO ()) -> m ()

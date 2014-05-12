@@ -122,7 +122,8 @@ instance MonadRegister m => MonadRegister (Wrap m) where
     liftModifier = WrapM . liftModifier . unWrap -- :: m a -> Modifier m a
     onChangeAcc r b bc f = Wrap $ onChangeAcc r b bc $ (fmap . fmap . fmap) (liftM (fmap unWrap) . unWrap) f
     onChangeSimple r f = Wrap $ onChangeSimple r $ fmap unWrap f
-    registerCallback r f = Wrap $ registerCallback (fmap unWrapM r) f
+    registerCallback r = Wrap $ registerCallback (fmap unWrapM r)
+    getRegionStatus g = Wrap $ getRegionStatus g
 
 data IOInstruction a where
     GetArgs :: IOInstruction [String]
@@ -149,7 +150,8 @@ instance (MonadRegister m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m)
 
     asyncWrite t r = do
         (u, f) <- liftEffectM forkIOs'
-        x <- registerCallbackSimple r u
+        x <- registerCallbackSimple r
+        getRegionStatus u
         liftEffectM $ f [ liftIO_ $ threadDelay t, x ]
 
     fileRef f = do
@@ -178,7 +180,8 @@ instance (MonadRegister m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m)
                 watchDir man (directory cf') filt act
 
         (u, ff) <- liftEffectM  forkIOs'
-        re <- registerCallback (writeRef ref) u
+        re <- registerCallback (writeRef ref)
+        getRegionStatus u
         liftEffectM $ ff $ repeat $ liftIO_ (takeMVar v >> r) >>= re
 
         _ <- onChangeEffect (readRef ref) $ \x -> liftIO_ $ do
@@ -201,7 +204,8 @@ instance (MonadRegister m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m)
 
     getLine_ w = do
         (u, f) <- liftEffectM forkIOs'
-        x <- registerCallback w u
+        x <- registerCallback w
+        getRegionStatus u
         liftEffectM $ f [ liftIO_ getLine >>= x ]   -- TODO
     putStr_ s = liftIO' $ putStr s
 
@@ -217,13 +221,9 @@ registerCallback_
     -> (f (EffectM m ()) -> EffectM m (RegisteredCallbackCommand -> EffectM m ()))
     -> m ()
 registerCallback_ w g = do
-    r <- liftIO' $ newMVar $ const $ return ()
-    let h_ comm = do
-            readMVar r >>= ($ comm)
-    c <- registerCallback w h_
+    c <- registerCallback w
     h <- liftEffectM $ g c
-    liftIO' $ putMVar r h
-    return ()
+    getRegionStatus h
 
 -- canonicalizePath may fail if the file does not exsist
 canonicalizePath' p = liftM (F.</> f) $ canonicalizePath d 
