@@ -88,23 +88,23 @@ runWidget_ post' post = toWidget
     liftIO'' :: IO a -> m a
     liftIO'' = liftIO' . post
 
-    -- type Receive n m k a = (RegisteredCallbackCommand -> n ()) -> m (a -> k ())
-    reg :: Receive m a -> ((a -> IO ()) -> IO (RegisteredCallbackCommand -> IO ())) -> m (RegisteredCallbackCommand -> IO ())
+    -- type Receive n m k a = (RegionStatusChange -> n ()) -> m (a -> k ())
+    reg :: Receive m a -> ((a -> IO ()) -> IO (RegionStatusChange -> IO ())) -> m (RegionStatusChange -> IO ())
     reg s f = do
         re <- registerCallback s
         u <- liftEffectM $ liftBaseWith $ \unr -> f $ \x -> do
             _ <- unr $ re x
             return ()
-        getRegionStatus $ \x -> liftIO_ . post . u $ x
+        onRegionStatusChange $ \x -> liftIO_ . post . u $ x
         return u
 
-    ger :: Eq a => (RegisteredCallbackCommand -> IO ()) -> RefReader m a -> (a -> IO ()) -> m ()
+    ger :: Eq a => (RegionStatusChange -> IO ()) -> RefReader m a -> (a -> IO ()) -> m ()
     ger hd s f = liftM (const ()) $ onChangeSimple s $ \a -> liftEffectM . liftBaseWith . const $ post $ do
         hd Block
         f a
         hd Unblock
 
-    nhd :: RegisteredCallbackCommand -> IO ()
+    nhd :: RegionStatusChange -> IO ()
     nhd = const $ return ()
 
     toWidget :: Widget m -> m SWidget
@@ -289,7 +289,7 @@ runWidget_ post' post = toWidget
                         x
             liftM (mapFst (join (readMVar sh) >>)) $ return'' [] w
 
-on' :: GObjectClass x => x -> Signal x c -> c -> IO (RegisteredCallbackCommand -> IO ())
+on' :: GObjectClass x => x -> Signal x c -> c -> IO (RegionStatusChange -> IO ())
 on' o s c = liftM (flip f) $ on o s c where
     f Kill = signalDisconnect
     f Block = signalBlock

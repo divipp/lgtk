@@ -125,11 +125,11 @@ instance (MonadRegister m, MonadRegister (Modifier m)) => MonadRegister (Wrap m)
     --newtype Modifier (Wrap m) a = WrapM { unWrapM :: Modifier m a}
     type Modifier (Wrap m) = Wrap m
     liftEffectM = Wrap . liftEffectM -- :: EffectM m a -> m a
-    liftModifier = id --WrapM . liftModifier . unWrap -- :: m a -> Modifier m a
+    liftToModifier = id --WrapM . liftToModifier . unWrap -- :: m a -> Modifier m a
     onChangeAcc r b bc f = Wrap $ onChangeAcc r b bc $ (fmap . fmap . fmap) (liftM (fmap unWrap) . unWrap) f
     onChangeSimple r f = Wrap $ onChangeSimple r $ fmap unWrap f
     registerCallback r = Wrap $ registerCallback (fmap unWrap r)
-    getRegionStatus g = Wrap $ getRegionStatus g
+    onRegionStatusChange g = Wrap $ onRegionStatusChange g
 
 data IOInstruction a where
     GetArgs :: IOInstruction [String]
@@ -142,7 +142,7 @@ data IOInstruction a where
 
 type SIO = Program IOInstruction
 
-type Handle = RegisteredCallbackCommand -> SIO ()
+type Handle = RegionStatusChange -> SIO ()
 
 instance (MonadRegister m, MonadRegister (Modifier m), MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m) where
 
@@ -157,7 +157,7 @@ instance (MonadRegister m, MonadRegister (Modifier m), MonadBaseControl IO (Effe
     asyncWrite t r = do
         (u, f) <- liftEffectM forkIOs'
         x <- registerCallback $ const r
-        getRegionStatus u
+        onRegionStatusChange u
         liftEffectM $ f [ liftIO_ $ threadDelay t, x () ]
 
     fileRef f = do
@@ -187,7 +187,7 @@ instance (MonadRegister m, MonadRegister (Modifier m), MonadBaseControl IO (Effe
 
         (u, ff) <- liftEffectM  forkIOs'
         re <- registerCallback (writeRef ref)
-        getRegionStatus u
+        onRegionStatusChange u
         liftEffectM $ ff $ repeat $ liftIO_ (takeMVar v >> r) >>= re
 
         _ <- onChangeSimple (readRef ref) $ \x -> liftIO' $ do
@@ -211,11 +211,11 @@ instance (MonadRegister m, MonadRegister (Modifier m), MonadBaseControl IO (Effe
     getLine_ w = do
         (u, f) <- liftEffectM forkIOs'
         x <- registerCallback w
-        getRegionStatus u
+        onRegionStatusChange u
         liftEffectM $ f [ liftIO_ getLine >>= x ]   -- TODO
     putStr_ s = liftIO' $ putStr s
 
-getLine__ :: (String -> IO ()) -> IO (RegisteredCallbackCommand -> IO ())
+getLine__ :: (String -> IO ()) -> IO (RegionStatusChange -> IO ())
 getLine__ f = do
     _ <- forkIO $ forever $ getLine >>= f   -- todo
     return $ const $ return ()
@@ -228,7 +228,7 @@ liftIO' = liftEffectM . liftIO_
 
 liftIO_ = liftBaseWith . const
 
-forkIOs' :: MonadBaseControl IO m => m (RegisteredCallbackCommand -> m (), [m ()] -> m ())
+forkIOs' :: MonadBaseControl IO m => m (RegionStatusChange -> m (), [m ()] -> m ())
 forkIOs' = liftBaseWith $ \run -> do
     x <- newMVar ()
     s <- newEmptyMVar
