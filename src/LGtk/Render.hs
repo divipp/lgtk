@@ -289,7 +289,7 @@ tr sca dkh w = do
             i <- newId
 --            s <- readRef rs
             j <- lift $ newRef (False, ("", ""))
-            _ <- lift $ onChangeSimple rs $ \s -> iReallyWantToModify $ do
+            _ <- lift $ onChangeSimple rs $ \s -> postponeModification $ do
                 writeRef (_2 `lensMap` j) (reverse s, "")
 
             let f (CharKey c) (a,b) = Just (c:a,b)

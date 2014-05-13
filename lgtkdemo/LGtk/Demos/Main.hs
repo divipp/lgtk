@@ -230,7 +230,7 @@ mainWidget = notebook
                 v <- newRef "HOME"
                 lv <- newRef ""
                 _ <- onChange (readRef v) $ \s -> return $
-                    iReallyWantToModify . writeRef lv =<< liftM (maybe "Not in env." show) (lookupEnv s)
+                    postponeModification . writeRef lv =<< liftM (maybe "Not in env." show) (lookupEnv s)
                 vcat
                     [ entry v
                     , label $ readRef lv
