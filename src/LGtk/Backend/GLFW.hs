@@ -41,11 +41,14 @@ import LGtk.Render
 
 -------------------------------
 
+runRegister' :: Wrap (Register IO) a -> IO (a, IO ())
+runRegister' (Wrap m) = runRegister newChan' m
+
 runWidget :: (forall m . (EffIORef m, MonadFix m) => Widget m) -> IO ()
 runWidget desc = do
     hSetBuffering stdout NoBuffering
 
-    (widget, actions) <- runRegister newChan' $ unWrap $ runWidget_ $ inCanvas 800 600 30 desc
+    (widget, actions) <- runRegister' $ runWidget_ $ inCanvas 800 600 30 desc
     _ <- forkIO actions
 
     case widget of

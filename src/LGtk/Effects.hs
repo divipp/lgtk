@@ -83,22 +83,27 @@ putStrLn_ :: EffIORef m => String -> m ()
 putStrLn_ = putStr_ . (++ "\n")
 
 
-newtype Wrap m a = Wrap { unWrap :: m a } deriving (Functor, Applicative, Monad)
+newtype Wrap m a = Wrap { unWrap :: Modifier m a }-- deriving (Functor, Applicative, Monad)
 
-instance MonadFix m => MonadFix (Wrap m) where
+deriving instance MonadRegister m => Monad (Wrap m)
+
+instance (MonadRegister m, MonadFix (Modifier m)) => MonadFix (Wrap m) where
     mfix f = Wrap $ mfix $ unWrap . f
 
-instance MonadRefReader m => MonadRefReader (Wrap m) where
+instance (MonadRegister m) => MonadRefReader (Wrap m) where
     type BaseRef (Wrap m) = BaseRef m
     liftRefReader = Wrap . liftRefReader
 
-instance MonadRefCreator m => MonadRefCreator (Wrap m) where
+instance MonadRegister m => MonadRefCreator (Wrap m) where
     extRef r l = Wrap . extRef r l
     newRef = Wrap . newRef
 
-instance MonadMemo m => MonadMemo (Wrap m) where
+instance MonadRegister m => MonadMemo (Wrap m) where
     memoRead (Wrap m) = liftM Wrap $ Wrap $ memoRead m
 
+instance MonadRegister m => MonadRefWriter (Wrap m) where
+    liftRefWriter = Wrap . liftRefWriter
+{-
 deriving instance (MonadRegister m) => Monad (Modifier (Wrap m))
 
 instance MonadRegister m => MonadRefReader (Modifier (Wrap m)) where
@@ -114,15 +119,16 @@ instance MonadRegister m => MonadRefCreator (Modifier (Wrap m)) where
 
 instance MonadRegister m => MonadRefWriter (Modifier (Wrap m)) where
     liftRefWriter = WrapM . liftRefWriter
-
-instance MonadRegister m => MonadRegister (Wrap m) where
+-}
+instance (MonadRegister m, MonadRegister (Modifier m)) => MonadRegister (Wrap m) where
     type EffectM (Wrap m) = EffectM m
-    newtype Modifier (Wrap m) a = WrapM { unWrapM :: Modifier m a}
+    --newtype Modifier (Wrap m) a = WrapM { unWrapM :: Modifier m a}
+    type Modifier (Wrap m) = Wrap m
     liftEffectM = Wrap . liftEffectM -- :: EffectM m a -> m a
-    liftModifier = WrapM . liftModifier . unWrap -- :: m a -> Modifier m a
+    liftModifier = id --WrapM . liftModifier . unWrap -- :: m a -> Modifier m a
     onChangeAcc r b bc f = Wrap $ onChangeAcc r b bc $ (fmap . fmap . fmap) (liftM (fmap unWrap) . unWrap) f
     onChangeSimple r f = Wrap $ onChangeSimple r $ fmap unWrap f
-    registerCallback r = Wrap $ registerCallback (fmap unWrapM r)
+    registerCallback r = Wrap $ registerCallback (fmap unWrap r)
     getRegionStatus g = Wrap $ getRegionStatus g
 
 data IOInstruction a where
@@ -138,7 +144,7 @@ type SIO = Program IOInstruction
 
 type Handle = RegisteredCallbackCommand -> SIO ()
 
-instance (MonadRegister m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m) where
+instance (MonadRegister m, MonadRegister (Modifier m), MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m) where
 
     getArgs     = liftIO' Env.getArgs
 
