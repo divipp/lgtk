@@ -95,11 +95,11 @@ runWidget_ post' post = toWidget
         u <- liftEffectM $ liftBaseWith $ \unr -> f $ \x -> do
             _ <- unr $ re x
             return ()
-        onRegionStatusChange $ \x -> liftIO_ . post . u $ x
+        onRegionStatusChange (liftIO'' . u $)
         return u
 
     ger :: Eq a => (RegionStatusChange -> IO ()) -> RefReader m a -> (a -> IO ()) -> m ()
-    ger hd s f = liftM (const ()) $ onChangeSimple s $ \a -> liftEffectM . liftBaseWith . const $ post $ do
+    ger hd s f = liftM (const ()) $ onChangeSimple s $ \a -> liftIO'' $ do
         hd Block
         f a
         hd Unblock

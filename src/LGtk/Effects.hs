@@ -85,6 +85,8 @@ putStrLn_ = putStr_ . (++ "\n")
 
 newtype Wrap m a = Wrap { unWrap :: Modifier m a }-- deriving (Functor, Applicative, Monad)
 
+--deriving instance MonadRegister m => Functor (Wrap m)
+--deriving instance MonadRegister m => Applicative (Wrap m)
 deriving instance MonadRegister m => Monad (Wrap m)
 
 instance (MonadRegister m, MonadFix (Modifier m)) => MonadFix (Wrap m) where
@@ -129,7 +131,7 @@ instance (MonadRegister m, MonadRegister (Modifier m)) => MonadRegister (Wrap m)
     onChangeAcc r b bc f = Wrap $ onChangeAcc r b bc $ (fmap . fmap . fmap) (liftM (fmap unWrap) . unWrap) f
     onChangeSimple r f = Wrap $ onChangeSimple r $ fmap unWrap f
     registerCallback r = Wrap $ registerCallback (fmap unWrap r)
-    onRegionStatusChange g = Wrap $ onRegionStatusChange g
+    onRegionStatusChange g = Wrap $ onRegionStatusChange $ unWrap . g
 
 data IOInstruction a where
     GetArgs :: IOInstruction [String]
@@ -157,7 +159,7 @@ instance (MonadRegister m, MonadRegister (Modifier m), MonadBaseControl IO (Effe
     asyncWrite t r = do
         (u, f) <- liftEffectM forkIOs'
         x <- registerCallback $ const r
-        onRegionStatusChange u
+        onRegionStatusChange $ liftEffectM . u
         liftEffectM $ f [ liftIO_ $ threadDelay t, x () ]
 
     fileRef f = do
@@ -187,7 +189,7 @@ instance (MonadRegister m, MonadRegister (Modifier m), MonadBaseControl IO (Effe
 
         (u, ff) <- liftEffectM  forkIOs'
         re <- registerCallback (writeRef ref)
-        onRegionStatusChange u
+        onRegionStatusChange $ liftEffectM . u
         liftEffectM $ ff $ repeat $ liftIO_ (takeMVar v >> r) >>= re
 
         _ <- onChangeSimple (readRef ref) $ \x -> liftIO' $ do
@@ -211,7 +213,7 @@ instance (MonadRegister m, MonadRegister (Modifier m), MonadBaseControl IO (Effe
     getLine_ w = do
         (u, f) <- liftEffectM forkIOs'
         x <- registerCallback w
-        onRegionStatusChange u
+        onRegionStatusChange $ liftEffectM . u
         liftEffectM $ f [ liftIO_ getLine >>= x ]   -- TODO
     putStr_ s = liftIO' $ putStr s
 
