@@ -150,9 +150,9 @@ instance (MonadRegister m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m)
 
     asyncWrite t r = do
         (u, f) <- liftEffectM forkIOs'
-        x <- registerCallbackSimple r
+        x <- registerCallback $ const r
         getRegionStatus u
-        liftEffectM $ f [ liftIO_ $ threadDelay t, x ]
+        liftEffectM $ f [ liftIO_ $ threadDelay t, x () ]
 
     fileRef f = do
         ms <- liftIO' r
@@ -184,7 +184,7 @@ instance (MonadRegister m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m)
         getRegionStatus u
         liftEffectM $ ff $ repeat $ liftIO_ (takeMVar v >> r) >>= re
 
-        _ <- onChangeEffect (readRef ref) $ \x -> liftIO_ $ do
+        _ <- onChangeSimple (readRef ref) $ \x -> liftIO' $ do
             join $ takeMVar vman
             _ <- tryTakeMVar v
             w x
@@ -214,23 +214,13 @@ getLine__ f = do
     _ <- forkIO $ forever $ getLine >>= f   -- todo
     return $ const $ return ()
 
---registerCallback_ :: Functor f => f (Modifier m ()) -> (RegisteredCallbackCommand -> EffectM m ()) -> m (f (EffectM m ()))
-registerCallback_
-    :: (MonadRegister m, EffectM m ~ IO, Functor f)
-    => f (Modifier m ())
-    -> (f (EffectM m ()) -> EffectM m (RegisteredCallbackCommand -> EffectM m ()))
-    -> m ()
-registerCallback_ w g = do
-    c <- registerCallback w
-    h <- liftEffectM $ g c
-    getRegionStatus h
-
 -- canonicalizePath may fail if the file does not exsist
 canonicalizePath' p = liftM (F.</> f) $ canonicalizePath d 
   where (d,f) = F.splitFileName p
 
-liftIO' m = liftEffectM $ liftIO_ m
+liftIO' = liftEffectM . liftIO_
 
+liftIO_ = liftBaseWith . const
 
 forkIOs' :: MonadBaseControl IO m => m (RegisteredCallbackCommand -> m (), [m ()] -> m ())
 forkIOs' = liftBaseWith $ \run -> do
@@ -252,5 +242,4 @@ forkIOs' = liftBaseWith $ \run -> do
     i <- forkIO g
     return (liftIO_ . f i, liftIO_ . putMVar s)
 
-liftIO_ = liftBaseWith . const
 
