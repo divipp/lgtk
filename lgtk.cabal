@@ -45,9 +45,9 @@ library
                     base < 5
 
                   , groups == 0.4.*
-                  , semigroups == 0.13.*
-                  , transformers == 0.3.*
-                  , mtl == 2.1.*
+                  , semigroups >= 0.13 && < 0.15
+                  , transformers >= 0.3 && < 0.5
+                  , mtl >= 2 && < 2.3
                   , monad-control == 0.3.*
                   , operational == 0.2.*
                   , lens == 4.1.*
@@ -104,7 +104,7 @@ executable lgtkdemo
   build-depends:
                     base < 5
 
-                  , mtl == 2.1.*
+                  , mtl >= 2 && < 2.3
                   , lens == 4.1.*
 
                   , containers == 0.5.*
