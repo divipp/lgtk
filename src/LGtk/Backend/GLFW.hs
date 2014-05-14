@@ -9,7 +9,7 @@ module LGtk.Backend.GLFW
 
 import Data.Char
 import Data.Maybe
-import Control.Applicative
+--import Control.Applicative
 import Control.Concurrent
 import Control.Monad
 import Control.Monad.Fix
@@ -38,6 +38,7 @@ import Data.LensRef.Default
 import LGtk.Effects
 import LGtk.Widgets
 import LGtk.Render
+import LGtk.Key
 
 -------------------------------
 

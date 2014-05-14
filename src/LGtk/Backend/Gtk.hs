@@ -23,6 +23,7 @@ import qualified Graphics.UI.Gtk as Gtk
 import Data.LensRef
 import Data.LensRef.Default
 import LGtk.Effects
+import LGtk.Key
 import LGtk.Widgets
 
 import Diagrams.Prelude

@@ -26,7 +26,7 @@ import Data.Colour.SRGB
 import Unsafe.Coerce
 
 import Data.LensRef
---import LGtk.Effects
+import LGtk.Key
 import LGtk.Widgets
 
 ----------------------
