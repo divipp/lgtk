@@ -9,7 +9,11 @@
 -- | Main LGtk interface.
 module LGtk
     (
+    -- * References
       module Data.LensRef
+
+    -- ** Derived constructs
+    , undoTr
 
     -- * I/O
     , getArgs
@@ -25,33 +29,33 @@ module LGtk
     -- ** Derived constructs
     , putStrLn_
 
-    , undoTr
-
     -- * GUI
 
-    -- ** Running
+    -- ** Events
+    , MouseEvent (..)
+    , MousePos (..)
+    , module LGtk.Key
+
+    -- ** Running a widget
     , Widget
     , runWidget
 
-    -- ** GUI descriptions
+    -- ** GUI elements
     , label
     , checkbox
     , combobox
     , entry
-    , vcat
-    , hcat
     , button_
     , Colour, sRGB
     , notebook
+    , hscale
+    , vcat
+    , hcat
     , cell_
+
+    -- ** Diagrams canvas
     , canvas
     , Dia
-    , MouseEvent (..)
-    , MousePos (..)
-    , module LGtk.Key
-    , hscale
-
-    -- ** Rendering into a canvas
     , inCanvas
 
     -- ** Derived constructs
@@ -113,6 +117,7 @@ It leaves the event cycle when the window is closed.
 instance MonadRefState m => IsString (RefStateReader m String) where
     fromString = return
 -}
+
 -- | Vertical composition of widgets.
 vcat :: Monad m => [Widget m] -> Widget m
 vcat = return . List Vertical
@@ -148,6 +153,7 @@ button_
     -> Widget m
 button_ r x y = return $ Button (r) (x) Nothing (\() -> y)
 
+-- | Button
 button
     :: MonadRegister m
     => RefReader m String     -- ^ dynamic label of the button
@@ -155,8 +161,7 @@ button
     -> Widget m
 button r fm = button_ r (liftM isJust fm) (liftRefReader fm >>= maybe (return ()) id)
 
-
-
+-- | Button which inactivates itself automatically.
 smartButton
     :: (MonadRegister m, EqRefClass r, RefReaderSimple r ~ RefReader m) 
     => RefReader m String     -- ^ dynamic label of the button
@@ -170,7 +175,7 @@ smartButton s r f
 checkbox :: MonadRegister m => Ref m Bool -> Widget m
 checkbox r = return $ Checkbox ((readRef r), writeRef r)
 
--- | Simple combo box.
+-- | Combo box.
 combobox :: MonadRegister m => [String] -> Ref m Int -> Widget m
 combobox ss r = return $ Combobox ss ((readRef r), writeRef r)
 
@@ -178,7 +183,7 @@ combobox ss r = return $ Combobox ss ((readRef r), writeRef r)
 entry :: (MonadRegister m, RefClass r, RefReaderSimple r ~ RefReader m)  => RefSimple r String -> Widget m
 entry r = return $ Entry (const True) ((readRef r), writeRef r)
 
--- | Text entry.
+-- | Text entry with automatic show-read conversion.
 entryShow :: forall m a r . (MonadRegister m, Show a, Read a, RefClass r, RefReaderSimple r ~ RefReader m) => RefSimple r a -> Widget m
 entryShow r_ = return $ Entry isOk ((readRef r), writeRef r)
   where
@@ -224,15 +229,16 @@ The inner widgets are not memoised.
 cellNoMemo :: (MonadRegister m, Eq a) => RefReader m a -> (a -> Widget m) -> Widget m
 cellNoMemo r m = cell_ r $ \mk -> return . mk . m
 
+-- | Diagrams canvas.
 canvas
     :: (MonadRegister m, Eq b, Monoid a, Semigroup a)
     => Int   -- ^ width
     -> Int   -- ^ height
     -> Double  -- ^ scale
-    -> ((MouseEvent a, Dia a) -> Modifier m ())
-    -> KeyboardHandler (Modifier m)
-    -> RefReader m b
-    -> (b -> Dia a)
+    -> ((MouseEvent a, Dia a) -> Modifier m ()) -- ^ mouse event handler
+    -> KeyboardHandler (Modifier m) -- ^ keyboard event handler
+    -> RefReader m b -- ^ state references
+    -> (b -> Dia a) -- ^ diagrams renderer
     -> Widget m
 canvas w h sc me kh r f = return $ Canvas w h sc me kh r f
 
