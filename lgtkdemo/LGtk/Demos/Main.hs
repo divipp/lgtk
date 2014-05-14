@@ -23,11 +23,11 @@ main :: IO ()
 main = runWidget mainWidget
 
 mainWidget = notebook
-    [ (,) "Widget Elements" $ notebook
+    [ (,) "Simple" $ notebook
 
-        [ (,) "Hello" $ label $ return "Hello World!"
+--      , (,) "Hello" $ label $ return "Hello World!"
 
-        , (,) "Counters" $ notebook
+        [ (,) "Counters" $ notebook
 
             [ (,) "Unbounded" $ do
                 c <- newEqRef (0 :: Int)
@@ -65,6 +65,7 @@ mainWidget = notebook
 
             ]
 
+{-
         , (,) "Buttons" $ do
             x <- newRef (0 :: Int)
             let is = [0 :: Double, 0.5, 1]
@@ -83,8 +84,63 @@ mainWidget = notebook
                     ]
 
             ]
+-}
 
-        , (,) "Canvas" $ notebook
+        , (,) "Tri" tri
+
+        , (,) "T-Editor" $ notebook
+
+            [ (,) "Version 1" $ do
+                t <- newRef $ iterate (Node Leaf) Leaf !! 10
+                hcat
+                    [ canvas 200 200 20 (const $ return ()) Nothing (readRef t) $
+                        \x -> tPic 0 x # value () # lw 0.05 # translate (r2 (0,10))
+                    , tEditor3 t
+                    ]
+
+            , (,) "Version 2" tEditor1
+            ]
+
+        , (,) "Notebook" $ notebook
+
+            [ (,) "Version 2" $ do
+                buttons <- newRef ("",[])
+                let ctrl = entry $ lens fst (\(_,xs) x -> ("",x:xs)) `lensMap` buttons
+                    h b = do
+                        q <- extRef b listLens (False, ("", []))
+                        cell (liftM fst $ readRef q) $ \bb -> case bb of
+                            False -> empty
+                            _ -> do
+                                vcat $ reverse
+                                    [ h $ _2 . _2 `lensMap` q
+                                    , hcat
+                                        [ button (return "Del") $ return $ Just $ modRef b tail
+                                        , label $ readRef $ _2 . _1 `lensMap` q
+                                        ]
+                                    ]
+                vcat $ [ctrl, h $ _2 `lensMap` buttons]
+
+            , (,) "Version 1" $ do
+                buttons <- newRef ("",[])
+                let h i b = hcat
+                       [ label $ return b
+                       , button (return "Del") $ return $ Just $ modRef (_2 `lensMap` buttons) $ \l -> take i l ++ drop (i+1) l
+                       ]
+                    set (a,xs) x
+                        | a /= x = ("",x:xs)
+                        | otherwise = (a,xs)
+                vcat
+                    [ entry $ lens fst set `lensMap` buttons
+                    , cell (liftM snd $ readRef buttons) $ vcat . zipWith h [0..]
+                    ]
+
+            ]
+
+        ]
+
+    , (,) "Canvas" $ notebook
+
+        [ (,) "NotReactive" $ notebook
 
             [ (,) "Dynamic" $ do
             r <- newRef (3 :: Double)
@@ -98,89 +154,100 @@ mainWidget = notebook
                 ]
 
             , (,) "Animation" $ do
-            fps <- newRef (50 :: Double)
-            speed <- newRef (1 :: Double)
-            phase <- newRef (0 :: Double)
-            t <- newRef 0
-            _ <- onChangeSimple (readRef phase) $ \x -> do
-                s <- readRef speed
-                f <- readRef fps
-                asyncWrite (round $ 1000000 / f) $ writeRef phase (x + 2 * pi * s / f)
-            vcat
-                [ canvas 200 200 10 (const $ return ()) Nothing (liftM2 (,) (readRef t) (readRef phase)) $
-                    \(t,x) -> (case t of
-                        0 -> circle (2 + 1.5*sin x)
-                        1 -> circle 1 # translate (r2 (3,0)) # rotate ((-x) @@ rad)
-                        2 -> rect 6 6 # rotate ((-x) @@ rad)
-                        3 -> mconcat [circle (i'/10) # translate (r2 (i'/3, 0) # rotate ((i') @@ rad)) | i<-[1 :: Int ..10], let i' = fromIntegral i] # rotate ((-x) @@ rad)
-                        4 -> mconcat [circle (i'/10) # translate (r2 (i'/3, 0) # rotate ((x/i') @@ rad)) | i<-[1 :: Int ..10], let i' = fromIntegral i]
-                        ) # lw 0.05 # fc blue # value ()
-                , combobox ["Pulse","Rotate","Rotate2","Spiral","Spiral2"] t
-                , hcat
-                    [ hscale 0.1 5 0.1 speed
-                    , label (liftM (("freq: " ++) . ($ "") . showFFloat (Just 2)) $ readRef speed)
+
+                fps <- newRef (50 :: Double)
+                speed <- newRef (1 :: Double)
+                phase <- newRef (0 :: Double)
+                t <- newRef 0
+                _ <- onChangeSimple (readRef phase) $ \x -> do
+                    s <- readRef speed
+                    f <- readRef fps
+                    asyncWrite (round $ 1000000 / f) $ writeRef phase (x + 2 * pi * s / f)
+                vcat
+                    [ canvas 200 200 10 (const $ return ()) Nothing (liftM2 (,) (readRef t) (readRef phase)) $
+                        \(t,x) -> (case t of
+                            0 -> circle (2 + 1.5*sin x)
+                            1 -> circle 1 # translate (r2 (3,0)) # rotate ((-x) @@ rad)
+                            2 -> rect 6 6 # rotate ((-x) @@ rad)
+                            3 -> mconcat [circle (i'/10) # translate (r2 (i'/3, 0) # rotate ((i') @@ rad)) | i<-[1 :: Int ..10], let i' = fromIntegral i] # rotate ((-x) @@ rad)
+                            4 -> mconcat [circle (i'/10) # translate (r2 (i'/3, 0) # rotate ((x/i') @@ rad)) | i<-[1 :: Int ..10], let i' = fromIntegral i]
+                            ) # lw 0.05 # fc blue # value ()
+                    , combobox ["Pulse","Rotate","Rotate2","Spiral","Spiral2"] t
+                    , hcat
+                        [ hscale 0.1 5 0.1 speed
+                        , label (liftM (("freq: " ++) . ($ "") . showFFloat (Just 2)) $ readRef speed)
+                        ]
+                    , hcat
+                        [ hscale 1 100 1 fps
+                        , label (liftM (("fps: " ++) . ($ "") . showFFloat (Just 2)) $ readRef fps)
+                        ]
                     ]
-                , hcat
-                    [ hscale 1 100 1 fps
-                    , label (liftM (("fps: " ++) . ($ "") . showFFloat (Just 2)) $ readRef fps)
+
+            ]
+
+        , (,) "Reactive" $ notebook
+
+            [ (,) "ColorChange" $ do
+                phase <- newRef (0 :: Double)
+                col <- newRef True
+                _ <- onChangeSimple (readRef phase) $ \x -> do
+                    let s = 0.5 :: Double
+                    let f = 50 :: Double
+                    asyncWrite (round $ 1000000 / f) $ writeRef phase (x + 2 * pi * s / f)
+                let handler (Click (MousePos _ l), _) = when (not $ null l) $ modRef col not
+                    handler _ = return ()
+                vcat
+                    [ canvas 200 200 10 handler Nothing (liftM2 (,) (readRef col) (readRef phase)) $
+                        \(c,x) -> circle 1 # translate (r2 (3,0)) # rotate ((-x) @@ rad) # lw 0.05 # fc (if c then blue else red) # value [()]
+                    , label $ return "Click on the circle to change color."
                     ]
-                ]
 
-            , (,) "Reactive" $ do
-            phase <- newRef (0 :: Double)
-            col <- newRef True
-            _ <- onChangeSimple (readRef phase) $ \x -> do
-                let s = 0.5 :: Double
-                let f = 50 :: Double
-                asyncWrite (round $ 1000000 / f) $ writeRef phase (x + 2 * pi * s / f)
-            let handler (Click (MousePos _ l), _) = when (not $ null l) $ modRef col not
-                handler _ = return ()
-            vcat
-                [ canvas 200 200 10 handler Nothing (liftM2 (,) (readRef col) (readRef phase)) $
-                    \(c,x) -> circle 1 # translate (r2 (3,0)) # rotate ((-x) @@ rad) # lw 0.05 # fc (if c then blue else red) # value [()]
-                , label $ return "Click on the circle to change color."
-                ]
-
-            , (,) "Reactive Anim" $ do
-            phase <- newRef (0 :: Double)
-            col <- newRef 1
-            _ <- onChangeSimple (readRef phase) $ \x -> do
-                let s = 0.5 :: Double
-                let f = 50 :: Double
-                asyncWrite (round $ 1000000 / f) $ do
-                    writeRef phase (x + 2 * pi * s / f)
-                    modRef col $ max 1 . (+(- 5/f))
-            let handler (Click (MousePos _ l), _) = when (not $ null l) $ modRef col (+1)
-                handler _ = return ()
-            vcat
-                [ canvas 200 200 10 handler Nothing (liftM2 (,) (readRef col) (readRef phase)) $
-                    \(c,x) -> circle c # translate (r2 (3,0)) # rotate ((-x) @@ rad) # lw 0.05 # fc blue # value [()]
-                , label $ return "Click on the circle to temporarily enlarge it."
-                ]
-
-            , (,) "Chooser" $ do
-            i <- newRef (0 :: Int, 0 :: Rational)
-            let i1 = _1 `lensMap` i
-                i2 = _2 `lensMap` i
-            _ <- onChangeSimple (readRef i) $ \(i,d) -> do
-                let dd = fromIntegral i - d
-                if dd == 0
-                  then return ()
-                  else do
-                    let s = 2 :: Rational
-                    let f = 25 :: Rational
+            , (,) "Enlarge" $ do
+                phase <- newRef (0 :: Double)
+                col <- newRef 1
+                _ <- onChangeSimple (readRef phase) $ \x -> do
+                    let s = 0.5 :: Double
+                    let f = 50 :: Double
                     asyncWrite (round $ 1000000 / f) $ do
-                        writeRef i2 $ d + signum dd * min (abs dd) (s / f)
-            let keyh (SimpleKey Key'Left)  = modRef i1 pred >> return True
-                keyh (SimpleKey Key'Right) = modRef i1 succ >> return True
-                keyh _ = return False
-            vcat
-                [ canvas 200 200 10 (const $ return ()) (Just keyh) (readRef i2) $
-                    \d -> text "12345" # translate (r2 (realToFrac d, 0)) # scale 2 # value ()
-                , label $ liftM show $ readRef i1
-                ]
+                        writeRef phase (x + 2 * pi * s / f)
+                        modRef col $ max 1 . (+(- 5/f))
+                let handler (Click (MousePos _ l), _) = when (not $ null l) $ modRef col (+1)
+                    handler _ = return ()
+                vcat
+                    [ canvas 200 200 10 handler Nothing (liftM2 (,) (readRef col) (readRef phase)) $
+                        \(c,x) -> circle c # translate (r2 (3,0)) # rotate ((-x) @@ rad) # lw 0.05 # fc blue # value [()]
+                    , label $ return "Click on the circle to temporarily enlarge it."
+                    ]
 
-            , (,) "InCanvas" $ inCanvasExample
+                , (,) "Chooser" $ do
+                i <- newRef (0 :: Int, 0 :: Rational)
+                let i1 = _1 `lensMap` i
+                    i2 = _2 `lensMap` i
+                _ <- onChangeSimple (readRef i) $ \(i,d) -> do
+                    let dd = fromIntegral i - d
+                    if dd == 0
+                      then return ()
+                      else do
+                        let s = 2 :: Rational
+                        let f = 25 :: Rational
+                        asyncWrite (round $ 1000000 / f) $ do
+                            writeRef i2 $ d + signum dd * min (abs dd) (s / f)
+                let keyh (SimpleKey Key'Left)  = modRef i1 pred >> return True
+                    keyh (SimpleKey Key'Right) = modRef i1 succ >> return True
+                    keyh _ = return False
+                vcat
+                    [ canvas 200 200 10 (const $ return ()) (Just keyh) (readRef i2) $
+                        \d -> text "12345" # translate (r2 (realToFrac d, 0)) # scale 2 # value ()
+                    , label $ liftM show $ readRef i1
+                    ]
+
+            ]
+
+        , (,) "InCanvas" $ notebook
+
+            [ (,) "Widgets" $ inCanvasExample
+
+            , (,) "Recursive" $ inCanvas 800 600 30 mainWidget
 
             ]
 
@@ -256,33 +323,20 @@ mainWidget = notebook
             ]
         ]
 
-    , (,) "Examples" $ notebook
+    , (,) "Complex" $ notebook
 
-        [ (,) "T-Editor3" $ do
-            t <- newRef $ iterate (Node Leaf) Leaf !! 10
-            hcat
-                [ canvas 200 200 20 (const $ return ()) Nothing (readRef t) $
-                    \x -> tPic 0 x # value () # lw 0.05 # translate (r2 (0,10))
-                , tEditor3 t
-                ]
-
-        , (,) "T-Editor1" tEditor1
-
-        , (,) "Tri" tri
-
-        , (,) "IntListEditor" $ do
+        [ (,) "ListEditor" $ do
             state <- fileRef "intListEditorState.txt"
             list <- extRef (justLens "" `lensMap` state) showLens []
             settings <- fileRef "intListEditorSettings.txt"
             range <- extRef (justLens "" `lensMap` settings) showLens True
             intListEditor (0 :: Integer, True) 15 list range
 
+        , (,) "Maze" $ mazeGame
+
         ]
 
-    , (,) "Maze" $ mazeGame
-
-    , (,) "InCanvas" $ inCanvas 800 600 30 mainWidget
-
+{-
     , (,) "Csaba" $ notebook
 
         [ (,) "#1" $ do
@@ -321,39 +375,8 @@ mainWidget = notebook
                                 ]
             vcat $ [ctrl, h buttons]
 
-        , (,) "#3" $ do
-            buttons <- newRef ("",[])
-            let ctrl = entry $ lens fst (\(_,xs) x -> ("",x:xs)) `lensMap` buttons
-                h b = do
-                    q <- extRef b listLens (False, ("", []))
-                    cell (liftM fst $ readRef q) $ \bb -> case bb of
-                        False -> empty
-                        _ -> do
-                            vcat $ reverse
-                                [ h $ _2 . _2 `lensMap` q
-                                , hcat
-                                    [ button (return "Del") $ return $ Just $ modRef b tail
-                                    , label $ readRef $ _2 . _1 `lensMap` q
-                                    ]
-                                ]
-            vcat $ [ctrl, h $ _2 `lensMap` buttons]
-
-        , (,) "#4" $ do
-            buttons <- newRef ("",[])
-            let h i b = hcat
-                   [ label $ return b
-                   , button (return "Del") $ return $ Just $ modRef (_2 `lensMap` buttons) $ \l -> take i l ++ drop (i+1) l
-                   ]
-                set (a,xs) x
-                    | a /= x = ("",x:xs)
-                    | otherwise = (a,xs)
-            vcat
-                [ entry $ lens fst set `lensMap` buttons
-                , cell (liftM snd $ readRef buttons) $ vcat . zipWith h [0..]
-                ]
-
         ]
-    
+-}    
     ]
 
 tPic :: Int -> T -> Dia Any
