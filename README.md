@@ -57,6 +57,13 @@ Status per goals:
 
 The demo application presents the current features of LGtk.
 
+Youtube screencasts:
+
+* [The demo with the GLFW backend](http://youtu.be/Aa4hjXaiFWc)
+* [The demo with the Gtk backend](http://youtu.be/cOhbKVskHaI)
+
+
+
 TODO: pictures & video link
 
 
