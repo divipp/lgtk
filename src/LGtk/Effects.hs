@@ -9,7 +9,7 @@
 {-# LANGUAGE GADTs #-}
 module LGtk.Effects where
 
-import Control.Applicative
+--import Control.Applicative
 import Control.Concurrent
 import Control.Exception (evaluate)
 import Control.Monad
@@ -129,6 +129,7 @@ instance (MonadRegister m, MonadRegister (Modifier m)) => MonadRegister (Wrap m)
     liftEffectM = Wrap . liftEffectM -- :: EffectM m a -> m a
     liftToModifier = id --WrapM . liftToModifier . unWrap -- :: m a -> Modifier m a
 --    onChangeAcc r b bc f = Wrap $ onChangeAcc r b bc $ (fmap . fmap . fmap) (liftM (fmap unWrap) . unWrap) f
+    onChange r f = Wrap $ onChange r $ fmap (liftM unWrap . unWrap) f
     onChangeSimple r f = Wrap $ onChangeSimple r $ fmap unWrap f
     registerCallback r = Wrap $ registerCallback (fmap unWrap r)
     onRegionStatusChange g = Wrap $ onRegionStatusChange $ unWrap . g
