@@ -1,6 +1,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE ViewPatterns #-}
 -- | Lens-based Gtk interface
 module LGtk.Widgets
     ( module LGtk.Widgets
@@ -84,7 +85,11 @@ pattern ControlKey k = ModifiedKey False True  False False k
 pattern AltKey k     = ModifiedKey False False True  False k
 pattern SuperKey k   = ModifiedKey False False False True  k
 
-pattern CharKey c   = SimpleKey (Key'Char c)
+pattern CharKey c   <- (getSimpleChar -> Just c)
+
+getSimpleChar (SimpleKey (Key'Char c)) = Just c
+getSimpleChar (ShiftKey (Key'Char c)) = Just c
+getSimpleChar _ = Nothing
 
 
 type Dia a = QDiagram B R2 a

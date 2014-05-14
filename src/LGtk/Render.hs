@@ -289,8 +289,6 @@ tr sca dkh w = do
             i <- newId
 --            s <- readRef rs
             j <- lift $ newRef (False, ("", ""))
-            _ <- lift $ onChangeSimple rs $ \s -> postponeModification $ do
-                writeRef (_2 `lensMap` j) (reverse s, "")
 
             let f (CharKey c) (a,b) = Just (c:a,b)
                 f (SimpleKey Key'Backspace) (_:a,b) = Just (a,b)
@@ -299,12 +297,16 @@ tr sca dkh w = do
                 f (SimpleKey Key'Right) (a,c:b) = Just (c:a,b)
                 f _ _ = Nothing
 
-                rr' s | isOk s = rr s
-                      | otherwise = return ()
-
                 commit = do
                     (_, ab) <- readRef j
-                    rr' $ value' ab
+                    let s = value' ab
+                    old <- liftRefReader rs
+                    when (s /= old && isOk s) $ do
+                        rr s
+                        new <- liftRefReader rs
+                        update new
+
+                update s = writeRef (_2 `lensMap` j) (reverse s, "")
 
                 ff (CharKey '\n') = commit >> return True
                 ff key = do
@@ -333,6 +335,9 @@ tr sca dkh w = do
                          # value_ (return ()) kh i
                   ) # freeze # frame 0.1
                    where ((x :& y), te) = text__ 7 5 $ text' bv
+
+            _ <- lift $ onChangeSimple rs $ postponeModification . update
+
             return $ CWidget (liftM ((,) ([kh],[[kh]])) (liftM2 (,) rs (readRef j))) id render
 
         Checkbox (bs, br) -> do
