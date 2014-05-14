@@ -283,6 +283,77 @@ mainWidget = notebook
 
     , (,) "InCanvas" $ inCanvas 800 600 30 mainWidget
 
+    , (,) "Csaba" $ notebook
+
+        [ (,) "#1" $ do
+            name <- newRef "None"
+            buttons <- newRef []
+            let ctrl = hcat
+                    [ label $ readRef name
+                    , button (return "Add") $ return $ Just $ do
+                        l <- readRef buttons
+                        let n = "Button #" ++ (show . length $ l)
+                        writeRef buttons $ n:l
+                    ]
+                f n = vcat $ map g n 
+                g n = button (return n) (return . Just $ writeRef name n)
+            vcat $ [ctrl, cell (readRef buttons) f]
+
+        , (,) "#2" $ do
+            name <- newRef "None"
+            buttons <- newRef []
+            let ctrl = hcat
+                    [ label $ readRef name
+                    , button (return "Add") $ return $ Just $ do
+                        l <- readRef buttons
+                        let n = "Button #" ++ (show . length $ l)
+                        writeRef buttons $ l ++ [n]
+                    ]
+                h b = do
+                    q <- extRef b listLens (False, ("", []))
+                    cell (liftM fst $ readRef q) $ \b -> case b of
+                        False -> empty
+                        _ -> do
+                            na <- readRef $ _2 . _1 `lensMap` q
+                            vcat $ reverse
+                                [ h $ _2 . _2 `lensMap` q
+                                , hcat [ button (return na) $ return $ Just $ writeRef name na, entry $ _2 . _1 `lensMap` q ]
+                                ]
+            vcat $ [ctrl, h buttons]
+
+        , (,) "#3" $ do
+            buttons <- newRef ("",[])
+            let ctrl = entry $ lens fst (\(_,xs) x -> ("",x:xs)) `lensMap` buttons
+                h b = do
+                    q <- extRef b listLens (False, ("", []))
+                    cell (liftM fst $ readRef q) $ \bb -> case bb of
+                        False -> empty
+                        _ -> do
+                            vcat $ reverse
+                                [ h $ _2 . _2 `lensMap` q
+                                , hcat
+                                    [ button (return "Del") $ return $ Just $ modRef b tail
+                                    , label $ readRef $ _2 . _1 `lensMap` q
+                                    ]
+                                ]
+            vcat $ [ctrl, h $ _2 `lensMap` buttons]
+
+        , (,) "#4" $ do
+            buttons <- newRef ("",[])
+            let h i b = hcat
+                   [ label $ return b
+                   , button (return "Del") $ return $ Just $ modRef (_2 `lensMap` buttons) $ \l -> take i l ++ drop (i+1) l
+                   ]
+                set (a,xs) x
+                    | a /= x = ("",x:xs)
+                    | otherwise = (a,xs)
+            vcat
+                [ entry $ lens fst set `lensMap` buttons
+                , cell (liftM snd $ readRef buttons) $ vcat . zipWith h [0..]
+                ]
+
+        ]
+    
     ]
 
 tPic :: Int -> T -> Dia Any
