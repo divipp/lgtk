@@ -143,15 +143,16 @@ mainWidget = notebook
         [ (,) "NotReactive" $ notebook
 
             [ (,) "Dynamic" $ do
-            r <- newRef (3 :: Double)
-            vcat
-                [ canvas 200 200 12 (const $ return ()) Nothing (readRef r) $
-                    \x -> circle x # lw 0.05 # fc blue # value ()
-                , hcat
-                    [ hscale 0.1 5 0.05 r
-                    , label (liftM (("radius: " ++) . ($ "") . showFFloat (Just 2)) $ readRef r)
+
+                r <- newRef (3 :: Double)
+                vcat
+                    [ canvas 200 200 12 (const $ return ()) Nothing (readRef r) $
+                        \x -> circle x # lw 0.05 # fc blue # value ()
+                    , hcat
+                        [ hscale 0.1 5 0.05 r
+                        , label (liftM (("radius: " ++) . ($ "") . showFFloat (Just 2)) $ readRef r)
+                        ]
                     ]
-                ]
 
             , (,) "Animation" $ do
 
