@@ -9,6 +9,7 @@ module LGtk.Backend.Gtk
 
 import Control.Category
 import Control.Monad
+import Control.Exception
 import Control.Monad.State
 import Control.Monad.Trans.Control
 import Control.Concurrent
@@ -16,7 +17,7 @@ import Data.Maybe
 import Data.List hiding (union)
 import Prelude hiding ((.), id)
 
-import Graphics.UI.Gtk hiding (Widget, Release)
+import Graphics.UI.Gtk hiding (Widget, Release, Modifier)
 import qualified Graphics.UI.Gtk as Gtk
 
 import Data.LensRef
@@ -115,22 +116,43 @@ runWidget_ post' post = toWidget
             ger nhd s $ labelSetLabel w
             return' w
 
-        Canvas w h sc_ me keyh r diaFun -> do
+        Canvas w h sc_ me keyh r diaFun -> mkCanvas me r diaFun where
+
+         mkCanvas
+            :: forall b da
+            .  (Monoid da, Semigroup da, Eq b)
+            => ((MouseEvent da, Dia da) -> Modifier m ())
+            -> RefReader m b
+            -> (b -> Dia da)
+            -> m SWidget
+         mkCanvas me r diaFun = do
 
           cur <- liftIO' $ newMVar Nothing
           cur' <- liftIO' $ newMVar Nothing
           v <- liftIO' newEmptyMVar
 
-          (canvasDraw, canvas, af, dims) <- liftIO'' $ do
+          (canvasDraw, canvas, af, dims, drawingAreaGetDrawWindow') <- liftIO'' $ do
             canvas <- drawingAreaNew
             widgetAddEvents canvas [PointerMotionMask, KeyPressMask]
             widgetSetCanFocus canvas True
             af <- aspectFrameNew 0.5 0.5 (Just $ fromIntegral w / fromIntegral h)
             _ <- canvas `onSizeRequest` return (Requisition w h)
             _ <- containerAdd af canvas
+            realized <- newMVar False
+            _ <- onRealize canvas $ swapMVar realized True >> return ()
+--            _ <- afterRealize canvas $ swapMVar realized False >> return ()
             let
-              dims = do
-                win <- widgetGetDrawWindow canvas
+              drawingAreaGetDrawWindow' = do
+                b <- readMVar realized
+                if b then catchJust select (liftM Just $ widgetGetDrawWindow canvas) (const $ return Nothing)
+                     else return Nothing
+                where
+                    select :: SomeException -> Maybe ()
+                    select s | "widgetGetDrawWindow" `isInfixOf` show s = Just ()
+                    select _ = Nothing
+                    
+
+              dims win = do
                 (w, h) <- drawableGetSize win
                 let (w', h') = (fromIntegral w, fromIntegral h)
                 let sc = w' / sc_
@@ -141,51 +163,52 @@ runWidget_ post' post = toWidget
               draw dia_ = do
                 _ <- swapMVar cur $ Just dia_
                 let dia = freeze $ clearValue dia_
-                (sc, w, h, wi, he) <- dims
-                win <- widgetGetDrawWindow canvas
-                drawWindowBeginPaintRect win $ Rectangle 0 0 wi he
-                renderWithDrawable win $ snd $ renderDia Cairo (CairoOptions "" (Width w) RenderOnly True) $ tr sc w h dia
-                drawWindowEndPaint win
+                win <- drawingAreaGetDrawWindow'
+                case win of
+                  Nothing -> return ()
+                  Just win -> do
+                    (sc, w, h, wi, he) <- dims win
+                    drawWindowBeginPaintRect win $ Rectangle 0 0 wi he
+                    renderWithDrawable win $ snd $ renderDia Cairo (CairoOptions "" (Width w) RenderOnly True) $ tr sc w h dia
+                    drawWindowEndPaint win
 
-            return (draw, canvas, af, dims)
+            return (draw, canvas, af, dims, drawingAreaGetDrawWindow')
 
           let -- compCoords :: (Double, Double) -> IO (MousePos a)
-              compCoords (x,y) = do
-                (sc, w, h, _, _) <- dims
-                d <- readMVar cur
-                let p = p2 ((x - w / 2) / sc, (h / 2 - y) / sc)
-                return (MousePos p $ maybe mempty (`sample` p) d, fromMaybe mempty d)
+              compCoords_ (x,y) = do
+                win <- drawingAreaGetDrawWindow'
+                case win of
+                  Nothing -> return Nothing
+                  Just win -> do
+                    (sc, w, h, _, _) <- dims win
+                    d <- readMVar cur
+                    let p = p2 ((x - w / 2) / sc, (h / 2 - y) / sc)
+                    return $ Just (MousePos p $ maybe mempty (`sample` p) d, fromMaybe mempty d)
 
           _ <- reg me $ \re -> do
-              _ <- on' canvas buttonPressEvent $ tryEvent $ do
---                click <- eventClick
-                (p, d) <- eventCoordinates >>= liftIO . compCoords
-                liftIO $ re (Click p, d)
-              _ <- on' canvas buttonReleaseEvent $ tryEvent $ do
---                click <- eventClick
-                (p, d) <- eventCoordinates >>= liftIO . compCoords
-                liftIO $ re (Release p, d)
-              _ <- on' canvas enterNotifyEvent $ tryEvent $ do
-                (p, d) <- eventCoordinates >>= liftIO . compCoords
-                liftIO $ re (MouseEnter p, d)
-              _ <- on' canvas leaveNotifyEvent $ tryEvent $ do
-                (p, d) <- eventCoordinates >>= liftIO . compCoords
-                liftIO $ re (MouseLeave p, d)
-              _ <- on' canvas motionNotifyEvent $ tryEvent $ do
-                (p, d) <- eventCoordinates >>= liftIO . compCoords
-                liftIO $ re (MoveTo p, d)
+              let compCoords :: MonadIO em
+                        => em (Double, Double)
+                        -> ((MousePos da, Dia da) -> (MouseEvent da, Dia da))
+                        -> em ()
+                  compCoords eventCoordinates f = do
+                    c <- eventCoordinates
+                    liftIO $ compCoords_ c >>= maybe (return ()) (re . f)
+
+              _ <- on' canvas buttonPressEvent $ tryEvent $ compCoords eventCoordinates $ \(p, d) -> (Click p, d)
+              _ <- on' canvas buttonReleaseEvent $ tryEvent $ compCoords eventCoordinates $ \(p, d) -> (Release p, d)
+              _ <- on' canvas enterNotifyEvent $ tryEvent $ compCoords eventCoordinates $ \(p, d) -> (MouseEnter p, d)
+              _ <- on' canvas leaveNotifyEvent $ tryEvent $ compCoords eventCoordinates $ \(p, d) -> (MouseLeave p, d)
+              _ <- on' canvas motionNotifyEvent $ tryEvent $ compCoords eventCoordinates $ \(p, d) -> (MoveTo p, d)
               on' canvas scrollEvent $ tryEvent $ do
-                (p, d) <- eventCoordinates >>= liftIO . compCoords
                 dir <- eventScrollDirection
                 let tr _ = Horizontal -- TODO
-                liftIO $ re (ScrollTo (tr dir) p, d)
+                compCoords eventCoordinates $ \(p, d) -> (ScrollTo (tr dir) p, d)
 
           case keyh of
             Nothing -> return ()
             Just keyh -> do
                 _ <- reg (\k -> keyh k >> return ()) $ \re ->
                   on' canvas keyPressEvent $ tryEvent $ do
-    --                p <- eventCoordinates >>= liftIO . compCoords
                     m <- eventModifier
                     c <- eventKeyVal
                     kn <- lift $ keyvalName c
