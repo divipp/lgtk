@@ -7,18 +7,23 @@ description:
     .
     Main goals of LGtk:
     .
-    * Provide a Haskell EDSL for declarative description of interactive graphical applications
-    * Provide an API for custom widget design
-    * Provide a playground for high-level declarative features like
-      derived state-save and undo-redo operations and
-      type-driven GUI generation
+    -Provide a Haskell EDSL for declarative description of interactive graphical applications
+    .
+    -Provide an API for custom widget design
+    .
+    -Provide a playground for high-level declarative features like
+    derived state-save and undo-redo operations and
+    type-driven GUI generation
     .
     For more information visit the following links:
     .
-    * <http://www.haskell.org/haskellwiki/LGtk haskell.org wiki page>
-    * <http://lgtk.wordpress.com/ Wordpress blog>
-    * <https://github.com/divipp/lgtk GitHub repository>
-    * <http://hackage.haskell.org/package/lgtk Haddock documentation (this page)>
+    -<http://www.haskell.org/haskellwiki/LGtk haskell.org wiki page>
+    .
+    -<http://lgtk.wordpress.com/ Wordpress blog>
+    .
+    -<https://github.com/divipp/lgtk GitHub repository>
+    .
+    -<http://hackage.haskell.org/package/lgtk Haddock documentation (this page)>
 stability:          experimental
 license:            BSD3
 license-file:       LICENSE
@@ -28,6 +33,7 @@ bug-reports:        https://github.com/divipp/lgtk/issues
 maintainer:         divipp@gmail.com
 cabal-version:      >= 1.8
 build-type:         Simple
+extra-source-files: changelog
 
 source-repository head
   type:             git
