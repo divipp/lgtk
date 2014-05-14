@@ -352,6 +352,7 @@ trKey mods name ch
             "Home" -> Key'Home
             "End" -> Key'End
             "Return" -> Key'Char '\n'
+            "Tab" -> Key'Char '\t'
             _ -> Key'Unknown
 
 

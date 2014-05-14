@@ -206,7 +206,7 @@ inCanvas width height scale w = mdo
     case bhr of
        CWidget b hr render -> do
         
-        let handle_ Nothing' = return ()
+        let handle_ Nothing' = writeRef hi [i] -- return ()
             handle_ (Just' (a, cap, bb, i)) = do
                 a
                 maybe (return ()) (writeRef capt . Just) cap
