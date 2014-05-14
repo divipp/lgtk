@@ -12,8 +12,44 @@ module LGtk
     -- * References
       module Data.LensRef
 
-    -- ** Derived constructs
-    , undoTr
+    -- * GUI
+
+    -- ** Running a widget
+    , Widget
+    , runWidget
+
+    -- ** GUI elements
+    , empty
+    , vcat
+    , hcat
+    , label
+    , button
+    , smartButton
+    , checkbox
+    , combobox
+    , entry
+    , entryShow
+    , hscale
+    , cell
+    , cellNoMemo
+    , notebook
+
+    -- ** Other elements
+    , button_
+    , button__
+    , cell_
+
+    -- ** Diagrams canvas
+    , canvas
+    , inCanvas
+
+    -- * Aux types
+    , Dia
+    , MouseEvent (..)
+    , MousePos (..)
+    , Colour
+    , sRGB
+    , module LGtk.Key
 
     -- * I/O
     , getArgs
@@ -25,51 +61,10 @@ module LGtk
     , putStr_
     , getLine_
     , fileRef
-
-    -- ** Derived constructs
     , putStrLn_
 
-    -- * GUI
-
-    -- ** Events
-    , MouseEvent (..)
-    , MousePos (..)
-    , module LGtk.Key
-
-    -- ** Running a widget
-    , Widget
-    , runWidget
-
-    -- ** GUI elements
-    , label
-    , checkbox
-    , combobox
-    , entry
-    , button_
-    , Colour, sRGB
-    , notebook
-    , hscale
-    , vcat
-    , hcat
-    , cell_
-
-    -- ** Diagrams canvas
-    , canvas
-    , Dia
-    , inCanvas
-
-    -- ** Derived constructs
-    , empty
-    , entryShow
-    , button
-    , smartButton
-    , cell
-    , cellNoMemo
-
-    -- ** Experimental
-    , button__
-
-    -- ** Utils
+    -- * Utils
+    , undoTr
     , showLens
     , listLens
 
