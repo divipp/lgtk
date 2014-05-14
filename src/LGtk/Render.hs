@@ -130,8 +130,8 @@ value_ :: Monad m => m () -> KeyFocusHandler m -> Id -> Dia Any -> Dia (EventHan
 value_ a c i = value $ valueFun a c i
 
 valueFun a c i = f where
-    f (Click _, di) = Just' (a, Nothing, Just c, i)
-    f (MoveTo _, di) = Just' (return (), Nothing, Nothing, i)
+    f (Click _, _di) = Just' (a, Nothing, Just c, i)
+    f (MoveTo _, _di) = Just' (return (), Nothing, Nothing, i)
     f _ = mempty
 
 -----------------
@@ -228,8 +228,8 @@ inCanvas width height scale w = mdo
             handleEvent (Release (MousePos p f), di) = handle f (Release $ MousePos p (), di # clearValue # value ())
             handleEvent (Click   (MousePos p f), di) = handle f (Click   $ MousePos p (), di # clearValue # value ())
             handleEvent (MoveTo  (MousePos p f), di) = handle f (MoveTo  $ MousePos p (), di # clearValue # value ())
-            handleEvent (GetFocus, di) = readRef rememberfoc >>= h2
-            handleEvent (LostFocus, di) = readRef foc >>= writeRef rememberfoc >> h2 df
+            handleEvent (GetFocus, _di) = readRef rememberfoc >>= h2
+            handleEvent (LostFocus, _di) = readRef foc >>= writeRef rememberfoc >> h2 df
             handleEvent _ = return ()
 
             handleKeys key = do
@@ -399,7 +399,7 @@ tr sca dkh w = do
                             Just subd -> p # translate (p2 (0,0) .-. q) # scale (1/((fromIntegral w / d) / sca))
                                 where q = location subd
 
-                decomp (x :& y) = (x,y)
+--                decomp (x :& y) = (x,y)
 
                 gg (Just' ls) (Click (MousePos p _), di) = Just' (r (Click $ MousePos (tr di p) ls, di # clearValue # value ls) >> return (), Nothing, Just kh, i)
                 gg (Just' ls) (Release (MousePos p _), di) = Just' (r (Release $ MousePos (tr di p) ls, di # clearValue # value ls) >> return (), Nothing, Nothing, i)
