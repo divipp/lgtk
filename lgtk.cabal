@@ -1,5 +1,5 @@
 name:               lgtk
-version:            0.8
+version:            0.8.0.1
 category:           GUI
 synopsis:           Lens GUI Toolkit
 description:
@@ -50,29 +50,29 @@ library
   build-depends:
                     base < 5
 
-                  , groups == 0.4.*
-                  , semigroups >= 0.13 && < 0.15
-                  , transformers >= 0.3 && < 0.5
-                  , mtl >= 2 && < 2.3
-                  , monad-control == 0.3.*
-                  , operational == 0.2.*
-                  , lens == 4.1.*
+                  , groups < 0.5
+                  , semigroups < 0.15
+                  , transformers < 0.5
+                  , mtl < 2.3
+                  , monad-control < 0.4
+                  , operational < 0.3
+                  , lens < 4.2
 
-                  , vector == 0.10.*
-                  , containers == 0.5.*
-                  , directory == 1.2.*
-                  , filepath == 1.3.*
-                  , system-filepath == 0.4.*
-                  , fsnotify == 0.0.*
+                  , vector < 0.11
+                  , containers < 0.6
+                  , directory < 1.3
+                  , filepath < 1.4
+                  , system-filepath < 0.5
+                  , fsnotify == 0.1.0.1
 
-                  , colour == 2.3.*
-                  , JuicyPixels == 3.1.*
-                  , diagrams-lib == 1.1.*
-                  , diagrams-cairo == 1.1.*
-                  , cairo == 0.12.*
+                  , colour < 2.4
+--                  , JuicyPixels == 3.1.*
+                  , diagrams-lib < 1.2
+                  , diagrams-cairo < 1.2
+                  , cairo < 0.13
 --                  , SVGFonts == 1.4.*
-                  , OpenGLRaw == 1.4.*
-                  , GLFW-b == 1.4.*
+                  , OpenGLRaw < 1.5
+                  , GLFW-b < 1.5
 --                  , threepenny-gui == 0.4.1.*
 
                   , lensref == 0.1.*
