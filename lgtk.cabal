@@ -1,5 +1,5 @@
 name:               lgtk
-version:            0.8.0.3
+version:            0.8.0.4
 category:           GUI
 synopsis:           Lens GUI Toolkit
 description:
@@ -43,6 +43,11 @@ Flag Gtk
   Description:      Build the Gtk backend
   Default:          False
 
+Flag pure
+  Description:      Use the pure but slow implementation of lens references
+  Default:          False
+
+
 library
 
   hs-source-dirs:
@@ -52,7 +57,7 @@ library
 
                   , groups < 0.5
                   , semigroups < 0.15
-                  , transformers < 0.5
+                  , transformers >= 0.3 && < 0.5
                   , mtl < 2.3
                   , monad-control < 0.4
                   , operational < 0.3
@@ -75,12 +80,14 @@ library
                   , GLFW-b < 1.5
 --                  , threepenny-gui == 0.4.1.*
 
-                  , lensref == 0.1.*
+                  , lensref == 0.2.*
 
   exposed-modules:
                     -- lgtk
                     LGtk
   other-modules:
+                    Data.LensRef.Default
+
                     -- lgtk
                     LGtk.Effects
                     LGtk.Key
@@ -96,6 +103,9 @@ library
                     LGtk.Backend.Gtk
     cpp-options:
                     -D__GTK__
+  if flag(pure)
+    cpp-options:
+                    -D__PURE__
 
   ghc-options: 
                     -Wall 

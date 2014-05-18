@@ -1,3 +1,7 @@
+= lgtk-0.8.0.4 =
+
+Depend on lensref-0.2
+
 = lgtk-0.8.0.3 =
 
 Relax dependencies
