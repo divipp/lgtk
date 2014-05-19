@@ -1,10 +1,7 @@
-= lgtk-0.8.0.5 =
+= lgtk-0.9 =
 
-Depend on lensref-0.3
-
-= lgtk-0.8.0.4 =
-
-Depend on lensref-0.2
+* Depend on lensref-0.3
+* lensref API changed: renamed onChange combinators & a simplified lensref interface for lgtk
 
 = lgtk-0.8.0.3 =
 
