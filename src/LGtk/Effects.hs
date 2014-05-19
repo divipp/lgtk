@@ -25,7 +25,8 @@ import Filesystem.Path.CurrentOS hiding (FilePath)
 import qualified System.Environment as Env
 import System.IO.Error (catchIOError, isDoesNotExistError)
 
-import Data.LensRef
+import Data.LensRef.Class
+--import Data.LensRef
 
 
 --------------------------------------------------------------------------

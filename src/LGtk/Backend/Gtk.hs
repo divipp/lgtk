@@ -20,7 +20,7 @@ import Prelude hiding ((.), id)
 import Graphics.UI.Gtk hiding (Widget, Release, Modifier)
 import qualified Graphics.UI.Gtk as Gtk
 
-import Data.LensRef
+import Data.LensRef.Class
 import Data.LensRef.Default
 import LGtk.Effects
 import LGtk.Key

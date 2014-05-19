@@ -33,7 +33,8 @@ import Graphics.Rendering.Cairo ( Format (..)
                                 , withImageSurfaceForData
                                 )
 
-import Data.LensRef
+import Data.LensRef.Class
+--import Data.LensRef
 import Data.LensRef.Default
 import LGtk.Effects
 import LGtk.Widgets

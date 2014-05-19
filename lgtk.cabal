@@ -1,5 +1,5 @@
 name:               lgtk
-version:            0.8.0.4
+version:            0.8.0.5
 category:           GUI
 synopsis:           Lens GUI Toolkit
 description:
@@ -80,7 +80,7 @@ library
                   , GLFW-b < 1.5
 --                  , threepenny-gui == 0.4.1.*
 
-                  , lensref == 0.2.*
+                  , lensref == 0.3.*
 
   exposed-modules:
                     -- lgtk
