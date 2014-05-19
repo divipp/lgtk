@@ -101,7 +101,7 @@ runWidget_ post' post = toWidget
         return u
 
     ger :: Eq a => (RegionStatusChange -> IO ()) -> RefReader m a -> (a -> IO ()) -> m ()
-    ger hd s f = liftM (const ()) $ onChangeSimple s $ \a -> liftIO'' $ do
+    ger hd s f = liftM (const ()) $ onChange s $ \a -> liftIO'' $ do
         hd Block
         f a
         hd Unblock
@@ -302,7 +302,7 @@ runWidget_ post' post = toWidget
                 True -> fmap castToContainer $ hBoxNew False 1
                 False -> fmap castToContainer $ alignmentNew 0 0 1 1
             sh <- liftIO' $ newMVar $ return ()
-            _ <- onChange onCh $ \bv -> do
+            _ <- onChangeMemo onCh $ \bv -> do
                 mx <- f toWidget bv
                 return $ mx >>= \(x,y) -> liftIO'' $ do 
                     _ <- swapMVar sh x

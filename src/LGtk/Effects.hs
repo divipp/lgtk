@@ -130,8 +130,8 @@ instance (MonadRegister m, MonadRegister (Modifier m)) => MonadRegister (Wrap m)
     liftEffectM = Wrap . liftEffectM -- :: EffectM m a -> m a
     liftToModifier = id --WrapM . liftToModifier . unWrap -- :: m a -> Modifier m a
 --    onChangeAcc r b bc f = Wrap $ onChangeAcc r b bc $ (fmap . fmap . fmap) (liftM (fmap unWrap) . unWrap) f
-    onChange r f = Wrap $ onChange r $ fmap (liftM unWrap . unWrap) f
-    onChangeSimple r f = Wrap $ onChangeSimple r $ fmap unWrap f
+    onChangeMemo r f = Wrap $ onChangeMemo r $ fmap (liftM unWrap . unWrap) f
+    onChange r f = Wrap $ onChange r $ fmap unWrap f
     registerCallback r = Wrap $ registerCallback (fmap unWrap r)
     onRegionStatusChange g = Wrap $ onRegionStatusChange $ unWrap . g
 
@@ -194,7 +194,7 @@ instance (MonadRegister m, MonadRegister (Modifier m), MonadBaseControl IO (Effe
         onRegionStatusChange $ liftEffectM . u
         liftEffectM $ ff $ repeat $ liftIO_ (takeMVar v >> r) >>= re
 
-        _ <- onChangeSimple (readRef ref) $ \x -> liftIO' $ do
+        _ <- onChange (readRef ref) $ \x -> liftIO' $ do
             join $ takeMVar vman
             _ <- tryTakeMVar v
             w x

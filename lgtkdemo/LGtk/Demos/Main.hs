@@ -160,7 +160,7 @@ mainWidget = notebook
                 speed <- newRef (1 :: Double)
                 phase <- newRef (0 :: Double)
                 t <- newRef 0
-                _ <- onChangeSimple (readRef phase) $ \x -> do
+                _ <- onChange (readRef phase) $ \x -> do
                     s <- readRef speed
                     f <- readRef fps
                     asyncWrite (round $ 1000000 / f) $ writeRef phase (x + 2 * pi * s / f)
@@ -191,7 +191,7 @@ mainWidget = notebook
             [ (,) "ColorChange" $ do
                 phase <- newRef (0 :: Double)
                 col <- newRef True
-                _ <- onChangeSimple (readRef phase) $ \x -> do
+                _ <- onChange (readRef phase) $ \x -> do
                     let s = 0.5 :: Double
                     let f = 50 :: Double
                     asyncWrite (round $ 1000000 / f) $ writeRef phase (x + 2 * pi * s / f)
@@ -206,7 +206,7 @@ mainWidget = notebook
             , (,) "Enlarge" $ do
                 phase <- newRef (0 :: Double)
                 col <- newRef 1
-                _ <- onChangeSimple (readRef phase) $ \x -> do
+                _ <- onChange (readRef phase) $ \x -> do
                     let s = 0.5 :: Double
                     let f = 50 :: Double
                     asyncWrite (round $ 1000000 / f) $ do
@@ -224,7 +224,7 @@ mainWidget = notebook
                 i <- newRef (0 :: Int, 0 :: Rational)
                 let i1 = _1 `lensMap` i
                     i2 = _2 `lensMap` i
-                _ <- onChangeSimple (readRef i) $ \(i,d) -> do
+                _ <- onChange (readRef i) $ \(i,d) -> do
                     let dd = fromIntegral i - d
                     if dd == 0
                       then return ()
@@ -268,7 +268,7 @@ mainWidget = notebook
         [ (,) "Async" $ do
             ready <- newRef True
             delay <- newRef (1.0 :: Double)
-            _ <- onChange (readRef ready) $ \b -> return $ case b of
+            _ <- onChange (readRef ready) $ \b -> case b of
                 True -> return ()
                 False -> do
                     d <- readRef delay
@@ -283,7 +283,7 @@ mainWidget = notebook
 
         , (,) "Timer" $ do
             t <- newRef (0 :: Int)
-            _ <- onChange (readRef t) $ \ti -> return $ asyncWrite 1000000 $ writeRef t $ 1 + ti
+            _ <- onChange (readRef t) $ \ti -> asyncWrite 1000000 $ writeRef t $ 1 + ti
             vcat
                 [ label $ liftM show $ readRef t
                 ]
@@ -297,7 +297,7 @@ mainWidget = notebook
             , (,) "Env" $ do
                 v <- newRef "HOME"
                 lv <- newRef ""
-                _ <- onChange (readRef v) $ \s -> return $
+                _ <- onChange (readRef v) $ \s ->
                     postponeModification . writeRef lv =<< liftM (maybe "Not in env." show) (lookupEnv s)
                 vcat
                     [ entry v
@@ -307,7 +307,7 @@ mainWidget = notebook
             , (,) "Std I/O" $ let
                 put = do
                     x <- newRef Nothing
-                    _ <- onChange (readRef x) $ return . maybe (return ()) putStrLn_
+                    _ <- onChange (readRef x) $ maybe (return ()) putStrLn_
                     hcat 
                         [ label $ return "putStrLn"
                         , entry $ iso (maybe "" id) Just `lensMap` x
@@ -315,7 +315,7 @@ mainWidget = notebook
                 get = do
                     ready <- newRef $ Just ""
                     _ <- onChange (liftM isJust $ readRef ready) $ \b -> 
-                        return $ when (not b) $ getLine_ $ writeRef ready . Just
+                        when (not b) $ getLine_ $ writeRef ready . Just
                     hcat 
                         [ button_ (return "getLine") (liftM isJust $ readRef ready) $ writeRef ready Nothing
                         , label $ liftM (maybe "<<<waiting for input>>>" id) $ readRef ready

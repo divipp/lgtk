@@ -336,7 +336,7 @@ tr sca dkh w = do
                   ) # freeze # frame 0.1
                    where ((x :& y), te) = text__ 7 5 $ text' bv
 
-            _ <- lift $ onChangeSimple rs $ postponeModification . update
+            _ <- lift $ onChange rs $ postponeModification . update
 
             return $ CWidget (liftM ((,) ([kh],[[kh]])) (liftM2 (,) rs (readRef j))) id render
 
@@ -359,7 +359,7 @@ tr sca dkh w = do
 
         Cell r f -> do
             i <- newId
-            r' <- lift $ onChange r $ \x -> do   
+            r' <- lift $ onChangeMemo r $ \x -> do   
                      h <- f (newIds i . tr sca dkh) x
                      return $ do
                        hv <- h
@@ -470,7 +470,7 @@ tr sca dkh w = do
 
             wisv <- mapM (tr sca dkh) wis
 
-            wr <- lift $ onChangeSimple (readRef ir) $ \x -> return $ case wisv !! x of
+            wr <- lift $ onChange (readRef ir) $ \x -> return $ case wisv !! x of
                          CWidget rr hr render -> do
                            (es, rrv) <- rr
                            return $ (es, UnsafeEqWrap (x, rrv) $ fmap (fmap (fmap hr)) $ render rrv)
