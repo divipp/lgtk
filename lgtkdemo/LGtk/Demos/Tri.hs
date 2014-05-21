@@ -4,6 +4,7 @@ the last edited value change.
 -}
 module LGtk.Demos.Tri where
 
+import Control.Applicative
 import Control.Lens
 import LGtk
 
@@ -27,9 +28,9 @@ tri :: MonadRegister m => Widget m
 tri = do
     s <- newRef [X 0, Y 0]
     vcat
-        [ hcat [entryShow $ lens getX  setX  `lensMap` s, label $ return "x"]
-        , hcat [entryShow $ lens getY  setY  `lensMap` s, label $ return "y"]
-        , hcat [entryShow $ lens getXY setXY `lensMap` s, label $ return "x + y"]
+        [ hcat [entryShow $ lens getX  setX  `lensMap` s, label $ pure "x"]
+        , hcat [entryShow $ lens getY  setY  `lensMap` s, label $ pure "y"]
+        , hcat [entryShow $ lens getXY setXY `lensMap` s, label $ pure "x + y"]
         ]
 
 

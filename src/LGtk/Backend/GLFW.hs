@@ -62,36 +62,36 @@ runWidget desc = do
         makeContextCurrent (Just win) -- for OpenGL
 
         exit <- newMVar False
-        postedActions <- newMVar $ return ()
+        postedActions <- newMVar $ pure ()
         mc <- newMVar (0, Nothing)
         current' <- newMVar mempty
 
         let
             post :: IO () -> IO ()
-            post m = modifyMVar_ postedActions $ \n -> return $ n >> m
+            post m = modifyMVar_ postedActions $ \n -> pure $ n >> m
 
             dims = do
                 (w, h) <- getFramebufferSize win
                 let (w', h') = (fromIntegral w, fromIntegral h)
                 let sc = w' / sc_
-                return (sc, w', h', w, h)
+                pure (sc, w', h', w, h)
 
             calcMousePos (x,y) = do
                 (sc, w, h, _, _) <- dims
                 d <- readMVar current'
                 let p = p2 ((x - w / 2) / sc, (h / 2 - y) / sc)
                     q = MousePos p $ d `sample` p
-                return (q, d)
+                pure (q, d)
 
             logMousePos :: CursorPosCallback
             logMousePos _win x y = do
-                t <- modifyMVar mc $ \(tick, _) -> return ((tick+1, Just (x,y)), tick+1)
+                t <- modifyMVar mc $ \(tick, _) -> pure ((tick+1, Just (x,y)), tick+1)
                 post $ do
                     (t',q) <- readMVar mc
                     case q of
                         Just q | t==t' -> do
                             calcMousePos q >>= \(q,d) -> handle (MoveTo q, d)
-                        _ -> return ()
+                        _ -> pure ()
 
             logMouseButton :: MouseButtonCallback
             logMouseButton _win _button state _mod = post $ do
@@ -100,11 +100,11 @@ runWidget desc = do
                 case (state, p) of
                   (MouseButtonState'Pressed, Just p) -> calcMousePos p >>= \(q,d) -> handle (Click q, d)
                   (MouseButtonState'Released, Just p) -> calcMousePos p >>= \(q,d) -> handle (Release q, d)
-                  _ -> return ()
+                  _ -> pure ()
 
             logKey :: KeyCallback
             logKey _win key _scancode action mods = do
-                when (key == GLFW.Key'Escape) $ swapMVar exit True >> return ()
+                when (key == GLFW.Key'Escape) $ swapMVar exit True >> pure ()
     --                putStrLn $ "KeyCallback: " ++ show (action, key,mods)
                 post $ when (action `elem` [KeyState'Pressed, KeyState'Repeating]) $ keyhandle $ trKey mods key
 
@@ -118,12 +118,12 @@ runWidget desc = do
         setMouseButtonCallback win (Just logMouseButton)
         setCursorPosCallback win (Just logMousePos)
         setWindowSizeCallback win (Just logWinSize)
-        setWindowCloseCallback win $ Just $ \_ -> swapMVar exit True >> return ()
+        setWindowCloseCallback win $ Just $ \_ -> swapMVar exit True >> pure ()
 
         let redraw = do
             dia_ <- tryTakeMVar iodia
             case dia_ of
-              Nothing -> return ()
+              Nothing -> pure ()
               Just dia_ -> do
                 (sc, w, h, sw, sh) <- dims
                 let dia = dia_ # clearValue # freeze # scale sc # clipped (rect w h) <>
@@ -142,13 +142,13 @@ runWidget desc = do
 --                putStr "*"
 
                 _ <- swapMVar current' dia_
-                return ()
+                pure ()
 
         let eventCycle = do
                 pollEvents
                 b <- readMVar exit
                 when (not b) $ do
-                    join $ swapMVar postedActions $ return ()
+                    join $ swapMVar postedActions $ pure ()
                     redraw
                     threadDelay 10000
                     eventCycle
@@ -289,7 +289,7 @@ trKey (GLFW.ModifierKeys s c a sup) k = ModifiedKey s c a sup $ case k of
 
 newChan' = do
     ch <- newChan
-    return (readChan ch, writeChan ch)
+    pure (readChan ch, writeChan ch)
 
 data SWidget = forall a . (Monoid a, Semigroup a)
     => SWidget Int Int Double ((MouseEvent a, Dia a) -> IO ()) (ModifiedKey -> IO ()) (IO (Dia a)) (MVar (Dia a))
@@ -306,11 +306,11 @@ runWidget_  m = m >>= \i -> case i of
             _ <- tryTakeMVar rer
             putMVar rer d
             _ <- swapMVar rer' d
-            return ()
+            pure ()
 
         handle <- registerCallback me
-        keyhandle <- registerCallback (\key -> fromMaybe (\_ -> return False) keyh key >> return ())
-        return $ SWidget w h sc_ handle keyhandle (readMVar rer') rer
+        keyhandle <- registerCallback (\key -> fromMaybe (\_ -> pure False) keyh key >> pure ())
+        pure $ SWidget w h sc_ handle keyhandle (readMVar rer') rer
 
 
 -----------------------
@@ -361,7 +361,7 @@ createImage win width height dia = do
     status <- glCheckFramebufferStatus gl_FRAMEBUFFER
     when (status /= gl_FRAMEBUFFER_COMPLETE) $
         putStrLn $ "incomplete framebuffer: " ++ show status
-    return $ Image
+    pure $ Image
         { imgGLContext          = win
         , imgGLTextureObj       = tex
         , imgGLFramebufferObj   = fbo

@@ -10,6 +10,7 @@ import Numeric
 import Data.Maybe (isJust)
 import Control.Lens hiding ((#))
 import Control.Monad
+import Control.Monad.Fix
 import Diagrams.Prelude hiding (vcat, hcat, interval, tri)
 
 import LGtk
@@ -22,30 +23,31 @@ import LGtk.Demos.Maze
 main :: IO ()
 main = runWidget mainWidget
 
+mainWidget :: (EffIORef m, MonadFix m) => Widget m
 mainWidget = notebook
     [ (,) "Simple" $ notebook
 
---      , (,) "Hello" $ label $ return "Hello World!"
+--      , (,) "Hello" $ label $ pure "Hello World!"
 
         [ (,) "Counters" $ notebook
 
             [ (,) "Unbounded" $ do
                 c <- newEqRef (0 :: Int)
                 vcat
-                    [ label $ liftM show $ readRef c
+                    [ label $ fmap show $ readRef c
                     , hcat
-                        [ smartButton (return "+1") c (+1)
-                        , smartButton (return "-1") c (+(-1))
+                        [ smartButton (pure "+1") c (+1)
+                        , smartButton (pure "-1") c (+(-1))
                         ]
                     ]
 
             , (,) "1..3" $ do
                 c <- newEqRef (1 :: Int)
                 vcat
-                    [ label $ liftM show $ readRef c
+                    [ label $ fmap show $ readRef c
                     , hcat
-                        [ smartButton (return "+1") c $ min 3 . (+1)
-                        , smartButton (return "-1") c $ max 1 . (+(-1))
+                        [ smartButton (pure "+1") c $ min 3 . (+1)
+                        , smartButton (pure "-1") c $ max 1 . (+(-1))
                         ]
                     ]
 
@@ -54,13 +56,13 @@ mainWidget = notebook
                 let (a, b) = interval ab
                 c <- counter 0 ab
                 vcat
-                    [ label $ liftM show $ readRef c
+                    [ label $ fmap show $ readRef c
                     , hcat
-                        [ smartButton (return "+1") c (+1)
-                        , smartButton (return "-1") c (+(-1))
+                        [ smartButton (pure "+1") c (+1)
+                        , smartButton (pure "-1") c (+(-1))
                         ]
-                    , hcat [ label $ return "min", entryShow a ]
-                    , hcat [ label $ return "max", entryShow b ]
+                    , hcat [ label $ pure "min", entryShow a ]
+                    , hcat [ label $ pure "max", entryShow b ]
                     ]
 
             ]
@@ -69,9 +71,9 @@ mainWidget = notebook
         , (,) "Buttons" $ do
             x <- newRef (0 :: Int)
             let is = [0 :: Double, 0.5, 1]
-                colorlist = tail $ liftM3 sRGB is is is
+                colorlist = tail $ liftA3 sRGB is is is
                 f n = colorlist !! (n `mod` length colorlist)
-            button__ (return "Push") (return True) (liftM f $ readRef x) $ modRef x (+1)
+            button__ (pure "Push") (pure True) (fmap f $ readRef x) $ modRef x (+1)
 
         , (,) "Tabs" $ notebook
 
@@ -93,7 +95,7 @@ mainWidget = notebook
             [ (,) "Version 1" $ do
                 t <- newRef $ iterate (Node Leaf) Leaf !! 10
                 hcat
-                    [ canvas 200 200 20 (const $ return ()) Nothing (readRef t) $
+                    [ canvas 200 200 20 (const $ pure ()) Nothing (readRef t) $
                         \x -> tPic 0 x # value () # lw 0.05 # translate (r2 (0,10))
                     , tEditor3 t
                     ]
@@ -108,13 +110,13 @@ mainWidget = notebook
                 let ctrl = entry $ lens fst (\(_,xs) x -> ("",x:xs)) `lensMap` buttons
                     h b = do
                         q <- extRef b listLens (False, ("", []))
-                        cell (liftM fst $ readRef q) $ \bb -> case bb of
+                        cell (fmap fst $ readRef q) $ \bb -> case bb of
                             False -> empty
                             _ -> do
                                 vcat $ reverse
                                     [ h $ _2 . _2 `lensMap` q
                                     , hcat
-                                        [ button (return "Del") $ return $ Just $ modRef b tail
+                                        [ button (pure "Del") $ pure $ Just $ modRef b tail
                                         , label $ readRef $ _2 . _1 `lensMap` q
                                         ]
                                     ]
@@ -123,15 +125,15 @@ mainWidget = notebook
             , (,) "Version 1" $ do
                 buttons <- newRef ("",[])
                 let h i b = hcat
-                       [ label $ return b
-                       , button (return "Del") $ return $ Just $ modRef (_2 `lensMap` buttons) $ \l -> take i l ++ drop (i+1) l
+                       [ label $ pure b
+                       , button (pure "Del") $ pure $ Just $ modRef (_2 `lensMap` buttons) $ \l -> take i l ++ drop (i+1) l
                        ]
                     set (a,xs) x
                         | a /= x = ("",x:xs)
                         | otherwise = (a,xs)
                 vcat
                     [ entry $ lens fst set `lensMap` buttons
-                    , cell (liftM snd $ readRef buttons) $ vcat . zipWith h [0..]
+                    , cell (fmap snd $ readRef buttons) $ vcat . zipWith h [0..]
                     ]
 
             ]
@@ -146,11 +148,11 @@ mainWidget = notebook
 
                 r <- newRef (3 :: Double)
                 vcat
-                    [ canvas 200 200 12 (const $ return ()) Nothing (readRef r) $
+                    [ canvas 200 200 12 (const $ pure ()) Nothing (readRef r) $
                         \x -> circle x # lw 0.05 # fc blue # value ()
                     , hcat
                         [ hscale 0.1 5 0.05 r
-                        , label (liftM (("radius: " ++) . ($ "") . showFFloat (Just 2)) $ readRef r)
+                        , label (fmap (("radius: " ++) . ($ "") . showFFloat (Just 2)) $ readRef r)
                         ]
                     ]
 
@@ -165,7 +167,7 @@ mainWidget = notebook
                     f <- readRef fps
                     asyncWrite (round $ 1000000 / f) $ writeRef phase (x + 2 * pi * s / f)
                 vcat
-                    [ canvas 200 200 10 (const $ return ()) Nothing (liftM2 (,) (readRef t) (readRef phase)) $
+                    [ canvas 200 200 10 (const $ pure ()) Nothing (liftA2 (,) (readRef t) (readRef phase)) $
                         \(t,x) -> (case t of
                             0 -> circle (2 + 1.5*sin x)
                             1 -> circle 1 # translate (r2 (3,0)) # rotate ((-x) @@ rad)
@@ -176,11 +178,11 @@ mainWidget = notebook
                     , combobox ["Pulse","Rotate","Rotate2","Spiral","Spiral2"] t
                     , hcat
                         [ hscale 0.1 5 0.1 speed
-                        , label (liftM (("freq: " ++) . ($ "") . showFFloat (Just 2)) $ readRef speed)
+                        , label (fmap (("freq: " ++) . ($ "") . showFFloat (Just 2)) $ readRef speed)
                         ]
                     , hcat
                         [ hscale 1 100 1 fps
-                        , label (liftM (("fps: " ++) . ($ "") . showFFloat (Just 2)) $ readRef fps)
+                        , label (fmap (("fps: " ++) . ($ "") . showFFloat (Just 2)) $ readRef fps)
                         ]
                     ]
 
@@ -196,11 +198,11 @@ mainWidget = notebook
                     let f = 50 :: Double
                     asyncWrite (round $ 1000000 / f) $ writeRef phase (x + 2 * pi * s / f)
                 let handler (Click (MousePos _ l), _) = when (not $ null l) $ modRef col not
-                    handler _ = return ()
+                    handler _ = pure ()
                 vcat
-                    [ canvas 200 200 10 handler Nothing (liftM2 (,) (readRef col) (readRef phase)) $
+                    [ canvas 200 200 10 handler Nothing (liftA2 (,) (readRef col) (readRef phase)) $
                         \(c,x) -> circle 1 # translate (r2 (3,0)) # rotate ((-x) @@ rad) # lw 0.05 # fc (if c then blue else red) # value [()]
-                    , label $ return "Click on the circle to change color."
+                    , label $ pure "Click on the circle to change color."
                     ]
 
             , (,) "Enlarge" $ do
@@ -213,11 +215,11 @@ mainWidget = notebook
                         writeRef phase (x + 2 * pi * s / f)
                         modRef col $ max 1 . (+(- 5/f))
                 let handler (Click (MousePos _ l), _) = when (not $ null l) $ modRef col (+1)
-                    handler _ = return ()
+                    handler _ = pure ()
                 vcat
-                    [ canvas 200 200 10 handler Nothing (liftM2 (,) (readRef col) (readRef phase)) $
+                    [ canvas 200 200 10 handler Nothing (liftA2 (,) (readRef col) (readRef phase)) $
                         \(c,x) -> circle c # translate (r2 (3,0)) # rotate ((-x) @@ rad) # lw 0.05 # fc blue # value [()]
-                    , label $ return "Click on the circle to temporarily enlarge it."
+                    , label $ pure "Click on the circle to temporarily enlarge it."
                     ]
 
                 , (,) "Chooser" $ do
@@ -227,19 +229,19 @@ mainWidget = notebook
                 _ <- onChange (readRef i) $ \(i,d) -> do
                     let dd = fromIntegral i - d
                     if dd == 0
-                      then return ()
+                      then pure ()
                       else do
                         let s = 2 :: Rational
                         let f = 25 :: Rational
                         asyncWrite (round $ 1000000 / f) $ do
                             writeRef i2 $ d + signum dd * min (abs dd) (s / f)
-                let keyh (SimpleKey Key'Left)  = modRef i1 pred >> return True
-                    keyh (SimpleKey Key'Right) = modRef i1 succ >> return True
-                    keyh _ = return False
+                let keyh (SimpleKey Key'Left)  = modRef i1 pred >> pure True
+                    keyh (SimpleKey Key'Right) = modRef i1 succ >> pure True
+                    keyh _ = pure False
                 vcat
-                    [ canvas 200 200 10 (const $ return ()) (Just keyh) (readRef i2) $
+                    [ canvas 200 200 10 (const $ pure ()) (Just keyh) (readRef i2) $
                         \d -> text "12345" # translate (r2 (realToFrac d, 0)) # scale 2 # value ()
-                    , label $ liftM show $ readRef i1
+                    , label $ fmap show $ readRef i1
                     ]
 
             ]
@@ -259,46 +261,46 @@ mainWidget = notebook
     {-
         , (,) "Accumulator" $ do
             x <- newRef (0 :: Integer)
-            y <- onChangeAcc (readRef x) 0 (const 0) $ \x _ y -> Left $ return $ x+y
+            y <- onChangeAcc (readRef x) 0 (const 0) $ \x _ y -> Left $ pure $ x+y
             hcat
                 [ entryShow x
-                , label $ liftM show y
+                , label $ fmap show y
                 ]
     -}
         [ (,) "Async" $ do
             ready <- newRef True
             delay <- newRef (1.0 :: Double)
             _ <- onChange (readRef ready) $ \b -> case b of
-                True -> return ()
+                True -> pure ()
                 False -> do
                     d <- readRef delay
                     asyncWrite (ceiling $ 1000000 * d) $ writeRef ready True
             vcat
-                [ hcat [ entryShow delay, label $ return "sec" ]
-                , button_ (readRef delay >>= \d -> return $ "Start " ++ show d ++ " sec computation")
+                [ hcat [ entryShow delay, label $ pure "sec" ]
+                , button_ (flip fmap (readRef delay) $ \d -> "Start " ++ show d ++ " sec computation")
                           (readRef ready)
                           (writeRef ready False)
-                , label $ liftM (\b -> if b then "Ready." else "Computing...") $ readRef ready
+                , label $ fmap (\b -> if b then "Ready." else "Computing...") $ readRef ready
                 ]
 
         , (,) "Timer" $ do
             t <- newRef (0 :: Int)
             _ <- onChange (readRef t) $ \ti -> asyncWrite 1000000 $ writeRef t $ 1 + ti
             vcat
-                [ label $ liftM show $ readRef t
+                [ label $ fmap show $ readRef t
                 ]
 
         , (,) "System" $ notebook
 
-            [ (,) "Args" $ getArgs >>= \args -> label $ return $ unlines args
+            [ (,) "Args" $ getArgs >>= \args -> label $ pure $ unlines args
 
-            , (,) "ProgName" $ getProgName >>= \args -> label $ return args
+            , (,) "ProgName" $ getProgName >>= \args -> label $ pure args
 
             , (,) "Env" $ do
                 v <- newRef "HOME"
                 lv <- newRef ""
                 _ <- onChange (readRef v) $ \s ->
-                    postponeModification . writeRef lv =<< liftM (maybe "Not in env." show) (lookupEnv s)
+                    postponeModification . writeRef lv =<< fmap (maybe "Not in env." show) (lookupEnv s)
                 vcat
                     [ entry v
                     , label $ readRef lv
@@ -307,18 +309,18 @@ mainWidget = notebook
             , (,) "Std I/O" $ let
                 put = do
                     x <- newRef Nothing
-                    _ <- onChange (readRef x) $ maybe (return ()) putStrLn_
+                    _ <- onChange (readRef x) $ maybe (pure ()) putStrLn_
                     hcat 
-                        [ label $ return "putStrLn"
+                        [ label $ pure "putStrLn"
                         , entry $ iso (maybe "" id) Just `lensMap` x
                         ]
                 get = do
                     ready <- newRef $ Just ""
-                    _ <- onChange (liftM isJust $ readRef ready) $ \b -> 
+                    _ <- onChange (fmap isJust $ readRef ready) $ \b -> 
                         when (not b) $ getLine_ $ writeRef ready . Just
                     hcat 
-                        [ button_ (return "getLine") (liftM isJust $ readRef ready) $ writeRef ready Nothing
-                        , label $ liftM (maybe "<<<waiting for input>>>" id) $ readRef ready
+                        [ button_ (pure "getLine") (fmap isJust $ readRef ready) $ writeRef ready Nothing
+                        , label $ fmap (maybe "<<<waiting for input>>>" id) $ readRef ready
                         ]
                in vcat [ put, put, put, get, get, get ]
             ]
@@ -345,13 +347,13 @@ mainWidget = notebook
             buttons <- newRef []
             let ctrl = hcat
                     [ label $ readRef name
-                    , button (return "Add") $ return $ Just $ do
+                    , button (pure "Add") $ pure $ Just $ do
                         l <- readRef buttons
                         let n = "Button #" ++ (show . length $ l)
                         writeRef buttons $ n:l
                     ]
                 f n = vcat $ map g n 
-                g n = button (return n) (return . Just $ writeRef name n)
+                g n = button (pure n) (pure . Just $ writeRef name n)
             vcat $ [ctrl, cell (readRef buttons) f]
 
         , (,) "#2" $ do
@@ -359,20 +361,20 @@ mainWidget = notebook
             buttons <- newRef []
             let ctrl = hcat
                     [ label $ readRef name
-                    , button (return "Add") $ return $ Just $ do
+                    , button (pure "Add") $ pure $ Just $ do
                         l <- readRef buttons
                         let n = "Button #" ++ (show . length $ l)
                         writeRef buttons $ l ++ [n]
                     ]
                 h b = do
                     q <- extRef b listLens (False, ("", []))
-                    cell (liftM fst $ readRef q) $ \b -> case b of
+                    cell (fmap fst $ readRef q) $ \b -> case b of
                         False -> empty
                         _ -> do
                             na <- readRef $ _2 . _1 `lensMap` q
                             vcat $ reverse
                                 [ h $ _2 . _2 `lensMap` q
-                                , hcat [ button (return na) $ return $ Just $ writeRef name na, entry $ _2 . _1 `lensMap` q ]
+                                , hcat [ button (pure na) $ pure $ Just $ writeRef name na, entry $ _2 . _1 `lensMap` q ]
                                 ]
             vcat $ [ctrl, h buttons]
 
@@ -393,7 +395,7 @@ justLens a = lens (maybe a id) (flip $ const . Just)
 counter :: forall m a . (MonadRegister m, Ord a) => a -> Ref m (a, a) -> m (EqRef m a)
 counter x ab = do
     c <- extRef ab (fix . _2) (x, (x, x))
-    return $ fix . _1 `lensMap` toEqRef c
+    pure $ fix . _1 `lensMap` toEqRef c
   where
     fix :: Lens' (a, (a,a)) (a, (a,a))
     fix = lens id $ \_ (x, ab@(a, b)) -> (min b $ max a x, ab)
@@ -416,8 +418,8 @@ inCanvasExample = do
             [ hcat
                 [ vcat
                     [ hcat
-                        [ label $ readRef i >>= \i -> return $ show i ++ "hello"
-                        , button_ (return "+1") (return True) $ modRef i (+1)
+                        [ label $ fmap (\i -> show i ++ "hello") $ readRef i
+                        , button_ (pure "+1") (pure True) $ modRef i (+1)
                         ]
                     , hcat
                         [ entry s

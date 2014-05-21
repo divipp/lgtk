@@ -30,6 +30,7 @@ module Data.Equivalence.Persistent (
     where
 
 import Control.Concurrent.MVar
+import Control.Applicative
 import Control.Monad
 import Data.Array.IArray
 import Data.IORef
@@ -109,8 +110,8 @@ repr :: Ix i => Equivalence i -> i -> i
 repr (Equivalence rs vps) i = unsafePerformIO $ do
     ps <- readIORef vps
     let (ps', r) = reprHelper ps (ps ! i)
-    maybe (return ()) (writeIORef vps) ps'
-    return r
+    maybe (pure ()) (writeIORef vps) ps'
+    pure r
 
 {-|
     Determines if two values are equivalent under the given equivalence
@@ -137,11 +138,11 @@ equate x y (Equivalence rs vps) = unsafePerformIO $ do
     let (ps',  px) = reprHelper ps                 x
         (ps'', py) = reprHelper (fromMaybe ps ps') y
     psFinal <- case ps' of
-        Nothing -> do maybe (return ()) (writeIORef vps) ps''
-                      return (fromMaybe ps ps'')
+        Nothing -> do maybe (pure ()) (writeIORef vps) ps''
+                      pure (fromMaybe ps ps'')
         Just t  -> do writeIORef vps (fromMaybe t ps'')
-                      return (fromMaybe t ps'')
-    return (go px py psFinal)
+                      pure (fromMaybe t ps'')
+    pure (go px py psFinal)
   where
     go px py ps
         | px == py  = Equivalence rs vps

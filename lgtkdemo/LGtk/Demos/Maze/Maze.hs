@@ -1,6 +1,7 @@
 module LGtk.Demos.Maze.Maze (genMaze)
 where
 
+import Control.Applicative
 import Control.Arrow (first, second)
 import Control.Monad.State (state, State)
 import Data.Array.ST (runSTArray, newListArray, readArray, writeArray)
@@ -14,7 +15,7 @@ Generates the entire maze.
 genMaze :: Size -> State StdGen Maze
 genMaze s@(sx, sy) = do
   (ews, ups) <- gMP s
-  return $ build sx sy ews ups
+  pure $ build sx sy ews ups
 
 {-
 Builds the maze using Sidewinder's algorithm.
@@ -32,7 +33,7 @@ build sx sy ews ups = runSTArray $ do
   mapM_ (openCell m N) ups
   -- 5. Open southwards
   mapM_ (openCell m S . second (subtract 1)) ups
-  return m
+  pure m
 
 {-
 Generates all the important points in the maze. Receives size of maze and
@@ -42,7 +43,7 @@ northwards openings are placed.
 gMP :: Size -> State StdGen ([Point], [Point])
 gMP (sx, sy) = do
   points <- mapM (gRP 0 sx) [2..sy]
-  return $ foldl (\(x, y) (a, b) -> (x ++ a, y ++ b)) ([], []) points
+  pure $ foldl (\(x, y) (a, b) -> (x ++ a, y ++ b)) ([], []) points
 
 {-
 Generates the important point for a row. Receives current position, length of
@@ -52,12 +53,12 @@ should be placed.
 -}
 gRP :: Coord -> Length -> Coord -> State StdGen ([Point], [Point])
 gRP c sx y
-  | sx <= 0 = return ([], [])
+  | sx <= 0 = pure ([], [])
   | otherwise = do
     len <- state $ randomR (1, sx)
     up <- state $ randomR (1, len)
     (rx, ry) <- gRP (c + len) (sx - len) y
-    return ((len + c, y):rx, (up + c, y):ry)
+    pure ((len + c, y):rx, (up + c, y):ry)
 
 {-
 Block one cell from the maze, represented as an array.

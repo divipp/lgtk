@@ -43,7 +43,7 @@ tEditor3 r = do
     q <- extRef r tLens (False, (Leaf, Leaf))
     hcat
         [ checkbox $ _1 `lensMap` q
-        , cell (liftM fst $ readRef q) $ \b -> case b of
+        , cell (fmap fst $ readRef q) $ \b -> case b of
             False -> empty
             True -> vcat
                 [ tEditor3 $ _2 . _1 `lensMap` q

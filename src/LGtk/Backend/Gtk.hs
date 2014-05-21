@@ -8,6 +8,7 @@ module LGtk.Backend.Gtk
     ) where
 
 import Control.Category
+import Control.Applicative
 import Control.Monad
 import Control.Exception
 import Control.Monad.State
@@ -40,7 +41,7 @@ runRegister' pa (Wrap m) = runRegister (newChan' pa) m
   where
     newChan' pa = do
         ch <- newChan
-        return (pa >> readChan ch, writeChan ch)
+        pure (pa >> readChan ch, writeChan ch)
 
 {- |
 Run a Gtk widget description.
@@ -51,15 +52,15 @@ It leaves the event cycle when the window is closed.
 runWidget' :: (MonadRegister m, MonadBaseControl IO (EffectM m))
     => (forall a . IO () -> m a -> IO (a, IO ())) -> Widget m -> IO ()
 runWidget' run desc = gtkContext $ \postGUISync -> do
-    postActionsRef <- newMVar $ return ()
-    let addPostAction m = modifyMVar_ postActionsRef $ \n -> return $ n >> m
-        runPostActions = join $ modifyMVar postActionsRef $ \m -> return (return (), m)
+    postActionsRef <- newMVar $ pure ()
+    let addPostAction m = modifyMVar_ postActionsRef $ \n -> pure $ n >> m
+        runPostActions = join $ modifyMVar postActionsRef $ \m -> pure (pure (), m)
     (widget, actions) <- run runPostActions $ do
         w <- runWidget_ addPostAction postGUISync desc
         liftIO' runPostActions
-        return w
+        pure w
     _ <- forkIO $ actions
-    return widget
+    pure widget
 
 gtkContext :: ((forall a . IO a -> IO a) -> IO SWidget) -> IO ()
 gtkContext m = do
@@ -72,7 +73,7 @@ gtkContext m = do
     c <- m post
     window <- windowNew
     set window [ containerBorderWidth := 10, containerChild := snd c ]
-    _ <- window `on` deleteEvent $ liftIO mainQuit >> return False
+    _ <- window `on` deleteEvent $ liftIO mainQuit >> pure False
     widgetShowAll window
     mainGUI
 
@@ -96,18 +97,18 @@ runWidget_ post' post = toWidget
         re <- registerCallback s
         u <- liftEffectM $ liftBaseWith $ \unr -> f $ \x -> do
             _ <- unr $ re x
-            return ()
+            pure ()
         onRegionStatusChange (liftIO_ . post . u $)
-        return u
+        pure u
 
     ger :: Eq a => (RegionStatusChange -> IO ()) -> RefReader m a -> (a -> IO ()) -> m ()
-    ger hd s f = liftM (const ()) $ onChange s $ \a -> liftIO'' $ do
+    ger hd s f = fmap (const ()) $ onChange s $ \a -> liftIO'' $ do
         hd Block
         f a
         hd Unblock
 
     nhd :: RegionStatusChange -> IO ()
-    nhd = const $ return ()
+    nhd = const $ pure ()
 
     toWidget :: Widget m -> m SWidget
     toWidget m = m >>= \i -> case i of
@@ -115,7 +116,7 @@ runWidget_ post' post = toWidget
         Label s -> do
             w <- liftIO'' $ labelNew Nothing
             ger nhd s $ labelSetLabel w
-            return' w
+            pure' w
 
         Canvas w h sc_ me keyh r diaFun -> mkCanvas me r diaFun where
 
@@ -137,16 +138,16 @@ runWidget_ post' post = toWidget
             widgetAddEvents canvas [PointerMotionMask, KeyPressMask]
             widgetSetCanFocus canvas True
             af <- aspectFrameNew 0.5 0.5 (Just $ fromIntegral w / fromIntegral h)
-            _ <- canvas `onSizeRequest` return (Requisition w h)
+            _ <- canvas `onSizeRequest` pure (Requisition w h)
             _ <- containerAdd af canvas
             realized <- newMVar False
-            _ <- onRealize canvas $ swapMVar realized True >> return ()
---            _ <- afterRealize canvas $ swapMVar realized False >> return ()
+            _ <- onRealize canvas $ swapMVar realized True >> pure ()
+--            _ <- afterRealize canvas $ swapMVar realized False >> pure ()
             let
               drawingAreaGetDrawWindow' = do
                 b <- readMVar realized
-                if b then catchJust select (liftM Just $ widgetGetDrawWindow canvas) (const $ return Nothing)
-                     else return Nothing
+                if b then catchJust select (fmap Just $ widgetGetDrawWindow canvas) (const $ pure Nothing)
+                     else pure Nothing
                 where
                     select :: SomeException -> Maybe ()
                     select s | "widgetGetDrawWindow" `isInfixOf` show s = Just ()
@@ -157,7 +158,7 @@ runWidget_ post' post = toWidget
                 (w, h) <- drawableGetSize win
                 let (w', h') = (fromIntegral w, fromIntegral h)
                 let sc = w' / sc_
-                return (sc, w', h', w, h)
+                pure (sc, w', h', w, h)
 
               tr sc w h dia = translate (r2 (w/2, h/2)) $ dia # scaleY (-1) # scale sc `atop` rect w h # fc white # lw 0
 
@@ -166,25 +167,25 @@ runWidget_ post' post = toWidget
                 let dia = freeze $ clearValue dia_
                 win <- drawingAreaGetDrawWindow'
                 case win of
-                  Nothing -> return ()
+                  Nothing -> pure ()
                   Just win -> do
                     (sc, w, h, wi, he) <- dims win
                     drawWindowBeginPaintRect win $ Rectangle 0 0 wi he
                     renderWithDrawable win $ snd $ renderDia Cairo (CairoOptions "" (Width w) RenderOnly True) $ tr sc w h dia
                     drawWindowEndPaint win
 
-            return (draw, canvas, af, dims, drawingAreaGetDrawWindow')
+            pure (draw, canvas, af, dims, drawingAreaGetDrawWindow')
 
           let -- compCoords :: (Double, Double) -> IO (MousePos a)
               compCoords_ (x,y) = do
                 win <- drawingAreaGetDrawWindow'
                 case win of
-                  Nothing -> return Nothing
+                  Nothing -> pure Nothing
                   Just win -> do
                     (sc, w, h, _, _) <- dims win
                     d <- readMVar cur
                     let p = p2 ((x - w / 2) / sc, (h / 2 - y) / sc)
-                    return $ Just (MousePos p $ maybe mempty (`sample` p) d, fromMaybe mempty d)
+                    pure $ Just (MousePos p $ maybe mempty (`sample` p) d, fromMaybe mempty d)
 
           _ <- reg me $ \re -> do
               let compCoords :: MonadIO em
@@ -193,7 +194,7 @@ runWidget_ post' post = toWidget
                         -> em ()
                   compCoords eventCoordinates f = do
                     c <- eventCoordinates
-                    liftIO $ compCoords_ c >>= maybe (return ()) (re . f)
+                    liftIO $ compCoords_ c >>= maybe (pure ()) (re . f)
 
               _ <- on' canvas buttonPressEvent $ tryEvent $ compCoords eventCoordinates $ \(p, d) -> (Click p, d)
               _ <- on' canvas buttonReleaseEvent $ tryEvent $ compCoords eventCoordinates $ \(p, d) -> (Release p, d)
@@ -206,22 +207,22 @@ runWidget_ post' post = toWidget
                 compCoords eventCoordinates $ \(p, d) -> (ScrollTo (tr dir) p, d)
 
           case keyh of
-            Nothing -> return ()
+            Nothing -> pure ()
             Just keyh -> do
-                _ <- reg (\k -> keyh k >> return ()) $ \re ->
+                _ <- reg (\k -> keyh k >> pure ()) $ \re ->
                   on' canvas keyPressEvent $ tryEvent $ do
                     m <- eventModifier
                     c <- eventKeyVal
                     kn <- lift $ keyvalName c
                     kc <- lift $ keyvalToChar c
                     liftIO $ re $ trKey m kn kc
-                return ()
+                pure ()
 
           _ <- liftIO' $ on canvas exposeEvent $ tryEvent $ liftIO $ do
                 d <- readMVar cur'
                 case d of
                     Just x -> putMVar v x
-                    _ -> return ()
+                    _ -> pure ()
 
           canvasDraw' <- liftIO' $ do
             v2 <- newMVar False
@@ -235,15 +236,15 @@ runWidget_ post' post = toWidget
                 let d = diaFun dia
                 post $ canvasDraw d
                 _ <- swapMVar v2 False
-                return ()
-            return $ \dia -> do
+                pure ()
+            pure $ \dia -> do
                 b <- readMVar v2
                 unless b $ do
                     _ <- tryTakeMVar v
                     putMVar v dia
 
           ger nhd r canvasDraw'
-          return' af
+          pure' af
 
         Button s sens col m -> do
             w <- liftIO'' buttonNew
@@ -253,77 +254,77 @@ runWidget_ post' post = toWidget
             let tr col = case toSRGB col of RGB r g b -> Color (f r) (f g) (f b)
                 f d = fromInteger $ min 65535 $ max 0 $ floor $ d * 65536
             case col of
-                Nothing -> return ()
+                Nothing -> pure ()
                 Just col -> ger hd col $ \c -> do
                     widgetModifyBg w StateNormal $ tr c
                     widgetModifyBg w StatePrelight $ tr c
-            return' w
+            pure' w
         Entry _ (r, s) -> do        -- TODO: red background if not ok
             w <- liftIO'' entryNew
             hd <- reg s $ \re -> on' w entryActivate $ entryGetText w >>= re
-            hd' <- reg s $ \re -> on' w focusOutEvent $ lift $ entryGetText w >>= re >> return False
+            hd' <- reg s $ \re -> on' w focusOutEvent $ lift $ entryGetText w >>= re >> pure False
             ger (\x -> hd x >> hd' x) r $ entrySetText w
-            return' w
+            pure' w
         Checkbox (r, s) -> do
             w <- liftIO'' checkButtonNew
             hd <- reg s $ \re -> on' w toggled $ toggleButtonGetActive w >>= re
             ger hd r $ toggleButtonSetActive w
-            return' w
+            pure' w
         Scale a b c (r, s) -> do
             w <- liftIO'' $ hScaleNewWithRange a b c
-            _ <- liftIO'' $ w `onSizeRequest` return (Requisition 200 40)
+            _ <- liftIO'' $ w `onSizeRequest` pure (Requisition 200 40)
             hd <- reg s $ \re -> on' w valueChanged $ rangeGetValue w >>= re
             ger hd r $ rangeSetValue w
-            return' w
+            pure' w
         Combobox ss (r, s) -> do
             w <- liftIO'' comboBoxNewText
-            _ <- liftIO'' $ w `onSizeRequest` return (Requisition 100 30)
+            _ <- liftIO'' $ w `onSizeRequest` pure (Requisition 100 30)
             liftIO'' $ flip mapM_ ss $ comboBoxAppendText w
             hd <- reg s $ \re -> on' w changed $ fmap (max 0) (comboBoxGetActive w) >>= re
             ger hd r $ comboBoxSetActive w
-            return' w
+            pure' w
         List o xs -> do
             ws <- mapM toWidget xs
             w <- liftIO'' $ case o of
                 Vertical -> fmap castToBox $ vBoxNew False 1
                 Horizontal -> fmap castToBox $ hBoxNew False 1
             shs <- forM ws $ liftIO'' . containerAdd'' w . snd
-            liftM (mapFst (sequence_ shs >>)) $ return'' ws w
+            fmap (mapFst (sequence_ shs >>)) $ pure'' ws w
         Notebook' s xs -> do
             ws <- mapM (toWidget . snd) xs
             w <- liftIO'' notebookNew
             forM_ (zip ws xs) $ \(ww, (s, _)) -> do
                 liftIO'' . flip (notebookAppendPage w) s $ snd $ ww
             _ <- reg s $ \re -> on' w switchPage $ re
-            return'' ws w
+            pure'' ws w
         Cell onCh f -> do
             let b = False
             w <- liftIO'' $ case b of
                 True -> fmap castToContainer $ hBoxNew False 1
                 False -> fmap castToContainer $ alignmentNew 0 0 1 1
-            sh <- liftIO' $ newMVar $ return ()
+            sh <- liftIO' $ newMVar $ pure ()
             _ <- onChangeMemo onCh $ \bv -> do
                 mx <- f toWidget bv
-                return $ mx >>= \(x,y) -> liftIO'' $ do 
+                pure $ mx >>= \(x,y) -> liftIO'' $ do 
                     _ <- swapMVar sh x
                     containerForeach w $ if b then widgetHideAll else containerRemove w 
                     post' $ post $ do
                         ch <- containerGetChildren w
                         when (y `notElem` ch) $ containerAdd w y
                         x
-            liftM (mapFst (join (readMVar sh) >>)) $ return'' [] w
+            fmap (mapFst (join (readMVar sh) >>)) $ pure'' [] w
 
 on' :: GObjectClass x => x -> Signal x c -> c -> IO (RegionStatusChange -> IO ())
-on' o s c = liftM (flip f) $ on o s c where
+on' o s c = fmap (flip f) $ on o s c where
     f Kill = signalDisconnect
     f Block = signalBlock
     f Unblock = signalUnblock
 
-return' :: Monad m => WidgetClass x => x -> m SWidget
-return' w = return (widgetShowAll w, castToWidget w)
+pure' :: (Monad m, Applicative m) => WidgetClass x => x -> m SWidget
+pure' w = pure (widgetShowAll w, castToWidget w)
 
-return'' :: Monad m => WidgetClass x => [SWidget] -> x -> m SWidget
-return'' ws w = return (mapM_ fst ws >> widgetShow w, castToWidget w)
+pure'' :: (Monad m, Applicative m) => WidgetClass x => [SWidget] -> x -> m SWidget
+pure'' ws w = pure (mapM_ fst ws >> widgetShow w, castToWidget w)
 
 mapFst f (a, b) = (f a, b)
 
@@ -332,7 +333,7 @@ containerAdd'' w x = do
     containerAdd a x
     containerAdd w a
     set w [ boxChildPacking a := PackNatural ]
-    return $ widgetShow a
+    pure $ widgetShow a
 
 trKey mods name ch
     = ModifiedKey (Gtk.Shift `elem` mods) (Gtk.Control `elem` mods) (Gtk.Alt `elem` mods) (Gtk.Super `elem` mods) k

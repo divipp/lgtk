@@ -74,7 +74,8 @@ module LGtk
 import Data.Maybe
 import Data.Monoid
 import Data.Semigroup
-import Control.Monad
+import Control.Applicative hiding (empty)
+--import Control.Monad
 import Control.Lens
 
 import Data.LensRef
@@ -110,24 +111,24 @@ It leaves the event cycle when the window is closed.
 --runWidget = Gtk.runWidget
 {-
 instance MonadRefState m => IsString (RefStateReader m String) where
-    fromString = return
+    fromString = pure
 -}
 
 -- | Vertical composition of widgets.
-vcat :: Monad m => [Widget m] -> Widget m
-vcat = return . List Vertical
+vcat :: (Monad m, Applicative m) => [Widget m] -> Widget m
+vcat = pure . List Vertical
 
 -- | Horizontal composition of widgets.
-hcat :: Monad m => [Widget m] -> Widget m
-hcat = return . List Horizontal
+hcat :: (Monad m, Applicative m) => [Widget m] -> Widget m
+hcat = pure . List Horizontal
 
 -- | Empty widget.
-empty :: Monad m => Widget m
+empty :: (Monad m, Applicative m) => Widget m
 empty = hcat []
 
 -- | Dynamic label.
 label :: MonadRegister m => RefReader m String -> Widget m
-label = return . Label
+label = pure . Label
 
 -- | Low-level button with changeable background color.
 button__
@@ -137,7 +138,7 @@ button__
     -> RefReader m (Colour Double)      -- ^ dynamic background color
     -> Modifier m ()        -- ^ the action to do when the button is pressed
     -> Widget m
-button__ r x c y = return $ Button (r) (x) (Just c) (\() -> y)
+button__ r x c y = pure $ Button (r) (x) (Just c) (\() -> y)
 
 -- | Low-level button.
 button_
@@ -146,7 +147,7 @@ button_
     -> RefReader m Bool       -- ^ the button is active when this returns @True@
     -> Modifier m ()        -- ^ the action to do when the button is pressed
     -> Widget m
-button_ r x y = return $ Button (r) (x) Nothing (\() -> y)
+button_ r x y = pure $ Button (r) (x) Nothing (\() -> y)
 
 -- | Button
 button
@@ -154,7 +155,7 @@ button
     => RefReader m String     -- ^ dynamic label of the button
     -> RefReader m (Maybe (Modifier m ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
     -> Widget m
-button r fm = button_ r (liftM isJust fm) (liftRefReader fm >>= maybe (return ()) id)
+button r fm = button_ r (fmap isJust fm) (liftRefReader fm >>= maybe (pure ()) id)
 
 -- | Button which inactivates itself automatically.
 smartButton
@@ -168,19 +169,19 @@ smartButton s r f
 
 -- | Checkbox.
 checkbox :: MonadRegister m => Ref m Bool -> Widget m
-checkbox r = return $ Checkbox ((readRef r), writeRef r)
+checkbox r = pure $ Checkbox ((readRef r), writeRef r)
 
 -- | Combo box.
 combobox :: MonadRegister m => [String] -> Ref m Int -> Widget m
-combobox ss r = return $ Combobox ss ((readRef r), writeRef r)
+combobox ss r = pure $ Combobox ss ((readRef r), writeRef r)
 
 -- | Text entry.
 entry :: (MonadRegister m, RefClass r, RefReaderSimple r ~ RefReader m)  => RefSimple r String -> Widget m
-entry r = return $ Entry (const True) ((readRef r), writeRef r)
+entry r = pure $ Entry (const True) ((readRef r), writeRef r)
 
 -- | Text entry with automatic show-read conversion.
 entryShow :: forall m a r . (MonadRegister m, Show a, Read a, RefClass r, RefReaderSimple r ~ RefReader m) => RefSimple r a -> Widget m
-entryShow r_ = return $ Entry isOk ((readRef r), writeRef r)
+entryShow r_ = pure $ Entry isOk ((readRef r), writeRef r)
   where
     r = showLens `lensMap` r_
     isOk s = case (reads s :: [(a, String)]) of
@@ -198,31 +199,31 @@ The tabs are created lazily.
 notebook :: MonadRegister m => [(String, Widget m)] -> Widget m
 notebook xs = do
     currentPage <- newRef 0
-    let f index (title, w) = (,) title $ cell (liftM (== index) $ readRef currentPage) $ \b -> case b of
+    let f index (title, w) = (,) title $ cell (fmap (== index) $ readRef currentPage) $ \b -> case b of
            False -> hcat []
            True -> w
-    return $ Notebook' (writeRef currentPage) $ zipWith f [0..] xs
+    pure $ Notebook' (writeRef currentPage) $ zipWith f [0..] xs
 
 {- | Dynamic cell.
 
 The monadic action for inner widget creation is memoised in the first monad layer.
 -}
 cell_ :: (MonadRegister m, Eq a) => RefReader m a -> (forall x . (Widget m -> m x) -> a -> m (m x)) -> Widget m
-cell_ r f = return $ Cell r f
+cell_ r f = pure $ Cell r f
 
 {- | Dynamic cell.
 
 The inner widgets are memoised.
 -}
 cell :: (MonadRegister m, Eq a) => RefReader m a -> (a -> Widget m) -> Widget m
-cell r m = cell_ r $ \mk -> liftM return . mk . m
+cell r m = cell_ r $ \mk -> fmap pure . mk . m
 
 {- | Dynamic cell.
 
 The inner widgets are not memoised.
 -}
 cellNoMemo :: (MonadRegister m, Eq a) => RefReader m a -> (a -> Widget m) -> Widget m
-cellNoMemo r m = cell_ r $ \mk -> return . mk . m
+cellNoMemo r m = cell_ r $ \mk -> pure . mk . m
 
 -- | Diagrams canvas.
 canvas
@@ -235,7 +236,7 @@ canvas
     -> RefReader m b -- ^ state references
     -> (b -> Dia a) -- ^ diagrams renderer
     -> Widget m
-canvas w h sc me kh r f = return $ Canvas w h sc me kh r f
+canvas w h sc me kh r f = pure $ Canvas w h sc me kh r f
 
 hscale
     :: (MonadRegister m)
@@ -244,7 +245,7 @@ hscale
     -> Double   -- ^ step
     -> Ref m Double
     -> Widget m
-hscale a b c r = return $ Scale a b c (readRef r, writeRef r)
+hscale a b c r = pure $ Scale a b c (readRef r, writeRef r)
 
 listLens :: Lens' (Bool, (a, [a])) [a]
 listLens = lens get set where
@@ -264,8 +265,8 @@ undoTr
            )  -- ^ undo and redo actions
 undoTr eq r = do
     ku <- extRef r (undoLens eq) ([], [])
-    let try f = liftM (liftM (writeRef ku) . f) $ readRef ku
-    return (try undo, try redo)
+    let try f = fmap (fmap (writeRef ku) . f) $ readRef ku
+    pure (try undo, try redo)
   where
     undo (x: xs@(_:_), ys) = Just (xs, x: ys)
     undo _ = Nothing

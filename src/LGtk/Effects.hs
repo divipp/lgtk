@@ -92,7 +92,7 @@ instance MonadRefCreator m => MonadRefCreator (Wrap m) where
     newRef = Wrap . newRef
 
 instance MonadMemo m => MonadMemo (Wrap m) where
-    memoRead (Wrap m) = liftM Wrap $ Wrap $ memoRead m
+    memoRead (Wrap m) = fmap Wrap $ Wrap $ memoRead m
 
 instance MonadRefWriter m => MonadRefWriter (Wrap m) where
     liftRefWriter = Wrap . liftRefWriter
@@ -103,8 +103,8 @@ instance (MonadEffect m) => MonadEffect (Wrap m) where
 
 instance (MonadRegister m) => MonadRegister (Wrap m) where
     type Modifier (Wrap m) = Wrap (Modifier m)
---    onChangeAcc r b bc f = Wrap $ onChangeAcc r b bc $ (fmap . fmap . fmap) (liftM (fmap unWrap) . unWrap) f
-    onChangeMemo r f = Wrap $ onChangeMemo r $ fmap (liftM unWrap . unWrap) f
+--    onChangeAcc r b bc f = Wrap $ onChangeAcc r b bc $ (fmap . fmap . fmap) (fmap (fmap unWrap) . unWrap) f
+    onChangeMemo r f = Wrap $ onChangeMemo r $ fmap (fmap unWrap . unWrap) f
     onChange r f = Wrap $ onChange r $ fmap unWrap f
     registerCallback r = Wrap $ registerCallback (fmap unWrap r)
     onRegionStatusChange g = Wrap $ onRegionStatusChange g
@@ -129,8 +129,8 @@ instance (MonadRegister m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m)
     getProgName = liftIO' Env.getProgName
 
 --    lookupEnv   = Env.lookupEnv -- does not work with Haskell Platform 2013.2.0.0
-    lookupEnv v = liftIO' $ catchIOError (liftM Just $ Env.getEnv v) $ \e ->
-        if isDoesNotExistError e then return Nothing else ioError e
+    lookupEnv v = liftIO' $ catchIOError (fmap Just $ Env.getEnv v) $ \e ->
+        if isDoesNotExistError e then pure Nothing else ioError e
 
     asyncWrite t r = do
         (u, f) <- liftEffectM forkIOs'
@@ -142,13 +142,13 @@ instance (MonadRegister m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m)
         ms <- liftIO' r
         ref <- newRef ms
         v <- liftIO' newEmptyMVar
-        vman <- liftIO' $ newMVar $ return ()
+        vman <- liftIO' $ newMVar $ pure ()
         cf <- liftIO' $ canonicalizePath' f
         let
             cf' = decodeString cf
             g = (== cf')
 
-            h = tryPutMVar v () >> return ()
+            h = tryPutMVar v () >> pure ()
 
             filt (Added x _) = g x
             filt (Modified x _) = g x
@@ -174,15 +174,15 @@ instance (MonadRegister m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m)
             w x
             threadDelay 10000
             startm
-        return ref
+        pure ref
      where
         r = do
             b <- doesFileExist f
             if b then do
                 xs <- readFile f
                 _ <- evaluate (length xs)
-                return (Just xs)
-             else return Nothing
+                pure (Just xs)
+             else pure Nothing
 
         w = maybe (doesFileExist f >>= \b -> when b (removeFile f)) (writeFile f)
 
@@ -196,10 +196,10 @@ instance (MonadRegister m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m)
 getLine__ :: (String -> IO ()) -> IO (RegionStatusChange -> IO ())
 getLine__ f = do
     _ <- forkIO $ forever $ getLine >>= f   -- todo
-    return $ const $ return ()
+    pure $ const $ pure ()
 
 -- canonicalizePath may fail if the file does not exsist
-canonicalizePath' p = liftM (F.</> f) $ canonicalizePath d 
+canonicalizePath' p = fmap (F.</> f) $ canonicalizePath d 
   where (d,f) = F.splitFileName p
 
 liftIO' = liftEffectM . liftIO_
@@ -214,7 +214,7 @@ forkIOs' = liftBaseWith $ \run -> do
             readMVar x
             is <- takeMVar s
             case is of
-                [] -> return ()
+                [] -> pure ()
                 (i:is) -> do
                     putMVar s is
                     _ <- run i
@@ -224,6 +224,6 @@ forkIOs' = liftBaseWith $ \run -> do
         f _ Unblock = putMVar x ()
 
     i <- forkIO g
-    return (liftIO_ . f i, liftIO_ . putMVar s)
+    pure (liftIO_ . f i, liftIO_ . putMVar s)
 
 

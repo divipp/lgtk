@@ -110,7 +110,7 @@ mazeGame = do
     r <- extRef_ maze_ (S.empty, Start) $ \_ _ -> (S.empty, Start)
 
     let handler (MoveTo (MousePos _ [p]), _) = domove p
-        handler _ = return ()
+        handler _ = pure ()
 
         domove p = do
             (maze, _) <- readRef maze_
@@ -124,13 +124,13 @@ mazeGame = do
                     Start -> Just $ snd $ bounds maze
                     Explore p -> checkBounds (bounds maze) $ f p
                     _ -> Nothing
-            maybe (return True) ((>> return True) . domove) m
+            maybe (pure True) ((>> pure True) . domove) m
 
         key (SimpleKey Key'Left)  = move $ \(x,y)->(x-1,y)
         key (SimpleKey Key'Right) = move $ \(x,y)->(x+1,y)
         key (SimpleKey Key'Up)    = move $ \(x,y)->(x,y+1)
         key (SimpleKey Key'Down)  = move $ \(x,y)->(x,y-1)
-        key _ = return False
+        key _ = pure False
 
         pos maze Start = Just $ snd $ bounds maze
         pos maze Success = Just $ fst $ bounds maze
@@ -139,34 +139,34 @@ mazeGame = do
 
     vcat
         [ hcat
-            [ canvas 400 400 1 handler (Just key) (liftM2 (\(m,_) (s, st) -> (m,s, pos m st)) (readRef maze_) (readRef r)) drawMaze
+            [ canvas 400 400 1 handler (Just key) (liftA2 (\(m,_) (s, st) -> (m,s, pos m st)) (readRef maze_) (readRef r)) drawMaze
 
             , vcat
                 [ hcat
                     [ checkbox forgiving
-                    , label $ return "forgiving mode"
+                    , label $ pure "forgiving mode"
                     ]
                 , combobox ["cdsmith's", "Mihai Maruseac's"] mazekind
-                , label $ return "maze generator"
+                , label $ pure "maze generator"
                 ]
             ]
 
-        , label $ liftM (show . snd) $ readRef r
+        , label $ fmap (show . snd) $ readRef r
         , hcat
-            [ button (return "Try again") $ return $ Just $ modRef maze_ id
-            , button (return "New maze") $ return $ Just $ modRef dim id
+            [ button (pure "Try again") $ pure $ Just $ modRef maze_ id
+            , button (pure "New maze") $ pure $ Just $ modRef dim id
             ]
         , hcat
             [ entryShow dimX
-            , smartButton (return "+1") dimX succ
-            , smartButton (return "-1") dimX pred
-            , label $ return "width"
+            , smartButton (pure "+1") dimX succ
+            , smartButton (pure "-1") dimX pred
+            , label $ pure "width"
             ]
         , hcat
             [ entryShow dimY
-            , smartButton (return "+1") dimY succ
-            , smartButton (return "-1") dimY pred
-            , label $ return "height"
+            , smartButton (pure "+1") dimY succ
+            , smartButton (pure "-1") dimY pred
+            , label $ pure "height"
             ]
         ]
 
@@ -176,7 +176,7 @@ extRef_ :: MonadRegister m => Ref m b -> a -> (b -> a -> a) -> m (Ref m a)
 extRef_ r def f = do
     r0 <- readRef r
     v <- extRef r (lens fst set) (r0, def)
-    return $ _2 `lensMap` v
+    pure $ _2 `lensMap` v
   where
     set (_, y) x = (x, f x y)
 
