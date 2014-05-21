@@ -97,7 +97,7 @@ runWidget_ post' post = toWidget
         u <- liftEffectM $ liftBaseWith $ \unr -> f $ \x -> do
             _ <- unr $ re x
             return ()
-        onRegionStatusChange (liftIO'' . u $)
+        onRegionStatusChange (liftIO_ . post . u $)
         return u
 
     ger :: Eq a => (RegionStatusChange -> IO ()) -> RefReader m a -> (a -> IO ()) -> m ()

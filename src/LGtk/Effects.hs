@@ -9,13 +9,12 @@
 {-# LANGUAGE GADTs #-}
 module LGtk.Effects where
 
---import Control.Applicative
+import Control.Applicative
 import Control.Concurrent
 import Control.Exception (evaluate)
 import Control.Monad
 import Control.Monad.Fix
 import Control.Monad.Operational
---import Control.Monad.Reader
 import Control.Monad.Trans.Control
 import System.Directory
 import qualified System.FilePath as F
@@ -26,8 +25,6 @@ import qualified System.Environment as Env
 import System.IO.Error (catchIOError, isDoesNotExistError)
 
 import Data.LensRef.Class
---import Data.LensRef
-
 
 --------------------------------------------------------------------------
 
@@ -84,56 +81,33 @@ putStrLn_ :: EffIORef m => String -> m ()
 putStrLn_ = putStr_ . (++ "\n")
 
 
-newtype Wrap m a = Wrap { unWrap :: Modifier m a }-- deriving (Functor, Applicative, Monad)
+newtype Wrap m a = Wrap { unWrap :: m a } deriving (Functor, Applicative, Monad, MonadFix)
 
---deriving instance MonadRegister m => Functor (Wrap m)
---deriving instance MonadRegister m => Applicative (Wrap m)
-deriving instance MonadRegister m => Monad (Wrap m)
-
-instance (MonadRegister m, MonadFix (Modifier m)) => MonadFix (Wrap m) where
-    mfix f = Wrap $ mfix $ unWrap . f
-
-instance (MonadRegister m) => MonadRefReader (Wrap m) where
+instance (MonadRefReader m) => MonadRefReader (Wrap m) where
     type BaseRef (Wrap m) = BaseRef m
     liftRefReader = Wrap . liftRefReader
 
-instance MonadRegister m => MonadRefCreator (Wrap m) where
+instance MonadRefCreator m => MonadRefCreator (Wrap m) where
     extRef r l = Wrap . extRef r l
     newRef = Wrap . newRef
 
-instance MonadRegister m => MonadMemo (Wrap m) where
+instance MonadMemo m => MonadMemo (Wrap m) where
     memoRead (Wrap m) = liftM Wrap $ Wrap $ memoRead m
 
-instance MonadRegister m => MonadRefWriter (Wrap m) where
+instance MonadRefWriter m => MonadRefWriter (Wrap m) where
     liftRefWriter = Wrap . liftRefWriter
-{-
-deriving instance (MonadRegister m) => Monad (Modifier (Wrap m))
 
-instance MonadRegister m => MonadRefReader (Modifier (Wrap m)) where
-    type BaseRef (Modifier (Wrap m)) = BaseRef m
-    liftRefReader = WrapM . liftRefReader
-
-instance MonadRegister m => MonadMemo (Modifier (Wrap m)) where
-    memoRead (WrapM m) = liftM WrapM $ WrapM $ memoRead m
-
-instance MonadRegister m => MonadRefCreator (Modifier (Wrap m)) where
-    extRef r l = WrapM . extRef r l
-    newRef = WrapM . newRef
-
-instance MonadRegister m => MonadRefWriter (Modifier (Wrap m)) where
-    liftRefWriter = WrapM . liftRefWriter
--}
-instance (MonadRegister m, MonadRegister (Modifier m)) => MonadRegister (Wrap m) where
+instance (MonadEffect m) => MonadEffect (Wrap m) where
     type EffectM (Wrap m) = EffectM m
-    --newtype Modifier (Wrap m) a = WrapM { unWrapM :: Modifier m a}
-    type Modifier (Wrap m) = Wrap m
-    liftEffectM = Wrap . liftEffectM -- :: EffectM m a -> m a
-    liftToModifier = id --WrapM . liftToModifier . unWrap -- :: m a -> Modifier m a
+    liftEffectM = Wrap . liftEffectM
+
+instance (MonadRegister m) => MonadRegister (Wrap m) where
+    type Modifier (Wrap m) = Wrap (Modifier m)
 --    onChangeAcc r b bc f = Wrap $ onChangeAcc r b bc $ (fmap . fmap . fmap) (liftM (fmap unWrap) . unWrap) f
     onChangeMemo r f = Wrap $ onChangeMemo r $ fmap (liftM unWrap . unWrap) f
     onChange r f = Wrap $ onChange r $ fmap unWrap f
     registerCallback r = Wrap $ registerCallback (fmap unWrap r)
-    onRegionStatusChange g = Wrap $ onRegionStatusChange $ unWrap . g
+    onRegionStatusChange g = Wrap $ onRegionStatusChange g
 
 data IOInstruction a where
     GetArgs :: IOInstruction [String]
@@ -148,7 +122,7 @@ type SIO = Program IOInstruction
 
 type Handle = RegionStatusChange -> SIO ()
 
-instance (MonadRegister m, MonadRegister (Modifier m), MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m) where
+instance (MonadRegister m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m) where
 
     getArgs     = liftIO' Env.getArgs
 
@@ -161,7 +135,7 @@ instance (MonadRegister m, MonadRegister (Modifier m), MonadBaseControl IO (Effe
     asyncWrite t r = do
         (u, f) <- liftEffectM forkIOs'
         x <- registerCallback $ const r
-        onRegionStatusChange $ liftEffectM . u
+        onRegionStatusChange u
         liftEffectM $ f [ liftIO_ $ threadDelay t, x () ]
 
     fileRef f = do
@@ -191,7 +165,7 @@ instance (MonadRegister m, MonadRegister (Modifier m), MonadBaseControl IO (Effe
 
         (u, ff) <- liftEffectM  forkIOs'
         re <- registerCallback (writeRef ref)
-        onRegionStatusChange $ liftEffectM . u
+        onRegionStatusChange u
         liftEffectM $ ff $ repeat $ liftIO_ (takeMVar v >> r) >>= re
 
         _ <- onChange (readRef ref) $ \x -> liftIO' $ do
@@ -215,7 +189,7 @@ instance (MonadRegister m, MonadRegister (Modifier m), MonadBaseControl IO (Effe
     getLine_ w = do
         (u, f) <- liftEffectM forkIOs'
         x <- registerCallback w
-        onRegionStatusChange $ liftEffectM . u
+        onRegionStatusChange u
         liftEffectM $ f [ liftIO_ getLine >>= x ]   -- TODO
     putStr_ s = liftIO' $ putStr s
 
