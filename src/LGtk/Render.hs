@@ -187,7 +187,7 @@ inCanvas width height scale w = mdo
         h2 m@(a,_,_,i) = do
             i' <- readRef $ _4 `lensMap` foc
             when (i /= i') $ do
-                join_ $ readRef $ _3 `lensMap` foc
+                join $ readRef $ _3 `lensMap` foc
                 a
                 writeRef foc m
 
@@ -469,8 +469,8 @@ tr sca dkh w = do
 
             wisv <- mapM (tr sca dkh) wis
 
-            wr <- lift $ onChange (readRef ir) $ \x -> pure $ case wisv !! x of
-                         CWidget rr hr render -> flip fmap rr $
+            wr <- lift $ onChange (readRef ir) $ \x -> case wisv !! x of
+                         CWidget rr hr render -> pure $ flip fmap rr $
                            \(es, rrv) -> (es, UnsafeEqWrap (x, rrv) $ fmap (fmap (fmap hr)) $ render rrv)
 
             let kh = (pure (), ff, pure (), ii)
