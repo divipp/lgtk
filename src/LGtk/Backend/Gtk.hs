@@ -94,9 +94,9 @@ runWidget_ post' post = toWidget
     -- type Receive n m k a = (RegionStatusChange -> n ()) -> m (a -> k ())
     reg :: Receive m a -> ((a -> IO ()) -> IO (RegionStatusChange -> IO ())) -> m (RegionStatusChange -> IO ())
     reg s f = do
-        re <- registerCallback s
+        p <- askPostpone
         u <- liftEffectM $ liftBaseWith $ \unr -> f $ \x -> do
-            _ <- unr $ re x
+            _ <- unr $ p $ s x
             pure ()
         onRegionStatusChange (liftIO_ . post . u $)
         pure u
