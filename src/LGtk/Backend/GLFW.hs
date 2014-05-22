@@ -308,9 +308,9 @@ runWidget_  m = m >>= \i -> case i of
             _ <- swapMVar rer' d
             pure ()
 
-        handle <- registerCallback me
-        keyhandle <- registerCallback (\key -> fromMaybe (\_ -> pure False) keyh key >> pure ())
-        pure $ SWidget w h sc_ handle keyhandle (readMVar rer') rer
+        post <- askPostpone
+        let keyhandle key = post $ fromMaybe (\_ -> pure False) keyh key >> pure ()
+        pure $ SWidget w h sc_ (post . me) keyhandle (readMVar rer') rer
 
 
 -----------------------

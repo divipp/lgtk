@@ -106,7 +106,7 @@ instance (MonadRegister m) => MonadRegister (Wrap m) where
 --    onChangeAcc r b bc f = Wrap $ onChangeAcc r b bc $ (fmap . fmap . fmap) (fmap (fmap unWrap) . unWrap) f
     onChangeMemo r f = Wrap $ onChangeMemo r $ fmap (fmap unWrap . unWrap) f
     onChange r f = Wrap $ onChange r $ fmap unWrap f
-    registerCallback r = Wrap $ registerCallback (fmap unWrap r)
+    askPostpone = fmap (\post -> post . unWrap) $ Wrap askPostpone
     onRegionStatusChange g = Wrap $ onRegionStatusChange g
 
 data IOInstruction a where
@@ -134,9 +134,9 @@ instance (MonadRegister m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m)
 
     asyncWrite t r = do
         (u, f) <- liftEffectM forkIOs'
-        x <- registerCallback $ const r
+        post <- askPostpone
         onRegionStatusChange u
-        liftEffectM $ f [ liftIO_ $ threadDelay t, x () ]
+        liftEffectM $ f [ liftIO_ $ threadDelay t, post r ]
 
     fileRef f = do
         ms <- liftIO' r
@@ -164,9 +164,9 @@ instance (MonadRegister m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m)
                 watchDir man (directory cf') filt act
 
         (u, ff) <- liftEffectM  forkIOs'
-        re <- registerCallback (writeRef ref)
+        post <- askPostpone
         onRegionStatusChange u
-        liftEffectM $ ff $ repeat $ liftIO_ (takeMVar v >> r) >>= re
+        liftEffectM $ ff $ repeat $ liftIO_ (takeMVar v >> r) >>= post . writeRef ref
 
         _ <- onChange (readRef ref) $ \x -> liftIO' $ do
             join $ takeMVar vman
@@ -188,9 +188,9 @@ instance (MonadRegister m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m)
 
     getLine_ w = do
         (u, f) <- liftEffectM forkIOs'
-        x <- registerCallback w
+        post <- askPostpone
         onRegionStatusChange u
-        liftEffectM $ f [ liftIO_ getLine >>= x ]   -- TODO
+        liftEffectM $ f [ liftIO_ getLine >>= post . w ]   -- TODO
     putStr_ s = liftIO' $ putStr s
 
 getLine__ :: (String -> IO ()) -> IO (RegionStatusChange -> IO ())
