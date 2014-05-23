@@ -136,7 +136,7 @@ button__
     => RefReader m String     -- ^ dynamic label of the button
     -> RefReader m Bool       -- ^ the button is active when this returns @True@
     -> RefReader m (Colour Double)      -- ^ dynamic background color
-    -> Modifier m ()        -- ^ the action to do when the button is pressed
+    -> RefWriter m ()        -- ^ the action to do when the button is pressed
     -> Widget m
 button__ r x c y = pure $ Button (r) (x) (Just c) (\() -> y)
 
@@ -145,7 +145,7 @@ button_
     :: MonadRegister m
     => RefReader m String     -- ^ dynamic label of the button
     -> RefReader m Bool       -- ^ the button is active when this returns @True@
-    -> Modifier m ()        -- ^ the action to do when the button is pressed
+    -> RefWriter m ()        -- ^ the action to do when the button is pressed
     -> Widget m
 button_ r x y = pure $ Button (r) (x) Nothing (\() -> y)
 
@@ -153,7 +153,7 @@ button_ r x y = pure $ Button (r) (x) Nothing (\() -> y)
 button
     :: MonadRegister m
     => RefReader m String     -- ^ dynamic label of the button
-    -> RefReader m (Maybe (Modifier m ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
+    -> RefReader m (Maybe (RefWriter m ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
     -> Widget m
 button r fm = button_ r (fmap isJust fm) (liftRefReader fm >>= maybe (pure ()) id)
 
@@ -231,8 +231,8 @@ canvas
     => Int   -- ^ width
     -> Int   -- ^ height
     -> Double  -- ^ scale
-    -> ((MouseEvent a, Dia a) -> Modifier m ()) -- ^ mouse event handler
-    -> KeyboardHandler (Modifier m) -- ^ keyboard event handler
+    -> ((MouseEvent a, Dia a) -> RefWriter m ()) -- ^ mouse event handler
+    -> KeyboardHandler (RefWriter m) -- ^ keyboard event handler
     -> RefReader m b -- ^ state references
     -> (b -> Dia a) -- ^ diagrams renderer
     -> Widget m
@@ -260,8 +260,8 @@ undoTr
     :: MonadRegister m =>
        (a -> a -> Bool)     -- ^ equality on state
     -> Ref m a             -- ^ reference of state
-    ->   m ( RefReader m (Maybe (Modifier m ()))
-           , RefReader m (Maybe (Modifier m ()))
+    ->   m ( RefReader m (Maybe (RefWriter m ()))
+           , RefReader m (Maybe (RefWriter m ()))
            )  -- ^ undo and redo actions
 undoTr eq r = do
     ku <- extRef r (undoLens eq) ([], [])

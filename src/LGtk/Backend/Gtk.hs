@@ -18,7 +18,7 @@ import Data.Maybe
 import Data.List hiding (union)
 import Prelude hiding ((.), id)
 
-import Graphics.UI.Gtk hiding (Widget, Release, Modifier)
+import Graphics.UI.Gtk hiding (Widget, Release, RefWriter)
 import qualified Graphics.UI.Gtk as Gtk
 
 import Data.LensRef.Class
@@ -123,7 +123,7 @@ runWidget_ post' post = toWidget
          mkCanvas
             :: forall b da
             .  (Monoid da, Semigroup da, Eq b)
-            => ((MouseEvent da, Dia da) -> Modifier m ())
+            => ((MouseEvent da, Dia da) -> RefWriter m ())
             -> RefReader m b
             -> (b -> Dia da)
             -> m SWidget

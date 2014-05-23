@@ -254,9 +254,9 @@ defcolor = sRGB 0.95 0.95 0.95
 
 tr  :: forall m . MonadRegister m
     => Double
-    -> KeyHandler (Modifier m)
+    -> KeyHandler (RefWriter m)
     -> Widget m
-    -> WithId m (CWidget (Modifier m))
+    -> WithId m (CWidget (RefWriter m))
 tr sca dkh w = do
     w' <- lift w
     case w' of
@@ -455,7 +455,7 @@ tr sca dkh w = do
             ii <- newId
             ir <- lift $ newRef (0 :: Int)
 
-            let br' :: Int -> Modifier m ()
+            let br' :: Int -> RefWriter m ()
                 br' ind = br ind' >> writeRef ir ind' where ind' = ind `mod` n
                 br'' f = readRef ir >>= br' . f  >> pure True
                 ff (SimpleKey Key'Left) = br'' (+(-1))

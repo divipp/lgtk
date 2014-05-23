@@ -48,7 +48,7 @@ class MonadRegister m => EffIORef m where
     the current computation.
     Although @(asyncWrite 0)@ is safe, code using it has a bad small.
     -}
-    asyncWrite :: Int -> Modifier m () -> m ()
+    asyncWrite :: Int -> RefWriter m () -> m ()
 
     {- |
     @(fileRef path)@ returns a reference which holds the actual contents
@@ -71,7 +71,7 @@ class MonadRegister m => EffIORef m where
     @(getLine_ f)@ returns immediately. When the line @s@ is read,
     @f s@ is called.
     -}
-    getLine_   :: (String -> Modifier m ()) -> m ()
+    getLine_   :: (String -> RefWriter m ()) -> m ()
 
     -- | Write a string to the standard output device.
     putStr_    :: EffIORef m => String -> m ()
@@ -102,11 +102,10 @@ instance (MonadEffect m) => MonadEffect (Wrap m) where
     liftEffectM = Wrap . liftEffectM
 
 instance (MonadRegister m) => MonadRegister (Wrap m) where
-    type Modifier (Wrap m) = Wrap (Modifier m)
 --    onChangeAcc r b bc f = Wrap $ onChangeAcc r b bc $ (fmap . fmap . fmap) (fmap (fmap unWrap) . unWrap) f
     onChangeMemo r f = Wrap $ onChangeMemo r $ fmap (fmap unWrap . unWrap) f
     onChange r f = Wrap $ onChange r $ fmap unWrap f
-    askPostpone = fmap (\post -> post . unWrap) $ Wrap askPostpone
+    askPostpone = Wrap askPostpone
     onRegionStatusChange g = Wrap $ onRegionStatusChange g
 
 data IOInstruction a where

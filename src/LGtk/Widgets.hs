@@ -22,7 +22,7 @@ import LGtk.Key
 
 ---------------------------------------------------------
 
-type Receive m a = a -> Modifier m ()
+type Receive m a = a -> RefWriter m ()
 
 type SendReceive m a = (RefReader m a, Receive m a)
 
@@ -47,8 +47,8 @@ data WidgetCore m
         Int     -- width
         Int     -- height
         Double  -- scale
-        ((MouseEvent a, Dia a) -> Modifier m ())    -- mouse event handler
-        (KeyboardHandler (Modifier m))              -- keyboard event handler
+        ((MouseEvent a, Dia a) -> RefWriter m ())    -- mouse event handler
+        (KeyboardHandler (RefWriter m))              -- keyboard event handler
         (RefReader m b)
         (b -> Dia a)
     | Scale Double Double Double (SendReceive m Double)
