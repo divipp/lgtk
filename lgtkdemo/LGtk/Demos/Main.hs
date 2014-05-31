@@ -19,6 +19,10 @@ import LGtk.Demos.IntListEditor
 import LGtk.Demos.TEditor
 import LGtk.Demos.Maze
 
+import qualified LGtk.Demos.SevenGuis.Circles as Seven
+import qualified LGtk.Demos.SevenGuis.Counter as Seven
+import qualified LGtk.Demos.SevenGuis.Temperature as Seven
+
 main :: IO ()
 main = runWidget mainWidget
 
@@ -336,6 +340,12 @@ mainWidget = notebook
 
         , (,) "Maze" $ mazeGame
 
+        ]
+
+    , (,) "7guis" $ notebook
+        [ (,) "#1 - Counter"               Seven.counter
+        , (,) "#2 - Temperature Converter" Seven.temperatureConverter
+        , (,) "#6 - Circle Drawer"         Seven.circleDrawer
         ]
 
 {-
