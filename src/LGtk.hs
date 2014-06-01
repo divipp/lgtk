@@ -30,6 +30,7 @@ module LGtk
     , entry
     , entryShow
     , hscale
+    , progress
     , cell
     , cellNoMemo
     , notebook
@@ -245,6 +246,12 @@ hscale
     -> Ref m Double
     -> Widget m
 hscale a b c r = return $ Scale a b c (readRef r, writeRef r)
+
+progress
+    :: (MonadRegister m)
+    => RefReader m Double
+    -> Widget m
+progress r = return $ Progress r
 
 listLens :: Lens' (Bool, (a, [a])) [a]
 listLens = lens get set where
