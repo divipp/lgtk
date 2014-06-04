@@ -102,7 +102,7 @@ runWidget_ post' post = toWidget
         pure u
 
     ger :: Eq a => (RegionStatusChange -> IO ()) -> RefReader m a -> (a -> IO ()) -> m ()
-    ger hd s f = fmap (const ()) $ onChange s $ \a -> liftIO'' $ do
+    ger hd s f = fmap (const ()) $ onChangeEq s $ \a -> liftIO'' $ do
         hd Block
         f a
         hd Unblock

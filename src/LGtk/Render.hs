@@ -20,7 +20,9 @@ import Data.List
 import Data.Typeable
 import Data.Maybe
 import Diagrams.Prelude
---import Diagrams.BoundingBox
+import Diagrams.BoundingBox
+import Diagrams.Backend.Cairo.Text
+
 --import Graphics.SVGFonts
 import Data.Colour.SRGB
 import Unsafe.Coerce
@@ -243,12 +245,30 @@ inCanvas width height scale w = mdo
 
 focWidth = 0.1
 
-text__ :: Double -> Double -> String -> ((Double :& Double), Dia Any)
 {-
 text_ s = (coords $ boxExtents (boundingBox t) + r2 (0.2, 0.2) , t) where
     t = textSVG s 1.8 # stroke # fc black  
 -}
-text__ ma mi s = ((max mi (min ma $ fromIntegral (length s) * 2/3) :& 1), text s)
+text__ :: Double -> Double -> String -> ((Double :& Double), Dia Any)
+
+text__ ma mi s = (x :& y, text s # clipped (rect x y))
+  where
+    x = max mi (min ma $ fromIntegral (length s) * 2/3)
+    y = 1
+{-
+text__ ma mi s = ((x' :& y'), -- rect x' y' # fc red) --
+                              d' # scale (1/y) # centerXY # clipped (rect x' y')  -- <> rect x' y' # lw 0 # fc white
+                            )
+  where
+    d = textLineBounded (fontSize 1.1 mempty) s
+    bb = boundingBox d
+    Just (p1, p2) = getCorners bb
+    d' = d <> circle 0.1 # moveTo p1 <> circle 0.1 # moveTo p2
+
+    (x :& y) = coords $ boxExtents bb
+    x' = max mi (min ma x) / y
+    y' = 1
+-}
 
 defcolor = sRGB 0.95 0.95 0.95
 
@@ -336,7 +356,7 @@ tr sca dkh w = do
                   ) # freeze # frame 0.1
                    where ((x :& y), te) = text__ 7 5 $ text' bv
 
-            _ <- lift $ onChange rs $ postponeModification . update
+            _ <- lift $ onChangeEq rs $ postponeModification . update
 
             pure $ CWidget (fmap ((,) ([kh],[[kh]])) (liftA2 (,) rs (readRef j))) id render
 
@@ -469,7 +489,7 @@ tr sca dkh w = do
 
             wisv <- mapM (tr sca dkh) wis
 
-            wr <- lift $ onChange (readRef ir) $ \x -> case wisv !! x of
+            wr <- lift $ onChangeEq (readRef ir) $ \x -> case wisv !! x of
                          CWidget rr hr render -> pure $ flip fmap rr $
                            \(es, rrv) -> (es, UnsafeEqWrap (x, rrv) $ fmap (fmap (fmap hr)) $ render rrv)
 

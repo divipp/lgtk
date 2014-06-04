@@ -88,8 +88,10 @@ instance (MonadRefReader m) => MonadRefReader (Wrap m) where
     liftRefReader = Wrap . liftRefReader
 
 instance MonadRefCreator m => MonadRefCreator (Wrap m) where
-    extRef r l = Wrap . extRef r l
-    newRef = Wrap . newRef
+    extRef r l       = Wrap . extRef r l
+    newRef           = Wrap . newRef
+    onChangeMemo r f = Wrap . onChangeMemo r $ fmap (fmap unWrap . unWrap) f
+    onChangeEq r f     = Wrap . onChangeEq r $ fmap unWrap f
 
 instance MonadMemo m => MonadMemo (Wrap m) where
     memoRead (Wrap m) = fmap Wrap $ Wrap $ memoRead m
@@ -102,9 +104,6 @@ instance (MonadEffect m) => MonadEffect (Wrap m) where
     liftEffectM = Wrap . liftEffectM
 
 instance (MonadRegister m) => MonadRegister (Wrap m) where
---    onChangeAcc r b bc f = Wrap $ onChangeAcc r b bc $ (fmap . fmap . fmap) (fmap (fmap unWrap) . unWrap) f
-    onChangeMemo r f = Wrap $ onChangeMemo r $ fmap (fmap unWrap . unWrap) f
-    onChange r f = Wrap $ onChange r $ fmap unWrap f
     askPostpone = Wrap askPostpone
     onRegionStatusChange g = Wrap $ onRegionStatusChange g
 
@@ -167,7 +166,7 @@ instance (MonadRegister m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m)
         onRegionStatusChange u
         liftEffectM $ ff $ repeat $ liftIO_ (takeMVar v >> r) >>= post . writeRef ref
 
-        _ <- onChange (readRef ref) $ \x -> liftIO' $ do
+        _ <- onChangeEq (readRef ref) $ \x -> liftIO' $ do
             join $ takeMVar vman
             _ <- tryTakeMVar v
             w x

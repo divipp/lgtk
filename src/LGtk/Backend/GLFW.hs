@@ -301,7 +301,7 @@ runWidget_  m = m >>= \i -> case i of
     Canvas w h sc_ me keyh r diaFun -> do
         rer <- liftIO' $ newMVar mempty
         rer' <- liftIO' $ newMVar mempty
-        _ <- onChange r $ \b -> liftIO' $ do
+        _ <- onChangeEq r $ \b -> liftIO' $ do
             let d = diaFun b
             _ <- tryTakeMVar rer
             putMVar rer d
