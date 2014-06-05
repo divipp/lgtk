@@ -19,9 +19,9 @@ import Control.Lens hiding ((#), beside)
 import Data.List
 import Data.Typeable
 import Data.Maybe
-import Diagrams.Prelude hiding (lw)
-import Diagrams.BoundingBox
-import Diagrams.Backend.Cairo.Text
+import Diagrams.Prelude
+--import Diagrams.BoundingBox
+--import Diagrams.Backend.Cairo.Text
 
 --import Graphics.SVGFonts
 import Data.Colour.SRGB
@@ -34,9 +34,6 @@ import LGtk.Widgets
 ----------------------
 
 pairs xs = zip xs (tail xs)
-
-freeze = id
-lw = lwL
 
 -------------------------------------- Maybe type with another semigroup structure
 
@@ -78,7 +75,7 @@ instance Semigroup (X a) where
     _ <> Cancel = Cancel
     Cancel <> _ = Cancel
 
-clipBy' p d = fmap unX (fmap X d # clipBy p # withEnvelope p  <> fmap flipp (stroke p # lw 0 # value Cancel))
+clipBy' p d = fmap unX (fmap X d # clipBy p # withEnvelope p  <> fmap flipp (stroke p # lwL 0 # value Cancel))
   where
     flipp Cancel = Z
     flipp Z = Cancel
@@ -253,16 +250,16 @@ text_ s = (coords $ boxExtents (boundingBox t) + r2 (0.2, 0.2) , t) where
 -}
 text__ :: Double -> Double -> String -> ((Double :& Double), Dia Any)
 
-text__ ma mi s = (x :& y, text s # clipped (rect x y))
+text__ ma mi s = (x :& y, text s # scale 0.6 # clipped (rect x y))
   where
     x = max mi (min ma $ fromIntegral (length s) * 2/3)
     y = 1
 {-
 text__ ma mi s = ((x' :& y'), -- rect x' y' # fc red) --
-                              d' # scale (1/y) # centerXY # clipped (rect x' y')  -- <> rect x' y' # lw 0 # fc white
+                              d' # scale (1/y) # centerXY # clipped (rect x' y')  -- <> rect x' y' # lwL 0 # fc white
                             )
   where
-    d = textLineBounded (fontSize 1.1 mempty) s
+    d = textLineBounded (fontSize (Local 1.1) mempty) s
     bb = boundingBox d
     Just (p1, p2) = getCorners bb
     d' = d <> circle 0.1 # moveTo p1 <> circle 0.1 # moveTo p2
@@ -283,7 +280,7 @@ tr sca dkh w = do
     w' <- lift w
     case w' of
         Label r -> do
-            let render bv _ _ = ((rect x y # lw 0 <> te) # clipped (rect x y)) # value mempty
+            let render bv _ _ = ((rect x y # lwL 0 <> te) # clipped (rect x y)) # value mempty
                      where ((x :& y), te) = text__ 25 5 bv
             pure $ CWidget (fmap ((,) ([], [])) r) id render
 
@@ -300,10 +297,10 @@ tr sca dkh w = do
                 render (bv, se, color) is is' =
                      (te # fc (if se then color else gray)
                   <> roundedRect x y 0.3 # fc (if i `elem` is && se then yellow else defcolor)
-                         # (if is' == i && se then lc yellow . lw focWidth else lc black . lw 0.02)
+                         # (if is' == i && se then lc yellow . lwL focWidth else lc black . lwL 0.02)
                      )
                         # (if se then value_ (a ()) kh i else value mempty)
-                        # clipBy' (rect (x+0.1) (y+0.1)) # freeze # frame 0.1
+                        # clipBy' (rect (x+0.1) (y+0.1)) # frame 0.1
                    where ((x :& y), te) = text__ 15 3 bv
             pure $ CWidget (liftA3 (\r se c -> (([kh | se], [[kh] | se]), (r,se,c))) r sens col') id render
 
@@ -353,9 +350,9 @@ tr sca dkh w = do
                 render (orig,bv) is is' = 
                   (  te # clipped (rect x y) # value mempty
                   <> rect x y # (if isOk' bv then (if i `elem` is then fc yellow else (if orig /= value' (snd bv) then fc defcolor else id)) else fc red)
-                         # (if is' == i then lc yellow . lw focWidth else lc black . lw 0.02)
+                         # (if is' == i then lc yellow . lwL focWidth else lc black . lwL 0.02)
                          # value_ (pure ()) kh i
-                  ) # freeze # frame 0.1
+                  ) # frame 0.1
                    where ((x :& y), te) = text__ 7 5 $ text' bv
 
             _ <- lift $ onChangeEq rs $ postponeModification . update
@@ -372,11 +369,11 @@ tr sca dkh w = do
                 render bv is is' = 
                     (
                        (if bv then fromVertices [p2 (-0.3, 0), p2 (-0.1,-0.3), p2 (0.3,0.3)] 
-                                # lineCap LineCapRound else mempty) # value mempty # lw 0.15
+                                # lineCap LineCapRound else mempty) # value mempty # lwL 0.15
                     <> rect 1 1 # value_ (br (not bv)) kh i
                                 # fc (if i `elem` is then yellow else sRGB 0.95 0.95 0.95)
-                                # (if is' == i then lc yellow . lw focWidth else lc black . lw 0.02)
-                    ) # freeze # frame 0.1
+                                # (if is' == i then lc yellow . lwL focWidth else lc black . lwL 0.02)
+                    ) # frame 0.1
             pure $ CWidget (fmap ((,) ([kh],[[kh]])) bs) id render
 
         Cell r f -> do
@@ -432,10 +429,10 @@ tr sca dkh w = do
 
                 kh = (r (GetFocus, undefined) >> pure (), ff, r (LostFocus, undefined) >> pure (), i)
 
-                render bv _is is' = (fmap gg (fmap Just' (f bv # freeze) # scale ((fromIntegral w / d) / sca)
+                render bv _is is' = (fmap gg (fmap Just' (f bv) # scale ((fromIntegral w / d) / sca)
                                             # clipBy' (rect wi hi))
-                   <> rect wi hi # named i # value mempty # lw 0.02 # lc (if is' == i then yellow else black)
-                         )  # freeze  # frame 0.1
+                   <> rect wi hi # named i # value mempty # lwL 0.02 # lc (if is' == i then yellow else black)
+                         )  # frame 0.1
 
             pure $ CWidget (fmap ((,) ([kh | isJust keyh],[[kh] | isJust keyh])) s) id render
 
@@ -455,14 +452,14 @@ tr sca dkh w = do
 
                 x = maximum [x | txt <- xs, let (x :& _) = fst $ text__ 15 3 txt ]
 
-                render bv is is' = vcat (zipWith3 g [0..] iss xs) # freeze # frame 0.1
+                render bv is is' = vcat (zipWith3 g [0..] iss xs) # frame 0.1
                   where
                     g ind i txt = (
                        (if bv == ind then fromVertices [p2 (-0.3, 0), p2 (-0.1,-0.3), p2 (0.3,0.3)] 
-                                # lineCap LineCapRound else mempty) # value mempty # translate (r2 (x / 2,0)) # lw 0.15
+                                # lineCap LineCapRound else mempty) # value mempty # translate (r2 (x / 2,0)) # lwL 0.15
                       <> te # clipped (rect x y) # value mempty
                       <> rect x y # (if i `elem` is then fc yellow else id)
-                             # (if is' == ii then lc yellow . lw focWidth else lc black . lw 0.02)
+                             # (if is' == ii then lc yellow . lwL focWidth else lc black . lwL 0.02)
                              # value_ (br ind) kh i
                             )  # frame 0.02
 
@@ -505,11 +502,11 @@ tr sca dkh w = do
                            ||| line 100
                         , strutY 0.2
                         , alignL $ d is is'
-                        ] # freeze
+                        ]
                   where
                     line dx = fromOffsets [r2 (dx,0)] # strokeLine # translate (r2 (0,-0.5)) # value mempty # lcw
 
-                    lcw = if is' == ii then lc yellow . lw focWidth else lc black . lw 0.02
+                    lcw = if is' == ii then lc yellow . lwL focWidth else lc black . lwL 0.02
 
                     g ind i txt =
                          te # clipped (rect x y) # value mempty
@@ -517,7 +514,7 @@ tr sca dkh w = do
                       <> bez # value mempty
                              # lcw
                       <> (if bv == ind then mempty else line x # translate (r2 (-x/2, 0))) # lcw
-                      <> bez' # closeLine # strokeLoop  # translate (r2 (-x/2,-y/2)) # lw 0
+                      <> bez' # closeLine # strokeLoop  # translate (r2 (-x/2,-y/2)) # lwL 0
                              # (if bv == ind then value mempty else value_ (br' ind) kh i)
                              # (if bv /= ind then fc (if i `elem` is then yellow else defcolor) else id)
                      where ((x_ :& y), te) = text__ 10 3 txt
@@ -565,12 +562,12 @@ tr sca dkh w = do
                 render r is is' =
                     (  circle 0.38 # value f
                                    # fc (if i `elem` is then yellow else sRGB 0.95 0.95 0.95)
-                                   # lw 0.02 -- (if is' == i then lc yellow . lw focWidth else lc black . lw 0.02)
+                                   # lwL 0.02 -- (if is' == i then lc yellow . lwL focWidth else lc black . lwL 0.02)
                                    # translate (r2 (10 * ((r - mi) / (ma - mi)) - 5, 0))
-                    <> (  fromVertices [p2 (-5, 0), p2 (5,0)] # lineCap LineCapRound # lw 0.05
-                       <> roundedRect 11 1 0.5 # lw 0 # fc (if is' == i then yellow else sRGB 0.95 0.95 0.95)
+                    <> (  fromVertices [p2 (-5, 0), p2 (5,0)] # lineCap LineCapRound # lwL 0.05
+                       <> roundedRect 11 1 0.5 # lwL 0 # fc (if is' == i then yellow else sRGB 0.95 0.95 0.95)
                        )  # value mempty
-                    ) # freeze # frame 0.1
+                    ) # frame 0.1
 
             pure $ CWidget (fmap ((,) ([kh],[[kh]])) sr) id render
 
