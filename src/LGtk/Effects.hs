@@ -11,16 +11,16 @@ module LGtk.Effects where
 
 import Control.Applicative
 import Control.Concurrent
-import Control.Exception (evaluate)
+--import Control.Exception (evaluate)
 import Control.Monad
 import Control.Monad.Fix
 import Control.Monad.Operational
 import Control.Monad.Trans.Control
-import System.Directory
-import qualified System.FilePath as F
-import System.FSNotify
-import Filesystem.Path hiding (FilePath)
-import Filesystem.Path.CurrentOS hiding (FilePath)
+--import System.Directory
+--import qualified System.FilePath as F
+--import System.FSNotify
+--import Filesystem.Path hiding (FilePath)
+--import Filesystem.Path.CurrentOS hiding (FilePath)
 import qualified System.Environment as Env
 import System.IO.Error (catchIOError, isDoesNotExistError)
 
@@ -90,8 +90,10 @@ instance (MonadRefReader m) => MonadRefReader (Wrap m) where
 instance MonadRefCreator m => MonadRefCreator (Wrap m) where
     extRef r l       = Wrap . extRef r l
     newRef           = Wrap . newRef
+    onChange r f     = Wrap . onChange r $ fmap unWrap f
+    onChangeEq r f   = Wrap . onChangeEq r $ fmap unWrap f
     onChangeMemo r f = Wrap . onChangeMemo r $ fmap (fmap unWrap . unWrap) f
-    onChangeEq r f     = Wrap . onChangeEq r $ fmap unWrap f
+    onRegionStatusChange g = Wrap $ onRegionStatusChange g
 
 instance MonadMemo m => MonadMemo (Wrap m) where
     memoRead (Wrap m) = fmap Wrap $ Wrap $ memoRead m
@@ -105,7 +107,6 @@ instance (MonadEffect m) => MonadEffect (Wrap m) where
 
 instance (MonadRegister m) => MonadRegister (Wrap m) where
     askPostpone = Wrap askPostpone
-    onRegionStatusChange g = Wrap $ onRegionStatusChange g
 
 data IOInstruction a where
     GetArgs :: IOInstruction [String]
@@ -136,6 +137,8 @@ instance (MonadRegister m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m)
         onRegionStatusChange u
         liftEffectM $ f [ liftIO_ $ threadDelay t, post r ]
 
+    fileRef _ = newRef Nothing
+{-
     fileRef f = do
         ms <- liftIO' r
         ref <- newRef ms
@@ -183,7 +186,7 @@ instance (MonadRegister m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m)
              else pure Nothing
 
         w = maybe (doesFileExist f >>= \b -> when b (removeFile f)) (writeFile f)
-
+-}
     getLine_ w = do
         (u, f) <- liftEffectM forkIOs'
         post <- askPostpone
@@ -195,11 +198,11 @@ getLine__ :: (String -> IO ()) -> IO (RegionStatusChange -> IO ())
 getLine__ f = do
     _ <- forkIO $ forever $ getLine >>= f   -- todo
     pure $ const $ pure ()
-
+{-
 -- canonicalizePath may fail if the file does not exsist
 canonicalizePath' p = fmap (F.</> f) $ canonicalizePath d 
   where (d,f) = F.splitFileName p
-
+-}
 liftIO' = liftEffectM . liftIO_
 
 liftIO_ = liftBaseWith . const

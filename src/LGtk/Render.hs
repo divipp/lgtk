@@ -19,7 +19,7 @@ import Control.Lens hiding ((#), beside)
 import Data.List
 import Data.Typeable
 import Data.Maybe
-import Diagrams.Prelude
+import Diagrams.Prelude hiding (lw)
 import Diagrams.BoundingBox
 import Diagrams.Backend.Cairo.Text
 
@@ -35,6 +35,8 @@ import LGtk.Widgets
 
 pairs xs = zip xs (tail xs)
 
+freeze = id
+lw = lwL
 
 -------------------------------------- Maybe type with another semigroup structure
 

@@ -96,7 +96,7 @@ mainWidget = notebook
                 t <- newRef $ iterate (Node Leaf) Leaf !! 10
                 hcat
                     [ canvas 200 200 20 (const $ pure ()) Nothing (readRef t) $
-                        \x -> tPic 0 x # value () # lw 0.05 # translate (r2 (0,10))
+                        \x -> tPic 0 x # lwL 0.05 # value () # translate (r2 (0,10))
                     , tEditor3 t
                     ]
 
@@ -149,7 +149,7 @@ mainWidget = notebook
                 r <- newRef (3 :: Double)
                 vcat
                     [ canvas 200 200 12 (const $ pure ()) Nothing (readRef r) $
-                        \x -> circle x # lw 0.05 # fc blue # value ()
+                        \x -> circle x # lwL 0.05 # fc blue # value ()
                     , hcat
                         [ hscale 0.1 5 0.05 r
                         , label (fmap (("radius: " ++) . ($ "") . showFFloat (Just 2)) $ readRef r)
@@ -174,7 +174,7 @@ mainWidget = notebook
                             2 -> rect 6 6 # rotate ((-x) @@ rad)
                             3 -> mconcat [circle (i'/10) # translate (r2 (i'/3, 0) # rotate ((i') @@ rad)) | i<-[1 :: Int ..10], let i' = fromIntegral i] # rotate ((-x) @@ rad)
                             4 -> mconcat [circle (i'/10) # translate (r2 (i'/3, 0) # rotate ((x/i') @@ rad)) | i<-[1 :: Int ..10], let i' = fromIntegral i]
-                            ) # lw 0.05 # fc blue # value ()
+                            ) # lwL 0.05 # fc blue # value ()
                     , combobox ["Pulse","Rotate","Rotate2","Spiral","Spiral2"] t
                     , hcat
                         [ hscale 0.1 5 0.1 speed
@@ -201,7 +201,7 @@ mainWidget = notebook
                     handler _ = pure ()
                 vcat
                     [ canvas 200 200 10 handler Nothing (liftA2 (,) (readRef col) (readRef phase)) $
-                        \(c,x) -> circle 1 # translate (r2 (3,0)) # rotate ((-x) @@ rad) # lw 0.05 # fc (if c then blue else red) # value [()]
+                        \(c,x) -> circle 1 # translate (r2 (3,0)) # rotate ((-x) @@ rad) # lwL 0.05 # fc (if c then blue else red) # value [()]
                     , label $ pure "Click on the circle to change color."
                     ]
 
@@ -218,7 +218,7 @@ mainWidget = notebook
                     handler _ = pure ()
                 vcat
                     [ canvas 200 200 10 handler Nothing (liftA2 (,) (readRef col) (readRef phase)) $
-                        \(c,x) -> circle c # translate (r2 (3,0)) # rotate ((-x) @@ rad) # lw 0.05 # fc blue # value [()]
+                        \(c,x) -> circle c # translate (r2 (3,0)) # rotate ((-x) @@ rad) # lwL 0.05 # fc blue # value [()]
                     , label $ pure "Click on the circle to temporarily enlarge it."
                     ]
 

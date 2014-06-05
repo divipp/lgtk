@@ -37,17 +37,18 @@ instance Show GameState where
 drawMaze :: (Maze, S.Set Point, Maybe Point) -> Dia [Point]
 drawMaze (maze, hi, pos) =
     (  mconcat (map drawCell $ assocs maze) # centerXY
-    <> rect (fromIntegral $ x2-x1+1) (fromIntegral $ y2-y1+1) # lw 0.005 # fc (sRGB 0.95 0.95 0.95) # value []
+    <> rect (fromIntegral $ x2-x1+1) (fromIntegral $ y2-y1+1) # lwL wallwidth # fc (sRGB 0.95 0.95 0.95) # value []
     ) # scale (1 / fromIntegral (max (x2-x1+1) (y2-y1+1)))
   where
     drawCell (p@(i,j), C cs) =
-            (   (if b then mconcat (map drawWall $ complement cs) # lw 0.005 # value [] else mempty)
-            <>  (if Just p == pos then circle 0.35 # lw 0.003 # fc blue # value [] else mempty)
-            <>  (if p == q2 then circle 0.35 # lw 0.003 # value [] else mempty)
-            <>  (if p == q1 then circle 0.35 # lw 0.003 # value [] else mempty)
-            <>  rect 1 1 # lw 0 # (if b then fc yellow else id) # value [p]
+            (   (if b then mconcat (map drawWall $ complement cs) # lwL wallwidth # value [] else mempty)
+            <>  (if Just p == pos then circ # fc blue else mempty)
+            <>  (if p == q2 || p == q1 then circ else mempty)
+            <>  rect 1 1 # lwL 0 # (if b then fc yellow else id) # value [p]
             )   # translate (r2 (fromIntegral i, fromIntegral j))
         where b = S.member p hi
+    circ = circle 0.35 # lwL 0.005 # value []
+    wallwidth = 0.02
 
     drawWall E = fromVertices [p2 (-d, d), p2 (d, d)]
     drawWall S = fromVertices [p2 (d, -d), p2 (d, d)]

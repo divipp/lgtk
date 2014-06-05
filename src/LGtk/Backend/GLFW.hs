@@ -126,8 +126,8 @@ runWidget desc = do
               Nothing -> pure ()
               Just dia_ -> do
                 (sc, w, h, sw, sh) <- dims
-                let dia = dia_ # clearValue # freeze # scale sc # clipped (rect w h) <>
-                            rect w h # fc white # lw 0
+                let dia = dia_ # clearValue # scale sc # clipped (rect w h) <>
+                            rect w h # fc white # lwL 0
 
                 -- Rasterific
                 --let sizeSpec = mkSizeSpec (Just $ fromIntegral w) (Just $ fromIntegral h)
