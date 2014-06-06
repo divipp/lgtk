@@ -39,8 +39,12 @@ source-repository head
   type:             git
   location:         https://github.com/divipp/lgtk.git
 
+Flag Rasterific
+  Description:      Use Rasterific instead of Cairo
+  Default:          False
+
 Flag Gtk
-  Description:      Build the Gtk backend
+  Description:      Build the Gtk backend (conflicts with Rasterific)
   Default:          False
 
 Flag pure
@@ -71,10 +75,7 @@ library
 --                  , fsnotify < 0.2
 
                   , colour < 2.4
---                  , JuicyPixels == 3.1.*
                   , diagrams-lib == 1.2.*
-                  , diagrams-cairo == 1.2.*
-                  , cairo < 0.13
 --                  , SVGFonts == 1.4.*
                   , OpenGLRaw < 1.6
                   , GLFW-b < 1.5
@@ -96,16 +97,6 @@ library
 
                     -- lgtk-glfw
                     LGtk.Backend.GLFW
-  if flag(Gtk)
-    build-depends:
-                    gtk == 0.12.*
-    other-modules:
-                    LGtk.Backend.Gtk
-    cpp-options:
-                    -D__GTK__
-  if flag(pure)
-    cpp-options:
-                    -D__PURE__
 
   ghc-options: 
                     -Wall 
@@ -114,6 +105,30 @@ library
                     -fno-warn-missing-signatures 
                     -fno-warn-orphans
                     -fno-warn-type-defaults
+
+  if flag(pure)
+    cpp-options:
+                    -D__PURE__
+
+  if flag(Gtk)
+    build-depends:
+                    gtk == 0.12.*
+    other-modules:
+                    LGtk.Backend.Gtk
+    cpp-options:
+                    -D__GTK__
+
+  if flag(Rasterific)
+    build-depends:
+                    diagrams-rasterific == 0.1.*
+                  , JuicyPixels == 3.1.*
+    cpp-options:
+                    -D__RASTERIFIC__
+
+  if !flag(Rasterific)
+    build-depends:
+                    diagrams-cairo == 1.2.*
+                  , cairo < 0.13
 
 
 executable lgtkdemo

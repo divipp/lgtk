@@ -160,11 +160,11 @@ runWidget_ post' post = toWidget
                 let sc = w' / sc_
                 pure (sc, w', h', w, h)
 
-              tr sc w h dia = translate (r2 (w/2, h/2)) $ dia # scaleY (-1) # scale sc `atop` rect w h # fc white # lw 0
+              tr sc w h dia = translate (r2 (w/2, h/2)) $ dia # scaleY (-1) # scale sc `atop` rect w h # fc white # lwL 0
 
               draw dia_ = do
                 _ <- swapMVar cur $ Just dia_
-                let dia = freeze $ clearValue dia_
+                let dia = clearValue dia_
                 win <- drawingAreaGetDrawWindow'
                 case win of
                   Nothing -> pure ()

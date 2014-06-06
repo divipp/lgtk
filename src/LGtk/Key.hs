@@ -39,9 +39,9 @@ pattern ControlKey k = ModifiedKey False True  False False k
 pattern AltKey k     = ModifiedKey False False True  False k
 pattern SuperKey k   = ModifiedKey False False False True  k
 
-pattern CharKey c   <- (getSimpleChar -> Just c)
-
+pattern CharKey c    = SimpleKey (Key'Char c) -- <- (getSimpleChar -> Just c)
+{-
 getSimpleChar (SimpleKey (Key'Char c)) = Just c
 getSimpleChar (ShiftKey (Key'Char c)) = Just c
 getSimpleChar _ = Nothing
-
+-}

@@ -2,6 +2,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE CPP #-}
 -- | Lens-based Gtk interface
 module LGtk.Widgets
     ( module LGtk.Widgets
@@ -12,7 +13,11 @@ import Data.Semigroup
 import Data.Colour
 import Data.Colour.SRGB
 import Diagrams.Prelude (QDiagram, R2, P2)
+#ifdef __RASTERIFIC__
+import Diagrams.Backend.Rasterific (B)
+#else
 import Diagrams.Backend.Cairo (B)
+#endif
 
 ---------------------------------------------------------
 
