@@ -309,7 +309,8 @@ tr sca dkh w = do
 --            s <- readRef rs
             j <- lift $ newRef (False, ("", ""))
 
-            let f (CharKey c) (a,b) = Just (c:a,b)
+            let f (SimpleKey Key'Tab) _ = Nothing
+                f (CharKey c) (a,b) = Just (c:a,b)
                 f (SimpleKey Key'Backspace) (_:a,b) = Just (a,b)
                 f (SimpleKey Key'Delete) (a,_:b) = Just (a,b)
                 f (SimpleKey Key'Left) (c:a,b) = Just (a,c:b)
