@@ -3,7 +3,6 @@
 -- | Default implementation. Points to either to the pure or the fast implementation depending on the cabal flag @PURE@.
 module Data.LensRef.Default
     ( Register
-    , runRegister
     ) where
 
 #ifdef __PURE__

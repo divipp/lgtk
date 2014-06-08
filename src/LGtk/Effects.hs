@@ -107,6 +107,7 @@ instance (MonadEffect m) => MonadEffect (Wrap m) where
 
 instance (MonadRegister m) => MonadRegister (Wrap m) where
     askPostpone = Wrap askPostpone
+    runRegister p (Wrap m) = runRegister p m
 
 data IOInstruction a where
     GetArgs :: IOInstruction [String]

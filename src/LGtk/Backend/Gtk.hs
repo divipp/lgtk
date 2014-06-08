@@ -36,8 +36,14 @@ import Diagrams.Backend.Cairo.Internal
 runWidget :: (forall m . (EffIORef m, MonadFix m) => Widget m) -> IO ()
 runWidget w = runWidget' runRegister' w
 
+--runRegister_ :: NewRef m => (forall a . m (m a, a -> m ())) -> Register m a -> m (a, m ())
+runRegister_ newChan m = do
+    (read, write) <- newChan
+    a <- runRegister write m
+    pure $ (,) a $ forever $ join read
+
 runRegister' :: IO () -> Wrap (Register IO) a -> IO (a, IO ())
-runRegister' pa (Wrap m) = runRegister (newChan' pa) m
+runRegister' pa (Wrap m) = runRegister_ (newChan' pa) m
   where
     newChan' pa = do
         ch <- newChan
