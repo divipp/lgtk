@@ -10,6 +10,7 @@ module LGtk.Backend.Gtk
 import Control.Category
 import Control.Applicative
 import Control.Monad
+import Control.Monad.Reader
 import Control.Exception
 import Control.Monad.State
 import Control.Monad.Trans.Control
@@ -33,21 +34,11 @@ import Diagrams.Backend.Cairo.Internal
 
 -------------------------
 
-runWidget :: (forall m . (EffIORef m, MonadFix m) => Widget m) -> IO ()
-runWidget w = runWidget' runRegister' w
-
---runRegister_ :: NewRef m => (forall a . m (m a, a -> m ())) -> RefCreator m a -> m (a, m ())
-runRegister_ newChan m = do
-    (read, write) <- newChan
-    a <- runRegister write m
-    pure $ (,) a $ forever $ join read
-
-runRegister' :: IO () -> RefCreator IO a -> IO (a, IO ())
-runRegister' pa = runRegister_ (newChan' pa)
-  where
-    newChan' pa = do
-        ch <- newChan
-        pure (pa >> readChan ch, writeChan ch)
+runRegister' :: IO () -> ((RefWriter (RefCreator IO) () -> IO ()) -> RefCreatorPost IO a) -> IO (a, IO ())
+runRegister' pa m = do
+    ch <- newChan
+    a <- refCreatorRunner (writeChan ch) $ \f -> flip runReaderT (writeChan ch . f) $ m $ writeChan ch . f
+    pure $ (,) a $ forever $ join $ pa >> readChan ch
 
 {- |
 Run a Gtk widget description.
@@ -55,14 +46,13 @@ Run a Gtk widget description.
 The widget is shown in a window and the thread enters into the Gtk event cycle.
 It leaves the event cycle when the window is closed.
 -}
-runWidget' :: (MonadRefCreator m, MonadBaseControl IO (EffectM m))
-    => (forall a . IO () -> m a -> IO (a, IO ())) -> Widget m -> IO ()
-runWidget' run desc = gtkContext $ \postGUISync -> do
+runWidget :: (forall m . (EffIORef m, MonadFix m) => Widget m) -> IO ()
+runWidget desc = gtkContext $ \postGUISync -> do
     postActionsRef <- newMVar $ pure ()
     let addPostAction m = modifyMVar_ postActionsRef $ \n -> pure $ n >> m
         runPostActions = join $ modifyMVar postActionsRef $ \m -> pure (pure (), m)
-    (widget, actions) <- run runPostActions $ do
-        w <- runWidget_ addPostAction postGUISync desc
+    (widget, actions) <- runRegister' runPostActions $ \post_ -> do
+        w <- runWidget_ post_ addPostAction postGUISync desc
         liftIO' runPostActions
         pure w
     _ <- forkIO $ actions
@@ -88,11 +78,12 @@ type SWidget = (IO (), Gtk.Widget)
 -- | Run an @IO@ parametrized interface description with Gtk backend
 runWidget_
     :: forall m . (MonadRefCreator m, MonadBaseControl IO (EffectM m))
-    => (IO () -> IO ())
+    => (RefWriter m () -> EffectM m ())
+    -> (IO () -> IO ())
     -> (forall a . IO a -> IO a)
     -> Widget m
     -> m SWidget
-runWidget_ post' post = toWidget
+runWidget_ post_ post' post = toWidget
  where
     liftIO'' :: IO a -> m a
     liftIO'' = liftIO' . post
@@ -100,9 +91,8 @@ runWidget_ post' post = toWidget
     -- type Receive n m k a = (RegionStatusChange -> n ()) -> m (a -> k ())
     reg :: Receive m a -> ((a -> IO ()) -> IO (RegionStatusChange -> IO ())) -> m (RegionStatusChange -> IO ())
     reg s f = do
-        p <- askPostpone
         u <- liftEffectM $ liftBaseWith $ \unr -> f $ \x -> do
-            _ <- unr $ p $ s x
+            _ <- unr $ post_ $ s x
             pure ()
         onRegionStatusChange (liftIO_ . post . u $)
         pure u

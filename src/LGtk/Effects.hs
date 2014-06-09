@@ -13,6 +13,7 @@ import Control.Applicative
 import Control.Concurrent
 --import Control.Exception (evaluate)
 import Control.Monad
+import Control.Monad.Reader
 import Control.Monad.Fix
 import Control.Monad.Operational
 import Control.Monad.Trans.Control
@@ -97,7 +98,10 @@ type SIO = Program IOInstruction
 
 type Handle = RegionStatusChange -> SIO ()
 
-instance (MonadBaseControl IO m, NewRef m) => EffIORef (RefCreator m) where
+type RefCreatorPost m = ReaderT (RefWriter (RefCreator m) () -> m ()) (RefCreator m)
+
+instance (MonadBaseControl IO m, NewRef m, n ~ RefWriter (RefCreator m))
+    => EffIORef (ReaderT (n () -> m ()) (RefCreator m)) where
 
     getArgs     = liftIO' Env.getArgs
 
@@ -109,7 +113,7 @@ instance (MonadBaseControl IO m, NewRef m) => EffIORef (RefCreator m) where
 
     asyncWrite t r = do
         (u, f) <- liftEffectM forkIOs'
-        post <- askPostpone
+        post <- ask
         onRegionStatusChange u
         liftEffectM $ f [ liftIO_ $ threadDelay t, post r ]
 
@@ -141,7 +145,7 @@ instance (MonadBaseControl IO m, NewRef m) => EffIORef (RefCreator m) where
                 watchDir man (directory cf') filt act
 
         (u, ff) <- liftEffectM  forkIOs'
-        post <- askPostpone
+        post <- ask
         onRegionStatusChange u
         liftEffectM $ ff $ repeat $ liftIO_ (takeMVar v >> r) >>= post . writeRef ref
 
@@ -165,7 +169,7 @@ instance (MonadBaseControl IO m, NewRef m) => EffIORef (RefCreator m) where
 -}
     getLine_ w = do
         (u, f) <- liftEffectM forkIOs'
-        post <- askPostpone
+        post <- ask
         onRegionStatusChange u
         liftEffectM $ f [ liftIO_ getLine >>= post . w ]   -- TODO
     putStr_ s = liftIO' $ putStr s

@@ -13,6 +13,7 @@ import Data.Maybe
 --import Control.Applicative
 import Control.Concurrent
 import Control.Monad
+import Control.Monad.Reader
 import Control.Monad.Fix
 --import Control.Lens hiding ((#))
 import Foreign
@@ -46,20 +47,18 @@ import LGtk.Key
 
 -------------------------------
 
---runRegister_ :: NewRef m => (forall a . m (m a, a -> m ())) -> RefCreator m a -> m (a, m ())
-runRegister_ newChan m = do
-    (read, write) <- newChan
-    a <- runRegister write m
-    pure $ (,) a $ forever $ join read
+runRegister' :: ((RefWriter (RefCreator IO) () -> IO ()) -> RefCreatorPost IO a) -> IO (a, IO ())
+runRegister' m = do
+    ch <- newChan
+    a <- refCreatorRunner (writeChan ch) $ \f -> flip runReaderT (writeChan ch . f) $ m $ writeChan ch . f
+    pure $ (,) a $ forever $ join $ readChan ch
 
-runRegister' :: RefCreator IO a -> IO (a, IO ())
-runRegister' = runRegister_ newChan'
 
 runWidget :: (forall m . (EffIORef m, MonadFix m) => Widget m) -> IO ()
 runWidget desc = do
     hSetBuffering stdout NoBuffering
 
-    (widget, actions) <- runRegister' $ runWidget_ $ inCanvas 800 600 30 desc
+    (widget, actions) <- runRegister' $ \post -> runWidget_ post $ inCanvas 800 600 30 desc
     _ <- forkIO actions
 
     case widget of
@@ -303,17 +302,13 @@ trKey (GLFW.ModifierKeys s c a sup) k = case k of
     ch x y = ModifiedKey False c a sup . Key'Char $ if s then y else x
 
 
-newChan' = do
-    ch <- newChan
-    pure (readChan ch, writeChan ch)
-
 data SWidget = forall a . (Monoid a, Semigroup a)
     => SWidget Int Int Double ((MouseEvent a, Dia a) -> IO ()) (ModifiedKey -> IO ()) (IO (Dia a)) (MVar (Dia a))
 
 
 runWidget_
-    :: forall m . (MonadRefCreator m, IO ~ EffectM m) => Widget m -> m SWidget
-runWidget_  m = m >>= \i -> case i of
+    :: forall m . (MonadRefCreator m, IO ~ EffectM m) => (RefWriter m () -> IO ()) -> Widget m -> m SWidget
+runWidget_ post m = m >>= \i -> case i of
     Canvas w h sc_ me keyh r diaFun -> do
         rer <- liftIO' $ newMVar mempty
         rer' <- liftIO' $ newMVar mempty
@@ -324,7 +319,6 @@ runWidget_  m = m >>= \i -> case i of
             _ <- swapMVar rer' d
             pure ()
 
-        post <- askPostpone
         let keyhandle key = post $ fromMaybe (\_ -> pure False) keyh key >> pure ()
         pure $ SWidget w h sc_ (post . me) keyhandle (readMVar rer') rer
 
