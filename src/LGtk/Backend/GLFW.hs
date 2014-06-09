@@ -50,7 +50,7 @@ import LGtk.Key
 runRegister' :: ((RefWriter (RefCreator IO) () -> IO ()) -> RefCreatorPost IO a) -> IO (a, IO ())
 runRegister' m = do
     ch <- newChan
-    a <- refCreatorRunner (writeChan ch) $ \f -> flip runReaderT (writeChan ch . f) $ m $ writeChan ch . f
+    a <- refCreatorRunner $ \f -> flip runReaderT (writeChan ch . f) $ m $ writeChan ch . f
     pure $ (,) a $ forever $ join $ readChan ch
 
 
