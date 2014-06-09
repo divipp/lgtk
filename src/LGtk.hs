@@ -93,8 +93,6 @@ module LGtk
     , RefWriter
     , Ref
     , EqRef
-
-    -- ** Other types and type classes
     , RefSimple
     , RefReaderSimple
 --    , EqRefClass
@@ -115,13 +113,13 @@ import qualified Data.LensRef as Ref
 import LGtk.Effects ()
 import qualified LGtk.Effects as Eff
 import LGtk.Widgets hiding (Widget)
-import LGtk.Render
+import qualified LGtk.Render as Render
 import LGtk.Key
 
 #ifdef __GTK__
-import LGtk.Backend.Gtk
+import qualified LGtk.Backend.Gtk as B
 #else
-import LGtk.Backend.GLFW
+import qualified LGtk.Backend.GLFW as B
 #endif
 
 ----------------------------
@@ -214,7 +212,17 @@ side-effects happen at running @('runWidget' w)@.
 @Widget@ should be abstract data type, but it is also safe to keep it as a type synonym because
 the operations of the revealed implementation are hidden.
 -}
---runWidgetGLFW = GLFW.runWidget
+type Widget = B.Widget
+
+type Ref a = B.Ref a
+
+type EqRef a = B.EqRef a
+
+type RefWriter = B.RefWriter
+
+type RefReader = B.RefReader
+
+type RefCreator = B.RefCreator
 
 {- |
 Run a Gtk widget description.
@@ -222,12 +230,8 @@ Run a Gtk widget description.
 The widget is shown in a window and the thread enters into the Gtk event cycle.
 It leaves the event cycle when the window is closed.
 -}
---runWidget :: (forall m . EffIORef m => Widget) -> IO ()
---runWidget = Gtk.runWidget
-{-
-instance MonadRefState m => IsString (RefStateReader m String) where
-    fromString = pure
--}
+runWidget = B.runWidget
+
 
 -- | Vertical composition of widgets.
 vcat :: [Widget] -> Widget
@@ -262,7 +266,7 @@ button_
     -> Widget
 button_ r x y = pure $ Button (r) (x) Nothing (\() -> y)
 
--- | Button
+-- | Button.
 button
     :: RefReader String     -- ^ dynamic label of the button
     -> RefReader (Maybe (RefWriter ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
@@ -341,6 +345,14 @@ canvas
     -> (b -> Dia a) -- ^ diagrams renderer
     -> Widget
 canvas w h sc me kh r f = pure $ Canvas w h sc me kh r f
+
+inCanvas
+    :: Int
+    -> Int
+    -> Double
+    -> Widget
+    -> Widget 
+inCanvas = Render.inCanvas
 
 hscale
     :: Double   -- ^ min
