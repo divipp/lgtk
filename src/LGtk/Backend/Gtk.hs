@@ -37,7 +37,7 @@ import Diagrams.Backend.Cairo.Internal
 runRegister' :: IO () -> ((RefWriter (RefCreator IO) () -> IO ()) -> RefCreatorPost IO a) -> IO (a, IO ())
 runRegister' pa m = do
     ch <- newChan
-    a <- refCreatorRunner $ \f -> flip runReaderT (writeChan ch . f) $ m $ writeChan ch . f
+    a <- runRefCreator $ \f -> flip runReaderT (writeChan ch . f) $ m $ writeChan ch . f
     pure $ (,) a $ forever $ join $ pa >> readChan ch
 
 {- |
