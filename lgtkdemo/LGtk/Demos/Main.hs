@@ -392,7 +392,7 @@ tPic i (Node a b) = tPic (i+1) a # translate (r2 (-w,-2))
 justLens :: a -> Lens' (Maybe a) a
 justLens a = lens (maybe a id) (flip $ const . Just)
 
-counter :: forall m a . (MonadRegister m, Ord a) => a -> Ref m (a, a) -> m (EqRef m a)
+counter :: forall m a . (MonadRefCreator m, Ord a) => a -> Ref m (a, a) -> m (EqRef m a)
 counter x ab = do
     c <- extRef ab (fix . _2) (x, (x, x))
     pure $ fix . _1 `lensMap` toEqRef c

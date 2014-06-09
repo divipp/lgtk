@@ -146,7 +146,7 @@ _ !!! n | n < 0 = Nothing
 (x:_) !!!! n | n <= 0 = x
 (_:xs) !!!! n = xs !!!! (n-1 :: Int)
 
-inCanvas :: forall m . (MonadRegister m, MonadFix m) => Int -> Int -> Double -> Widget m -> Widget m
+inCanvas :: forall m . (MonadRefCreator m, MonadFix m) => Int -> Int -> Double -> Widget m -> Widget m
 inCanvas width height scale w = mdo
 
     let i = firstId
@@ -271,7 +271,7 @@ text__ ma mi s = ((x' :& y'), -- rect x' y' # fc red) --
 
 defcolor = sRGB 0.95 0.95 0.95
 
-tr  :: forall m . MonadRegister m
+tr  :: forall m . MonadRefCreator m
     => Double
     -> KeyHandler (RefWriter m)
     -> Widget m

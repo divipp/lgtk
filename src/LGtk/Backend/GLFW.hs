@@ -46,13 +46,13 @@ import LGtk.Key
 
 -------------------------------
 
---runRegister_ :: NewRef m => (forall a . m (m a, a -> m ())) -> Register m a -> m (a, m ())
+--runRegister_ :: NewRef m => (forall a . m (m a, a -> m ())) -> RefCreator m a -> m (a, m ())
 runRegister_ newChan m = do
     (read, write) <- newChan
     a <- runRegister write m
     pure $ (,) a $ forever $ join read
 
-runRegister' :: Register IO a -> IO (a, IO ())
+runRegister' :: RefCreator IO a -> IO (a, IO ())
 runRegister' = runRegister_ newChan'
 
 runWidget :: (forall m . (EffIORef m, MonadFix m) => Widget m) -> IO ()
@@ -312,7 +312,7 @@ data SWidget = forall a . (Monoid a, Semigroup a)
 
 
 runWidget_
-    :: forall m . (MonadRegister m, IO ~ EffectM m) => Widget m -> m SWidget
+    :: forall m . (MonadRefCreator m, IO ~ EffectM m) => Widget m -> m SWidget
 runWidget_  m = m >>= \i -> case i of
     Canvas w h sc_ me keyh r diaFun -> do
         rer <- liftIO' $ newMVar mempty

@@ -31,7 +31,7 @@ import Data.LensRef.Default
 --------------------------------------------------------------------------
 
 -- | Type class for IO actions.
-class MonadRegister m => EffIORef m where
+class MonadRefCreator m => EffIORef m where
 
     -- | The program's command line arguments (not including the program name). 
     getArgs     :: m [String]
@@ -97,7 +97,7 @@ type SIO = Program IOInstruction
 
 type Handle = RegionStatusChange -> SIO ()
 
-instance (MonadBaseControl IO m, NewRef m) => EffIORef (Register m) where
+instance (MonadBaseControl IO m, NewRef m) => EffIORef (RefCreator m) where
 
     getArgs     = liftIO' Env.getArgs
 

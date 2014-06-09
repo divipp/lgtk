@@ -24,7 +24,7 @@ setY  s x = take 2 $ Y  x : filter (\x-> case x of Y  _ -> False; _ -> True) s
 setXY s x = take 2 $ XY x : filter (\x-> case x of XY _ -> False; _ -> True) s
 
 -- | The editor
-tri :: MonadRegister m => Widget m
+tri :: MonadRefCreator m => Widget m
 tri = do
     s <- newRef [X 0, Y 0]
     vcat

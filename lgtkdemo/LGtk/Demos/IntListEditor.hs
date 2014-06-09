@@ -13,7 +13,7 @@ import LGtk
 
 intListEditor
     :: forall m a
-    .  (MonadRegister m, Read a, Show a, Integral a)
+    .  (MonadRefCreator m, Read a, Show a, Integral a)
     => (a, Bool)            -- ^ default element
     -> Int                  -- ^ maximum number of elements
     -> Ref m [(a, Bool)]    -- ^ state reference
@@ -87,7 +87,7 @@ intListEditor def maxi list_ range = do
 
     (f *** g) (a, b) = (f a, g b)
 
-listEditor :: MonadRegister m => a -> [Ref m a -> Widget m] -> Ref m [a] -> Widget m
+listEditor :: MonadRefCreator m => a -> [Ref m a -> Widget m] -> Ref m [a] -> Widget m
 listEditor def (ed: eds) r = do
     q <- extRef r listLens (False, (def, []))
     cell (fmap fst $ readRef q) $ \b -> case b of

@@ -127,12 +127,12 @@ empty :: (Monad m, Applicative m) => Widget m
 empty = hcat []
 
 -- | Dynamic label.
-label :: MonadRegister m => RefReader m String -> Widget m
+label :: MonadRefCreator m => RefReader m String -> Widget m
 label = pure . Label
 
 -- | Low-level button with changeable background color.
 button__
-    :: MonadRegister m
+    :: MonadRefCreator m
     => RefReader m String     -- ^ dynamic label of the button
     -> RefReader m Bool       -- ^ the button is active when this returns @True@
     -> RefReader m (Colour Double)      -- ^ dynamic background color
@@ -142,7 +142,7 @@ button__ r x c y = pure $ Button (r) (x) (Just c) (\() -> y)
 
 -- | Low-level button.
 button_
-    :: MonadRegister m
+    :: MonadRefCreator m
     => RefReader m String     -- ^ dynamic label of the button
     -> RefReader m Bool       -- ^ the button is active when this returns @True@
     -> RefWriter m ()        -- ^ the action to do when the button is pressed
@@ -151,7 +151,7 @@ button_ r x y = pure $ Button (r) (x) Nothing (\() -> y)
 
 -- | Button
 button
-    :: MonadRegister m
+    :: MonadRefCreator m
     => RefReader m String     -- ^ dynamic label of the button
     -> RefReader m (Maybe (RefWriter m ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
     -> Widget m
@@ -159,7 +159,7 @@ button r fm = button_ r (fmap isJust fm) (liftRefReader fm >>= maybe (pure ()) i
 
 -- | Button which inactivates itself automatically.
 smartButton
-    :: (MonadRegister m, EqRefClass r, RefReaderSimple r ~ RefReader m) 
+    :: (MonadRefCreator m, EqRefClass r, RefReaderSimple r ~ RefReader m) 
     => RefReader m String     -- ^ dynamic label of the button
     -> RefSimple r a              -- ^ underlying reference
     -> (a -> a)   -- ^ The button is active when this function is not identity on value of the reference. When the button is pressed, the value of the reference is modified with this function.
@@ -168,19 +168,19 @@ smartButton s r f
     = button_ s (hasEffect r f) (modRef r f)
 
 -- | Checkbox.
-checkbox :: MonadRegister m => Ref m Bool -> Widget m
+checkbox :: MonadRefCreator m => Ref m Bool -> Widget m
 checkbox r = pure $ Checkbox ((readRef r), writeRef r)
 
 -- | Combo box.
-combobox :: MonadRegister m => [String] -> Ref m Int -> Widget m
+combobox :: MonadRefCreator m => [String] -> Ref m Int -> Widget m
 combobox ss r = pure $ Combobox ss ((readRef r), writeRef r)
 
 -- | Text entry.
-entry :: (MonadRegister m, RefClass r, RefReaderSimple r ~ RefReader m)  => RefSimple r String -> Widget m
+entry :: (MonadRefCreator m, RefClass r, RefReaderSimple r ~ RefReader m)  => RefSimple r String -> Widget m
 entry r = pure $ Entry (const True) ((readRef r), writeRef r)
 
 -- | Text entry with automatic show-read conversion.
-entryShow :: forall m a r . (MonadRegister m, Show a, Read a, RefClass r, RefReaderSimple r ~ RefReader m) => RefSimple r a -> Widget m
+entryShow :: forall m a r . (MonadRefCreator m, Show a, Read a, RefClass r, RefReaderSimple r ~ RefReader m) => RefSimple r a -> Widget m
 entryShow r_ = pure $ Entry isOk ((readRef r), writeRef r)
   where
     r = showLens `lensMap` r_
@@ -196,7 +196,7 @@ showLens = lens show $ \def s -> maybe def fst $ listToMaybe $ reads s
 
 The tabs are created lazily.
 -}
-notebook :: MonadRegister m => [(String, Widget m)] -> Widget m
+notebook :: MonadRefCreator m => [(String, Widget m)] -> Widget m
 notebook xs = do
     currentPage <- newRef 0
     let f index (title, w) = (,) title $ cell (fmap (== index) $ readRef currentPage) $ \b -> case b of
@@ -208,26 +208,26 @@ notebook xs = do
 
 The monadic action for inner widget creation is memoised in the first monad layer.
 -}
-cell_ :: (MonadRegister m, Eq a) => RefReader m a -> (forall x . (Widget m -> m x) -> a -> m (m x)) -> Widget m
+cell_ :: (MonadRefCreator m, Eq a) => RefReader m a -> (forall x . (Widget m -> m x) -> a -> m (m x)) -> Widget m
 cell_ r f = pure $ Cell r f
 
 {- | Dynamic cell.
 
 The inner widgets are memoised.
 -}
-cell :: (MonadRegister m, Eq a) => RefReader m a -> (a -> Widget m) -> Widget m
+cell :: (MonadRefCreator m, Eq a) => RefReader m a -> (a -> Widget m) -> Widget m
 cell r m = cell_ r $ \mk -> fmap pure . mk . m
 
 {- | Dynamic cell.
 
 The inner widgets are not memoised.
 -}
-cellNoMemo :: (MonadRegister m, Eq a) => RefReader m a -> (a -> Widget m) -> Widget m
+cellNoMemo :: (MonadRefCreator m, Eq a) => RefReader m a -> (a -> Widget m) -> Widget m
 cellNoMemo r m = cell_ r $ \mk -> pure . mk . m
 
 -- | Diagrams canvas.
 canvas
-    :: (MonadRegister m, Eq b, Monoid a, Semigroup a)
+    :: (MonadRefCreator m, Eq b, Monoid a, Semigroup a)
     => Int   -- ^ width
     -> Int   -- ^ height
     -> Double  -- ^ scale
@@ -239,7 +239,7 @@ canvas
 canvas w h sc me kh r f = pure $ Canvas w h sc me kh r f
 
 hscale
-    :: (MonadRegister m)
+    :: (MonadRefCreator m)
     => Double   -- ^ min
     -> Double   -- ^ max
     -> Double   -- ^ step
@@ -257,7 +257,7 @@ listLens = lens get set where
 
 -- | Undo-redo state transformation.
 undoTr
-    :: MonadRegister m =>
+    :: MonadRefCreator m =>
        (a -> a -> Bool)     -- ^ equality on state
     -> Ref m a             -- ^ reference of state
     ->   m ( RefReader m (Maybe (RefWriter m ()))

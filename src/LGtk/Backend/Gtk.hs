@@ -36,13 +36,13 @@ import Diagrams.Backend.Cairo.Internal
 runWidget :: (forall m . (EffIORef m, MonadFix m) => Widget m) -> IO ()
 runWidget w = runWidget' runRegister' w
 
---runRegister_ :: NewRef m => (forall a . m (m a, a -> m ())) -> Register m a -> m (a, m ())
+--runRegister_ :: NewRef m => (forall a . m (m a, a -> m ())) -> RefCreator m a -> m (a, m ())
 runRegister_ newChan m = do
     (read, write) <- newChan
     a <- runRegister write m
     pure $ (,) a $ forever $ join read
 
-runRegister' :: IO () -> Register IO a -> IO (a, IO ())
+runRegister' :: IO () -> RefCreator IO a -> IO (a, IO ())
 runRegister' pa = runRegister_ (newChan' pa)
   where
     newChan' pa = do
@@ -55,7 +55,7 @@ Run a Gtk widget description.
 The widget is shown in a window and the thread enters into the Gtk event cycle.
 It leaves the event cycle when the window is closed.
 -}
-runWidget' :: (MonadRegister m, MonadBaseControl IO (EffectM m))
+runWidget' :: (MonadRefCreator m, MonadBaseControl IO (EffectM m))
     => (forall a . IO () -> m a -> IO (a, IO ())) -> Widget m -> IO ()
 runWidget' run desc = gtkContext $ \postGUISync -> do
     postActionsRef <- newMVar $ pure ()
@@ -87,7 +87,7 @@ type SWidget = (IO (), Gtk.Widget)
 
 -- | Run an @IO@ parametrized interface description with Gtk backend
 runWidget_
-    :: forall m . (MonadRegister m, MonadBaseControl IO (EffectM m))
+    :: forall m . (MonadRefCreator m, MonadBaseControl IO (EffectM m))
     => (IO () -> IO ())
     -> (forall a . IO a -> IO a)
     -> Widget m

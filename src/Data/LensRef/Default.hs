@@ -2,7 +2,7 @@
 {-# LANGUAGE RankNTypes #-}
 -- | Default implementation. Points to either to the pure or the fast implementation depending on the cabal flag @PURE@.
 module Data.LensRef.Default
-    ( Register
+    ( RefCreator
     ) where
 
 #ifdef __PURE__
