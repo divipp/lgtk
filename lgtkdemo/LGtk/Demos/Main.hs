@@ -277,8 +277,9 @@ mainWidget = notebook
                     asyncWrite (ceiling $ 1000000 * d) $ writeRef ready True
             vcat
                 [ hcat [ entryShow delay, label $ pure "sec" ]
-                , button_ (flip fmap (readRef delay) $ \d -> "Start " ++ show d ++ " sec computation")
+                , primButton (flip fmap (readRef delay) $ \d -> "Start " ++ show d ++ " sec computation")
                           (readRef ready)
+                          Nothing
                           (writeRef ready False)
                 , label $ fmap (\b -> if b then "Ready." else "Computing...") $ readRef ready
                 ]
@@ -317,7 +318,7 @@ mainWidget = notebook
                     _ <- onChangeEq (fmap isJust $ readRef ready) $ \b -> 
                         when (not b) $ getLine_ $ writeRef ready . Just
                     hcat 
-                        [ button_ (pure "getLine") (fmap isJust $ readRef ready) $ writeRef ready Nothing
+                        [ primButton (pure "getLine") (fmap isJust $ readRef ready) Nothing $ writeRef ready Nothing
                         , label $ fmap (maybe "<<<waiting for input>>>" id) $ readRef ready
                         ]
                in vcat [ put, put, put, get, get, get ]
@@ -390,7 +391,7 @@ tPic i (Node a b) = tPic (i+1) a # translate (r2 (-w,-2))
 justLens :: a -> Lens' (Maybe a) a
 justLens a = lens (maybe a id) (flip $ const . Just)
 
-counter :: forall a . (Ord a) => a -> Ref (a, a) -> RefCreator (EqRef a)
+counter :: forall a . (Ord a) => a -> SubState (a, a) -> Create (SubStateEq a)
 counter x ab = do
     c <- extRef ab (fix . _2) (x, (x, x))
     pure $ fix . _1 `lensMap` toEqRef c
@@ -417,7 +418,7 @@ inCanvasExample = do
                 [ vcat
                     [ hcat
                         [ label $ fmap (\i -> show i ++ "hello") $ readRef i
-                        , button_ (pure "+1") (pure True) $ modRef i (+1)
+                        , primButton (pure "+1") (pure True) Nothing $ modRef i (+1)
                         ]
                     , hcat
                         [ entry s

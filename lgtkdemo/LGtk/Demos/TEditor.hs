@@ -38,7 +38,7 @@ tEditor1 ::  Widget
 tEditor1 = join $ newRef Leaf >>= adtEditor
 
 -- | @T@ editor with checkboxes, given directly
-tEditor3 ::  Ref T -> Widget
+tEditor3 ::  SubState T -> Widget
 tEditor3 r = do
     q <- extRef r tLens (False, (Leaf, Leaf))
     hcat

@@ -16,8 +16,8 @@ intListEditor
     .  (Read a, Show a, Integral a)
     => (a, Bool)            -- ^ default element
     -> Int                  -- ^ maximum number of elements
-    -> Ref [(a, Bool)]    -- ^ state reference
-    -> Ref Bool           -- ^ settings reference
+    -> SubState [(a, Bool)]    -- ^ state reference
+    -> SubState Bool           -- ^ settings reference
     -> Widget
 intListEditor def maxi list_ range = do
     (undo, redo)  <- undoTr ((==) `on` map fst) list_
@@ -69,8 +69,8 @@ intListEditor def maxi list_ range = do
         [ label $ pure $ show (i+1) ++ "."
         , entryShow $ _1 `lensMap` r
         , checkbox $ _2 `lensMap` r
-        , button_ (pure "Del")  (pure True) $ modRef list $ \xs -> take i xs ++ drop (i+1) xs
-        , button_ (pure "Copy") (pure True) $ modRef list $ \xs -> take (i+1) xs ++ drop i xs
+        , primButton (pure "Del")  (pure True) Nothing $ modRef list $ \xs -> take i xs ++ drop (i+1) xs
+        , primButton (pure "Copy") (pure True) Nothing $ modRef list $ \xs -> take (i+1) xs ++ drop i xs
         ]
 
     safeList = lens id (const $ take maxi) `lensMap` list
@@ -87,7 +87,7 @@ intListEditor def maxi list_ range = do
 
     (f *** g) (a, b) = (f a, g b)
 
-listEditor ::  a -> [Ref a -> Widget] -> Ref [a] -> Widget
+listEditor ::  a -> [SubState a -> Widget] -> SubState [a] -> Widget
 listEditor def (ed: eds) r = do
     q <- extRef r listLens (False, (def, []))
     cell (fmap fst $ readRef q) $ \b -> case b of

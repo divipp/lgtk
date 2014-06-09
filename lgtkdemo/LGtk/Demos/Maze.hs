@@ -173,7 +173,7 @@ mazeGame = do
 
 ----------------------------- utils
 
-extRef_ ::  Ref b -> a -> (b -> a -> a) -> RefCreator (Ref a)
+extRef_ ::  SubState b -> a -> (b -> a -> a) -> Create (SubState a)
 extRef_ r def f = do
     r0 <- readRef r
     v <- extRef r (lens fst set) (r0, def)
