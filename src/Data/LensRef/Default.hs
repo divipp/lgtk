@@ -2,7 +2,9 @@
 {-# LANGUAGE RankNTypes #-}
 -- | Default implementation. Points to either to the pure or the fast implementation depending on the cabal flag @PURE@.
 module Data.LensRef.Default
-    ( RefCreator
+    ( RefReader
+    , RefCreator
+    , RefWriter
     , runRefCreator
     ) where
 

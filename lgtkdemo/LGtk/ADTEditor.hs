@@ -65,7 +65,7 @@ class ADTLens a where
     adtLens :: ([(String, [Int])], Elems (ADTEls a), Lens_ (Int, Elems (ADTEls a)) a)
 
 -- | A generic ADT editor
-adtEditor :: (MonadRefCreator m, ADTLens a) => Ref m a -> m (Widget m)
+adtEditor :: (ADTLens a) => Ref a -> RefCreator Widget
 adtEditor = memoRead . editor  where
     editor r = do
         q <- extRef r k (0, ls)
@@ -77,7 +77,7 @@ adtEditor = memoRead . editor  where
       where
         (ss, ls, Lens_ k) = adtLens
 
-    mkEditors :: MonadRefCreator m => Elems xs -> Ref m (Elems xs) -> m [Widget m]
+    mkEditors ::  Elems xs -> Ref (Elems xs) -> RefCreator [Widget]
     mkEditors ElemsNil _ = pure []
     mkEditors (ElemsCons _ xs) r = do
         i <- adtEditor $ lHead `lensMap` r

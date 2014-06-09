@@ -96,7 +96,7 @@ gameLogic b maze p (s, st) = case st of
 
 ------------------------ GUI
 
-mazeGame :: forall m . MonadRefCreator m => Widget m
+mazeGame :: Widget
 mazeGame = do
     forgiving <- newRef False
     let init = (0,(4,4))
@@ -173,7 +173,7 @@ mazeGame = do
 
 ----------------------------- utils
 
-extRef_ :: MonadRefCreator m => Ref m b -> a -> (b -> a -> a) -> m (Ref m a)
+extRef_ ::  Ref b -> a -> (b -> a -> a) -> RefCreator (Ref a)
 extRef_ r def f = do
     r0 <- readRef r
     v <- extRef r (lens fst set) (r0, def)

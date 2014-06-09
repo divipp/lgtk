@@ -5,7 +5,13 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE CPP #-}
 module LGtk.Backend.GLFW
-    ( runWidget
+    ( Ref
+    , EqRef
+    , RefWriter
+    , RefReader
+    , RefCreator
+    , Widget
+    , runWidget
     ) where
 
 import Data.Char
@@ -37,24 +43,36 @@ import Graphics.Rendering.Cairo ( Format (..)
                                 )
 #endif
 
-import Data.LensRef.Class
---import Data.LensRef
-import Data.LensRef.Default
+import Data.LensRef.Class hiding (Ref)
+import qualified Data.LensRef as Ref
+import qualified Data.LensRef.Default as Ref
 import LGtk.Effects
-import LGtk.Widgets
+import LGtk.Widgets hiding (Widget)
+import qualified LGtk.Widgets as Widget
 import LGtk.Render
 import LGtk.Key
 
+----------------------------
+
+type Ref a = Ref.Ref RefCreator a
+type EqRef a = Ref.EqRef RefCreator a
+
+type RefCreator = RefCreatorPost IO
+type RefWriter = Ref.RefWriter IO
+type RefReader = Ref.RefReader IO
+
+type Widget = Widget.Widget RefCreator
+
 -------------------------------
 
-runRegister' :: ((RefWriterOf (RefCreator IO) () -> IO ()) -> RefCreatorPost IO a) -> IO (a, IO ())
+runRegister' :: ((RefWriterOf (Ref.RefCreator IO) () -> IO ()) -> RefCreator a) -> IO (a, IO ())
 runRegister' m = do
     ch <- newChan
-    a <- runRefCreator $ \f -> flip runReaderT (writeChan ch . f) $ m $ writeChan ch . f
+    a <- Ref.runRefCreator $ \f -> flip runReaderT (writeChan ch . f) $ m $ writeChan ch . f
     pure $ (,) a $ forever $ join $ readChan ch
 
 
-runWidget :: (forall m . (EffIORef m, MonadFix m) => Widget m) -> IO ()
+runWidget :: Widget -> IO ()
 runWidget desc = do
     hSetBuffering stdout NoBuffering
 
@@ -307,7 +325,7 @@ data SWidget = forall a . (Monoid a, Semigroup a)
 
 
 runWidget_
-    :: forall m . (MonadRefCreator m, IO ~ EffectM m) => (RefWriterOf m () -> IO ()) -> Widget m -> m SWidget
+    :: forall m . (MonadRefCreator m, IO ~ EffectM m) => (RefWriterOf m () -> IO ()) -> Widget.Widget m -> m SWidget
 runWidget_ post m = m >>= \i -> case i of
     Canvas w h sc_ me keyh r diaFun -> do
         rer <- liftIO' $ newMVar mempty

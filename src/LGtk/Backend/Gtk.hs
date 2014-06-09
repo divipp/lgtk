@@ -4,7 +4,13 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 module LGtk.Backend.Gtk
-    ( runWidget
+    ( Ref
+    , EqRef
+    , RefWriter
+    , RefReader
+    , RefCreator
+    , Widget
+    , runWidget
     ) where
 
 import Control.Category
@@ -19,25 +25,38 @@ import Data.Maybe
 import Data.List hiding (union)
 import Prelude hiding ((.), id)
 
-import Graphics.UI.Gtk hiding (Widget, Release, RefWriterOf)
-import qualified Graphics.UI.Gtk as Gtk
-
-import Data.LensRef.Class
-import Data.LensRef.Default
-import LGtk.Effects
-import LGtk.Key
-import LGtk.Widgets
-
 import Diagrams.Prelude
 import Diagrams.Backend.Cairo
 import Diagrams.Backend.Cairo.Internal
 
+import Graphics.UI.Gtk hiding (Widget, Release, RefWriterOf)
+import qualified Graphics.UI.Gtk as Gtk
+
+import Data.LensRef.Class hiding (Ref)
+import qualified Data.LensRef as Ref
+import qualified Data.LensRef.Default as Ref
+import LGtk.Effects
+import LGtk.Widgets hiding (Widget)
+import qualified LGtk.Widgets as Widget
+import LGtk.Key
+
+----------------------------
+
+type Ref a = Ref.Ref RefCreator a
+type EqRef a = Ref.EqRef RefCreator a
+
+type RefCreator = RefCreatorPost IO
+type RefWriter = Ref.RefWriter IO
+type RefReader = Ref.RefReader IO
+
+type Widget = Widget.Widget RefCreator
+
 -------------------------
 
-runRegister' :: IO () -> ((RefWriterOf (RefCreator IO) () -> IO ()) -> RefCreatorPost IO a) -> IO (a, IO ())
+runRegister' :: IO () -> ((RefWriterOf (Ref.RefCreator IO) () -> IO ()) -> RefCreator a) -> IO (a, IO ())
 runRegister' pa m = do
     ch <- newChan
-    a <- runRefCreator $ \f -> flip runReaderT (writeChan ch . f) $ m $ writeChan ch . f
+    a <- Ref.runRefCreator $ \f -> flip runReaderT (writeChan ch . f) $ m $ writeChan ch . f
     pure $ (,) a $ forever $ join $ pa >> readChan ch
 
 {- |
@@ -46,7 +65,7 @@ Run a Gtk widget description.
 The widget is shown in a window and the thread enters into the Gtk event cycle.
 It leaves the event cycle when the window is closed.
 -}
-runWidget :: (forall m . (EffIORef m, MonadFix m) => Widget m) -> IO ()
+runWidget :: Widget -> IO ()
 runWidget desc = gtkContext $ \postGUISync -> do
     postActionsRef <- newMVar $ pure ()
     let addPostAction m = modifyMVar_ postActionsRef $ \n -> pure $ n >> m
@@ -77,19 +96,18 @@ type SWidget = (IO (), Gtk.Widget)
 
 -- | Run an @IO@ parametrized interface description with Gtk backend
 runWidget_
-    :: forall m . (MonadRefCreator m, MonadBaseControl IO (EffectM m))
-    => (RefWriterOf m () -> EffectM m ())
+    :: (RefWriter () -> IO ())
     -> (IO () -> IO ())
     -> (forall a . IO a -> IO a)
-    -> Widget m
-    -> m SWidget
+    -> Widget
+    -> RefCreator SWidget
 runWidget_ post_ post' post = toWidget
  where
-    liftIO'' :: IO a -> m a
+    liftIO'' :: IO a -> RefCreator a
     liftIO'' = liftIO' . post
 
     -- type Receive n m k a = (RegionStatusChange -> n ()) -> m (a -> k ())
-    reg :: Receive m a -> ((a -> IO ()) -> IO (RegionStatusChange -> IO ())) -> m (RegionStatusChange -> IO ())
+    reg :: Receive RefCreator a -> ((a -> IO ()) -> IO (RegionStatusChange -> IO ())) -> RefCreator (RegionStatusChange -> IO ())
     reg s f = do
         u <- liftEffectM $ liftBaseWith $ \unr -> f $ \x -> do
             _ <- unr $ post_ $ s x
@@ -97,7 +115,7 @@ runWidget_ post_ post' post = toWidget
         onRegionStatusChange (liftIO_ . post . u $)
         pure u
 
-    ger :: Eq a => (RegionStatusChange -> IO ()) -> RefReaderOf m a -> (a -> IO ()) -> m ()
+    ger :: Eq a => (RegionStatusChange -> IO ()) -> RefReader a -> (a -> IO ()) -> RefCreator ()
     ger hd s f = fmap (const ()) $ onChangeEq s $ \a -> liftIO'' $ do
         hd Block
         f a
@@ -106,7 +124,7 @@ runWidget_ post_ post' post = toWidget
     nhd :: RegionStatusChange -> IO ()
     nhd = const $ pure ()
 
-    toWidget :: Widget m -> m SWidget
+    toWidget :: Widget -> RefCreator SWidget
     toWidget m = m >>= \i -> case i of
 
         Label s -> do
@@ -119,10 +137,10 @@ runWidget_ post_ post' post = toWidget
          mkCanvas
             :: forall b da
             .  (Monoid da, Semigroup da, Eq b)
-            => ((MouseEvent da, Dia da) -> RefWriterOf m ())
-            -> RefReaderOf m b
+            => ((MouseEvent da, Dia da) -> RefWriter ())
+            -> RefReader b
             -> (b -> Dia da)
-            -> m SWidget
+            -> RefCreator SWidget
          mkCanvas me r diaFun = do
 
           cur <- liftIO' $ newMVar Nothing
