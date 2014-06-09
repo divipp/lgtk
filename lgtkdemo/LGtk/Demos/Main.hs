@@ -298,12 +298,10 @@ mainWidget = notebook
 
             , (,) "Env" $ do
                 v <- newRef "HOME"
-                lv <- newRef ""
-                _ <- onChangeEq (readRef v) $ \s ->
-                    postponeModification . writeRef lv =<< fmap (maybe "Not in env." show) (lookupEnv s)
+                lv <- onChangeEq (readRef v) $ fmap (maybe "Not in env." show) . lookupEnv
                 vcat
                     [ entry v
-                    , label $ readRef lv
+                    , label lv
                     ]
 
             , (,) "Std I/O" $ let
