@@ -9,50 +9,17 @@
 -- | Main LGtk interface.
 module LGtk
     (
-    -- * References
-
-    -- ** References
-      unitRef
-    , lensMap
-            -- TODO: elim these?
-            , RefReaderSimple, RefClass --RefClass (..)
-            , RefSimple
-    , MonadRefReader (..)
-    , MonadRefWriter (..)
-    , Ref
-    , RefReaderOf
-    , RefWriterOf
-
-    -- ** Reference creation
-    , MonadRefCreator (..)
-    , RefCreator
-    , RefReader
-    , RefWriter
-
-    -- ** Other
-    , MonadMemo (..)
-
-    , EqRefClass        --EqRefClass (..)
-            , hasEffect
---    , EqRefSimple
-    , EqRef
-    , toEqRef
-    , fromEqRef
-    , newEqRef
-
     -- * GUI
 
-    -- ** Running a widget
-    , Widget
-    , runWidget
-
     -- ** GUI elements
-    , empty
+      empty
     , vcat
     , hcat
     , label
     , button
     , smartButton
+    , button_
+    , button__
     , checkbox
     , combobox
     , entry
@@ -61,39 +28,77 @@ module LGtk
     , cell
     , cellNoMemo
     , notebook
-
-    -- ** Other elements
-    , button_
-    , button__
-
-    -- ** Diagrams canvas
     , canvas
     , inCanvas
 
-    -- * Aux types
+    -- ** Types
+    , Widget
     , Dia
+    , module LGtk.Key
     , MouseEvent (..)
     , MousePos (..)
     , Colour
     , sRGB
-    , module LGtk.Key
+
+    -- ** Running a widget
+    , runWidget
+
+    -- * Utils
+    , undoTr
+    , showLens
+    , listLens
 
     -- * I/O
     , getArgs
     , getProgName
     , lookupEnv
-
-    , EffIORef
     , asyncWrite
     , putStr_
     , getLine_
     , fileRef
     , putStrLn_
 
-    -- * Utils
-    , undoTr
-    , showLens
-    , listLens
+    -- * References
+
+    -- ** Reference creation
+    , unitRef
+    , newRef
+    , extRef
+    , lensMap
+
+    , newEqRef
+    , toEqRef
+    , fromEqRef
+
+    -- ** Triggers
+    , onChange
+    , onChangeEq
+    , onChangeEq_
+    , onChangeMemo
+
+    -- ** Other
+    , memoRead
+
+    -- ** Reference writing
+    , writeRef
+    , modRef
+
+    -- ** Reference reading
+    , readRef
+    , liftRefReader
+
+    -- ** Types
+    , RefCreator
+    , RefReader
+    , RefWriter
+    , Ref
+    , EqRef
+
+    -- ** Other types and type classes
+    , RefSimple
+    , RefReaderSimple
+--    , EqRefClass
+    , RefClass
 
     ) where
 
@@ -105,9 +110,10 @@ import Control.Applicative hiding (empty)
 --import Control.Monad
 import Control.Lens
 
-import Data.LensRef hiding (Ref, EqRef)
---import Data.LensRef.Default
-import LGtk.Effects
+import Data.LensRef (RefClass (RefReaderSimple), RefSimple, EqRefClass, hasEffect, toEqRef, fromEqRef, RefReaderOf, MonadRefReader, BaseRef)
+import qualified Data.LensRef as Ref
+import LGtk.Effects ()
+import qualified LGtk.Effects as Eff
 import LGtk.Widgets hiding (Widget)
 import LGtk.Render
 import LGtk.Key
@@ -119,6 +125,86 @@ import LGtk.Backend.GLFW
 #endif
 
 ----------------------------
+
+readRef
+    :: ( MonadRefReader m
+       , RefClass r
+       , RefReaderOf m ~ RefReaderSimple r
+       , BaseRef m ~ BaseRef (Ref.RefWriterOf m)
+       )
+    => RefSimple r a -> m a
+readRef = Ref.readRef
+
+liftRefReader
+    :: ( MonadRefReader m
+       , BaseRef m ~ BaseRef (Ref.RefWriterOf m)
+       )
+    => RefReaderOf m a -> m a
+liftRefReader = Ref.liftRefReader
+
+unitRef :: RefClass r => RefSimple r ()
+unitRef = Ref.unitRef
+
+infixr 8 `lensMap`
+
+lensMap :: RefClass r => Lens' a b -> RefSimple r a -> RefSimple r b
+lensMap = Ref.lensMap
+
+writeRef :: (RefClass r, RefReaderSimple r ~ RefReader) => RefSimple r a -> a -> RefWriter ()
+writeRef = Ref.writeRef
+
+modRef :: (RefClass r, RefReaderSimple r ~ RefReader) => RefSimple r a -> (a -> a) -> RefWriter ()
+modRef = Ref.modRef
+
+extRef :: Ref b -> Lens' a b -> a -> RefCreator (Ref a)
+extRef = Ref.extRef
+
+newRef :: a -> RefCreator (Ref a)
+newRef = Ref.newRef
+
+onChange :: RefReader a -> (a -> RefCreator b) -> RefCreator (RefReader b)
+onChange = Ref.onChange
+
+onChangeEq :: Eq a => RefReader a -> (a -> RefCreator b) -> RefCreator (RefReader b)
+onChangeEq = Ref.onChangeEq
+
+onChangeEq_ :: Eq a => RefReader a -> (a -> RefCreator b) -> RefCreator (Ref b)
+onChangeEq_ = Ref.onChangeEq_
+
+onChangeMemo :: Eq a => RefReader a -> (a -> RefCreator (RefCreator b)) -> RefCreator (RefReader b)
+onChangeMemo = Ref.onChangeMemo
+
+memoRead :: RefCreator a -> RefCreator (RefCreator a)
+memoRead = Ref.memoRead
+
+newEqRef :: Eq a => a -> RefCreator (EqRef a)
+newEqRef = Ref.newEqRef
+
+getArgs :: RefCreator [String]
+getArgs = Eff.getArgs
+
+getProgName :: RefCreator String
+getProgName = Eff.getProgName
+
+lookupEnv :: String -> RefCreator (Maybe String)
+lookupEnv = Eff.lookupEnv
+
+asyncWrite :: Int -> RefWriter () -> RefCreator ()
+asyncWrite = Eff.asyncWrite
+
+putStr_ :: String -> RefCreator ()
+putStr_ = Eff.putStr_
+
+putStrLn_ :: String -> RefCreator ()
+putStrLn_ = Eff.putStrLn_
+
+getLine_ :: (String -> RefWriter ()) -> RefCreator ()
+getLine_ = Eff.getLine_
+
+fileRef :: FilePath -> RefCreator (Ref (Maybe String))
+fileRef = Eff.fileRef
+
+
 
 {- |
 Gtk widget descriptions.
@@ -185,9 +271,8 @@ button r fm = button_ r (fmap isJust fm) (liftRefReader fm >>= maybe (pure ()) i
 
 -- | Button which inactivates itself automatically.
 smartButton
-    :: (EqRefClass r, RefReaderSimple r ~ RefReader) 
-    => RefReader String     -- ^ dynamic label of the button
-    -> RefSimple r a              -- ^ underlying reference
+    :: RefReader String     -- ^ dynamic label of the button
+    -> EqRef a              -- ^ underlying reference
     -> (a -> a)   -- ^ The button is active when this function is not identity on value of the reference. When the button is pressed, the value of the reference is modified with this function.
     -> Widget
 smartButton s r f
