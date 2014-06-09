@@ -47,7 +47,7 @@ import LGtk.Key
 
 -------------------------------
 
-runRegister' :: ((RefWriter (RefCreator IO) () -> IO ()) -> RefCreatorPost IO a) -> IO (a, IO ())
+runRegister' :: ((RefWriterOf (RefCreator IO) () -> IO ()) -> RefCreatorPost IO a) -> IO (a, IO ())
 runRegister' m = do
     ch <- newChan
     a <- runRefCreator $ \f -> flip runReaderT (writeChan ch . f) $ m $ writeChan ch . f
@@ -307,7 +307,7 @@ data SWidget = forall a . (Monoid a, Semigroup a)
 
 
 runWidget_
-    :: forall m . (MonadRefCreator m, IO ~ EffectM m) => (RefWriter m () -> IO ()) -> Widget m -> m SWidget
+    :: forall m . (MonadRefCreator m, IO ~ EffectM m) => (RefWriterOf m () -> IO ()) -> Widget m -> m SWidget
 runWidget_ post m = m >>= \i -> case i of
     Canvas w h sc_ me keyh r diaFun -> do
         rer <- liftIO' $ newMVar mempty

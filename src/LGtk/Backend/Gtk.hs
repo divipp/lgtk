@@ -19,7 +19,7 @@ import Data.Maybe
 import Data.List hiding (union)
 import Prelude hiding ((.), id)
 
-import Graphics.UI.Gtk hiding (Widget, Release, RefWriter)
+import Graphics.UI.Gtk hiding (Widget, Release, RefWriterOf)
 import qualified Graphics.UI.Gtk as Gtk
 
 import Data.LensRef.Class
@@ -34,7 +34,7 @@ import Diagrams.Backend.Cairo.Internal
 
 -------------------------
 
-runRegister' :: IO () -> ((RefWriter (RefCreator IO) () -> IO ()) -> RefCreatorPost IO a) -> IO (a, IO ())
+runRegister' :: IO () -> ((RefWriterOf (RefCreator IO) () -> IO ()) -> RefCreatorPost IO a) -> IO (a, IO ())
 runRegister' pa m = do
     ch <- newChan
     a <- runRefCreator $ \f -> flip runReaderT (writeChan ch . f) $ m $ writeChan ch . f
@@ -78,7 +78,7 @@ type SWidget = (IO (), Gtk.Widget)
 -- | Run an @IO@ parametrized interface description with Gtk backend
 runWidget_
     :: forall m . (MonadRefCreator m, MonadBaseControl IO (EffectM m))
-    => (RefWriter m () -> EffectM m ())
+    => (RefWriterOf m () -> EffectM m ())
     -> (IO () -> IO ())
     -> (forall a . IO a -> IO a)
     -> Widget m
@@ -97,7 +97,7 @@ runWidget_ post_ post' post = toWidget
         onRegionStatusChange (liftIO_ . post . u $)
         pure u
 
-    ger :: Eq a => (RegionStatusChange -> IO ()) -> RefReader m a -> (a -> IO ()) -> m ()
+    ger :: Eq a => (RegionStatusChange -> IO ()) -> RefReaderOf m a -> (a -> IO ()) -> m ()
     ger hd s f = fmap (const ()) $ onChangeEq s $ \a -> liftIO'' $ do
         hd Block
         f a
@@ -119,8 +119,8 @@ runWidget_ post_ post' post = toWidget
          mkCanvas
             :: forall b da
             .  (Monoid da, Semigroup da, Eq b)
-            => ((MouseEvent da, Dia da) -> RefWriter m ())
-            -> RefReader m b
+            => ((MouseEvent da, Dia da) -> RefWriterOf m ())
+            -> RefReaderOf m b
             -> (b -> Dia da)
             -> m SWidget
          mkCanvas me r diaFun = do

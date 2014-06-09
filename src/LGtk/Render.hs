@@ -123,7 +123,7 @@ type EventHandler a m = (MouseEvent a, Dia a) -> Maybe' (m (), Maybe (CapturedEv
 -- compiled widget
 data CWidget m
     = forall a x . (Eq x, Monoid a, Semigroup a)
-    => CWidget (RefReader m (([KeyFocusHandler m], [[KeyFocusHandler m]]), x)) (a -> EventHandler () m) (x -> [Id] -> Id -> Dia a)
+    => CWidget (RefReaderOf m (([KeyFocusHandler m], [[KeyFocusHandler m]]), x)) (a -> EventHandler () m) (x -> [Id] -> Id -> Dia a)
 
 ------------------
 
@@ -273,9 +273,9 @@ defcolor = sRGB 0.95 0.95 0.95
 
 tr  :: forall m . MonadRefCreator m
     => Double
-    -> KeyHandler (RefWriter m)
+    -> KeyHandler (RefWriterOf m)
     -> Widget m
-    -> WithId m (CWidget (RefWriter m))
+    -> WithId m (CWidget (RefWriterOf m))
 tr sca dkh w = do
     w' <- lift w
     case w' of
@@ -474,7 +474,7 @@ tr sca dkh w = do
             ii <- newId
             ir <- lift $ newRef (0 :: Int)
 
-            let br' :: Int -> RefWriter m ()
+            let br' :: Int -> RefWriterOf m ()
                 br' ind = br ind' >> writeRef ir ind' where ind' = ind `mod` n
                 br'' f = readRef ir >>= br' . f  >> pure True
                 ff (SimpleKey Key'Left) = br'' (+(-1))

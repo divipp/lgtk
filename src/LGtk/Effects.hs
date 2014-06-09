@@ -51,7 +51,7 @@ class MonadRefCreator m => EffIORef m where
     the current computation.
     Although @(asyncWrite 0)@ is safe, code using it has a bad small.
     -}
-    asyncWrite :: Int -> RefWriter m () -> m ()
+    asyncWrite :: Int -> RefWriterOf m () -> m ()
 
     {- |
     @(fileRef path)@ returns a reference which holds the actual contents
@@ -74,7 +74,7 @@ class MonadRefCreator m => EffIORef m where
     @(getLine_ f)@ returns immediately. When the line @s@ is read,
     @f s@ is called.
     -}
-    getLine_   :: (String -> RefWriter m ()) -> m ()
+    getLine_   :: (String -> RefWriterOf m ()) -> m ()
 
     -- | Write a string to the standard output device.
     putStr_    :: EffIORef m => String -> m ()
@@ -98,9 +98,9 @@ type SIO = Program IOInstruction
 
 type Handle = RegionStatusChange -> SIO ()
 
-type RefCreatorPost m = ReaderT (RefWriter (RefCreator m) () -> m ()) (RefCreator m)
+type RefCreatorPost m = ReaderT (RefWriterOf (RefCreator m) () -> m ()) (RefCreator m)
 
-instance (MonadBaseControl IO m, NewRef m, n ~ RefWriter (RefCreator m))
+instance (MonadBaseControl IO m, NewRef m, n ~ RefWriterOf (RefCreator m))
     => EffIORef (ReaderT (n () -> m ()) (RefCreator m)) where
 
     getArgs     = liftIO' Env.getArgs
