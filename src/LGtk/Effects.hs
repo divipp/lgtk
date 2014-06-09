@@ -25,6 +25,8 @@ import qualified System.Environment as Env
 import System.IO.Error (catchIOError, isDoesNotExistError)
 
 import Data.LensRef.Class
+import Data.LensRef.Common
+import Data.LensRef.Default
 
 --------------------------------------------------------------------------
 
@@ -81,33 +83,6 @@ putStrLn_ :: EffIORef m => String -> m ()
 putStrLn_ = putStr_ . (++ "\n")
 
 
-newtype Wrap m a = Wrap { unWrap :: m a } deriving (Functor, Applicative, Monad, MonadFix)
-
-instance (MonadRefReader m) => MonadRefReader (Wrap m) where
-    type BaseRef (Wrap m) = BaseRef m
-    liftRefReader = Wrap . liftRefReader
-
-instance MonadRefCreator m => MonadRefCreator (Wrap m) where
-    extRef r l       = Wrap . extRef r l
-    newRef           = Wrap . newRef
-    onChange r f     = Wrap . onChange r $ fmap unWrap f
-    onChangeEq r f   = Wrap . onChangeEq r $ fmap unWrap f
-    onChangeMemo r f = Wrap . onChangeMemo r $ fmap (fmap unWrap . unWrap) f
-    onRegionStatusChange g = Wrap $ onRegionStatusChange g
-
-instance MonadMemo m => MonadMemo (Wrap m) where
-    memoRead (Wrap m) = fmap Wrap $ Wrap $ memoRead m
-
-instance MonadRefWriter m => MonadRefWriter (Wrap m) where
-    liftRefWriter = Wrap . liftRefWriter
-
-instance (MonadEffect m) => MonadEffect (Wrap m) where
-    type EffectM (Wrap m) = EffectM m
-    liftEffectM = Wrap . liftEffectM
-
-instance (MonadRegister m) => MonadRegister (Wrap m) where
-    askPostpone = Wrap askPostpone
-    runRegister p (Wrap m) = runRegister p m
 
 data IOInstruction a where
     GetArgs :: IOInstruction [String]
@@ -122,7 +97,7 @@ type SIO = Program IOInstruction
 
 type Handle = RegionStatusChange -> SIO ()
 
-instance (MonadRegister m, MonadBaseControl IO (EffectM m)) => EffIORef (Wrap m) where
+instance (MonadBaseControl IO m, NewRef m) => EffIORef (Register m) where
 
     getArgs     = liftIO' Env.getArgs
 

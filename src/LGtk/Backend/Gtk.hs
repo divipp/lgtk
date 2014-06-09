@@ -42,8 +42,8 @@ runRegister_ newChan m = do
     a <- runRegister write m
     pure $ (,) a $ forever $ join read
 
-runRegister' :: IO () -> Wrap (Register IO) a -> IO (a, IO ())
-runRegister' pa (Wrap m) = runRegister_ (newChan' pa) m
+runRegister' :: IO () -> Register IO a -> IO (a, IO ())
+runRegister' pa = runRegister_ (newChan' pa)
   where
     newChan' pa = do
         ch <- newChan

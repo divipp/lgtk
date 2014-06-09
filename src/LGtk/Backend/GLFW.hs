@@ -52,8 +52,8 @@ runRegister_ newChan m = do
     a <- runRegister write m
     pure $ (,) a $ forever $ join read
 
-runRegister' :: Wrap (Register IO) a -> IO (a, IO ())
-runRegister' (Wrap m) = runRegister_ newChan' m
+runRegister' :: Register IO a -> IO (a, IO ())
+runRegister' = runRegister_ newChan'
 
 runWidget :: (forall m . (EffIORef m, MonadFix m) => Widget m) -> IO ()
 runWidget desc = do
