@@ -306,8 +306,11 @@ tr sca dkh w = do
 
         Entry isOk (rs, rr) -> do
             i <- newId
---            s <- readRef rs
-            j <- lift $ newRef (False, ("", ""))
+            j1 <- lift $ newRef False
+            j2 <- lift $ onChangeEq_ rs $ \s -> pure (reverse s, "")
+
+            let
+                update s = writeRef j2 (reverse s, "")
 
             let f (SimpleKey Key'Tab) _ = Nothing
                 f (CharKey c) (a,b) = Just (c:a,b)
@@ -318,7 +321,7 @@ tr sca dkh w = do
                 f _ _ = Nothing
 
                 commit = do
-                    (_, ab) <- readRef j
+                    ab <- readRef j2
                     let s = value' ab
                     old <- liftRefReader rs
                     when (s /= old && isOk s) $ do
@@ -326,13 +329,11 @@ tr sca dkh w = do
                         new <- liftRefReader rs
                         update new
 
-                update s = writeRef (_2 `lensMap` j) (reverse s, "")
-
                 ff (CharKey '\n') = commit >> pure True
                 ff key = do
-                    x <- readRef (_2 `lensMap` j)
+                    x <- readRef j2
                     case f key x of
-                        Just x -> writeRef (_2 `lensMap` j) x >> pure True
+                        Just x -> writeRef j2 x >> pure True
                         _ -> dkh key
 
                 value' (a,b) = reverse a ++ b
@@ -343,10 +344,10 @@ tr sca dkh w = do
 
                 kh = (fin, ff, fout, i)
                   where
-                    fin = writeRef (_1 `lensMap` j) True
+                    fin = writeRef j1 True
                     fout = do
                         commit
-                        writeRef (_1 `lensMap` j) False
+                        writeRef j1 False
 
                 render (orig,bv) is is' = 
                   (  te # clipped (rect x y) # value mempty
@@ -356,9 +357,7 @@ tr sca dkh w = do
                   ) # frame 0.1
                    where ((x :& y), te) = text__ 7 5 $ text' bv
 
-            _ <- lift $ onChangeEq rs $ postponeModification . update
-
-            pure $ CWidget (fmap ((,) ([kh],[[kh]])) (liftA2 (,) rs (readRef j))) id render
+            pure $ CWidget (fmap ((,) ([kh],[[kh]])) (liftA2 (,) rs (liftA2 (,) (readRef j1) (readRef j2)))) id render
 
         Checkbox (bs, br) -> do
             i <- newId
