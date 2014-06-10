@@ -9,7 +9,8 @@ import Data.List
 import Data.Array
 import qualified Data.Set as S
 import System.Random
-import Diagrams.Prelude hiding (vcat, hcat, Point, Start)
+import Diagrams.Prelude hiding (vcat, hcat, Point, Start, adjust, value)
+import qualified Diagrams.Prelude as D
 
 import Control.Lens hiding ((#))
 import LGtk
@@ -37,17 +38,17 @@ instance Show GameState where
 drawMaze :: (Maze, S.Set Point, Maybe Point) -> Dia [Point]
 drawMaze (maze, hi, pos) =
     (  mconcat (map drawCell $ assocs maze) # centerXY
-    <> rect (fromIntegral $ x2-x1+1) (fromIntegral $ y2-y1+1) # lwL wallwidth # fc (sRGB 0.95 0.95 0.95) # value []
+    <> rect (fromIntegral $ x2-x1+1) (fromIntegral $ y2-y1+1) # lwL wallwidth # fc (sRGB 0.95 0.95 0.95) # D.value []
     ) # scale (1 / fromIntegral (max (x2-x1+1) (y2-y1+1)))
   where
     drawCell (p@(i,j), C cs) =
-            (   (if b then mconcat (map drawWall $ complement cs) # lwL wallwidth # value [] else mempty)
+            (   (if b then mconcat (map drawWall $ complement cs) # lwL wallwidth # D.value [] else mempty)
             <>  (if Just p == pos then circ # fc blue else mempty)
             <>  (if p == q2 || p == q1 then circ else mempty)
-            <>  rect 1 1 # lwL 0 # (if b then fc yellow else id) # value [p]
+            <>  rect 1 1 # lwL 0 # (if b then fc yellow else id) # D.value [p]
             )   # translate (r2 (fromIntegral i, fromIntegral j))
         where b = S.member p hi
-    circ = circle 0.35 # lwL 0.005 # value []
+    circ = circle 0.35 # lwL 0.005 # D.value []
     wallwidth = 0.02
 
     drawWall E = fromVertices [p2 (-d, d), p2 (d, d)]
@@ -98,13 +99,13 @@ gameLogic b maze p (s, st) = case st of
 
 mazeGame :: Widget
 mazeGame = do
-    forgiving <- newRef False
+    forgiving <- extendState False
     let init = (0,(4,4))
-    dim_ <- newRef init
+    dim_ <- extendState init
     let dim = _2 `lensMap` dim_
         mazekind = _1 `lensMap` dim_
-        dimX = (_2 . iso id (max 1 . min 40)) `lensMap` toEqRef dim
-        dimY = (_1 . iso id (max 1 . min 40)) `lensMap` toEqRef dim
+        dimX = (_2 . iso id (max 1 . min 40)) `lensMap` withEq dim
+        dimY = (_1 . iso id (max 1 . min 40)) `lensMap` withEq dim
         genMaze (0, d) = Maze1.genMaze d
         genMaze (1, d) = Maze2.genMaze d
     maze_ <- extRef_ dim_ (runState (genMaze init) (mkStdGen 323401)) $ \d (_, s) -> runState (genMaze d) s
@@ -114,13 +115,13 @@ mazeGame = do
         handler _ = pure ()
 
         domove p = do
-            (maze, _) <- readRef maze_
-            b <- readRef forgiving
-            modRef r $ gameLogic b maze p
+            (maze, _) <- value maze_
+            b <- value forgiving
+            adjust r $ gameLogic b maze p
 
         move f = do
-            (maze, _) <- readRef maze_
-            (_, st) <- readRef r
+            (maze, _) <- value maze_
+            (_, st) <- value r
             let m = case st of
                     Start -> Just $ snd $ bounds maze
                     Explore p -> checkBounds (bounds maze) $ f p
@@ -140,7 +141,7 @@ mazeGame = do
 
     vcat
         [ hcat
-            [ canvas 400 400 1 handler (Just key) (liftA2 (\(m,_) (s, st) -> (m,s, pos m st)) (readRef maze_) (readRef r)) drawMaze
+            [ canvas 400 400 1 handler (Just key) (liftA2 (\(m,_) (s, st) -> (m,s, pos m st)) (value maze_) (value r)) drawMaze
 
             , vcat
                 [ hcat
@@ -152,10 +153,10 @@ mazeGame = do
                 ]
             ]
 
-        , label $ fmap (show . snd) $ readRef r
+        , label $ fmap (show . snd) $ value r
         , hcat
-            [ button (pure "Try again") $ pure $ Just $ modRef maze_ id
-            , button (pure "New maze") $ pure $ Just $ modRef dim id
+            [ button (pure "Try again") $ pure $ Just $ adjust maze_ id
+            , button (pure "New maze") $ pure $ Just $ adjust dim id
             ]
         , hcat
             [ entryShow dimX
@@ -175,8 +176,8 @@ mazeGame = do
 
 extRef_ ::  SubState b -> a -> (b -> a -> a) -> Create (SubState a)
 extRef_ r def f = do
-    r0 <- readRef r
-    v <- extRef r (lens fst set) (r0, def)
+    r0 <- value r
+    v <- extendStateWith r (lens fst set) (r0, def)
     pure $ _2 `lensMap` v
   where
     set (_, y) x = (x, f x y)

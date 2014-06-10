@@ -26,7 +26,7 @@ setXY s x = take 2 $ XY x : filter (\x-> case x of XY _ -> False; _ -> True) s
 -- | The editor
 tri ::  Widget
 tri = do
-    s <- newRef [X 0, Y 0]
+    s <- extendState [X 0, Y 0]
     vcat
         [ hcat [entryShow $ lens getX  setX  `lensMap` s, label $ pure "x"]
         , hcat [entryShow $ lens getY  setY  `lensMap` s, label $ pure "y"]

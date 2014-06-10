@@ -58,15 +58,13 @@ module LGtk
 
     -- * References
 
-    -- ** Reference creation
-    , unitRef
-    , newRef
-    , extRef
-    , lensMap
+    -- ** State extension
+    , extendState    -- extendState
+    , extendStateWith    -- extendWith
 
-    , newEqRef
-    , toEqRef
-    , fromEqRef
+    -- ** Substate formation
+    , lensMap
+    , withEq   -- withEq
 
     -- ** Triggers
     , onChange
@@ -75,15 +73,15 @@ module LGtk
     , onChangeMemo
 
     -- ** Other
-    , memoRead
+    , memoise  -- memoise
 
     -- ** Reference writing
-    , writeRef
-    , modRef
+    , write  -- write
+    , adjust    -- modify
 
     -- ** Reference reading
-    , readRef
-    , liftRefReader
+    , value   -- value
+    , liftView -- liftView
 
     -- * Types
     , Widget
@@ -106,10 +104,10 @@ import Data.Monoid
 import Data.Semigroup
 import Control.Applicative hiding (empty)
 --import Control.Monad
-import Control.Lens
+import Control.Lens hiding (value)
 
-import Data.LensRef (RefClass (RefReaderSimple), RefSimple, EqRefClass, hasEffect, toEqRef, fromEqRef, RefReaderOf, MonadRefReader, BaseRef)
-import qualified Data.LensRef as SubState
+import Data.LensRef (RefClass (RefReaderSimple), RefSimple, EqRefClass, hasEffect, fromEqRef, RefReaderOf, MonadRefReader, BaseRef, RefWriterOf, toEqRef)
+import qualified Data.LensRef as Ref
 import LGtk.Effects ()
 import qualified LGtk.Effects as Eff
 import LGtk.Widgets hiding (Widget)
@@ -124,60 +122,63 @@ import qualified LGtk.Backend.GLFW as B
 
 ----------------------------
 
-readRef
+value
     :: ( MonadRefReader m
        , RefClass r
        , RefReaderOf m ~ RefReaderSimple r
-       , BaseRef m ~ BaseRef (SubState.RefWriterOf m)
+       , BaseRef m ~ BaseRef (RefWriterOf m)
        )
     => RefSimple r a -> m a
-readRef = SubState.readRef
+value = Ref.readRef
 
-liftRefReader
+liftView
     :: ( MonadRefReader m
-       , BaseRef m ~ BaseRef (SubState.RefWriterOf m)
+       , BaseRef m ~ BaseRef (RefWriterOf m)
        )
     => RefReaderOf m a -> m a
-liftRefReader = SubState.liftRefReader
+liftView = Ref.liftRefReader
 
 unitRef :: RefClass r => RefSimple r ()
-unitRef = SubState.unitRef
+unitRef = Ref.unitRef
+
+withEq :: Eq a => SubState a -> SubStateEq a
+withEq = Ref.toEqRef
 
 infixr 8 `lensMap`
 
 lensMap :: RefClass r => Lens' a b -> RefSimple r a -> RefSimple r b
-lensMap = SubState.lensMap
+lensMap = Ref.lensMap
 
-writeRef :: (RefClass r, RefReaderSimple r ~ View) => RefSimple r a -> a -> Modify
-writeRef = SubState.writeRef
+write :: (RefClass r, RefReaderSimple r ~ View) => RefSimple r a -> a -> Modify
+write = Ref.writeRef
 
-modRef :: (RefClass r, RefReaderSimple r ~ View) => RefSimple r a -> (a -> a) -> Modify
-modRef = SubState.modRef
+adjust :: (RefClass r, RefReaderSimple r ~ View) => RefSimple r a -> (a -> a) -> Modify
+adjust = Ref.modRef
 
-extRef :: SubState b -> Lens' a b -> a -> Create (SubState a)
-extRef = SubState.extRef
+extendStateWith :: SubState b -> Lens' a b -> a -> Create (SubState a)
+extendStateWith = Ref.extRef
 
-newRef :: a -> Create (SubState a)
-newRef = SubState.newRef
+extendState :: a -> Create (SubState a)
+extendState = Ref.newRef
 
 onChange :: View a -> (a -> Create b) -> Create (View b)
-onChange = SubState.onChange
+onChange = Ref.onChange
 
 onChangeEq :: Eq a => View a -> (a -> Create b) -> Create (View b)
-onChangeEq = SubState.onChangeEq
+onChangeEq = Ref.onChangeEq
 
 onChangeEq_ :: Eq a => View a -> (a -> Create b) -> Create (SubState b)
-onChangeEq_ = SubState.onChangeEq_
+onChangeEq_ = Ref.onChangeEq_
 
 onChangeMemo :: Eq a => View a -> (a -> Create (Create b)) -> Create (View b)
-onChangeMemo = SubState.onChangeMemo
+onChangeMemo = Ref.onChangeMemo
 
-memoRead :: Create a -> Create (Create a)
-memoRead = SubState.memoRead
-
-newEqRef :: Eq a => a -> Create (SubStateEq a)
-newEqRef = SubState.newEqRef
-
+memoise :: Create a -> Create (Create a)
+memoise = Ref.memoRead
+{-
+extendStateEq :: Eq a => a -> Create (SubState a)
+extendStateEq = Ref.newEqRef
+-}
 getArgs :: Create [String]
 getArgs = Eff.getArgs
 
@@ -266,7 +267,7 @@ button
     :: View String     -- ^ dynamic label of the button
     -> View (Maybe Modify)     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
     -> Widget
-button r fm = primButton r (fmap isJust fm) Nothing (liftRefReader fm >>= maybe (pure ()) id)
+button r fm = primButton r (fmap isJust fm) Nothing (liftView fm >>= maybe (pure ()) id)
 
 -- | Button which inactivates itself automatically.
 smartButton
@@ -275,23 +276,23 @@ smartButton
     -> (a -> a)   -- ^ The button is active when this function is not identity on value of the reference. When the button is pressed, the value of the reference is modified with this function.
     -> Widget
 smartButton s r f
-    = primButton s (hasEffect r f) Nothing (modRef r f)
+    = primButton s (hasEffect r f) Nothing (adjust r f)
 
 -- | Checkbox.
 checkbox :: SubState Bool -> Widget
-checkbox r = pure $ Checkbox ((readRef r), writeRef r)
+checkbox r = pure $ Checkbox ((value r), write r)
 
 -- | Combo box.
 combobox :: [String] -> SubState Int -> Widget
-combobox ss r = pure $ Combobox ss ((readRef r), writeRef r)
+combobox ss r = pure $ Combobox ss ((value r), write r)
 
 -- | Text entry.
 entry :: (RefClass r, RefReaderSimple r ~ View)  => RefSimple r String -> Widget
-entry r = pure $ Entry (const True) ((readRef r), writeRef r)
+entry r = pure $ Entry (const True) ((value r), write r)
 
 -- | Text entry with automatic show-read conversion.
 entryShow :: forall a r . (Show a, Read a, RefClass r, RefReaderSimple r ~ View) => RefSimple r a -> Widget
-entryShow r_ = pure $ Entry isOk ((readRef r), writeRef r)
+entryShow r_ = pure $ Entry isOk ((value r), write r)
   where
     r = showLens `lensMap` r_
     isOk s = case (reads s :: [(a, String)]) of
@@ -308,11 +309,11 @@ The tabs are created lazily.
 -}
 notebook :: [(String, Widget)] -> Widget
 notebook xs = do
-    currentPage <- newRef 0
-    let f index (title, w) = (,) title $ cell (fmap (== index) $ readRef currentPage) $ \b -> case b of
+    currentPage <- extendState 0
+    let f index (title, w) = (,) title $ cell (fmap (== index) $ value currentPage) $ \b -> case b of
            False -> hcat []
            True -> w
-    pure $ Notebook' (writeRef currentPage) $ zipWith f [0..] xs
+    pure $ Notebook' (write currentPage) $ zipWith f [0..] xs
 
 {- | Dynamic cell.
 
@@ -355,7 +356,7 @@ hscale
     -> Double   -- ^ step
     -> SubState Double
     -> Widget
-hscale a b c r = pure $ Scale a b c (readRef r, writeRef r)
+hscale a b c r = pure $ Scale a b c (value r, write r)
 
 listLens :: Lens' (Bool, (a, [a])) [a]
 listLens = lens get set where
@@ -374,8 +375,8 @@ undoTr
            , View (Maybe Modify)
            )  -- ^ undo and redo actions
 undoTr eq r = do
-    ku <- extRef r (undoLens eq) ([], [])
-    let try f = fmap (fmap (writeRef ku) . f) $ readRef ku
+    ku <- extendStateWith r (undoLens eq) ([], [])
+    let try f = fmap (fmap (write ku) . f) $ value ku
     pure (try undo, try redo)
   where
     undo (x: xs@(_:_), ys) = Just (xs, x: ys)

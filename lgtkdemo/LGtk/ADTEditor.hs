@@ -66,13 +66,13 @@ class ADTLens a where
 
 -- | A generic ADT editor
 adtEditor :: (ADTLens a) => SubState a -> Create Widget
-adtEditor = memoRead . editor  where
+adtEditor = memoise . editor  where
     editor r = do
-        q <- extRef r k (0, ls)
+        q <- extendStateWith r k (0, ls)
         es <- mkEditors ls $ _2 `lensMap` q
         hcat
             [ combobox (map fst ss) $ _1 `lensMap` q
-            , cell (fmap fst $ readRef q) $ \i -> vcat [es !! j | j <- snd $ ss !! i]
+            , cell (fmap fst $ value q) $ \i -> vcat [es !! j | j <- snd $ ss !! i]
             ]
       where
         (ss, ls, Lens_ k) = adtLens

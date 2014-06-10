@@ -29,7 +29,7 @@ intListEditor def maxi list_ range = do
                     [ hcat
                         [ smartButton (pure "+1") len (+1)
                         , smartButton (pure "-1") len (+(-1))
-                        , smartButton (fmap (("DeleteAll " ++) . show) $ readRef len) len $ const 0
+                        , smartButton (fmap (("DeleteAll " ++) . show) $ value len) len $ const 0
                         ]
                     , hcat
                         [ button (pure "undo") undo
@@ -63,21 +63,21 @@ intListEditor def maxi list_ range = do
             ]
         ]
  where
-    list = toEqRef list_
+    list = withEq list_
 
     itemEditor i r = hcat
         [ label $ pure $ show (i+1) ++ "."
         , entryShow $ _1 `lensMap` r
         , checkbox $ _2 `lensMap` r
-        , primButton (pure "Del")  (pure True) Nothing $ modRef list $ \xs -> take i xs ++ drop (i+1) xs
-        , primButton (pure "Copy") (pure True) Nothing $ modRef list $ \xs -> take (i+1) xs ++ drop i xs
+        , primButton (pure "Del")  (pure True) Nothing $ adjust list $ \xs -> take i xs ++ drop (i+1) xs
+        , primButton (pure "Copy") (pure True) Nothing $ adjust list $ \xs -> take (i+1) xs ++ drop i xs
         ]
 
     safeList = lens id (const $ take maxi) `lensMap` list
 
-    sel = fmap (filter snd) $ readRef list
+    sel = fmap (filter snd) $ value list
 
-    len = readRef range >>= \r -> ll r `lensMap` safeList   -- todo
+    len = value range >>= \r -> ll r `lensMap` safeList   -- todo
     ll :: Bool -> Lens' [(a, Bool)] Int
     ll r = lens length extendList where
         extendList xs n = take n $ (reverse . drop 1 . reverse) xs ++
@@ -89,8 +89,8 @@ intListEditor def maxi list_ range = do
 
 listEditor ::  a -> [SubState a -> Widget] -> SubState [a] -> Widget
 listEditor def (ed: eds) r = do
-    q <- extRef r listLens (False, (def, []))
-    cell (fmap fst $ readRef q) $ \b -> case b of
+    q <- extendStateWith r listLens (False, (def, []))
+    cell (fmap fst $ value q) $ \b -> case b of
         False -> empty
         True -> vcat 
             [ ed $ _2 . _1 `lensMap` q
