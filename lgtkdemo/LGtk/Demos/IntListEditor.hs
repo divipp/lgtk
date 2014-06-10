@@ -3,7 +3,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module LGtk.Demos.IntListEditor where
 
-import Control.Applicative hiding (empty)
+import Control.Applicative hiding (emptyWidget)
 import Control.Monad
 import Data.List (sortBy)
 import Data.Function (on)
@@ -22,33 +22,33 @@ intListEditor
 intListEditor def maxi list_ range = do
     (undo, redo)  <- undoTr ((==) `on` map fst) list_
     notebook
-        [ (,) "Editor" $ vcat
-            [ hcat
+        [ (,) "Editor" $ vertically
+            [ horizontally
                 [ entryShow len
-                , vcat
-                    [ hcat
+                , vertically
+                    [ horizontally
                         [ smartButton (pure "+1") len (+1)
                         , smartButton (pure "-1") len (+(-1))
                         , smartButton (fmap (("DeleteAll " ++) . show) $ value len) len $ const 0
                         ]
-                    , hcat
+                    , horizontally
                         [ button (pure "undo") undo
                         , button (pure "redo") redo
                         ]
                     ]
                 ]
-            , hcat
+            , horizontally
                 [ smartButton (pure "+1")         list $ map $ over _1 (+1)
                 , smartButton (pure "-1")         list $ map $ over _1 (+(-1))
                 , smartButton (pure "sort")       list $ sortBy (compare `on` fst)
                 ]
-            , hcat
+            , horizontally
                 [ smartButton (pure "SelectAll")  list $ map $ set _2 True
                 , smartButton (pure "SelectPos")  list $ map $ \(a,_) -> (a, a>0)
                 , smartButton (pure "SelectEven") list $ map $ \(a,_) -> (a, even a)
                 , smartButton (pure "InvertSel")  list $ map $ over _2 not
                 ]
-            , hcat
+            , horizontally
                 [ smartButton (fmap (("DelSel " ++) . show . length) sel) list $ filter $ not . snd
                 , smartButton (pure "CopySel") safeList $ concatMap $ \(x,b) -> (x,b): [(x,False) | b]
                 , smartButton (pure "+1 Sel")     list $ map $ mapSel (+1)
@@ -57,7 +57,7 @@ intListEditor def maxi list_ range = do
             , label $ fmap (("Sum: " ++) . show . sum . map fst) sel
             , listEditor def (map itemEditor [0..]) list_
             ]
-        , (,) "Settings" $ hcat
+        , (,) "Settings" $ horizontally
             [ label $ pure "Create range"
             , checkbox range
             ]
@@ -65,7 +65,7 @@ intListEditor def maxi list_ range = do
  where
     list = withEq list_
 
-    itemEditor i r = hcat
+    itemEditor i r = horizontally
         [ label $ pure $ show (i+1) ++ "."
         , entryShow $ _1 `lensMap` r
         , checkbox $ _2 `lensMap` r
@@ -91,8 +91,8 @@ listEditor ::  a -> [SubState a -> Widget] -> SubState [a] -> Widget
 listEditor def (ed: eds) r = do
     q <- extendStateWith r listLens (False, (def, []))
     cell (fmap fst $ value q) $ \b -> case b of
-        False -> empty
-        True -> vcat 
+        False -> emptyWidget
+        True -> vertically 
             [ ed $ _2 . _1 `lensMap` q
             , listEditor def eds $ _2 . _2 `lensMap` q
             ]

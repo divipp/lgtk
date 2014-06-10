@@ -11,10 +11,8 @@ module LGtk
     (
     -- * Widgets
 
-    -- ** Widget creation
-      empty
-    , vcat
-    , hcat
+    -- ** Widget elements
+      emptyWidget
     , label
     , button
     , smartButton
@@ -24,13 +22,18 @@ module LGtk
     , entry
     , entryShow
     , hscale
+
+    -- ** Widget composition
+    , horizontally
+    , vertically
+    , notebook
     , cell
     , cellNoMemo
-    , notebook
+
+    -- ** Canvas
     , canvas
     , inCanvas
 
-    -- ** Types
     , Dia
     , module LGtk.Key
     , MouseEvent (..)
@@ -91,6 +94,8 @@ module LGtk
     , Modifier
     , SubState
     , SubStateEq
+
+    -- ** Other types
     , RefSimple
 --    , RefReaderSimple
 --    , EqRefClass
@@ -102,7 +107,7 @@ module LGtk
 import Data.Maybe
 import Data.Monoid
 import Data.Semigroup
-import Control.Applicative hiding (empty)
+import Control.Applicative hiding (emptyWidget)
 --import Control.Monad
 import Control.Lens hiding (value)
 
@@ -229,25 +234,25 @@ type View = B.RefReader
 type Create = B.RefCreator
 
 {- |
-Run a Gtk widget description.
+Run a widget description.
 
-The widget is shown in a window and the thread enters into the Gtk event cycle.
+The widget is shown in a window and the thread enters into the event cycle.
 It leaves the event cycle when the window is closed.
 -}
 runWidget = B.runWidget
 
 
 -- | Vertical composition of widgets.
-vcat :: [Widget] -> Widget
-vcat = pure . List Vertical
+vertically :: [Widget] -> Widget
+vertically = pure . List Vertical
 
 -- | Horizontal composition of widgets.
-hcat :: [Widget] -> Widget
-hcat = pure . List Horizontal
+horizontally :: [Widget] -> Widget
+horizontally = pure . List Horizontal
 
 -- | Empty widget.
-empty :: Widget
-empty = hcat []
+emptyWidget :: Widget
+emptyWidget = horizontally []
 
 -- | Dynamic label.
 label :: View String -> Widget
@@ -311,7 +316,7 @@ notebook :: [(String, Widget)] -> Widget
 notebook xs = do
     currentPage <- extendState 0
     let f index (title, w) = (,) title $ cell (fmap (== index) $ value currentPage) $ \b -> case b of
-           False -> hcat []
+           False -> horizontally []
            True -> w
     pure $ Notebook' (write currentPage) $ zipWith f [0..] xs
 
@@ -329,7 +334,7 @@ The inner widgets are not memoised.
 cellNoMemo :: (Eq a) => View a -> (a -> Widget) -> Widget
 cellNoMemo r m = pure $ Cell r $ \mk -> pure . mk . m
 
--- | Diagrams canvas.
+-- | Reactive diagrams canvas.
 canvas
     :: (Eq b, Monoid a, Semigroup a)
     => Int   -- ^ width
@@ -342,6 +347,7 @@ canvas
     -> Widget
 canvas w h sc me kh r f = pure $ Canvas w h sc me kh r f
 
+-- | Render the widget in canvas.
 inCanvas
     :: Int
     -> Int
@@ -350,6 +356,7 @@ inCanvas
     -> Widget 
 inCanvas = Render.inCanvas
 
+-- | Horizontal scale.
 hscale
     :: Double   -- ^ min
     -> Double   -- ^ max

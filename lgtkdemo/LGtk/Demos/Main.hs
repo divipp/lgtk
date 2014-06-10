@@ -11,7 +11,7 @@ import Data.Maybe (isJust)
 import Control.Lens hiding ((#))
 import Control.Monad
 import Control.Monad.Fix
-import Diagrams.Prelude hiding (vcat, hcat, Point, Start, adjust, value, interval, tri)
+import Diagrams.Prelude hiding (vertically, horizontally, Point, Start, adjust, value, interval, tri)
 import qualified Diagrams.Prelude as D
 
 import LGtk
@@ -34,9 +34,9 @@ mainWidget = notebook
 
             [ (,) "Unbounded" $ do
                 c <- fmap withEq $ extendState (0 :: Int)
-                vcat
+                vertically
                     [ label $ fmap show $ value c
-                    , hcat
+                    , horizontally
                         [ smartButton (pure "+1") c (+1)
                         , smartButton (pure "-1") c (+(-1))
                         ]
@@ -44,9 +44,9 @@ mainWidget = notebook
 
             , (,) "1..3" $ do
                 c <- fmap withEq $ extendState (1 :: Int)
-                vcat
+                vertically
                     [ label $ fmap show $ value c
-                    , hcat
+                    , horizontally
                         [ smartButton (pure "+1") c $ min 3 . (+1)
                         , smartButton (pure "-1") c $ max 1 . (+(-1))
                         ]
@@ -56,14 +56,14 @@ mainWidget = notebook
                 ab <- extendState (1 :: Int, 3)
                 let (a, b) = interval ab
                 c <- counter 0 ab
-                vcat
+                vertically
                     [ label $ fmap show $ value c
-                    , hcat
+                    , horizontally
                         [ smartButton (pure "+1") c (+1)
                         , smartButton (pure "-1") c (+(-1))
                         ]
-                    , hcat [ label $ pure "min", entryShow a ]
-                    , hcat [ label $ pure "max", entryShow b ]
+                    , horizontally [ label $ pure "min", entryShow a ]
+                    , horizontally [ label $ pure "max", entryShow b ]
                     ]
 
             ]
@@ -80,7 +80,7 @@ mainWidget = notebook
 
             [ (,) "TabSwitch" $ do
                 x <- extendState "a"
-                let w = vcat [ label $ value x, entry x ]
+                let w = vertically [ label $ value x, entry x ]
                 notebook
                     [ (,) "T1" w
                     , (,) "T2" w
@@ -95,7 +95,7 @@ mainWidget = notebook
 
             [ (,) "Version 1" $ do
                 t <- extendState $ iterate (Node Leaf) Leaf !! 10
-                hcat
+                horizontally
                     [ canvas 200 200 20 (const $ pure ()) Nothing (value t) $
                         \x -> tPic 0 x # lwL 0.05 # D.value () # translate (r2 (0,10))
                     , tEditor3 t
@@ -112,29 +112,29 @@ mainWidget = notebook
                     h b = do
                         q <- extendStateWith b listLens (False, ("", []))
                         cell (fmap fst $ value q) $ \bb -> case bb of
-                            False -> empty
+                            False -> emptyWidget
                             _ -> do
-                                vcat $ reverse
+                                vertically $ reverse
                                     [ h $ _2 . _2 `lensMap` q
-                                    , hcat
+                                    , horizontally
                                         [ button (pure "Del") $ pure $ Just $ adjust b tail
                                         , label $ value $ _2 . _1 `lensMap` q
                                         ]
                                     ]
-                vcat $ [ctrl, h $ _2 `lensMap` buttons]
+                vertically $ [ctrl, h $ _2 `lensMap` buttons]
 
             , (,) "Version 1" $ do
                 buttons <- extendState ("",[])
-                let h i b = hcat
+                let h i b = horizontally
                        [ label $ pure b
                        , button (pure "Del") $ pure $ Just $ adjust (_2 `lensMap` buttons) $ \l -> take i l ++ drop (i+1) l
                        ]
                     set (a,xs) x
                         | a /= x = ("",x:xs)
                         | otherwise = (a,xs)
-                vcat
+                vertically
                     [ entry $ lens fst set `lensMap` buttons
-                    , cell (fmap snd $ value buttons) $ vcat . zipWith h [0..]
+                    , cell (fmap snd $ value buttons) $ vertically . zipWith h [0..]
                     ]
 
             ]
@@ -148,10 +148,10 @@ mainWidget = notebook
             [ (,) "Dynamic" $ do
 
                 r <- extendState (3 :: Double)
-                vcat
+                vertically
                     [ canvas 200 200 12 (const $ pure ()) Nothing (value r) $
                         \x -> circle x # lwL 0.05 # fc blue # D.value ()
-                    , hcat
+                    , horizontally
                         [ hscale 0.1 5 0.05 r
                         , label (fmap (("radius: " ++) . ($ "") . showFFloat (Just 2)) $ value r)
                         ]
@@ -167,7 +167,7 @@ mainWidget = notebook
                     s <- value speed
                     f <- value fps
                     asyncWrite (round $ 1000000 / f) $ write phase (x + 2 * pi * s / f)
-                vcat
+                vertically
                     [ canvas 200 200 10 (const $ pure ()) Nothing (liftA2 (,) (value t) (value phase)) $
                         \(t,x) -> (case t of
                             0 -> circle (2 + 1.5*sin x)
@@ -177,11 +177,11 @@ mainWidget = notebook
                             4 -> mconcat [circle (i'/10) # translate (r2 (i'/3, 0) # rotate ((x/i') @@ rad)) | i<-[1 :: Int ..10], let i' = fromIntegral i]
                             ) # lwL 0.05 # fc blue # D.value ()
                     , combobox ["Pulse","Rotate","Rotate2","Spiral","Spiral2"] t
-                    , hcat
+                    , horizontally
                         [ hscale 0.1 5 0.1 speed
                         , label (fmap (("freq: " ++) . ($ "") . showFFloat (Just 2)) $ value speed)
                         ]
-                    , hcat
+                    , horizontally
                         [ hscale 1 100 1 fps
                         , label (fmap (("fps: " ++) . ($ "") . showFFloat (Just 2)) $ value fps)
                         ]
@@ -200,7 +200,7 @@ mainWidget = notebook
                     asyncWrite (round $ 1000000 / f) $ write phase (x + 2 * pi * s / f)
                 let handler (Click (MousePos _ l), _) = when (not $ null l) $ adjust col not
                     handler _ = pure ()
-                vcat
+                vertically
                     [ canvas 200 200 10 handler Nothing (liftA2 (,) (value col) (value phase)) $
                         \(c,x) -> circle 1 # translate (r2 (3,0)) # rotate ((-x) @@ rad) # lwL 0.05 # fc (if c then blue else red) # D.value [()]
                     , label $ pure "Click on the circle to change color."
@@ -217,7 +217,7 @@ mainWidget = notebook
                         adjust col $ max 1 . (+(- 5/f))
                 let handler (Click (MousePos _ l), _) = when (not $ null l) $ adjust col (+1)
                     handler _ = pure ()
-                vcat
+                vertically
                     [ canvas 200 200 10 handler Nothing (liftA2 (,) (value col) (value phase)) $
                         \(c,x) -> circle c # translate (r2 (3,0)) # rotate ((-x) @@ rad) # lwL 0.05 # fc blue # D.value [()]
                     , label $ pure "Click on the circle to temporarily enlarge it."
@@ -239,7 +239,7 @@ mainWidget = notebook
                 let keyh (SimpleKey Key'Left)  = adjust i1 pred >> pure True
                     keyh (SimpleKey Key'Right) = adjust i1 succ >> pure True
                     keyh _ = pure False
-                vcat
+                vertically
                     [ canvas 200 200 10 (const $ pure ()) (Just keyh) (value i2) $
                         \d -> text "12345" # translate (r2 (realToFrac d, 0)) # scale 2 # D.value ()
                     , label $ fmap show $ value i1
@@ -263,7 +263,7 @@ mainWidget = notebook
         , (,) "Accumulator" $ do
             x <- extendState (0 :: Integer)
             y <- onChangeAcc (value x) 0 (const 0) $ \x _ y -> Left $ pure $ x+y
-            hcat
+            horizontally
                 [ entryShow x
                 , label $ fmap show y
                 ]
@@ -276,8 +276,8 @@ mainWidget = notebook
                 False -> do
                     d <- value delay
                     asyncWrite (ceiling $ 1000000 * d) $ write ready True
-            vcat
-                [ hcat [ entryShow delay, label $ pure "sec" ]
+            vertically
+                [ horizontally [ entryShow delay, label $ pure "sec" ]
                 , primButton (flip fmap (value delay) $ \d -> "Start " ++ show d ++ " sec computation")
                           (value ready)
                           Nothing
@@ -288,7 +288,7 @@ mainWidget = notebook
         , (,) "Timer" $ do
             t <- extendState (0 :: Int)
             _ <- onChangeEq (value t) $ \ti -> asyncWrite 1000000 $ write t $ 1 + ti
-            vcat
+            vertically
                 [ label $ fmap show $ value t
                 ]
 
@@ -301,7 +301,7 @@ mainWidget = notebook
             , (,) "Env" $ do
                 v <- extendState "HOME"
                 lv <- onChangeEq (value v) $ fmap (maybe "Not in env." show) . lookupEnv
-                vcat
+                vertically
                     [ entry v
                     , label lv
                     ]
@@ -310,7 +310,7 @@ mainWidget = notebook
                 put = do
                     x <- extendState Nothing
                     _ <- onChangeEq (value x) $ maybe (pure ()) putStrLn_
-                    hcat 
+                    horizontally 
                         [ label $ pure "putStrLn"
                         , entry $ iso (maybe "" id) Just `lensMap` x
                         ]
@@ -318,11 +318,11 @@ mainWidget = notebook
                     ready <- extendState $ Just ""
                     _ <- onChangeEq (fmap isJust $ value ready) $ \b -> 
                         when (not b) $ getLine_ $ write ready . Just
-                    hcat 
+                    horizontally 
                         [ primButton (pure "getLine") (fmap isJust $ value ready) Nothing $ write ready Nothing
                         , label $ fmap (maybe "<<<waiting for input>>>" id) $ value ready
                         ]
-               in vcat [ put, put, put, get, get, get ]
+               in vertically [ put, put, put, get, get, get ]
             ]
         ]
 
@@ -345,21 +345,21 @@ mainWidget = notebook
         [ (,) "#1" $ do
             name <- extendState "None"
             buttons <- extendState []
-            let ctrl = hcat
+            let ctrl = horizontally
                     [ label $ value name
                     , button (pure "Add") $ pure $ Just $ do
                         l <- value buttons
                         let n = "Button #" ++ (show . length $ l)
                         write buttons $ n:l
                     ]
-                f n = vcat $ map g n 
+                f n = vertically $ map g n 
                 g n = button (pure n) (pure . Just $ write name n)
-            vcat $ [ctrl, cell (value buttons) f]
+            vertically $ [ctrl, cell (value buttons) f]
 
         , (,) "#2" $ do
             name <- extendState "None"
             buttons <- extendState []
-            let ctrl = hcat
+            let ctrl = horizontally
                     [ label $ value name
                     , button (pure "Add") $ pure $ Just $ do
                         l <- value buttons
@@ -369,14 +369,14 @@ mainWidget = notebook
                 h b = do
                     q <- extendStateWith b listLens (False, ("", []))
                     cell (fmap fst $ value q) $ \b -> case b of
-                        False -> empty
+                        False -> emptyWidget
                         _ -> do
                             na <- value $ _2 . _1 `lensMap` q
-                            vcat $ reverse
+                            vertically $ reverse
                                 [ h $ _2 . _2 `lensMap` q
-                                , hcat [ button (pure na) $ pure $ Just $ write name na, entry $ _2 . _1 `lensMap` q ]
+                                , horizontally [ button (pure na) $ pure $ Just $ write name na, entry $ _2 . _1 `lensMap` q ]
                                 ]
-            vcat $ [ctrl, h buttons]
+            vertically $ [ctrl, h buttons]
 
         ]
 -}    
@@ -414,18 +414,18 @@ inCanvasExample = do
     j <- extendState 0
     s <- extendState "x"
     s' <- extendState "y"
-    let x = vcat
-            [ hcat
-                [ vcat
-                    [ hcat
+    let x = vertically
+            [ horizontally
+                [ vertically
+                    [ horizontally
                         [ label $ fmap (\i -> show i ++ "hello") $ value i
                         , primButton (pure "+1") (pure True) Nothing $ adjust i (+1)
                         ]
-                    , hcat
+                    , horizontally
                         [ entry s
                         , entry s
                         ]
-                    , hcat
+                    , horizontally
                         [ entry s'
                         , entry s'
                         ]
@@ -435,7 +435,7 @@ inCanvasExample = do
             , tEditor3 t
             ]
 
-    hcat [ inCanvas 200 300 15 $ vcat [x, inCanvas 100 100 15 x], x]
+    horizontally [ inCanvas 200 300 15 $ vertically [x, inCanvas 100 100 15 x], x]
 
 
 

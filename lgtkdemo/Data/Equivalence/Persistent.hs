@@ -1,6 +1,6 @@
 {-|
     Code for manipulation of equivalence classes on index types.  An
-    'Equivalence' is an equivalence relation.  The empty equivalence relation
+    'Equivalence' is an equivalence relation.  The emptyWidget equivalence relation
     is constructed over a ranges of values using 'emptyEquivalence'.  Less
     discerning equivalence relations can be obtained with 'equate' and
     'equateAll'.  The relation can be tested with 'equiv' and 'equivalent'.

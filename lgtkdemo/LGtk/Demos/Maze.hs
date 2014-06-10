@@ -9,7 +9,7 @@ import Data.List
 import Data.Array
 import qualified Data.Set as S
 import System.Random
-import Diagrams.Prelude hiding (vcat, hcat, Point, Start, adjust, value)
+import Diagrams.Prelude hiding (vertically, horizontally, Point, Start, adjust, value)
 import qualified Diagrams.Prelude as D
 
 import Control.Lens hiding ((#))
@@ -139,12 +139,12 @@ mazeGame = do
         pos _ (Explore p) = Just p
         pos _ _ = Nothing
 
-    vcat
-        [ hcat
+    vertically
+        [ horizontally
             [ canvas 400 400 1 handler (Just key) (liftA2 (\(m,_) (s, st) -> (m,s, pos m st)) (value maze_) (value r)) drawMaze
 
-            , vcat
-                [ hcat
+            , vertically
+                [ horizontally
                     [ checkbox forgiving
                     , label $ pure "forgiving mode"
                     ]
@@ -154,17 +154,17 @@ mazeGame = do
             ]
 
         , label $ fmap (show . snd) $ value r
-        , hcat
+        , horizontally
             [ button (pure "Try again") $ pure $ Just $ adjust maze_ id
             , button (pure "New maze") $ pure $ Just $ adjust dim id
             ]
-        , hcat
+        , horizontally
             [ entryShow dimX
             , smartButton (pure "+1") dimX succ
             , smartButton (pure "-1") dimX pred
             , label $ pure "width"
             ]
-        , hcat
+        , horizontally
             [ entryShow dimY
             , smartButton (pure "+1") dimY succ
             , smartButton (pure "-1") dimY pred

@@ -41,11 +41,11 @@ tEditor1 = join $ extendState Leaf >>= adtEditor
 tEditor3 ::  SubState T -> Widget
 tEditor3 r = do
     q <- extendStateWith r tLens (False, (Leaf, Leaf))
-    hcat
+    horizontally
         [ checkbox $ _1 `lensMap` q
         , cell (fmap fst $ value q) $ \b -> case b of
-            False -> empty
-            True -> vcat
+            False -> emptyWidget
+            True -> vertically
                 [ tEditor3 $ _2 . _1 `lensMap` q
                 , tEditor3 $ _2 . _2 `lensMap` q
                 ]

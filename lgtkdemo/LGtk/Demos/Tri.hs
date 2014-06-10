@@ -27,10 +27,10 @@ setXY s x = take 2 $ XY x : filter (\x-> case x of XY _ -> False; _ -> True) s
 tri ::  Widget
 tri = do
     s <- extendState [X 0, Y 0]
-    vcat
-        [ hcat [entryShow $ lens getX  setX  `lensMap` s, label $ pure "x"]
-        , hcat [entryShow $ lens getY  setY  `lensMap` s, label $ pure "y"]
-        , hcat [entryShow $ lens getXY setXY `lensMap` s, label $ pure "x + y"]
+    vertically
+        [ horizontally [entryShow $ lens getX  setX  `lensMap` s, label $ pure "x"]
+        , horizontally [entryShow $ lens getY  setY  `lensMap` s, label $ pure "y"]
+        , horizontally [entryShow $ lens getXY setXY `lensMap` s, label $ pure "x + y"]
         ]
 
 
