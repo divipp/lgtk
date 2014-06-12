@@ -32,7 +32,7 @@ import Diagrams.Prelude
 
 #ifdef __RASTERIFIC__
 import Diagrams.Backend.Rasterific
-import Codec.Picture.Types (Image (..))
+import qualified Codec.Picture.Types as JP
 import Data.Vector.Storable (unsafeWith)
 #else
 import Diagrams.Backend.Cairo.Internal
@@ -155,15 +155,9 @@ runWidget desc = do
                 let dia = dia_ # clearValue # scale sc # clipped (rect w h) <>
                             rect w h # fc white # lwL 0
 
-#ifdef __RASTERIFIC__
-                let sizeSpec = mkSizeSpec (Just $ fromIntegral sw) (Just $ fromIntegral sh)
-                let image = renderDia Rasterific (RasterificOptions sizeSpec) dia
-                copyToScreen win (fromIntegral sw) (fromIntegral sh) image gl_BGRA
-#else
                 image <- createImage win sw sh dia
                 copyImage (image, Rect 0 0 sw sh) (Screen win, Rect 0 sh sw 0)
                 disposeImage image
-#endif
 
                 swapBuffers win
 --                putStr "*"
@@ -344,40 +338,6 @@ runWidget_ post m = m >>= \i -> case i of
 -----------------------
 -- backend drawing operations
 
-#ifdef __RASTERIFIC__
-copyToScreen win w h (Image width height dat) fmt = do
-    makeContextCurrent (Just win)
-    let iw = fromIntegral width
-        ih = fromIntegral height
-    fbo <- alloca $! \pbo -> glGenFramebuffers 1 pbo >> peek pbo
-    glBindFramebuffer gl_DRAW_FRAMEBUFFER fbo
-
-    tex <- alloca $! \pto -> glGenTextures 1 pto >> peek pto
-
-    glBindTexture gl_TEXTURE_2D tex
-    glTexParameteri gl_TEXTURE_2D gl_TEXTURE_MAG_FILTER $ fromIntegral gl_NEAREST
-    glTexParameteri gl_TEXTURE_2D gl_TEXTURE_MIN_FILTER $ fromIntegral gl_NEAREST
-    unsafeWith dat $ glTexImage2D gl_TEXTURE_2D 0 (fromIntegral gl_RGBA) iw ih 0 (fromIntegral fmt) gl_UNSIGNED_BYTE
-    glFramebufferTexture2D gl_DRAW_FRAMEBUFFER gl_COLOR_ATTACHMENT0 gl_TEXTURE_2D tex 0
-
-    status <- glCheckFramebufferStatus gl_FRAMEBUFFER
-    if (status /= gl_FRAMEBUFFER_COMPLETE)
-      then do
-        putStrLn $ "incomplete framebuffer: " ++ show status
-      else do
-        glBindFramebuffer gl_DRAW_FRAMEBUFFER 0
-
-        glBindFramebuffer gl_READ_FRAMEBUFFER fbo
-        glBindFramebuffer gl_DRAW_FRAMEBUFFER 0
-        glBlitFramebuffer 0 ih iw 0 0 0 w h gl_COLOR_BUFFER_BIT gl_LINEAR
-        glBindFramebuffer gl_READ_FRAMEBUFFER 0
-        glBindFramebuffer gl_DRAW_FRAMEBUFFER 0
-
-        Foreign.with fbo $ glDeleteFramebuffers 1
-        Foreign.with tex $ glDeleteTextures 1
-
-        swapBuffers win
-#else
 data Rect = Rect !Int !Int !Int !Int -- x1, y1, x2, y2
 
 data Image
@@ -403,6 +363,11 @@ createImage win width height dia = do
     glTexParameteri gl_TEXTURE_2D gl_TEXTURE_MAG_FILTER $ fromIntegral gl_NEAREST
     glTexParameteri gl_TEXTURE_2D gl_TEXTURE_MIN_FILTER $ fromIntegral gl_NEAREST
 
+#ifdef __RASTERIFIC__
+    let sizeSpec = mkSizeSpec (Just $ fromIntegral width) (Just $ fromIntegral height)
+    let JP.Image _ _ pixelData = renderDia Rasterific (RasterificOptions sizeSpec) dia
+    unsafeWith pixelData $ glTexImage2D gl_TEXTURE_2D 0 (fromIntegral gl_RGBA) (fromIntegral width) (fromIntegral height) 0 (fromIntegral gl_RGBA) gl_UNSIGNED_BYTE
+#else
     -- render image with cairo backend
     let stride = formatStrideForWidth fmt width
         fmt    = FormatRGB24
@@ -417,6 +382,7 @@ createImage win width height dia = do
             (_, r) = renderDia Cairo opt dia
         withImageSurfaceForData pixelData fmt width height stride (`renderWith` r)
         glTexImage2D gl_TEXTURE_2D 0 (fromIntegral gl_RGBA) (fromIntegral width) (fromIntegral height) 0 (fromIntegral gl_BGRA) gl_UNSIGNED_BYTE pixelData
+#endif
 
     glFramebufferTexture2D gl_DRAW_FRAMEBUFFER gl_COLOR_ATTACHMENT0 gl_TEXTURE_2D tex 0
 
@@ -451,5 +417,3 @@ copyImage (srcImg,Rect srcX1 srcY1 srcX2 srcY2) (dstImg,Rect dstX1 dstY1 dstX2 d
         glBlitFramebuffer (f $ srcX1) (f $ srcY1) (f $ srcX2) (f $ srcY2)
                           (f $ dstX1) (f $ dstY1) (f $ dstX2) (f $ dstY2)
                           gl_COLOR_BUFFER_BIT gl_LINEAR
-#endif
-
