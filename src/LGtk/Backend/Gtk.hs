@@ -18,7 +18,7 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.Reader
 import Control.Exception
-import Control.Monad.State
+--import Control.Monad.State
 import Control.Monad.Trans.Control
 import Control.Concurrent
 import Data.Maybe
@@ -29,7 +29,7 @@ import Diagrams.Prelude
 import Diagrams.Backend.Cairo
 import Diagrams.Backend.Cairo.Internal
 
-import Graphics.UI.Gtk hiding (Widget, Release, RefWriterOf)
+import Graphics.UI.Gtk hiding (Widget, Release)
 import qualified Graphics.UI.Gtk as Gtk
 
 import Data.LensRef.Class hiding (Ref)
@@ -53,12 +53,6 @@ type Widget = Widget.Widget RefCreator
 
 -------------------------
 
-runRegister' :: IO () -> ((RefWriterOf (Ref.RefCreator IO) () -> IO ()) -> RefCreator a) -> IO (a, IO ())
-runRegister' pa m = do
-    ch <- newChan
-    a <- Ref.runRefCreator $ \f -> flip runReaderT (writeChan ch . f) $ m $ writeChan ch . f
-    pure $ (,) a $ forever $ join $ pa >> readChan ch
-
 {- |
 Run a Gtk widget description.
 
@@ -70,11 +64,11 @@ runWidget desc = gtkContext $ \postGUISync -> do
     postActionsRef <- newMVar $ pure ()
     let addPostAction m = modifyMVar_ postActionsRef $ \n -> pure $ n >> m
         runPostActions = join $ modifyMVar postActionsRef $ \m -> pure (pure (), m)
-    (widget, actions) <- runRegister' runPostActions $ \post_ -> do
-        w <- runWidget_ post_ addPostAction postGUISync desc
-        liftIO' runPostActions
-        pure w
-    _ <- forkIO $ actions
+    ch <- newChan
+    widget <- Ref.runRefCreator $ \runWriter -> flip runReaderT (writeChan ch . runWriter) $
+        runWidget_ (writeChan ch . runWriter) addPostAction postGUISync desc
+    runPostActions
+    _ <- forkIO $ forever $ join $ runPostActions >> readChan ch
     pure widget
 
 gtkContext :: ((forall a . IO a -> IO a) -> IO SWidget) -> IO ()
