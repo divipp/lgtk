@@ -69,29 +69,28 @@ data SWidget = forall a . (Monoid a, Semigroup a)
     => SWidget Int Int Double ((MouseEvent a, Dia a) -> IO ()) (ModifiedKey -> IO ()) (IO (Dia a)) (MVar (Dia a))
 
 
-runWidget_
-    :: (RefWriter () -> IO ()) -> Widget -> RefCreator SWidget
-runWidget_ post m = m >>= \i -> case i of
-    Canvas w h sc_ me keyh r diaFun -> do
-        rer <- liftIO' $ newMVar mempty
-        rer' <- liftIO' $ newMVar mempty
-        _ <- onChangeEq r $ \b -> liftIO' $ do
-            let d = diaFun b
-            _ <- tryTakeMVar rer
-            putMVar rer d
-            _ <- swapMVar rer' d
-            pure ()
-
-        let keyhandle key = post $ fromMaybe (\_ -> pure False) keyh key >> pure ()
-        pure $ SWidget w h sc_ (post . me) keyhandle (readMVar rer') rer
-
-
 runWidget :: Widget -> IO ()
 runWidget desc = do
     hSetBuffering stdout NoBuffering
 
     ch <- newChan
-    widget <- Ref.runRefCreator $ \f -> flip runReaderT (writeChan ch . f) $ runWidget_ (writeChan ch . f) $ inCanvas 800 600 30 desc
+    widget <- Ref.runRefCreator $ \runRefWriter -> flip runReaderT (writeChan ch . runRefWriter) $ do
+        i <- inCanvas 800 600 30 desc
+        case i of
+            Canvas w h sc_ me keyh r diaFun -> do
+                rer <- liftIO' $ newMVar mempty
+                rer' <- liftIO' $ newMVar mempty
+                _ <- onChangeEq r $ \b -> liftIO' $ do
+                    let d = diaFun b
+                    _ <- tryTakeMVar rer
+                    putMVar rer d
+                    _ <- swapMVar rer' d
+                    pure ()
+
+                let keyhandle key = writeChan ch . runRefWriter $ fromMaybe (\_ -> pure False) keyh key >> pure ()
+
+                return $ SWidget w h sc_ (writeChan ch . runRefWriter . me) keyhandle (readMVar rer') rer
+
     _ <- forkIO $ forever $ join $ readChan ch
 
     case widget of
