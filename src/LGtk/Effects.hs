@@ -14,7 +14,7 @@ import Control.Concurrent
 --import Control.Exception (evaluate)
 import Control.Monad
 import Control.Monad.Reader
-import Control.Monad.Fix
+--import Control.Monad.Fix
 --import Control.Monad.Operational
 import Control.Monad.Trans.Control
 --import System.Directory
@@ -85,9 +85,9 @@ putStrLn_ = putStr_ . (++ "\n")
 
 
 
-type RefCreatorPost m = ReaderT (RefWriterOf (RefCreator m) () -> m ()) (RefCreator m)
+type RefCreatorPost m = ReaderT (RefWriter m () -> m ()) (RefCreator m)
 
-instance (MonadBaseControl IO m, NewRef m, n ~ RefWriterOf (RefCreator m))
+instance (MonadBaseControl IO m, NewRef m, n ~ RefWriter m)
     => EffIORef (ReaderT (n () -> m ()) (RefCreator m)) where
 
     getArgs     = liftIO' Env.getArgs

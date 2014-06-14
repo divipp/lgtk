@@ -20,7 +20,7 @@ import Data.Maybe
 import Control.Concurrent
 import Control.Monad
 import Control.Monad.Reader
-import Control.Monad.Fix
+--import Control.Monad.Fix
 --import Control.Lens hiding ((#))
 import Foreign
 import System.IO
@@ -65,19 +65,34 @@ type Widget = Widget.Widget RefCreator
 
 -------------------------------
 
-runRegister' :: ((RefWriterOf (Ref.RefCreator IO) () -> IO ()) -> RefCreator a) -> IO (a, IO ())
-runRegister' m = do
-    ch <- newChan
-    a <- Ref.runRefCreator $ \f -> flip runReaderT (writeChan ch . f) $ m $ writeChan ch . f
-    pure $ (,) a $ forever $ join $ readChan ch
+data SWidget = forall a . (Monoid a, Semigroup a)
+    => SWidget Int Int Double ((MouseEvent a, Dia a) -> IO ()) (ModifiedKey -> IO ()) (IO (Dia a)) (MVar (Dia a))
+
+
+runWidget_
+    :: (RefWriter () -> IO ()) -> Widget -> RefCreator SWidget
+runWidget_ post m = m >>= \i -> case i of
+    Canvas w h sc_ me keyh r diaFun -> do
+        rer <- liftIO' $ newMVar mempty
+        rer' <- liftIO' $ newMVar mempty
+        _ <- onChangeEq r $ \b -> liftIO' $ do
+            let d = diaFun b
+            _ <- tryTakeMVar rer
+            putMVar rer d
+            _ <- swapMVar rer' d
+            pure ()
+
+        let keyhandle key = post $ fromMaybe (\_ -> pure False) keyh key >> pure ()
+        pure $ SWidget w h sc_ (post . me) keyhandle (readMVar rer') rer
 
 
 runWidget :: Widget -> IO ()
 runWidget desc = do
     hSetBuffering stdout NoBuffering
 
-    (widget, actions) <- runRegister' $ \post -> runWidget_ post $ inCanvas 800 600 30 desc
-    _ <- forkIO actions
+    ch <- newChan
+    widget <- Ref.runRefCreator $ \f -> flip runReaderT (writeChan ch . f) $ runWidget_ (writeChan ch . f) $ inCanvas 800 600 30 desc
+    _ <- forkIO $ forever $ join $ readChan ch
 
     case widget of
       SWidget width height sc_ handle keyhandle current iodia -> do
@@ -313,26 +328,6 @@ trKey (GLFW.ModifierKeys s c a sup) k = case k of
 
     ch x y = ModifiedKey False c a sup . Key'Char $ if s then y else x
 
-
-data SWidget = forall a . (Monoid a, Semigroup a)
-    => SWidget Int Int Double ((MouseEvent a, Dia a) -> IO ()) (ModifiedKey -> IO ()) (IO (Dia a)) (MVar (Dia a))
-
-
-runWidget_
-    :: forall m . (MonadRefCreator m, IO ~ EffectM m) => (RefWriterOf m () -> IO ()) -> Widget.Widget m -> m SWidget
-runWidget_ post m = m >>= \i -> case i of
-    Canvas w h sc_ me keyh r diaFun -> do
-        rer <- liftIO' $ newMVar mempty
-        rer' <- liftIO' $ newMVar mempty
-        _ <- onChangeEq r $ \b -> liftIO' $ do
-            let d = diaFun b
-            _ <- tryTakeMVar rer
-            putMVar rer d
-            _ <- swapMVar rer' d
-            pure ()
-
-        let keyhandle key = post $ fromMaybe (\_ -> pure False) keyh key >> pure ()
-        pure $ SWidget w h sc_ (post . me) keyhandle (readMVar rer') rer
 
 
 -----------------------
