@@ -84,8 +84,10 @@ putStrLn_ :: EffIORef m => String -> m ()
 putStrLn_ = putStr_ . (++ "\n")
 
 
-
 type RefCreatorPost m = ReaderT (RefWriter m () -> m ()) (RefCreator m)
+
+runRefCreatorPost :: NewRef m => (m () -> m ()) -> ((RefWriter m () -> m ()) -> RefCreatorPost m a) -> m a
+runRefCreatorPost w f = runRefCreator $ \runWriter -> runReaderT (f (w . runWriter)) (w . runWriter)
 
 instance (MonadBaseControl IO m, NewRef m, n ~ RefWriter m)
     => EffIORef (ReaderT (n () -> m ()) (RefCreator m)) where

@@ -19,7 +19,7 @@ import Data.Maybe
 --import Control.Applicative
 import Control.Concurrent
 import Control.Monad
-import Control.Monad.Reader
+--import Control.Monad.Reader
 --import Control.Monad.Fix
 --import Control.Lens hiding ((#))
 import Foreign
@@ -74,7 +74,7 @@ runWidget desc = do
     hSetBuffering stdout NoBuffering
 
     ch <- newChan
-    widget <- Ref.runRefCreator $ \runRefWriter -> flip runReaderT (writeChan ch . runRefWriter) $ do
+    widget <- runRefCreatorPost (writeChan ch) $ \post -> do
         i <- inCanvas 800 600 30 desc
         case i of
             Canvas w h sc_ me keyh r diaFun -> do
@@ -87,9 +87,9 @@ runWidget desc = do
                     _ <- swapMVar rer' d
                     pure ()
 
-                let keyhandle key = writeChan ch . runRefWriter $ fromMaybe (\_ -> pure False) keyh key >> pure ()
+                let keyhandle key = post $ fromMaybe (\_ -> pure False) keyh key >> pure ()
 
-                return $ SWidget w h sc_ (writeChan ch . runRefWriter . me) keyhandle (readMVar rer') rer
+                return $ SWidget w h sc_ (post . me) keyhandle (readMVar rer') rer
 
     _ <- forkIO $ forever $ join $ readChan ch
 
