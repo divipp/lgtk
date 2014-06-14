@@ -15,7 +15,7 @@ import Control.Concurrent
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.Fix
-import Control.Monad.Operational
+--import Control.Monad.Operational
 import Control.Monad.Trans.Control
 --import System.Directory
 --import qualified System.FilePath as F
@@ -84,19 +84,6 @@ putStrLn_ :: EffIORef m => String -> m ()
 putStrLn_ = putStr_ . (++ "\n")
 
 
-
-data IOInstruction a where
-    GetArgs :: IOInstruction [String]
-    GetProgName :: IOInstruction String
-    LookupEnv :: String -> IOInstruction (Maybe String)
-    PutStr :: String -> IOInstruction ()
-    GetLine :: (String -> SIO ()) -> IOInstruction Handle    
-    AsyncWrite :: Int -> SIO () -> IOInstruction Handle
-    FileRef :: FilePath -> (Maybe String -> SIO ()) -> IOInstruction (Handle, String -> SIO ())
-
-type SIO = Program IOInstruction
-
-type Handle = RegionStatusChange -> SIO ()
 
 type RefCreatorPost m = ReaderT (RefWriterOf (RefCreator m) () -> m ()) (RefCreator m)
 

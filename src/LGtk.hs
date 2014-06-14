@@ -107,9 +107,9 @@ module LGtk
 import Data.Maybe
 import Data.Monoid
 import Data.Semigroup
-import Control.Applicative hiding (emptyWidget)
+import Control.Applicative
 --import Control.Monad
-import Control.Lens hiding (value)
+import Control.Lens
 
 import Data.LensRef (RefClass (RefReaderSimple), RefSimple, EqRefClass, hasEffect, fromEqRef, RefReaderOf, MonadRefReader, BaseRef, RefWriterOf, toEqRef)
 import qualified Data.LensRef as Ref
