@@ -56,6 +56,8 @@ class MonadRefCreator m => EffIORef m where
     -}
     asyncWrite :: Int -> RefWriterOf m () -> m ()
 
+    at :: Time.UTCTime -> RefWriterOf m () -> m ()
+
     {- |
     @(fileRef path)@ returns a reference which holds the actual contents
     of the file accessed by @path@.
@@ -123,6 +125,10 @@ instance (MonadBaseControl IO m, NewRef m, n ~ RefWriter m, r ~ SRef m Time.UTCT
         post <- askPostpone
         onRegionStatusChange u
         liftEffectM $ f [ liftIO_ $ threadDelay t, post r ]
+
+    at t m = do
+        t' <- liftIO' Time.getCurrentTime
+        asyncWrite (round $ 1000000 * Time.diffUTCTime t t') m
 
     fileRef _ = newRef Nothing
 {-
