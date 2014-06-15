@@ -9,6 +9,7 @@
 {-# LANGUAGE GADTs #-}
 module LGtk.Effects where
 
+import qualified Data.Time.Clock as Time
 import Control.Applicative
 import Control.Concurrent
 --import Control.Exception (evaluate)
@@ -33,6 +34,8 @@ import Data.LensRef.Default
 
 -- | Type class for IO actions.
 class MonadRefCreator m => EffIORef m where
+
+    getTime     :: m Time.UTCTime
 
     -- | The program's command line arguments (not including the program name). 
     getArgs     :: m [String]
@@ -84,13 +87,28 @@ putStrLn_ :: EffIORef m => String -> m ()
 putStrLn_ = putStr_ . (++ "\n")
 
 
-type RefCreatorPost m = ReaderT (RefWriter m () -> m ()) (RefCreator m)
+type RefCreatorPost m = ReaderT (RefWriter m () -> m (), SRef m Time.UTCTime) (RefCreator m)
 
-runRefCreatorPost :: NewRef m => (m () -> m ()) -> ((RefWriter m () -> m ()) -> RefCreatorPost m a) -> m a
-runRefCreatorPost w f = runRefCreator $ \runWriter -> runReaderT (f (w . runWriter)) (w . runWriter)
+runRefCreatorPost
+    :: (NewRef m, MonadBaseControl IO m)
+    => (m () -> m ()) -> ((RefWriter m () -> m ()) -> RefCreatorPost m a)
+    -> m (a, m ()) 
+runRefCreatorPost w f = do
+    t <- liftIO_ Time.getCurrentTime
+    r <- newRef' t
+    a <- runRefCreator $ \runWriter -> runReaderT (f $ w . runWriter) (w . runWriter, r)
+    return $ (,) a $ do
+        t <- liftIO_ Time.getCurrentTime
+        writeRef' r t
 
-instance (MonadBaseControl IO m, NewRef m, n ~ RefWriter m)
-    => EffIORef (ReaderT (n () -> m ()) (RefCreator m)) where
+askPostpone = asks fst
+
+instance (MonadBaseControl IO m, NewRef m, n ~ RefWriter m, r ~ SRef m Time.UTCTime)
+    => EffIORef (ReaderT (n () -> m (), r) (RefCreator m)) where
+
+    getTime = do
+        r <- asks snd
+        liftEffectM $ readRef' r
 
     getArgs     = liftIO' Env.getArgs
 
@@ -102,7 +120,7 @@ instance (MonadBaseControl IO m, NewRef m, n ~ RefWriter m)
 
     asyncWrite t r = do
         (u, f) <- liftEffectM forkIOs'
-        post <- ask
+        post <- askPostpone
         onRegionStatusChange u
         liftEffectM $ f [ liftIO_ $ threadDelay t, post r ]
 
@@ -158,7 +176,7 @@ instance (MonadBaseControl IO m, NewRef m, n ~ RefWriter m)
 -}
     getLine_ w = do
         (u, f) <- liftEffectM forkIOs'
-        post <- ask
+        post <- askPostpone
         onRegionStatusChange u
         liftEffectM $ f [ liftIO_ getLine >>= post . w ]   -- TODO
     putStr_ s = liftIO' $ putStr s

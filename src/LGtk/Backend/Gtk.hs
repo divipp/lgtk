@@ -65,9 +65,13 @@ runWidget desc = gtkContext $ \postGUISync -> do
     let addPostAction m = modifyMVar_ postActionsRef $ \n -> pure $ n >> m
         runPostActions = join $ modifyMVar postActionsRef $ \m -> pure (pure (), m)
     ch <- newChan
-    widget <- runRefCreatorPost (writeChan ch) $ \post -> runWidget_ post addPostAction postGUISync desc
+    (widget, setTime) <- runRefCreatorPost (writeChan ch) $ \post -> runWidget_ post addPostAction postGUISync desc
     runPostActions
-    _ <- forkIO $ forever $ join $ runPostActions >> readChan ch
+    _ <- forkIO $ forever $ do
+        runPostActions
+        m <- readChan ch
+        setTime
+        m
     pure widget
 
 gtkContext :: ((forall a . IO a -> IO a) -> IO SWidget) -> IO ()

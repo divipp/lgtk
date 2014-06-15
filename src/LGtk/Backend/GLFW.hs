@@ -74,7 +74,7 @@ runWidget desc = do
     hSetBuffering stdout NoBuffering
 
     ch <- newChan
-    widget <- runRefCreatorPost (writeChan ch) $ \post -> do
+    (widget, setTime) <- runRefCreatorPost (writeChan ch) $ \post -> do
         i <- inCanvas 800 600 30 desc
         case i of
             Canvas w h sc_ me keyh r diaFun -> do
@@ -91,7 +91,10 @@ runWidget desc = do
 
                 return $ SWidget w h sc_ (post . me) keyhandle (readMVar rer') rer
 
-    _ <- forkIO $ forever $ join $ readChan ch
+    _ <- forkIO $ forever $ do
+        m <- readChan ch
+        setTime
+        m
 
     case widget of
       SWidget width height sc_ handle keyhandle current iodia -> do
