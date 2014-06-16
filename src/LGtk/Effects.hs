@@ -35,7 +35,7 @@ import Data.LensRef.Default
 -- | Type class for IO actions.
 class MonadRefCreator m => EffIORef m where
 
-    getTime     :: m Time.UTCTime
+    time     :: m Time.UTCTime
 
     -- | The program's command line arguments (not including the program name). 
     getArgs     :: m [String]
@@ -56,7 +56,7 @@ class MonadRefCreator m => EffIORef m where
     -}
     asyncWrite :: Int -> RefWriterOf m () -> m ()
 
-    at :: Time.UTCTime -> RefWriterOf m () -> m ()
+    atTime :: Time.UTCTime -> RefWriterOf m () -> m ()
 
     {- |
     @(fileRef path)@ returns a reference which holds the actual contents
@@ -108,7 +108,7 @@ askPostpone = asks fst
 instance (MonadBaseControl IO m, NewRef m, n ~ RefWriter m, r ~ SRef m Time.UTCTime)
     => EffIORef (ReaderT (n () -> m (), r) (RefCreator m)) where
 
-    getTime = do
+    time = do
         r <- asks snd
         liftEffectM $ readRef' r
 
@@ -126,7 +126,7 @@ instance (MonadBaseControl IO m, NewRef m, n ~ RefWriter m, r ~ SRef m Time.UTCT
         onRegionStatusChange u
         liftEffectM $ f [ liftIO_ $ threadDelay t, post r ]
 
-    at t m = do
+    atTime t m = do
         t' <- liftIO' Time.getCurrentTime
         asyncWrite (round $ 1000000 * Time.diffUTCTime t t') m
 

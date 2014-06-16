@@ -53,11 +53,20 @@ module LGtk
     , getArgs
     , getProgName
     , lookupEnv
-    , asyncWrite
     , putStr_
     , getLine_
     , fileRef
     , putStrLn_
+
+    -- ** Timing
+    , time
+    , atTime
+    , asyncWrite
+    , UTCTime
+    , NominalDiffTime
+    , addUTCTime
+    , diffUTCTime
+
 
     -- * References
 
@@ -106,6 +115,7 @@ module LGtk
 --import Data.String
 import Data.Maybe
 import Data.Monoid
+import Data.Time.Clock
 import Data.Semigroup
 import Control.Applicative
 --import Control.Monad
@@ -195,6 +205,12 @@ lookupEnv = Eff.lookupEnv
 
 asyncWrite :: Int -> Modify -> Create ()
 asyncWrite = Eff.asyncWrite
+
+atTime :: UTCTime -> Modify -> Create ()
+atTime = Eff.atTime
+
+time :: Create UTCTime
+time = Eff.time
 
 putStr_ :: String -> Create ()
 putStr_ = Eff.putStr_
