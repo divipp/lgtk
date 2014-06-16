@@ -11,7 +11,7 @@ import Data.Maybe (isJust)
 import Control.Lens hiding ((#))
 import Control.Monad
 import Control.Monad.Fix
-import Diagrams.Prelude hiding (vertically, horizontally, Point, Start, adjust, value, interval, tri)
+import Diagrams.Prelude hiding (atTime, Point, Start, adjust, value, interval, tri)
 import qualified Diagrams.Prelude as D
 
 import LGtk
@@ -286,10 +286,12 @@ mainWidget = notebook
                 ]
 
         , (,) "Timer" $ do
-            t <- extendState (0 :: Int)
-            _ <- onChangeEq (value t) $ \ti -> asyncWrite 1000000 $ write t $ 1 + ti
+            rt <- extendState =<< time
+            _ <- onChangeEq (value rt) $ \ti -> do
+                putStrLn_ $ show ti
+                atTime (addUTCTime 1 ti) $ write rt (addUTCTime 1 ti)
             vertically
-                [ label $ fmap show $ value t
+                [ label $ fmap show $ value rt
                 ]
 
         , (,) "System" $ notebook
