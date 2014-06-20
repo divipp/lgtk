@@ -99,13 +99,13 @@ gameLogic b maze p (s, st) = case st of
 
 mazeGame :: Widget
 mazeGame = do
-    forgiving <- extendState False
+    forgiving <- newRef False
     let init = (0,(4,4))
-    dim_ <- extendState init
+    dim_ <- newRef init
     let dim = _2 `lensMap` dim_
         mazekind = _1 `lensMap` dim_
-        dimX = (_2 . iso id (max 1 . min 40)) `lensMap` withEq dim
-        dimY = (_1 . iso id (max 1 . min 40)) `lensMap` withEq dim
+        dimX = (_2 . iso id (max 1 . min 40)) `lensMap` toEqRef dim
+        dimY = (_1 . iso id (max 1 . min 40)) `lensMap` toEqRef dim
         genMaze (0, d) = Maze1.genMaze d
         genMaze (1, d) = Maze2.genMaze d
     maze_ <- extRef_ dim_ (runState (genMaze init) (mkStdGen 323401)) $ \d (_, s) -> runState (genMaze d) s
@@ -174,10 +174,10 @@ mazeGame = do
 
 ----------------------------- utils
 
-extRef_ ::  SubState b -> a -> (b -> a -> a) -> Create (SubState a)
+extRef_ ::  Ref b -> a -> (b -> a -> a) -> RefCreator (Ref a)
 extRef_ r def f = do
     r0 <- value r
-    v <- extendStateWith r (lens fst set) (r0, def)
+    v <- extendRef r (lens fst set) (r0, def)
     pure $ _2 `lensMap` v
   where
     set (_, y) x = (x, f x y)

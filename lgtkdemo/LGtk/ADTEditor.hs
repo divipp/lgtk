@@ -65,10 +65,10 @@ class ADTLens a where
     adtLens :: ([(String, [Int])], Elems (ADTEls a), Lens_ (Int, Elems (ADTEls a)) a)
 
 -- | A generic ADT editor
-adtEditor :: (ADTLens a) => SubState a -> Create Widget
+adtEditor :: (ADTLens a) => Ref a -> RefCreator Widget
 adtEditor = memoise . editor  where
     editor r = do
-        q <- extendStateWith r k (0, ls)
+        q <- extendRef r k (0, ls)
         es <- mkEditors ls $ _2 `lensMap` q
         horizontally
             [ combobox (map fst ss) $ _1 `lensMap` q
@@ -77,7 +77,7 @@ adtEditor = memoise . editor  where
       where
         (ss, ls, Lens_ k) = adtLens
 
-    mkEditors ::  Elems xs -> SubState (Elems xs) -> Create [Widget]
+    mkEditors ::  Elems xs -> Ref (Elems xs) -> RefCreator [Widget]
     mkEditors ElemsNil _ = pure []
     mkEditors (ElemsCons _ xs) r = do
         i <- adtEditor $ lHead `lensMap` r

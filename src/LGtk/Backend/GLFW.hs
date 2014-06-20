@@ -5,12 +5,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE CPP #-}
 module LGtk.Backend.GLFW
-    ( Ref
-    , EqRef
-    , RefWriter
-    , RefReader
-    , RefCreator
-    , Widget
+    ( Base
     , runWidget
     ) where
 
@@ -43,33 +38,25 @@ import Graphics.Rendering.Cairo ( Format (..)
                                 )
 #endif
 
-import Data.LensRef.Class hiding (Ref)
-import qualified Data.LensRef as Ref
-import qualified Data.LensRef.Default as Ref
+import Data.LensRef.Class
+import Data.LensRef
+import Data.LensRef.Default
 import LGtk.Effects
-import LGtk.Widgets hiding (Widget)
-import qualified LGtk.Widgets as Widget
+import LGtk.Widgets
 import LGtk.Render
 import LGtk.Key
 
-----------------------------
-
-type Ref a = Ref.Ref RefCreator a
-type EqRef a = Ref.EqRef RefCreator a
-
-type RefCreator = RefCreatorPost IO
-type RefWriter = Ref.RefWriter IO
-type RefReader = Ref.RefReader IO
-
-type Widget = Widget.Widget RefCreator
-
 -------------------------------
+
+type Base = IO
+
+type RefCreator = RefCreatorPost Base
 
 data SWidget = forall a . (Monoid a, Semigroup a)
     => SWidget Int Int Double ((MouseEvent a, Dia a) -> IO ()) (ModifiedKey -> IO ()) (IO (Dia a)) (MVar (Dia a))
 
 
-runWidget :: Widget -> IO ()
+runWidget :: Widget (RefCreator) -> IO ()
 runWidget desc = do
     hSetBuffering stdout NoBuffering
 

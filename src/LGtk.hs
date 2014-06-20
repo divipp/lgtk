@@ -71,12 +71,12 @@ module LGtk
     -- * References
 
     -- ** State extension
-    , extendState    -- extendState
-    , extendStateWith    -- extendWith
+    , newRef    -- newRef
+    , extendRef    -- extendWith
 
     -- ** Substate formation
     , lensMap
-    , withEq   -- withEq
+    , toEqRef   -- toEqRef
 
     -- ** Triggers
     , onChange
@@ -88,21 +88,21 @@ module LGtk
     , memoise  -- memoise
 
     -- ** Reference writing
-    , write  -- write
+    , writeRef  -- writeRef
     , adjust    -- modify
 
     -- ** Reference reading
     , value   -- value
-    , liftView -- liftView
+    , liftRefReader -- liftRefReader
 
     -- * Types
     , Widget
-    , View
-    , Create
-    , Modify
+    , RefReader
+    , RefCreator
+    , RefWriter ()
     , Modifier
-    , SubState
-    , SubStateEq
+    , Ref
+    , EqRef
 
     -- ** Other types
     , RefSimple
@@ -123,16 +123,18 @@ import Control.Lens
 
 import Data.LensRef (RefClass (RefReaderSimple), RefSimple, EqRefClass, hasEffect, fromEqRef, RefReaderOf, MonadRefReader, BaseRef, RefWriterOf, toEqRef)
 import qualified Data.LensRef as Ref
+import qualified Data.LensRef.Default as Ref
 import LGtk.Effects ()
 import qualified LGtk.Effects as Eff
 import LGtk.Widgets hiding (Widget)
+import qualified LGtk.Widgets as Widget
 import qualified LGtk.Render as Render
 import LGtk.Key
 
 #ifdef __GTK__
-import qualified LGtk.Backend.Gtk as B
+import LGtk.Backend.Gtk
 #else
-import qualified LGtk.Backend.GLFW as B
+import LGtk.Backend.GLFW
 #endif
 
 ----------------------------
@@ -146,82 +148,79 @@ value
     => RefSimple r a -> m a
 value = Ref.readRef
 
-liftView
+liftRefReader
     :: ( MonadRefReader m
        , BaseRef m ~ BaseRef (RefWriterOf m)
        )
     => RefReaderOf m a -> m a
-liftView = Ref.liftRefReader
+liftRefReader = Ref.liftRefReader
 
 unitRef :: RefClass r => RefSimple r ()
 unitRef = Ref.unitRef
-
-withEq :: Eq a => SubState a -> SubStateEq a
-withEq = Ref.toEqRef
 
 infixr 8 `lensMap`
 
 lensMap :: RefClass r => Lens' a b -> RefSimple r a -> RefSimple r b
 lensMap = Ref.lensMap
 
-write :: (RefClass r, RefReaderSimple r ~ View) => RefSimple r a -> a -> Modify
-write = Ref.writeRef
+writeRef :: (RefClass r, RefReaderSimple r ~ RefReader) => RefSimple r a -> a -> RefWriter ()
+writeRef = Ref.writeRef
 
-adjust :: (RefClass r, RefReaderSimple r ~ View) => RefSimple r a -> (a -> a) -> Modify
+adjust :: (RefClass r, RefReaderSimple r ~ RefReader) => RefSimple r a -> (a -> a) -> RefWriter ()
 adjust = Ref.modRef
 
-extendStateWith :: SubState b -> Lens' a b -> a -> Create (SubState a)
-extendStateWith = Ref.extRef
+extendRef :: Ref b -> Lens' a b -> a -> RefCreator (Ref a)
+extendRef = Ref.extendRef
 
-extendState :: a -> Create (SubState a)
-extendState = Ref.newRef
+newRef :: a -> RefCreator (Ref a)
+newRef = Ref.newRef
 
-onChange :: View a -> (a -> Create b) -> Create (View b)
+onChange :: RefReader a -> (a -> RefCreator b) -> RefCreator (RefReader b)
 onChange = Ref.onChange
 
-onChangeEq :: Eq a => View a -> (a -> Create b) -> Create (View b)
+onChangeEq :: Eq a => RefReader a -> (a -> RefCreator b) -> RefCreator (RefReader b)
 onChangeEq = Ref.onChangeEq
 
-onChangeEq_ :: Eq a => View a -> (a -> Create b) -> Create (SubState b)
+onChangeEq_ :: Eq a => RefReader a -> (a -> RefCreator b) -> RefCreator (Ref b)
 onChangeEq_ = Ref.onChangeEq_
 
-onChangeMemo :: Eq a => View a -> (a -> Create (Create b)) -> Create (View b)
+onChangeMemo :: Eq a => RefReader a -> (a -> RefCreator (RefCreator b)) -> RefCreator (RefReader b)
 onChangeMemo = Ref.onChangeMemo
 
-memoise :: Create a -> Create (Create a)
+memoise :: RefCreator a -> RefCreator (RefCreator a)
 memoise = Ref.memoRead
 {-
-extendStateEq :: Eq a => a -> Create (SubState a)
+extendStateEq :: Eq a => a -> RefCreator (Ref a)
 extendStateEq = Ref.newEqRef
 -}
-getArgs :: Create [String]
+getArgs :: RefCreator [String]
 getArgs = Eff.getArgs
 
-getProgName :: Create String
+getProgName :: RefCreator String
 getProgName = Eff.getProgName
 
-lookupEnv :: String -> Create (Maybe String)
+lookupEnv :: String -> RefCreator (Maybe String)
 lookupEnv = Eff.lookupEnv
 
-asyncWrite :: Int -> Modify -> Create ()
+asyncWrite :: Int -> RefWriter () -> RefCreator ()
 asyncWrite = Eff.asyncWrite
 
-atTime :: UTCTime -> Modify -> Create ()
+atTime :: UTCTime -> RefWriter () -> RefCreator ()
 atTime = Eff.atTime
 
-time :: Create UTCTime
+time :: RefCreator UTCTime
 time = Eff.time
 
-putStr_ :: String -> Create ()
+putStr_ :: String -> RefCreator ()
 putStr_ = Eff.putStr_
 
-putStrLn_ :: String -> Create ()
+putStrLn_ :: String -> RefCreator ()
 putStrLn_ = Eff.putStrLn_
 
-getLine_ :: (String -> Modify) -> Create ()
+getLine_ :: (String -> RefWriter ()) -> RefCreator ()
 getLine_ = Eff.getLine_
 
-fileRef :: FilePath -> Create (SubState (Maybe String))
+fileRef :: FilePath -> RefCreator (Ref (Maybe String))
 fileRef = Eff.fileRef
 
 
@@ -229,25 +228,28 @@ fileRef = Eff.fileRef
 {- |
 Widget descriptions.
 -}
-type Widget = B.Widget
+type Widget = Widget.Widget RefCreator
 
 -- | Substate of the program state.
-type SubState a = B.Ref a
+type Ref a = Ref.RefOf RefCreator a
 
 -- | Substate of the program state equipped with an @Eq@ instance.
-type SubStateEq a = B.EqRef a
+type EqRef a = Ref.EqRefOf RefCreator a
 
 -- | An action which modifies the program state.
-type Modify = Modifier ()
+type RefWriter = Ref.RefWriterT IO
 
 -- | Program state modifier monad.
-type Modifier = B.RefWriter
+type Modifier = RefWriter ()
 
--- | View of the program state. @View@ is a @Monad@.
-type View = B.RefReader
+-- | RefReader of the program state. @RefReader@ is a @Monad@.
+type RefReader = Ref.RefReaderT Base
 
 -- | Substate creation monad. Effects can also be emitted in it.
-type Create = B.RefCreator
+type RefCreator = Eff.RefCreatorPost Base
+
+
+
 
 {- |
 Run a widget description.
@@ -255,7 +257,7 @@ Run a widget description.
 The widget is shown in a window and the thread enters into the event cycle.
 It leaves the event cycle when the window is closed.
 -}
-runWidget = B.runWidget
+--runWidget = B.runWidget
 
 
 -- | Vertical composition of widgets.
@@ -271,49 +273,49 @@ emptyWidget :: Widget
 emptyWidget = horizontally []
 
 -- | Dynamic label.
-label :: View String -> Widget
+label :: RefReader String -> Widget
 label = pure . Label
 
 -- | Low-level button with changeable background color.
 primButton
-    :: View String     -- ^ dynamic label of the button
-    -> View Bool       -- ^ the button is active when this returns @True@
-    -> Maybe (View (Colour Double))      -- ^ dynamic background color
-    -> Modify        -- ^ the action to do when the button is pressed
+    :: RefReader String     -- ^ dynamic label of the button
+    -> RefReader Bool       -- ^ the button is active when this returns @True@
+    -> Maybe (RefReader (Colour Double))      -- ^ dynamic background color
+    -> RefWriter ()        -- ^ the action to do when the button is pressed
     -> Widget
 primButton r x c y = pure $ Button (r) (x) c (\() -> y)
 
 -- | Button.
 button
-    :: View String     -- ^ dynamic label of the button
-    -> View (Maybe Modify)     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
+    :: RefReader String     -- ^ dynamic label of the button
+    -> RefReader (Maybe (RefWriter ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
     -> Widget
-button r fm = primButton r (fmap isJust fm) Nothing (liftView fm >>= maybe (pure ()) id)
+button r fm = primButton r (fmap isJust fm) Nothing (liftRefReader fm >>= maybe (pure ()) id)
 
 -- | Button which inactivates itself automatically.
 smartButton
-    :: View String     -- ^ dynamic label of the button
-    -> SubStateEq a              -- ^ underlying reference
+    :: RefReader String     -- ^ dynamic label of the button
+    -> EqRef a              -- ^ underlying reference
     -> (a -> a)   -- ^ The button is active when this function is not identity on value of the reference. When the button is pressed, the value of the reference is modified with this function.
     -> Widget
 smartButton s r f
     = primButton s (hasEffect r f) Nothing (adjust r f)
 
 -- | Checkbox.
-checkbox :: SubState Bool -> Widget
-checkbox r = pure $ Checkbox ((value r), write r)
+checkbox :: Ref Bool -> Widget
+checkbox r = pure $ Checkbox ((value r), writeRef r)
 
 -- | Combo box.
-combobox :: [String] -> SubState Int -> Widget
-combobox ss r = pure $ Combobox ss ((value r), write r)
+combobox :: [String] -> Ref Int -> Widget
+combobox ss r = pure $ Combobox ss ((value r), writeRef r)
 
 -- | Text entry.
-entry :: (RefClass r, RefReaderSimple r ~ View)  => RefSimple r String -> Widget
-entry r = pure $ Entry (const True) ((value r), write r)
+entry :: (RefClass r, RefReaderSimple r ~ RefReader)  => RefSimple r String -> Widget
+entry r = pure $ Entry (const True) ((value r), writeRef r)
 
 -- | Text entry with automatic show-read conversion.
-entryShow :: forall a r . (Show a, Read a, RefClass r, RefReaderSimple r ~ View) => RefSimple r a -> Widget
-entryShow r_ = pure $ Entry isOk ((value r), write r)
+entryShow :: forall a r . (Show a, Read a, RefClass r, RefReaderSimple r ~ RefReader) => RefSimple r a -> Widget
+entryShow r_ = pure $ Entry isOk ((value r), writeRef r)
   where
     r = showLens `lensMap` r_
     isOk s = case (reads s :: [(a, String)]) of
@@ -330,24 +332,24 @@ The tabs are created lazily.
 -}
 notebook :: [(String, Widget)] -> Widget
 notebook xs = do
-    currentPage <- extendState 0
+    currentPage <- newRef 0
     let f index (title, w) = (,) title $ cell (fmap (== index) $ value currentPage) $ \b -> case b of
            False -> horizontally []
            True -> w
-    pure $ Notebook' (write currentPage) $ zipWith f [0..] xs
+    pure $ Notebook' (writeRef currentPage) $ zipWith f [0..] xs
 
 {- | Dynamic cell.
 
 The inner widgets are memoised.
 -}
-cell :: (Eq a) => View a -> (a -> Widget) -> Widget
+cell :: (Eq a) => RefReader a -> (a -> Widget) -> Widget
 cell r m = pure $ Cell r $ \mk -> fmap pure . mk . m
 
 {- | Dynamic cell.
 
 The inner widgets are not memoised.
 -}
-cellNoMemo :: (Eq a) => View a -> (a -> Widget) -> Widget
+cellNoMemo :: (Eq a) => RefReader a -> (a -> Widget) -> Widget
 cellNoMemo r m = pure $ Cell r $ \mk -> pure . mk . m
 
 -- | Reactive diagrams canvas.
@@ -356,9 +358,9 @@ canvas
     => Int   -- ^ width
     -> Int   -- ^ height
     -> Double  -- ^ scale
-    -> ((MouseEvent a, Dia a) -> Modify) -- ^ mouse event handler
-    -> KeyboardHandler (Modifier) -- ^ keyboard event handler
-    -> View b -- ^ state references
+    -> ((MouseEvent a, Dia a) -> RefWriter ()) -- ^ mouse event handler
+    -> KeyboardHandler RefWriter -- ^ keyboard event handler
+    -> RefReader b -- ^ state references
     -> (b -> Dia a) -- ^ diagrams renderer
     -> Widget
 canvas w h sc me kh r f = pure $ Canvas w h sc me kh r f
@@ -377,9 +379,9 @@ hscale
     :: Double   -- ^ min
     -> Double   -- ^ max
     -> Double   -- ^ step
-    -> SubState Double
+    -> Ref Double
     -> Widget
-hscale a b c r = pure $ Scale a b c (value r, write r)
+hscale a b c r = pure $ Scale a b c (value r, writeRef r)
 
 listLens :: Lens' (Bool, (a, [a])) [a]
 listLens = lens get set where
@@ -392,14 +394,14 @@ listLens = lens get set where
 -- | Undo-redo state transformation.
 undoTr
     :: (a -> a -> Bool)     -- ^ equality on state
-    -> SubState a             -- ^ reference of state
-    -> Create
-           ( View (Maybe Modify)
-           , View (Maybe Modify)
+    -> Ref a             -- ^ reference of state
+    -> RefCreator
+           ( RefReader (Maybe (RefWriter ()))
+           , RefReader (Maybe (RefWriter ()))
            )  -- ^ undo and redo actions
 undoTr eq r = do
-    ku <- extendStateWith r (undoLens eq) ([], [])
-    let try f = fmap (fmap (write ku) . f) $ value ku
+    ku <- extendRef r (undoLens eq) ([], [])
+    let try f = fmap (fmap (writeRef ku) . f) $ value ku
     pure (try undo, try redo)
   where
     undo (x: xs@(_:_), ys) = Just (xs, x: ys)

@@ -35,12 +35,12 @@ instance ADTLens T where
 
 -- | @T@ editor with comboboxes, as an ADTEditor
 tEditor1 ::  Widget
-tEditor1 = join $ extendState Leaf >>= adtEditor
+tEditor1 = join $ newRef Leaf >>= adtEditor
 
 -- | @T@ editor with checkboxes, given directly
-tEditor3 ::  SubState T -> Widget
+tEditor3 ::  Ref T -> Widget
 tEditor3 r = do
-    q <- extendStateWith r tLens (False, (Leaf, Leaf))
+    q <- extendRef r tLens (False, (Leaf, Leaf))
     horizontally
         [ checkbox $ _1 `lensMap` q
         , cell (fmap fst $ value q) $ \b -> case b of

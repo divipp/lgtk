@@ -72,7 +72,7 @@ class MonadRefCreator m => EffIORef m where
     memoised so currently it is unsafe to call @fileRef@ on the same filepath more than once.
     This restriction will be lifted in the future.
     -}
-    fileRef    :: FilePath -> m (Ref m (Maybe String))
+    fileRef    :: FilePath -> m (RefOf m (Maybe String))
 
 
     {- | Read a line from the standard input device.
@@ -89,28 +89,28 @@ putStrLn_ :: EffIORef m => String -> m ()
 putStrLn_ = putStr_ . (++ "\n")
 
 
-type RefCreatorPost m = ReaderT (RefWriter m () -> m (), SRef m Time.UTCTime) (RefCreator m)
+type RefCreatorPost m = ReaderT (RefWriterT m () -> m (), SimpleRefOf m Time.UTCTime) (RefCreatorT m)
 
 runRefCreatorPost
-    :: (NewRef m, MonadBaseControl IO m)
-    => (m () -> m ()) -> ((RefWriter m () -> m ()) -> RefCreatorPost m a)
+    :: (SimpleRefClass m, MonadBaseControl IO m)
+    => (m () -> m ()) -> ((RefWriterT m () -> m ()) -> RefCreatorPost m a)
     -> m (a, m ()) 
 runRefCreatorPost w f = do
     t <- liftIO_ Time.getCurrentTime
-    r <- newRef' t
-    a <- runRefCreator $ \runWriter -> runReaderT (f $ w . runWriter) (w . runWriter, r)
+    r <- newSimpleRef t
+    a <- runRefCreatorT $ \runWriter -> runReaderT (f $ w . runWriter) (w . runWriter, r)
     return $ (,) a $ do
         t <- liftIO_ Time.getCurrentTime
-        writeRef' r t
+        writeSimpleRef r t
 
 askPostpone = asks fst
 
-instance (MonadBaseControl IO m, NewRef m, n ~ RefWriter m, r ~ SRef m Time.UTCTime)
-    => EffIORef (ReaderT (n () -> m (), r) (RefCreator m)) where
+instance (MonadBaseControl IO m, SimpleRefClass m, n ~ RefWriterT m, r ~ SimpleRefOf m Time.UTCTime)
+    => EffIORef (ReaderT (n () -> m (), r) (RefCreatorT m)) where
 
     time = do
         r <- asks snd
-        liftEffectM $ readRef' r
+        liftEffectM $ readSimpleRef r
 
     getArgs     = liftIO' Env.getArgs
 

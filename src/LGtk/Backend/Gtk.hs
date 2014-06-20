@@ -4,12 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 module LGtk.Backend.Gtk
-    ( Ref
-    , EqRef
-    , RefWriter
-    , RefReader
-    , RefCreator
-    , Widget
+    ( Base
     , runWidget
     ) where
 
@@ -32,26 +27,20 @@ import Diagrams.Backend.Cairo.Internal
 import Graphics.UI.Gtk hiding (Widget, Release)
 import qualified Graphics.UI.Gtk as Gtk
 
-import Data.LensRef.Class hiding (Ref)
-import qualified Data.LensRef as Ref
-import qualified Data.LensRef.Default as Ref
+import Data.LensRef.Class
+import Data.LensRef
+import Data.LensRef.Default
 import LGtk.Effects
-import LGtk.Widgets hiding (Widget)
-import qualified LGtk.Widgets as Widget
+import LGtk.Widgets
 import LGtk.Key
 
 ----------------------------
 
-type Ref a = Ref.Ref RefCreator a
-type EqRef a = Ref.EqRef RefCreator a
+type Base = IO
 
-type RefCreator = RefCreatorPost IO
-type RefWriter = Ref.RefWriter IO
-type RefReader = Ref.RefReader IO
+type RefCreator = RefCreatorPost Base
 
-type Widget = Widget.Widget RefCreator
-
--------------------------
+type SWidget = (IO (), Gtk.Widget)
 
 {- |
 Run a Gtk widget description.
@@ -59,7 +48,7 @@ Run a Gtk widget description.
 The widget is shown in a window and the thread enters into the Gtk event cycle.
 It leaves the event cycle when the window is closed.
 -}
-runWidget :: Widget -> IO ()
+runWidget :: Widget (RefCreator) -> IO ()
 runWidget desc = gtkContext $ \postGUISync -> do
     postActionsRef <- newMVar $ pure ()
     let addPostAction m = modifyMVar_ postActionsRef $ \n -> pure $ n >> m
@@ -89,14 +78,12 @@ gtkContext m = do
     widgetShowAll window
     mainGUI
 
-type SWidget = (IO (), Gtk.Widget)
-
 -- | Run an @IO@ parametrized interface description with Gtk backend
 runWidget_
-    :: (RefWriter () -> IO ())
+    :: (RefWriterT IO () -> IO ())
     -> (IO () -> IO ())
     -> (forall a . IO a -> IO a)
-    -> Widget
+    -> Widget (RefCreator)
     -> RefCreator SWidget
 runWidget_ post_ post' post = toWidget
  where
@@ -104,7 +91,7 @@ runWidget_ post_ post' post = toWidget
     liftIO'' = liftIO' . post
 
     -- type Receive n m k a = (RegionStatusChange -> n ()) -> m (a -> k ())
-    reg :: Receive RefCreator a -> ((a -> IO ()) -> IO (RegionStatusChange -> IO ())) -> RefCreator (RegionStatusChange -> IO ())
+    reg :: Receive (RefCreator) a -> ((a -> IO ()) -> IO (RegionStatusChange -> IO ())) -> RefCreator (RegionStatusChange -> IO ())
     reg s f = do
         u <- liftEffectM $ liftBaseWith $ \unr -> f $ \x -> do
             _ <- unr $ post_ $ s x
@@ -112,7 +99,7 @@ runWidget_ post_ post' post = toWidget
         onRegionStatusChange (liftIO_ . post . u $)
         pure u
 
-    ger :: Eq a => (RegionStatusChange -> IO ()) -> RefReader a -> (a -> IO ()) -> RefCreator ()
+    ger :: Eq a => (RegionStatusChange -> IO ()) -> RefReaderT IO a -> (a -> IO ()) -> RefCreator ()
     ger hd s f = fmap (const ()) $ onChangeEq s $ \a -> liftIO'' $ do
         hd Block
         f a
@@ -121,7 +108,7 @@ runWidget_ post_ post' post = toWidget
     nhd :: RegionStatusChange -> IO ()
     nhd = const $ pure ()
 
-    toWidget :: Widget -> RefCreator SWidget
+    toWidget :: Widget (RefCreator) -> RefCreator SWidget
     toWidget m = m >>= \i -> case i of
 
         Label s -> do
@@ -134,8 +121,8 @@ runWidget_ post_ post' post = toWidget
          mkCanvas
             :: forall b da
             .  (Monoid da, Semigroup da, Eq b)
-            => ((MouseEvent da, Dia da) -> RefWriter ())
-            -> RefReader b
+            => ((MouseEvent da, Dia da) -> RefWriterT IO ())
+            -> RefReaderT IO b
             -> (b -> Dia da)
             -> RefCreator SWidget
          mkCanvas me r diaFun = do

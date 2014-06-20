@@ -16,8 +16,8 @@ intListEditor
     .  (Read a, Show a, Integral a)
     => (a, Bool)            -- ^ default element
     -> Int                  -- ^ maximum number of elements
-    -> SubState [(a, Bool)]    -- ^ state reference
-    -> SubState Bool           -- ^ settings reference
+    -> Ref [(a, Bool)]    -- ^ state reference
+    -> Ref Bool           -- ^ settings reference
     -> Widget
 intListEditor def maxi list_ range = do
     (undo, redo)  <- undoTr ((==) `on` map fst) list_
@@ -58,12 +58,12 @@ intListEditor def maxi list_ range = do
             , listEditor def (map itemEditor [0..]) list_
             ]
         , (,) "Settings" $ horizontally
-            [ label $ pure "Create range"
+            [ label $ pure "RefCreator range"
             , checkbox range
             ]
         ]
  where
-    list = withEq list_
+    list = toEqRef list_
 
     itemEditor i r = horizontally
         [ label $ pure $ show (i+1) ++ "."
@@ -87,9 +87,9 @@ intListEditor def maxi list_ range = do
 
     (f *** g) (a, b) = (f a, g b)
 
-listEditor ::  a -> [SubState a -> Widget] -> SubState [a] -> Widget
+listEditor ::  a -> [Ref a -> Widget] -> Ref [a] -> Widget
 listEditor def (ed: eds) r = do
-    q <- extendStateWith r listLens (False, (def, []))
+    q <- extendRef r listLens (False, (def, []))
     cell (fmap fst $ value q) $ \b -> case b of
         False -> emptyWidget
         True -> vertically 

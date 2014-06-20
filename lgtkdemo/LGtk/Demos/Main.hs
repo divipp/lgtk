@@ -33,7 +33,7 @@ mainWidget = notebook
         [ (,) "Counters" $ notebook
 
             [ (,) "Unbounded" $ do
-                c <- fmap withEq $ extendState (0 :: Int)
+                c <- fmap toEqRef $ newRef (0 :: Int)
                 vertically
                     [ label $ fmap show $ value c
                     , horizontally
@@ -43,7 +43,7 @@ mainWidget = notebook
                     ]
 
             , (,) "1..3" $ do
-                c <- fmap withEq $ extendState (1 :: Int)
+                c <- fmap toEqRef $ newRef (1 :: Int)
                 vertically
                     [ label $ fmap show $ value c
                     , horizontally
@@ -53,7 +53,7 @@ mainWidget = notebook
                     ]
 
             , (,) "a..b" $ do
-                ab <- extendState (1 :: Int, 3)
+                ab <- newRef (1 :: Int, 3)
                 let (a, b) = interval ab
                 c <- counter 0 ab
                 vertically
@@ -70,7 +70,7 @@ mainWidget = notebook
 
 {-
         , (,) "Buttons" $ do
-            x <- extendState (0 :: Int)
+            x <- newRef (0 :: Int)
             let is = [0 :: Double, 0.5, 1]
                 colorlist = tail $ liftA3 sRGB is is is
                 f n = colorlist !! (n `mod` length colorlist)
@@ -79,7 +79,7 @@ mainWidget = notebook
         , (,) "Tabs" $ notebook
 
             [ (,) "TabSwitch" $ do
-                x <- extendState "a"
+                x <- newRef "a"
                 let w = vertically [ label $ value x, entry x ]
                 notebook
                     [ (,) "T1" w
@@ -94,7 +94,7 @@ mainWidget = notebook
         , (,) "T-Editor" $ notebook
 
             [ (,) "Version 1" $ do
-                t <- extendState $ iterate (Node Leaf) Leaf !! 10
+                t <- newRef $ iterate (Node Leaf) Leaf !! 10
                 horizontally
                     [ canvas 200 200 20 (const $ pure ()) Nothing (value t) $
                         \x -> tPic 0 x # lwL 0.05 # D.value () # translate (r2 (0,10))
@@ -107,10 +107,10 @@ mainWidget = notebook
         , (,) "Notebook" $ notebook
 
             [ (,) "Version 2" $ do
-                buttons <- extendState ("",[])
+                buttons <- newRef ("",[])
                 let ctrl = entry $ lens fst (\(_,xs) x -> ("",x:xs)) `lensMap` buttons
                     h b = do
-                        q <- extendStateWith b listLens (False, ("", []))
+                        q <- extendRef b listLens (False, ("", []))
                         cell (fmap fst $ value q) $ \bb -> case bb of
                             False -> emptyWidget
                             _ -> do
@@ -124,7 +124,7 @@ mainWidget = notebook
                 vertically $ [ctrl, h $ _2 `lensMap` buttons]
 
             , (,) "Version 1" $ do
-                buttons <- extendState ("",[])
+                buttons <- newRef ("",[])
                 let h i b = horizontally
                        [ label $ pure b
                        , button (pure "Del") $ pure $ Just $ adjust (_2 `lensMap` buttons) $ \l -> take i l ++ drop (i+1) l
@@ -147,7 +147,7 @@ mainWidget = notebook
 
             [ (,) "Dynamic" $ do
 
-                r <- extendState (3 :: Double)
+                r <- newRef (3 :: Double)
                 vertically
                     [ canvas 200 200 12 (const $ pure ()) Nothing (value r) $
                         \x -> circle x # lwL 0.05 # fc blue # D.value ()
@@ -159,14 +159,14 @@ mainWidget = notebook
 
             , (,) "Animation" $ do
 
-                fps <- extendState (50 :: Double)
-                speed <- extendState (1 :: Double)
-                phase <- extendState (0 :: Double)
-                t <- extendState 0
+                fps <- newRef (50 :: Double)
+                speed <- newRef (1 :: Double)
+                phase <- newRef (0 :: Double)
+                t <- newRef 0
                 _ <- onChangeEq (value phase) $ \x -> do
                     s <- value speed
                     f <- value fps
-                    asyncWrite (round $ 1000000 / f) $ write phase (x + 2 * pi * s / f)
+                    asyncWrite (round $ 1000000 / f) $ writeRef phase (x + 2 * pi * s / f)
                 vertically
                     [ canvas 200 200 10 (const $ pure ()) Nothing (liftA2 (,) (value t) (value phase)) $
                         \(t,x) -> (case t of
@@ -192,12 +192,12 @@ mainWidget = notebook
         , (,) "Reactive" $ notebook
 
             [ (,) "ColorChange" $ do
-                phase <- extendState (0 :: Double)
-                col <- extendState True
+                phase <- newRef (0 :: Double)
+                col <- newRef True
                 _ <- onChangeEq (value phase) $ \x -> do
                     let s = 0.5 :: Double
                     let f = 50 :: Double
-                    asyncWrite (round $ 1000000 / f) $ write phase (x + 2 * pi * s / f)
+                    asyncWrite (round $ 1000000 / f) $ writeRef phase (x + 2 * pi * s / f)
                 let handler (Click (MousePos _ l), _) = when (not $ null l) $ adjust col not
                     handler _ = pure ()
                 vertically
@@ -207,13 +207,13 @@ mainWidget = notebook
                     ]
 
             , (,) "Enlarge" $ do
-                phase <- extendState (0 :: Double)
-                col <- extendState 1
+                phase <- newRef (0 :: Double)
+                col <- newRef 1
                 _ <- onChangeEq (value phase) $ \x -> do
                     let s = 0.5 :: Double
                     let f = 50 :: Double
                     asyncWrite (round $ 1000000 / f) $ do
-                        write phase (x + 2 * pi * s / f)
+                        writeRef phase (x + 2 * pi * s / f)
                         adjust col $ max 1 . (+(- 5/f))
                 let handler (Click (MousePos _ l), _) = when (not $ null l) $ adjust col (+1)
                     handler _ = pure ()
@@ -224,7 +224,7 @@ mainWidget = notebook
                     ]
 
                 , (,) "Chooser" $ do
-                i <- extendState (0 :: Int, 0 :: Rational)
+                i <- newRef (0 :: Int, 0 :: Rational)
                 let i1 = _1 `lensMap` i
                     i2 = _2 `lensMap` i
                 _ <- onChangeEq (value i) $ \(i,d) -> do
@@ -235,7 +235,7 @@ mainWidget = notebook
                         let s = 2 :: Rational
                         let f = 25 :: Rational
                         asyncWrite (round $ 1000000 / f) $ do
-                            write i2 $ d + signum dd * min (abs dd) (s / f)
+                            writeRef i2 $ d + signum dd * min (abs dd) (s / f)
                 let keyh (SimpleKey Key'Left)  = adjust i1 pred >> pure True
                     keyh (SimpleKey Key'Right) = adjust i1 succ >> pure True
                     keyh _ = pure False
@@ -261,7 +261,7 @@ mainWidget = notebook
 
     {-
         , (,) "Accumulator" $ do
-            x <- extendState (0 :: Integer)
+            x <- newRef (0 :: Integer)
             y <- onChangeAcc (value x) 0 (const 0) $ \x _ y -> Left $ pure $ x+y
             horizontally
                 [ entryShow x
@@ -269,27 +269,27 @@ mainWidget = notebook
                 ]
     -}
         [ (,) "Async" $ do
-            ready <- extendState True
-            delay <- extendState (1.0 :: Double)
+            ready <- newRef True
+            delay <- newRef (1.0 :: Double)
             _ <- onChangeEq (value ready) $ \b -> case b of
                 True -> pure ()
                 False -> do
                     d <- value delay
-                    asyncWrite (ceiling $ 1000000 * d) $ write ready True
+                    asyncWrite (ceiling $ 1000000 * d) $ writeRef ready True
             vertically
                 [ horizontally [ entryShow delay, label $ pure "sec" ]
                 , primButton (flip fmap (value delay) $ \d -> "Start " ++ show d ++ " sec computation")
                           (value ready)
                           Nothing
-                          (write ready False)
+                          (writeRef ready False)
                 , label $ fmap (\b -> if b then "Ready." else "Computing...") $ value ready
                 ]
 
         , (,) "Timer" $ do
-            rt <- extendState =<< time
+            rt <- newRef =<< time
             _ <- onChangeEq (value rt) $ \ti -> do
                 putStrLn_ $ show ti
-                atTime (addUTCTime 1 ti) $ write rt (addUTCTime 1 ti)
+                atTime (addUTCTime 1 ti) $ writeRef rt (addUTCTime 1 ti)
             vertically
                 [ label $ fmap show $ value rt
                 ]
@@ -301,7 +301,7 @@ mainWidget = notebook
             , (,) "ProgName" $ getProgName >>= \args -> label $ pure args
 
             , (,) "Env" $ do
-                v <- extendState "HOME"
+                v <- newRef "HOME"
                 lv <- onChangeEq (value v) $ fmap (maybe "Not in env." show) . lookupEnv
                 vertically
                     [ entry v
@@ -310,18 +310,18 @@ mainWidget = notebook
 
             , (,) "Std I/O" $ let
                 put = do
-                    x <- extendState Nothing
+                    x <- newRef Nothing
                     _ <- onChangeEq (value x) $ maybe (pure ()) putStrLn_
                     horizontally 
                         [ label $ pure "putStrLn"
                         , entry $ iso (maybe "" id) Just `lensMap` x
                         ]
                 get = do
-                    ready <- extendState $ Just ""
+                    ready <- newRef $ Just ""
                     _ <- onChangeEq (fmap isJust $ value ready) $ \b -> 
-                        when (not b) $ getLine_ $ write ready . Just
+                        when (not b) $ getLine_ $ writeRef ready . Just
                     horizontally 
-                        [ primButton (pure "getLine") (fmap isJust $ value ready) Nothing $ write ready Nothing
+                        [ primButton (pure "getLine") (fmap isJust $ value ready) Nothing $ writeRef ready Nothing
                         , label $ fmap (maybe "<<<waiting for input>>>" id) $ value ready
                         ]
                in vertically [ put, put, put, get, get, get ]
@@ -332,9 +332,9 @@ mainWidget = notebook
 
         [ (,) "ListEditor" $ do
             state <- fileRef "intListEditorState.txt"
-            list <- extendStateWith (justLens "" `lensMap` state) showLens []
+            list <- extendRef (justLens "" `lensMap` state) showLens []
             settings <- fileRef "intListEditorSettings.txt"
-            range <- extendStateWith (justLens "" `lensMap` settings) showLens True
+            range <- extendRef (justLens "" `lensMap` settings) showLens True
             intListEditor (0 :: Integer, True) 15 list range
 
         , (,) "Maze" $ mazeGame
@@ -353,10 +353,10 @@ tPic i (Node a b) = tPic (i+1) a # translate (r2 (-w,-2))
 justLens :: a -> Lens' (Maybe a) a
 justLens a = lens (maybe a id) (flip $ const . Just)
 
-counter :: forall a . (Ord a) => a -> SubState (a, a) -> Create (SubStateEq a)
+counter :: forall a . (Ord a) => a -> Ref (a, a) -> RefCreator (EqRef a)
 counter x ab = do
-    c <- extendStateWith ab (fix . _2) (x, (x, x))
-    pure $ fix . _1 `lensMap` withEq c
+    c <- extendRef ab (fix . _2) (x, (x, x))
+    pure $ fix . _1 `lensMap` toEqRef c
   where
     fix :: Lens' (a, (a,a)) (a, (a,a))
     fix = lens id $ \_ (x, ab@(a, b)) -> (min b $ max a x, ab)
@@ -370,11 +370,11 @@ interval ab = (lens fst set1 `lensMap` ab, lens snd set2 `lensMap` ab) where
 ----------------------------------------------------------------------------
 
 inCanvasExample = do
-    t <- extendState $ iterate (Node Leaf) Leaf !! 5
-    i <- extendState (0 :: Int)
-    j <- extendState 0
-    s <- extendState "x"
-    s' <- extendState "y"
+    t <- newRef $ iterate (Node Leaf) Leaf !! 5
+    i <- newRef (0 :: Int)
+    j <- newRef 0
+    s <- newRef "x"
+    s' <- newRef "y"
     let x = vertically
             [ horizontally
                 [ vertically
