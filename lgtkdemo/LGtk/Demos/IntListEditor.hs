@@ -12,7 +12,7 @@ import Control.Lens
 import LGtk
 
 intListEditor
-    :: forall m a
+    :: forall a
     .  (Read a, Show a, Integral a)
     => (a, Bool)            -- ^ default element
     -> Int                  -- ^ maximum number of elements

@@ -341,47 +341,6 @@ mainWidget = notebook
 
         ]
 
-{-
-    , (,) "Csaba" $ notebook
-
-        [ (,) "#1" $ do
-            name <- extendState "None"
-            buttons <- extendState []
-            let ctrl = horizontally
-                    [ label $ value name
-                    , button (pure "Add") $ pure $ Just $ do
-                        l <- value buttons
-                        let n = "Button #" ++ (show . length $ l)
-                        write buttons $ n:l
-                    ]
-                f n = vertically $ map g n 
-                g n = button (pure n) (pure . Just $ write name n)
-            vertically $ [ctrl, cell (value buttons) f]
-
-        , (,) "#2" $ do
-            name <- extendState "None"
-            buttons <- extendState []
-            let ctrl = horizontally
-                    [ label $ value name
-                    , button (pure "Add") $ pure $ Just $ do
-                        l <- value buttons
-                        let n = "Button #" ++ (show . length $ l)
-                        write buttons $ l ++ [n]
-                    ]
-                h b = do
-                    q <- extendStateWith b listLens (False, ("", []))
-                    cell (fmap fst $ value q) $ \b -> case b of
-                        False -> emptyWidget
-                        _ -> do
-                            na <- value $ _2 . _1 `lensMap` q
-                            vertically $ reverse
-                                [ h $ _2 . _2 `lensMap` q
-                                , horizontally [ button (pure na) $ pure $ Just $ write name na, entry $ _2 . _1 `lensMap` q ]
-                                ]
-            vertically $ [ctrl, h buttons]
-
-        ]
--}    
     ]
 
 tPic :: Int -> T -> Dia Any
