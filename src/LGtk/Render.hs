@@ -145,6 +145,7 @@ _ !!! n | n < 0 = Nothing
 [x] !!!! _ = x
 (x:_) !!!! n | n <= 0 = x
 (_:xs) !!!! n = xs !!!! (n-1 :: Int)
+[] !!!! _ = error "(!!!!) was applied to an empty list."
 
 inCanvas :: forall m . (MonadRefCreator m, MonadFix m) => Int -> Int -> Double -> Widget m -> Widget m
 inCanvas width height scale w = mdo
@@ -206,7 +207,7 @@ inCanvas width height scale w = mdo
 
     case bhr of
        CWidget b hr render -> do
-        
+
         let handle_ Nothing' = writeRef hi [i] -- pure ()
             handle_ (Just' (a, cap, bb, i)) = do
                 a
@@ -238,7 +239,7 @@ inCanvas width height scale w = mdo
                 f key
 
         pure $ Canvas width height scale handleEvent (Just handleKeys) (liftA3 (,,) (readRef hi) (readRef $ _4 `lensMap` foc) $ fmap snd b) $
-            \(is, is', x) -> 
+            \(is, is', x) ->
                  fmap Just' (render x is is' # alignT # alignL # translate (r2 (-scale/2,scale/2* fromIntegral height / fromIntegral width)))
               <> fmap (const Nothing') (rect scale (scale / fromIntegral width * fromIntegral height) # value ())
 
@@ -246,7 +247,7 @@ focWidth = 0.1
 
 {-
 text_ s = (coords $ boxExtents (boundingBox t) + r2 (0.2, 0.2) , t) where
-    t = textSVG s 1.8 # stroke # fc black  
+    t = textSVG s 1.8 # stroke # fc black
 -}
 text__ :: Double -> Double -> String -> ((Double :& Double), Dia Any)
 
@@ -349,7 +350,7 @@ tr sca dkh w = do
                         commit
                         writeRef j1 False
 
-                render (orig,bv) is is' = 
+                render (orig,bv) is is' =
                   (  te # clipped (rect x y) # value mempty
                   <> rect x y # (if isOk' bv then (if i `elem` is then fc yellow else (if orig /= value' (snd bv) then fc defcolor else id)) else fc red)
                          # (if is' == i then lc yellow . lwL focWidth else lc black . lwL 0.02)
@@ -366,9 +367,9 @@ tr sca dkh w = do
                 ff k = dkh k
                 kh = (pure (), ff, pure (), i)
 
-                render bv is is' = 
+                render bv is is' =
                     (
-                       (if bv then fromVertices [p2 (-0.3, 0), p2 (-0.1,-0.3), p2 (0.3,0.3)] 
+                       (if bv then fromVertices [p2 (-0.3, 0), p2 (-0.1,-0.3), p2 (0.3,0.3)]
                                 # lineCap LineCapRound else mempty) # value mempty # lwL 0.15
                     <> rect 1 1 # value_ (br (not bv)) kh i
                                 # fc (if i `elem` is then yellow else sRGB 0.95 0.95 0.95)
@@ -378,7 +379,7 @@ tr sca dkh w = do
 
         Cell r f -> do
             i <- newId
-            r' <- lift $ onChangeMemo r $ \x -> do   
+            r' <- lift $ onChangeMemo r $ \x -> do
                      h <- f (newIds i . tr sca dkh) x
                      pure $ do
                        hv <- h
@@ -416,6 +417,7 @@ tr sca dkh w = do
                 tr di p = case lookupName i di of
                             Just subd -> p # translate (p2 (0,0) .-. q) # scale (1/((fromIntegral w / d) / sca))
                                 where q = location subd
+                            Nothing -> error "Impossible: could not find the frame of a canvas."
 
 --                decomp (x :& y) = (x,y)
 
@@ -455,7 +457,7 @@ tr sca dkh w = do
                 render bv is is' = vcat (zipWith3 g [0..] iss xs) # frame 0.1
                   where
                     g ind i txt = (
-                       (if bv == ind then fromVertices [p2 (-0.3, 0), p2 (-0.1,-0.3), p2 (0.3,0.3)] 
+                       (if bv == ind then fromVertices [p2 (-0.3, 0), p2 (-0.1,-0.3), p2 (0.3,0.3)]
                                 # lineCap LineCapRound else mempty) # value mempty # translate (r2 (x / 2,0)) # lwL 0.15
                       <> te # clipped (rect x y) # value mempty
                       <> rect x y # (if i `elem` is then fc yellow else id)
@@ -578,5 +580,3 @@ join_ = join
 data UnsafeEqWrap b = forall a . Eq a => UnsafeEqWrap a b
 instance Eq (UnsafeEqWrap b) where
     UnsafeEqWrap a _ == UnsafeEqWrap b _ = a == unsafeCoerce b
-
-

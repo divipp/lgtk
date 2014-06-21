@@ -98,12 +98,11 @@ library
                     -- lgtk-glfw
                     LGtk.Backend.GLFW
 
-  ghc-options: 
-                    -Wall 
-                    -fno-warn-incomplete-patterns 
-                    -fno-warn-name-shadowing 
-                    -fno-warn-missing-signatures 
-                    -fno-warn-orphans
+  ghc-options:
+                    -Wall
+                    -fwarn-incomplete-record-updates
+                    -fno-warn-name-shadowing
+                    -fno-warn-missing-signatures
                     -fno-warn-type-defaults
 
   if flag(pure)
@@ -166,10 +165,8 @@ executable lgtkdemo
                     lgtkdemo
   ghc-options:
                     -threaded
-                    -Wall 
-                    -fno-warn-incomplete-patterns 
-                    -fno-warn-name-shadowing 
-                    -fno-warn-missing-signatures 
-                    -fno-warn-orphans
+                    -Wall
+                    -fwarn-incomplete-record-updates
+                    -fno-warn-name-shadowing
+                    -fno-warn-missing-signatures
                     -fno-warn-type-defaults
-

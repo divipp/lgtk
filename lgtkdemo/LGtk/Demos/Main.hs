@@ -10,7 +10,6 @@ import Numeric
 import Data.Maybe (isJust)
 import Control.Lens hiding ((#))
 import Control.Monad
-import Control.Monad.Fix
 import Diagrams.Prelude hiding (vcat, hcat, interval, tri)
 
 import LGtk
@@ -308,15 +307,15 @@ mainWidget = notebook
                 put = do
                     x <- newRef Nothing
                     _ <- onChangeEq (readRef x) $ maybe (pure ()) putStrLn_
-                    hcat 
+                    hcat
                         [ label $ pure "putStrLn"
                         , entry $ iso (maybe "" id) Just `lensMap` x
                         ]
                 get = do
                     ready <- newRef $ Just ""
-                    _ <- onChangeEq (fmap isJust $ readRef ready) $ \b -> 
+                    _ <- onChangeEq (fmap isJust $ readRef ready) $ \b ->
                         when (not b) $ getLine_ $ writeRef ready . Just
-                    hcat 
+                    hcat
                         [ button_ (pure "getLine") (fmap isJust $ readRef ready) $ writeRef ready Nothing
                         , label $ fmap (maybe "<<<waiting for input>>>" id) $ readRef ready
                         ]
@@ -350,7 +349,7 @@ mainWidget = notebook
                         let n = "Button #" ++ (show . length $ l)
                         writeRef buttons $ n:l
                     ]
-                f n = vcat $ map g n 
+                f n = vcat $ map g n
                 g n = button (pure n) (pure . Just $ writeRef name n)
             vcat $ [ctrl, cell (readRef buttons) f]
 
@@ -377,7 +376,7 @@ mainWidget = notebook
             vcat $ [ctrl, h buttons]
 
         ]
--}    
+-}
     ]
 
 tPic :: Int -> T -> Dia Any
@@ -434,6 +433,3 @@ inCanvasExample = do
             ]
 
     hcat [ inCanvas 200 300 15 $ vcat [x, inCanvas 100 100 15 x], x]
-
-
-

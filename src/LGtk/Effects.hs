@@ -14,7 +14,6 @@ import Control.Concurrent
 --import Control.Exception (evaluate)
 import Control.Monad
 import Control.Monad.Reader
-import Control.Monad.Fix
 import Control.Monad.Operational
 import Control.Monad.Trans.Control
 --import System.Directory
@@ -34,7 +33,7 @@ import Data.LensRef.Default
 -- | Type class for IO actions.
 class MonadRefCreator m => EffIORef m where
 
-    -- | The program's command line arguments (not including the program name). 
+    -- | The program's command line arguments (not including the program name).
     getArgs     :: m [String]
 
     -- | The name of the program as it was invoked.
@@ -61,7 +60,7 @@ class MonadRefCreator m => EffIORef m where
     When the file changes, the value of the reference changes.
 
     If the reference holds @Nothing@, the file does not exist.
-    Note that you delete the file by putting @Nothing@ into the reference.    
+    Note that you delete the file by putting @Nothing@ into the reference.
 
     Implementation note: The references returned by @fileRef@ are not
     memoised so currently it is unsafe to call @fileRef@ on the same filepath more than once.
@@ -90,7 +89,7 @@ data IOInstruction a where
     GetProgName :: IOInstruction String
     LookupEnv :: String -> IOInstruction (Maybe String)
     PutStr :: String -> IOInstruction ()
-    GetLine :: (String -> SIO ()) -> IOInstruction Handle    
+    GetLine :: (String -> SIO ()) -> IOInstruction Handle
     AsyncWrite :: Int -> SIO () -> IOInstruction Handle
     FileRef :: FilePath -> (Maybe String -> SIO ()) -> IOInstruction (Handle, String -> SIO ())
 
@@ -180,7 +179,7 @@ getLine__ f = do
     pure $ const $ pure ()
 {-
 -- canonicalizePath may fail if the file does not exsist
-canonicalizePath' p = fmap (F.</> f) $ canonicalizePath d 
+canonicalizePath' p = fmap (F.</> f) $ canonicalizePath d
   where (d,f) = F.splitFileName p
 -}
 liftIO' = liftEffectM . liftIO_
@@ -206,5 +205,3 @@ forkIOs' = liftBaseWith $ \run -> do
 
     i <- forkIO g
     pure (liftIO_ . f i, liftIO_ . putMVar s)
-
-

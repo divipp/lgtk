@@ -20,7 +20,6 @@ import Data.Maybe
 import Control.Concurrent
 import Control.Monad
 import Control.Monad.Reader
-import Control.Monad.Fix
 --import Control.Lens hiding ((#))
 import Foreign
 import System.IO
@@ -452,4 +451,3 @@ copyImage (srcImg,Rect srcX1 srcY1 srcX2 srcY2) (dstImg,Rect dstX1 dstY1 dstX2 d
                           (f $ dstX1) (f $ dstY1) (f $ dstX2) (f $ dstY2)
                           gl_COLOR_BUFFER_BIT gl_LINEAR
 #endif
-

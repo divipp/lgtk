@@ -3,7 +3,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module LGtk.Demos.Maze where
 
-import Control.Monad
 import Control.Monad.State
 import Data.List
 import Data.Array
@@ -180,5 +179,3 @@ extRef_ r def f = do
     pure $ _2 `lensMap` v
   where
     set (_, y) x = (x, f x y)
-
-

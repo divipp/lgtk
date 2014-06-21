@@ -110,7 +110,7 @@ import Control.Applicative hiding (empty)
 --import Control.Monad
 import Control.Lens
 
-import Data.LensRef (RefClass (RefReaderSimple), RefSimple, EqRefClass, hasEffect, toEqRef, fromEqRef, RefReaderOf, MonadRefReader, BaseRef)
+import Data.LensRef (RefClass (RefReaderSimple), RefSimple, hasEffect, toEqRef, fromEqRef, RefReaderOf, MonadRefReader, BaseRef)
 import qualified Data.LensRef as Ref
 import LGtk.Effects ()
 import qualified LGtk.Effects as Eff
@@ -382,5 +382,3 @@ undoLens eq = lens get set where
     get = head . fst
     set (x' : xs, ys) x | eq x x' = (x: xs, ys)
     set (xs, _) x = (x : xs, [])
-
-

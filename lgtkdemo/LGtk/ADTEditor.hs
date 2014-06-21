@@ -11,7 +11,6 @@ module LGtk.ADTEditor
     ) where
 
 import Control.Applicative
-import Control.Monad
 import Control.Lens hiding (Cons)
 import LGtk
 
@@ -97,5 +96,3 @@ adtEditor = memoRead . editor  where
             get (ElemsCons _ as) = as
             set :: Elems (Cons x xs) -> Elems xs -> Elems (Cons x xs)
             set (ElemsCons a _) as = ElemsCons a as
-
-

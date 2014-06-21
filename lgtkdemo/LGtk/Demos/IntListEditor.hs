@@ -4,7 +4,6 @@
 module LGtk.Demos.IntListEditor where
 
 import Control.Applicative hiding (empty)
-import Control.Monad
 import Data.List (sortBy)
 import Data.Function (on)
 
@@ -12,7 +11,7 @@ import Control.Lens
 import LGtk
 
 intListEditor
-    :: forall m a
+    :: forall a
     .  (Read a, Show a, Integral a)
     => (a, Bool)            -- ^ default element
     -> Int                  -- ^ maximum number of elements
@@ -92,10 +91,7 @@ listEditor def (ed: eds) r = do
     q <- extRef r listLens (False, (def, []))
     cell (fmap fst $ readRef q) $ \b -> case b of
         False -> empty
-        True -> vcat 
+        True -> vcat
             [ ed $ _2 . _1 `lensMap` q
             , listEditor def eds $ _2 . _2 `lensMap` q
             ]
-
-
-

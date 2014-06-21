@@ -19,7 +19,7 @@
     > test3 = equiv rel 4 6 -- This is False
 -}
 module Data.Equivalence.Persistent (
-    Equivalence,
+    Equivalence(..),
     emptyEquivalence,
     domain,
     equiv,
@@ -29,9 +29,7 @@ module Data.Equivalence.Persistent (
     )
     where
 
-import Control.Concurrent.MVar
 import Control.Applicative
-import Control.Monad
 import Data.Array.IArray
 import Data.IORef
 import Data.List
@@ -125,7 +123,7 @@ equiv eq x y = repr eq x == repr eq y
     equivalence relation.
 -}
 equivalent :: Ix i => Equivalence i -> [i] -> Bool
-equivalent eq []     = True
+equivalent _  []     = True
 equivalent eq (x:xs) = all (== repr eq x) (map (repr eq) xs)
 
 {-|
@@ -163,5 +161,3 @@ equate x y (Equivalence rs vps) = unsafePerformIO $ do
 equateAll :: Ix i => [i] -> Equivalence i -> Equivalence i
 equateAll []     eq = eq
 equateAll (x:xs) eq = foldl' (flip (equate x)) eq xs
-
-
