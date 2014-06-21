@@ -24,6 +24,7 @@ module LGtk
     , combobox
     , entry
     , entryShow
+    , entryPrism
     , hscale
     , cell
     , cellNoMemo
@@ -103,12 +104,13 @@ module LGtk
     ) where
 
 --import Data.String
+import Control.Applicative hiding (empty)
+import Control.Lens
+import Control.Lens.Extras (is)
+import Data.Foldable
 import Data.Maybe
 import Data.Monoid
 import Data.Semigroup
-import Control.Applicative hiding (empty)
---import Control.Monad
-import Control.Lens
 
 import Data.LensRef (RefClass (RefReaderSimple), RefSimple, hasEffect, toEqRef, fromEqRef, RefReaderOf, MonadRefReader, BaseRef)
 import qualified Data.LensRef as Ref
@@ -286,22 +288,21 @@ checkbox r = pure $ Checkbox ((readRef r), writeRef r)
 combobox :: [String] -> Ref Int -> Widget
 combobox ss r = pure $ Combobox ss ((readRef r), writeRef r)
 
--- | Text entry.
+-- | String entry.
 entry :: (RefClass r, RefReaderSimple r ~ RefReader)  => RefSimple r String -> Widget
-entry r = pure $ Entry (const True) ((readRef r), writeRef r)
+entry = entryPrism id
 
--- | Text entry with automatic show-read conversion.
 entryShow :: forall a r . (Show a, Read a, RefClass r, RefReaderSimple r ~ RefReader) => RefSimple r a -> Widget
-entryShow r_ = pure $ Entry isOk ((readRef r), writeRef r)
+entryShow = entryPrism _Show
+
+entryPrism :: forall a r . (RefClass r, RefReaderSimple r ~ RefReader) => Prism' String a -> RefSimple r a -> Widget
+entryPrism prism r = return $ Entry (is prism) (getContent, changed)
   where
-    r = showLens `lensMap` r_
-    isOk s = case (reads s :: [(a, String)]) of
-        ((_,""):_) -> True
-        _ -> False
+    getContent = review prism <$> readRef r
+    changed x = forM_ (x ^? prism) (writeRef r)
 
 showLens :: (Show a, Read a) => Lens' a String
 showLens = lens show $ \def s -> maybe def fst $ listToMaybe $ reads s
-
 
 {- | Notebook (tabs).
 

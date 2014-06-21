@@ -327,6 +327,8 @@ mainWidget = notebook
 
         [ (,) "ListEditor" $ do
             state <- fileRef "intListEditorState.txt"
+            -- NOTE: if there was some kind of 'prismRef', then _Show
+            -- could be used instead of showLens.
             list <- extRef (justLens "" `lensMap` state) showLens []
             settings <- fileRef "intListEditorSettings.txt"
             range <- extRef (justLens "" `lensMap` settings) showLens True
