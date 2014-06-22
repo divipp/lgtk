@@ -46,6 +46,7 @@ module LGtk
 
     -- * Utils
     , undoTr
+    , undoPush
     , showLens
     , listLens
 
@@ -383,3 +384,38 @@ undoLens eq = lens get set where
     get = head . fst
     set (x' : xs, ys) x | eq x x' = (x: xs, ys)
     set (xs, _) x = (x : xs, [])
+
+undoPush
+    :: (a -> a -> Bool)
+    -> Ref a
+    -> RefCreator
+           ( RefReader (Maybe (RefWriter ()))
+           , RefReader (Maybe (RefWriter ()))
+           , RefWriter ()
+           ) -- ^ undo action, redo action, push state action
+undoPush eq ref = do
+    initial <- readRef ref
+    -- This isn't an extRef, because state pushing is requested
+    -- explicitly.
+    state <- newRef ([], initial, [])
+    let undo = do
+            val <- readRef state
+            case val of
+                ([], _, _) -> pure Nothing
+                (u:us', x, rs) -> pure $ Just $ do
+                    writeRef state (us', u, x:rs)
+                    writeRef ref u
+        redo = do
+            val <- readRef state
+            case val of
+                (_, _, []) -> pure Nothing
+                (us, x, r:rs') -> pure $ Just $ do
+                    writeRef state (x:us, r, rs')
+                    writeRef ref r
+        push = do
+            x' <- readRef ref
+            modRef state $ \unchanged@(us, x, _) ->
+                if x `eq` x'
+                    then unchanged
+                    else (x:us, x', [])
+    pure (undo, redo, push)
