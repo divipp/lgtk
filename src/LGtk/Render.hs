@@ -107,27 +107,27 @@ instance IsName Id where
 ---------------------------------------------------------
 
 -- how to handle keyboard events
-type KeyHandler m = ModifiedKey -> m Bool
+type KeyHandler m = ModifiedKey -> RefWriterT m Bool
 
 -- focus enter action; keyboard event handler; focus leave action; id of the keyboard-focused widget
-type KeyFocusHandler m = (m (), KeyHandler m, m (), Id)
+type KeyFocusHandler m = (RefWriterT m (), KeyHandler m, RefWriterT m (), Id)
 
-type CapturedEventHandler a m = (MouseEvent a, Dia a) -> m Bool
+type CapturedEventHandler a m = (MouseEvent a, Dia a) -> RefWriterT m Bool
 
 -- for each mouse event:
 --  - what to do
 --  - the new keyboard focus handler
 --  - the id of the mouse-focused widget
-type EventHandler a m = (MouseEvent a, Dia a) -> Maybe' (m (), Maybe (CapturedEventHandler a m), Maybe (KeyFocusHandler m), Id)
+type EventHandler a m = (MouseEvent a, Dia a) -> Maybe' (RefWriterT m (), Maybe (CapturedEventHandler a m), Maybe (KeyFocusHandler m), Id)
 
 -- compiled widget
 data CWidget m
     = forall a x . (Eq x, Monoid a, Semigroup a)
-    => CWidget (RefReaderOf m (([KeyFocusHandler m], [[KeyFocusHandler m]]), x)) (a -> EventHandler () m) (x -> [Id] -> Id -> Dia a)
+    => CWidget (RefReaderT m (([KeyFocusHandler m], [[KeyFocusHandler m]]), x)) (a -> EventHandler () m) (x -> [Id] -> Id -> Dia a)
 
 ------------------
 
-value_ :: (Monad m, Applicative m) => m () -> KeyFocusHandler m -> Id -> Dia Any -> Dia (EventHandler () m)
+value_ :: (SimpleRefClass m) => RefWriterT m () -> KeyFocusHandler m -> Id -> Dia Any -> Dia (EventHandler () m)
 value_ a c i = value $ valueFun a c i
 
 valueFun a c i = f where
@@ -146,7 +146,7 @@ _ !!! n | n < 0 = Nothing
 (x:_) !!!! n | n <= 0 = x
 (_:xs) !!!! n = xs !!!! (n-1 :: Int)
 
-inCanvas :: forall m . (MonadRefCreator m, MonadFix m) => Int -> Int -> Double -> Widget m -> Widget m
+inCanvas :: forall m . (SimpleRefClass m, MonadFix m) => Int -> Int -> Double -> Widget m -> Widget m
 inCanvas width height scale w = mdo
 
     let i = firstId
@@ -165,8 +165,8 @@ inCanvas width height scale w = mdo
         calcPos i jss = listToMaybe [(a,b) | (a,js) <- zip [0..] jss, (b, j) <- zip [0..] js, i == j]
 
         changeFoc f = do
-            (_, _, _, j) <- readRef foc
-            (_, xss_) <- liftRefReader bb
+            (_, _, _, j) <- readerToWriter $ readRef foc
+            (_, xss_) <- readerToWriter bb
             let xss = filter (not . null) xss_
             if null xss
               then pure False
@@ -186,15 +186,15 @@ inCanvas width height scale w = mdo
         dkh _ = pure False
 
         h2 m@(a,_,_,i) = do
-            i' <- readRef $ _4 `lensMap` foc
+            i' <- readerToWriter $ readRef $ _4 `lensMap` foc
             when (i /= i') $ do
-                join $ readRef $ _3 `lensMap` foc
+                join $ readerToWriter $ readRef $ _3 `lensMap` foc
                 a
                 writeRef foc m
 
         moveFoc f = do
-            (_, _, _, j) <- readRef foc
-            (xs, _) <- liftRefReader bb
+            (_, _, _, j) <- readerToWriter $ readRef foc
+            (xs, _) <- readerToWriter bb
             h2 $ maybe (head xs) snd $ find (\((_,_,_,x),_) -> x == j) $ pairs $ (if f then id else reverse) (xs ++ xs)
             pure $ if f then j /= last xs ^. _4 else j /= head xs ^. _4
 
@@ -219,7 +219,7 @@ inCanvas width height scale w = mdo
             hr_ Nothing' = valueFun (pure ()) df i
 
             handle f x = do
-                m <- readRef capt
+                m <- readerToWriter $ readRef capt
                 case m of
                     Nothing -> handle_ $ hr_ f x
                     Just f -> do
@@ -229,12 +229,12 @@ inCanvas width height scale w = mdo
             handleEvent (Release (MousePos p f), di) = handle f (Release $ MousePos p (), di # clearValue # value ())
             handleEvent (Click   (MousePos p f), di) = handle f (Click   $ MousePos p (), di # clearValue # value ())
             handleEvent (MoveTo  (MousePos p f), di) = handle f (MoveTo  $ MousePos p (), di # clearValue # value ())
-            handleEvent (GetFocus, _di) = readRef rememberfoc >>= h2
-            handleEvent (LostFocus, _di) = readRef foc >>= writeRef rememberfoc >> h2 df
+            handleEvent (GetFocus, _di) = readerToWriter (readRef rememberfoc) >>= h2
+            handleEvent (LostFocus, _di) = readerToWriter (readRef foc) >>= writeRef rememberfoc >> h2 df
             handleEvent _ = pure ()
 
             handleKeys key = do
-                (_,f,_,_) <- readRef foc
+                (_,f,_,_) <- readerToWriter $ readRef foc
                 f key
 
         pure $ Canvas width height scale handleEvent (Just handleKeys) (liftA3 (,,) (readRef hi) (readRef $ _4 `lensMap` foc) $ fmap snd b) $
@@ -271,11 +271,11 @@ text__ ma mi s = ((x' :& y'), -- rect x' y' # fc red) --
 
 defcolor = sRGB 0.95 0.95 0.95
 
-tr  :: forall m . MonadRefCreator m
+tr  :: forall m . SimpleRefClass m
     => Double
-    -> KeyHandler (RefWriterOf m)
+    -> KeyHandler m
     -> Widget m
-    -> WithId m (CWidget (RefWriterOf m))
+    -> WithId (RefCreatorT m) (CWidget m)
 tr sca dkh w = do
     w' <- lift w
     case w' of
@@ -321,17 +321,17 @@ tr sca dkh w = do
                 f _ _ = Nothing
 
                 commit = do
-                    ab <- readRef j2
+                    ab <- readerToWriter $ readRef j2
                     let s = value' ab
-                    old <- liftRefReader rs
+                    old <- readerToWriter rs
                     when (s /= old && isOk s) $ do
                         rr s
-                        new <- liftRefReader rs
+                        new <- readerToWriter rs
                         update new
 
                 ff (CharKey '\n') = commit >> pure True
                 ff key = do
-                    x <- readRef j2
+                    x <- readerToWriter $ readRef j2
                     case f key x of
                         Just x -> writeRef j2 x >> pure True
                         _ -> dkh key
@@ -362,7 +362,7 @@ tr sca dkh w = do
         Checkbox (bs, br) -> do
             i <- newId
 
-            let ff (CharKey ' ') = liftRefReader bs >>= br . not >> pure True
+            let ff (CharKey ' ') = readerToWriter bs >>= br . not >> pure True
                 ff k = dkh k
                 kh = (pure (), ff, pure (), i)
 
@@ -443,7 +443,7 @@ tr sca dkh w = do
 
             let -- ff ind _ _ (Just ' ') = br ind
                 br' ind = br (ind `mod` n)
-                br'' f = liftRefReader bs >>= br' . f  >> pure True
+                br'' f = readerToWriter bs >>= br' . f  >> pure True
                 ff (CharKey '\n') = br'' (+1)
                 ff (CharKey ' ') = br'' (+1)
                 ff (SimpleKey Key'Backspace) = br'' (+(-1))
@@ -474,9 +474,9 @@ tr sca dkh w = do
             ii <- newId
             ir <- lift $ newRef (0 :: Int)
 
-            let br' :: Int -> RefWriterOf m ()
+            let br' :: Int -> RefWriterT m ()
                 br' ind = br ind' >> writeRef ir ind' where ind' = ind `mod` n
-                br'' f = readRef ir >>= br' . f  >> pure True
+                br'' f = readerToWriter (readRef ir) >>= br' . f  >> pure True
                 ff (SimpleKey Key'Left) = br'' (+(-1))
                 ff (SimpleKey Key'Right) = br'' (+ 1)
                 ff (AltKey (Key'Char c)) | Just i <- ind c = br'' (const i)
@@ -539,17 +539,17 @@ tr sca dkh w = do
                 ff k = dkh k
                 kh = (pure (), ff, pure (), i)
                 modR f = do
-                    v <- liftRefReader sr
+                    v <- readerToWriter sr
                     rr $ f v
                     pure True
 
                 adj x = do
-                    m <- readRef mv
+                    m <- readerToWriter $ readRef mv
                     case m of
                         Just (x_, v) -> rr $ min ma $ max mi $ v + (ma - mi) * (x - x_) / 10
                         Nothing -> pure ()
 
-                f (Click (MousePos p _), _) = Just' (liftRefReader sr >>= \v -> writeRef mv $ Just (getx p, v), Just f', Just kh, i)
+                f (Click (MousePos p _), _) = Just' (readerToWriter sr >>= \v -> writeRef mv $ Just (getx p, v), Just f', Just kh, i)
                 f (MoveTo _, _) = Just' (pure (), Nothing, Nothing, i)
                 f _ = mempty
 

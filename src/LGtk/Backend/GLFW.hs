@@ -11,12 +11,8 @@ module LGtk.Backend.GLFW
 
 import Data.Char
 import Data.Maybe
---import Control.Applicative
 import Control.Concurrent
 import Control.Monad
---import Control.Monad.Reader
---import Control.Monad.Fix
---import Control.Lens hiding ((#))
 import Foreign
 import System.IO
 import Graphics.Rendering.OpenGL.Raw.Core31
@@ -38,9 +34,7 @@ import Graphics.Rendering.Cairo ( Format (..)
                                 )
 #endif
 
-import Data.LensRef.Class
 import Data.LensRef
-import Data.LensRef.Default
 import LGtk.Effects
 import LGtk.Widgets
 import LGtk.Render
@@ -50,19 +44,17 @@ import LGtk.Key
 
 type Base = IO
 
-type RefCreator = RefCreatorPost Base
-
 data SWidget = forall a . (Monoid a, Semigroup a)
     => SWidget Int Int Double ((MouseEvent a, Dia a) -> IO ()) (ModifiedKey -> IO ()) (IO (Dia a)) (MVar (Dia a))
 
 
-runWidget :: Widget (RefCreator) -> IO ()
+runWidget :: Widget (Rt IO) -> IO ()
 runWidget desc = do
     hSetBuffering stdout NoBuffering
 
     ch <- newChan
     (widget, setTime) <- runRefCreatorPost (writeChan ch) $ \post -> do
-        i <- inCanvas 800 600 30 desc
+        i <- inCanvas 800 600 30 desc  -- :: Widget (RefCreatorPost IO)
         case i of
             Canvas w h sc_ me keyh r diaFun -> do
                 rer <- liftIO' $ newMVar mempty

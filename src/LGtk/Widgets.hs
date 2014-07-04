@@ -27,18 +27,18 @@ import LGtk.Key
 
 ---------------------------------------------------------
 
-type Receive m a = a -> RefWriterOf m ()
+type Receive m a = a -> RefWriterT m ()
 
-type SendReceive m a = (RefReaderOf m a, Receive m a)
+type SendReceive m a = (RefReaderT m a, Receive m a)
 
-type Widget m = m (WidgetCore m)
+type Widget m = RefCreatorT m (WidgetCore m)
 
 -- | Widget descriptions
 data WidgetCore m
-    = Label (RefReaderOf m String)     -- ^ label
-    | Button { label_  :: RefReaderOf m String
-             , sensitive_ :: RefReaderOf m Bool
-             , color_ :: Maybe (RefReaderOf m (Colour Double))
+    = Label (RefReaderT m String)     -- ^ label
+    | Button { label_  :: RefReaderT m String
+             , sensitive_ :: RefReaderT m Bool
+             , color_ :: Maybe (RefReaderT m (Colour Double))
              , action_ :: Receive m ()
              }  -- ^ button
     | Checkbox (SendReceive m Bool)         -- ^ checkbox
@@ -46,15 +46,15 @@ data WidgetCore m
     | Entry (String -> Bool) (SendReceive m String)          -- ^ entry field
     | List ListLayout [Widget m]         -- ^ group interfaces into row or column
     | Notebook' (Receive m Int) [(String, Widget m)]     -- ^ actual tab index, tabs
-    | forall b . Eq b => Cell (RefReaderOf m b) (forall x . (Widget m -> m x) -> b -> m (m x))
+    | forall b . Eq b => Cell (RefReaderT m b) (forall x . (Widget m -> RefCreatorT m x) -> b -> RefCreatorT m (RefCreatorT m x))
     | forall a b . (Eq b, Monoid a, Semigroup a)
     => Canvas
         Int     -- width
         Int     -- height
         Double  -- scale
-        ((MouseEvent a, Dia a) -> RefWriterOf m ())    -- mouse event handler
-        (KeyboardHandler (RefWriterOf m))              -- keyboard event handler
-        (RefReaderOf m b)
+        ((MouseEvent a, Dia a) -> RefWriterT m ())    -- mouse event handler
+        (KeyboardHandler m)              -- keyboard event handler
+        (RefReaderT m b)
         (b -> Dia a)
     | Scale Double Double Double (SendReceive m Double)
 
@@ -68,7 +68,7 @@ data ListLayout
 
 type ScrollDirection = ListLayout
 
-type KeyboardHandler m = Maybe (ModifiedKey -> m Bool)
+type KeyboardHandler m = Maybe (ModifiedKey -> RefWriterT m Bool)
 
 data MouseEvent a
     = MoveTo (MousePos a)

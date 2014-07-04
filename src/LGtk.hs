@@ -71,12 +71,13 @@ module LGtk
     -- * References
 
     -- ** State extension
-    , newRef    -- newRef
-    , extendRef    -- extendWith
+    , newRef
+    , extendRef
 
     -- ** Substate formation
     , lensMap
-    , toEqRef   -- toEqRef
+    , joinRef
+    , toEqRef
 
     -- ** Triggers
     , onChange
@@ -85,15 +86,19 @@ module LGtk
     , onChangeMemo
 
     -- ** Other
-    , memoise  -- memoise
+    , memoise
 
     -- ** Reference writing
-    , writeRef  -- writeRef
-    , adjust    -- modify
+    , writeRef
+    , adjust    -- modRef
 
     -- ** Reference reading
-    , value   -- value
-    , liftRefReader -- liftRefReader
+    , value   -- readRef
+    , currentValue
+
+    -- ** Conversion between monads
+    , readerToWriter
+    , readerToCreator
 
     -- * Types
     , Widget
@@ -103,13 +108,7 @@ module LGtk
     , Modifier
     , Ref
     , EqRef
-
-    -- ** Other types
-    , RefSimple
---    , RefReaderSimple
---    , EqRefClass
     , RefClass
-
     ) where
 
 --import Data.String
@@ -118,12 +117,10 @@ import Data.Monoid
 import Data.Time.Clock
 import Data.Semigroup
 import Control.Applicative
---import Control.Monad
 import Control.Lens
 
-import Data.LensRef (RefClass (RefReaderSimple), RefSimple, EqRefClass, hasEffect, fromEqRef, RefReaderOf, MonadRefReader, BaseRef, RefWriterOf, toEqRef)
+import Data.LensRef (readerToCreator)
 import qualified Data.LensRef as Ref
-import qualified Data.LensRef.Default as Ref
 import LGtk.Effects ()
 import qualified LGtk.Effects as Eff
 import LGtk.Widgets hiding (Widget)
@@ -139,35 +136,60 @@ import LGtk.Backend.GLFW
 
 ----------------------------
 
-value
-    :: ( MonadRefReader m
-       , RefClass r
-       , RefReaderOf m ~ RefReaderSimple r
-       , BaseRef m ~ BaseRef (RefWriterOf m)
-       )
-    => RefSimple r a -> m a
-value = Ref.readRef
+class RefClass r where
+    readRef :: r a -> RefReader a
+    writeRef :: r a -> a -> RefWriter ()
+    lensMap :: Lens' a b -> r a -> r b
+    joinRef :: RefReader (r a) -> r a
 
-liftRefReader
-    :: ( MonadRefReader m
-       , BaseRef m ~ BaseRef (RefWriterOf m)
-       )
-    => RefReaderOf m a -> m a
-liftRefReader = Ref.liftRefReader
-
-unitRef :: RefClass r => RefSimple r ()
-unitRef = Ref.unitRef
+r `modRef` f = Ref.readerToWriter (readRef r) >>= writeRef r . f
 
 infixr 8 `lensMap`
 
-lensMap :: RefClass r => Lens' a b -> RefSimple r a -> RefSimple r b
-lensMap = Ref.lensMap
+instance RefClass Ref where
+    readRef = Ref.readRef
+    writeRef = Ref.writeRef
+    lensMap = Ref.lensMap
+    joinRef = Ref.joinRef
 
-writeRef :: (RefClass r, RefReaderSimple r ~ RefReader) => RefSimple r a -> a -> RefWriter ()
-writeRef = Ref.writeRef
+-- | Substate of the program state equipped with an @Eq@ instance.
+data EqRef a = EqRef
+    { runEqRef :: Ref a
+    , changing :: a -> RefReader Bool
+    }
 
-adjust :: (RefClass r, RefReaderSimple r ~ RefReader) => RefSimple r a -> (a -> a) -> RefWriter ()
-adjust = Ref.modRef
+instance RefClass EqRef where
+    readRef = Ref.readRef . runEqRef
+    writeRef r = Ref.writeRef (runEqRef r)
+    lensMap k (EqRef r c) = EqRef
+        { runEqRef = Ref.lensMap k r
+        , changing = \b -> Ref.readRef r >>= \a -> c $ set k b a
+        }
+    joinRef m = EqRef
+        { runEqRef = Ref.joinRef $ m <&> runEqRef
+        , changing = \a -> m >>= \(EqRef _ k) -> k a
+        }
+
+hasEffect
+    :: EqRef a
+    -> (a -> a)
+    -> RefReader Bool
+hasEffect (EqRef r c) f = readRef r >>= c . f
+
+toEqRef :: (Eq a) => Ref a -> EqRef a
+toEqRef r = EqRef r $ \x -> Ref.readRef r <&> (/= x)
+
+
+value = readRef
+
+currentValue
+    :: RefReader a -> RefWriter a
+currentValue = Ref.readerToWriter
+
+readerToWriter = currentValue
+
+adjust :: (RefClass r) => r a -> (a -> a) -> RefWriter ()
+adjust = modRef
 
 extendRef :: Ref b -> Lens' a b -> a -> RefCreator (Ref a)
 extendRef = Ref.extendRef
@@ -189,10 +211,7 @@ onChangeMemo = Ref.onChangeMemo
 
 memoise :: RefCreator a -> RefCreator (RefCreator a)
 memoise = Ref.memoRead
-{-
-extendStateEq :: Eq a => a -> RefCreator (Ref a)
-extendStateEq = Ref.newEqRef
--}
+
 getArgs :: RefCreator [String]
 getArgs = Eff.getArgs
 
@@ -224,29 +243,27 @@ fileRef :: FilePath -> RefCreator (Ref (Maybe String))
 fileRef = Eff.fileRef
 
 
+type RB = Eff.Rt Base
 
 {- |
 Widget descriptions.
 -}
-type Widget = Widget.Widget RefCreator
+type Widget = Widget.Widget RB
 
 -- | Substate of the program state.
-type Ref a = Ref.RefOf RefCreator a
-
--- | Substate of the program state equipped with an @Eq@ instance.
-type EqRef a = Ref.EqRefOf RefCreator a
+type Ref = Ref.Ref RB
 
 -- | An action which modifies the program state.
-type RefWriter = Ref.RefWriterT IO
+type RefWriter = Ref.RefWriterT RB
 
 -- | Program state modifier monad.
 type Modifier = RefWriter ()
 
 -- | RefReader of the program state. @RefReader@ is a @Monad@.
-type RefReader = Ref.RefReaderT Base
+type RefReader = Ref.RefReaderT RB
 
 -- | Substate creation monad. Effects can also be emitted in it.
-type RefCreator = Eff.RefCreatorPost Base
+type RefCreator = Ref.RefCreatorT RB
 
 
 
@@ -290,7 +307,7 @@ button
     :: RefReader String     -- ^ dynamic label of the button
     -> RefReader (Maybe (RefWriter ()))     -- ^ when the @Maybe@ value is @Nothing@, the button is inactive
     -> Widget
-button r fm = primButton r (fmap isJust fm) Nothing (liftRefReader fm >>= maybe (pure ()) id)
+button r fm = primButton r (fmap isJust fm) Nothing (currentValue fm >>= maybe (pure ()) id)
 
 -- | Button which inactivates itself automatically.
 smartButton
@@ -310,11 +327,11 @@ combobox :: [String] -> Ref Int -> Widget
 combobox ss r = pure $ Combobox ss ((value r), writeRef r)
 
 -- | Text entry.
-entry :: (RefClass r, RefReaderSimple r ~ RefReader)  => RefSimple r String -> Widget
+entry :: (RefClass r)  => r String -> Widget
 entry r = pure $ Entry (const True) ((value r), writeRef r)
 
 -- | Text entry with automatic show-read conversion.
-entryShow :: forall a r . (Show a, Read a, RefClass r, RefReaderSimple r ~ RefReader) => RefSimple r a -> Widget
+entryShow :: forall a r . (Show a, Read a, RefClass r) => r a -> Widget
 entryShow r_ = pure $ Entry isOk ((value r), writeRef r)
   where
     r = showLens `lensMap` r_
@@ -359,7 +376,7 @@ canvas
     -> Int   -- ^ height
     -> Double  -- ^ scale
     -> ((MouseEvent a, Dia a) -> RefWriter ()) -- ^ mouse event handler
-    -> KeyboardHandler RefWriter -- ^ keyboard event handler
+    -> KeyboardHandler RB -- ^ keyboard event handler
     -> RefReader b -- ^ state references
     -> (b -> Dia a) -- ^ diagrams renderer
     -> Widget

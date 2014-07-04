@@ -3,8 +3,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module LGtk.Demos.IntListEditor where
 
-import Control.Applicative hiding (emptyWidget)
-import Control.Monad
+import Control.Applicative
 import Data.List (sortBy)
 import Data.Function (on)
 
@@ -77,7 +76,7 @@ intListEditor def maxi list_ range = do
 
     sel = fmap (filter snd) $ value list
 
-    len = value range >>= \r -> ll r `lensMap` safeList   -- todo
+    len = joinRef $ value range >>= \r -> pure $ ll r `lensMap` safeList   -- todo
     ll :: Bool -> Lens' [(a, Bool)] Int
     ll r = lens length extendList where
         extendList xs n = take n $ (reverse . drop 1 . reverse) xs ++

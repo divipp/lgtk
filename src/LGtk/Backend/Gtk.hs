@@ -13,7 +13,6 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.Reader
 import Control.Exception
---import Control.Monad.State
 import Control.Monad.Trans.Control
 import Control.Concurrent
 import Data.Maybe
@@ -27,9 +26,7 @@ import Diagrams.Backend.Cairo.Internal
 import Graphics.UI.Gtk hiding (Widget, Release)
 import qualified Graphics.UI.Gtk as Gtk
 
-import Data.LensRef.Class
 import Data.LensRef
-import Data.LensRef.Default
 import LGtk.Effects
 import LGtk.Widgets
 import LGtk.Key

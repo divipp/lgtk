@@ -3,13 +3,12 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module LGtk.Demos.Maze where
 
-import Control.Monad
 import Control.Monad.State
 import Data.List
 import Data.Array
 import qualified Data.Set as S
 import System.Random
-import Diagrams.Prelude hiding (vertically, horizontally, Point, Start, adjust, value)
+import Diagrams.Prelude hiding (Point, Start, adjust, value)
 import qualified Diagrams.Prelude as D
 
 import Control.Lens hiding ((#))
@@ -115,13 +114,13 @@ mazeGame = do
         handler _ = pure ()
 
         domove p = do
-            (maze, _) <- value maze_
-            b <- value forgiving
+            (maze, _) <- readerToWriter $ value maze_
+            b <- readerToWriter $ value forgiving
             adjust r $ gameLogic b maze p
 
         move f = do
-            (maze, _) <- value maze_
-            (_, st) <- value r
+            (maze, _) <- readerToWriter $ value maze_
+            (_, st) <- readerToWriter $ value r
             let m = case st of
                     Start -> Just $ snd $ bounds maze
                     Explore p -> checkBounds (bounds maze) $ f p
@@ -176,7 +175,7 @@ mazeGame = do
 
 extRef_ ::  Ref b -> a -> (b -> a -> a) -> RefCreator (Ref a)
 extRef_ r def f = do
-    r0 <- value r
+    r0 <- readerToCreator $ value r
     v <- extendRef r (lens fst set) (r0, def)
     pure $ _2 `lensMap` v
   where

@@ -10,7 +10,6 @@ import Numeric
 import Data.Maybe (isJust)
 import Control.Lens hiding ((#))
 import Control.Monad
-import Control.Monad.Fix
 import Diagrams.Prelude hiding (atTime, Point, Start, adjust, value, interval, tri)
 import qualified Diagrams.Prelude as D
 
@@ -164,8 +163,8 @@ mainWidget = notebook
                 phase <- newRef (0 :: Double)
                 t <- newRef 0
                 _ <- onChangeEq (value phase) $ \x -> do
-                    s <- value speed
-                    f <- value fps
+                    s <- readerToCreator $ value speed
+                    f <- readerToCreator $ value fps
                     asyncWrite (round $ 1000000 / f) $ writeRef phase (x + 2 * pi * s / f)
                 vertically
                     [ canvas 200 200 10 (const $ pure ()) Nothing (liftA2 (,) (value t) (value phase)) $
@@ -274,7 +273,7 @@ mainWidget = notebook
             _ <- onChangeEq (value ready) $ \b -> case b of
                 True -> pure ()
                 False -> do
-                    d <- value delay
+                    d <- readerToCreator $ value delay
                     asyncWrite (ceiling $ 1000000 * d) $ writeRef ready True
             vertically
                 [ horizontally [ entryShow delay, label $ pure "sec" ]
@@ -361,7 +360,7 @@ counter x ab = do
     fix :: Lens' (a, (a,a)) (a, (a,a))
     fix = lens id $ \_ (x, ab@(a, b)) -> (min b $ max a x, ab)
 
-interval :: (RefClass r, Ord a) => RefSimple r (a, a) -> (RefSimple r a, RefSimple r a)
+interval :: (RefClass r, Ord a) => r (a, a) -> (r a, r a)
 interval ab = (lens fst set1 `lensMap` ab, lens snd set2 `lensMap` ab) where
     set1 (_, b) a = (min b a, b)
     set2 (a, _) b = (a, max a b)

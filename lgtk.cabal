@@ -47,10 +47,6 @@ Flag Gtk
   Description:      Build the Gtk backend (conflicts with Rasterific)
   Default:          False
 
-Flag pure
-  Description:      Use the pure but slow implementation of lens references
-  Default:          False
-
 
 library
 
@@ -85,12 +81,8 @@ library
                   , lensref == 0.3.*
 
   exposed-modules:
-                    -- lgtk
                     LGtk
   other-modules:
-                    Data.LensRef.Default
-
-                    -- lgtk
                     LGtk.Effects
                     LGtk.Key
                     LGtk.Widgets
@@ -106,10 +98,6 @@ library
                     -fno-warn-missing-signatures 
                     -fno-warn-orphans
                     -fno-warn-type-defaults
-
-  if flag(pure)
-    cpp-options:
-                    -D__PURE__
 
   if flag(Gtk)
     build-depends:
