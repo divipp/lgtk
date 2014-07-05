@@ -311,15 +311,15 @@ mainWidget = notebook
                 put = do
                     x <- newRef Nothing
                     _ <- onChangeEq (value x) $ maybe (pure ()) putStrLn_
-                    horizontally 
+                    horizontally
                         [ label $ pure "putStrLn"
                         , entry $ iso (maybe "" id) Just `lensMap` x
                         ]
                 get = do
                     ready <- newRef $ Just ""
-                    _ <- onChangeEq (fmap isJust $ value ready) $ \b -> 
+                    _ <- onChangeEq (fmap isJust $ value ready) $ \b ->
                         when (not b) $ getLine_ $ writeRef ready . Just
-                    horizontally 
+                    horizontally
                         [ primButton (pure "getLine") (fmap isJust $ value ready) Nothing $ writeRef ready Nothing
                         , label $ fmap (maybe "<<<waiting for input>>>" id) $ value ready
                         ]
@@ -396,6 +396,3 @@ inCanvasExample = do
             ]
 
     horizontally [ inCanvas 200 300 15 $ vertically [x, inCanvas 100 100 15 x], x]
-
-
-

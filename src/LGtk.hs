@@ -432,5 +432,3 @@ undoLens eq = lens get set where
     get = head . fst
     set (x' : xs, ys) x | eq x x' = (x: xs, ys)
     set (xs, _) x = (x : xs, [])
-
-

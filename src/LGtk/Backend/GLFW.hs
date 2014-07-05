@@ -393,3 +393,4 @@ copyImage (srcImg,Rect srcX1 srcY1 srcX2 srcY2) (dstImg,Rect dstX1 dstY1 dstX2 d
         glBlitFramebuffer (f $ srcX1) (f $ srcY1) (f $ srcX2) (f $ srcY2)
                           (f $ dstX1) (f $ dstY1) (f $ dstX2) (f $ dstY2)
                           gl_COLOR_BUFFER_BIT gl_LINEAR
+

@@ -42,7 +42,7 @@ runRefCreatorPost
     :: (SimpleRefClass m, MonadBaseControl IO m, MonadFix m)
     => (m () -> m ())
     -> ((RefWriter (Rt m) () -> m ()) -> RefCreatorPost m a)
-    -> m (a, m ()) 
+    -> m (a, m ())
 runRefCreatorPost w f = mdo
     t <- liftIO_ Time.getCurrentTime
     r <- newSimpleRef t
@@ -57,17 +57,12 @@ runRefCreatorPost w f = mdo
 askPostpone = lift $ Rt $ asks fst
 
 
-
-
-
-
-
 time     :: (SimpleRefClass m, MonadBaseControl IO m) => RefCreatorPost m Time.UTCTime
 time = do
     r <- lift $ Rt $ asks snd
     liftEffectM $ readSimpleRef r
 
--- | The program's command line arguments (not including the program name). 
+-- | The program's command line arguments (not including the program name).
 getArgs     :: (SimpleRefClass m, MonadBaseControl IO m) => RefCreatorPost m [String]
 getArgs     = liftIO' Env.getArgs
 
@@ -109,7 +104,7 @@ When the value of the reference changes, the file changes.
 When the file changes, the value of the reference changes.
 
 If the reference holds @Nothing@, the file does not exist.
-Note that you delete the file by putting @Nothing@ into the reference.    
+Note that you delete the file by putting @Nothing@ into the reference.
 
 Implementation note: The references returned by @fileRef@ are not
 memoised so currently it is unsafe to call @fileRef@ on the same filepath more than once.
@@ -195,7 +190,7 @@ getLine__ f = do
 -}
 {-
 -- canonicalizePath may fail if the file does not exsist
-canonicalizePath' p = fmap (F.</> f) $ canonicalizePath d 
+canonicalizePath' p = fmap (F.</> f) $ canonicalizePath d
   where (d,f) = F.splitFileName p
 -}
 liftIO' = liftEffectM . liftIO_
@@ -221,5 +216,3 @@ forkIOs' = liftBaseWith $ \run -> do
 
     i <- forkIO g
     pure (liftIO_ . f i, liftIO_ . putMVar s)
-
-
