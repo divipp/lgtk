@@ -91,10 +91,7 @@ listEditor def (ed: eds) r = do
     q <- extendRef r listLens (False, (def, []))
     cell (fmap fst $ value q) $ \b -> case b of
         False -> emptyWidget
-        True -> vertically 
+        True -> vertically
             [ ed $ _2 . _1 `lensMap` q
             , listEditor def eds $ _2 . _2 `lensMap` q
             ]
-
-
-

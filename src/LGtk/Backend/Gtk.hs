@@ -147,7 +147,7 @@ runWidget_ post_ post' post = toWidget
                     select :: SomeException -> Maybe ()
                     select s | "widgetGetDrawWindow" `isInfixOf` show s = Just ()
                     select _ = Nothing
-                    
+
 
               dims win = do
                 (w, h) <- drawableGetSize win
@@ -300,9 +300,9 @@ runWidget_ post_ post' post = toWidget
             sh <- liftIO' $ newMVar $ pure ()
             _ <- onChangeMemo onCh $ \bv -> do
                 mx <- f toWidget bv
-                pure $ mx >>= \(x,y) -> liftIO'' $ do 
+                pure $ mx >>= \(x,y) -> liftIO'' $ do
                     _ <- swapMVar sh x
-                    containerForeach w $ if b then widgetHideAll else containerRemove w 
+                    containerForeach w $ if b then widgetHideAll else containerRemove w
                     post' $ post $ do
                         ch <- containerGetChildren w
                         when (y `notElem` ch) $ containerAdd w y
@@ -351,5 +351,3 @@ trKey mods name ch
             "Return" -> Key'Char '\n'
             "Tab" -> Key'Char '\t'
             _ -> Key'Unknown
-
-
