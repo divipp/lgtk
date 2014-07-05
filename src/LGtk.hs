@@ -92,11 +92,9 @@ module LGtk
 
     -- ** Reference writing
     , writeRef
-    , adjust        -- TODO: remove
     , modRef
 
     -- ** Reference reading
-    , value        -- TODO: remove
     , readRef
     , currentValue
 

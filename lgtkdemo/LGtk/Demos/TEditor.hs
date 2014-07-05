@@ -43,7 +43,7 @@ tEditor3 r = do
     q <- extendRef r tLens (False, (Leaf, Leaf))
     horizontally
         [ checkbox $ _1 `lensMap` q
-        , cell (fmap fst $ value q) $ \b -> case b of
+        , cell (readRef q <&> fst) $ \b -> case b of
             False -> emptyWidget
             True -> vertically
                 [ tEditor3 $ _2 . _1 `lensMap` q

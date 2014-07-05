@@ -6,8 +6,8 @@ module LGtk.Demos.IntListEditor where
 import Control.Applicative
 import Data.List (sortBy)
 import Data.Function (on)
-
 import Control.Lens
+
 import LGtk
 
 intListEditor
@@ -28,7 +28,7 @@ intListEditor def maxi list_ range = do
                     [ horizontally
                         [ smartButton (pure "+1") len (+1)
                         , smartButton (pure "-1") len (+(-1))
-                        , smartButton (fmap (("DeleteAll " ++) . show) $ value len) len $ const 0
+                        , smartButton (fmap (("DeleteAll " ++) . show) $ readRef len) len $ const 0
                         ]
                     , horizontally
                         [ button (pure "undo") undo
@@ -68,15 +68,15 @@ intListEditor def maxi list_ range = do
         [ label $ pure $ show (i+1) ++ "."
         , entryShow $ _1 `lensMap` r
         , checkbox $ _2 `lensMap` r
-        , primButton (pure "Del")  (pure True) Nothing $ adjust list $ \xs -> take i xs ++ drop (i+1) xs
-        , primButton (pure "Copy") (pure True) Nothing $ adjust list $ \xs -> take (i+1) xs ++ drop i xs
+        , primButton (pure "Del")  (pure True) Nothing $ modRef list $ \xs -> take i xs ++ drop (i+1) xs
+        , primButton (pure "Copy") (pure True) Nothing $ modRef list $ \xs -> take (i+1) xs ++ drop i xs
         ]
 
     safeList = lens id (const $ take maxi) `lensMap` list
 
-    sel = fmap (filter snd) $ value list
+    sel = fmap (filter snd) $ readRef list
 
-    len = joinRef $ value range >>= \r -> pure $ ll r `lensMap` safeList   -- todo
+    len = joinRef $ readRef range >>= \r -> pure $ ll r `lensMap` safeList   -- todo
     ll :: Bool -> Lens' [(a, Bool)] Int
     ll r = lens length extendList where
         extendList xs n = take n $ (reverse . drop 1 . reverse) xs ++
@@ -89,7 +89,7 @@ intListEditor def maxi list_ range = do
 listEditor ::  a -> [Ref a -> Widget] -> Ref [a] -> Widget
 listEditor def (ed: eds) r = do
     q <- extendRef r listLens (False, (def, []))
-    cell (fmap fst $ value q) $ \b -> case b of
+    cell (fmap fst $ readRef q) $ \b -> case b of
         False -> emptyWidget
         True -> vertically
             [ ed $ _2 . _1 `lensMap` q

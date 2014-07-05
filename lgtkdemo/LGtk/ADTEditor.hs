@@ -71,7 +71,7 @@ adtEditor = memoise . editor  where
         es <- mkEditors ls $ _2 `lensMap` q
         horizontally
             [ combobox (map fst ss) $ _1 `lensMap` q
-            , cell (fmap fst $ value q) $ \i -> vertically [es !! j | j <- snd $ ss !! i]
+            , cell (readRef q <&> fst) $ \i -> vertically [es !! j | j <- snd $ ss !! i]
             ]
       where
         (ss, ls, Lens_ k) = adtLens

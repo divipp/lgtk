@@ -8,10 +8,9 @@ import Data.List
 import Data.Array
 import qualified Data.Set as S
 import System.Random
-import Diagrams.Prelude hiding (Point, Start, adjust, value)
-import qualified Diagrams.Prelude as D
-
+import Diagrams.Prelude hiding (Point, Start)
 import Control.Lens hiding ((#))
+
 import LGtk
 
 import LGtk.Demos.Maze.Types
@@ -37,17 +36,17 @@ instance Show GameState where
 drawMaze :: (Maze, S.Set Point, Maybe Point) -> Dia [Point]
 drawMaze (maze, hi, pos) =
     (  mconcat (map drawCell $ assocs maze) # centerXY
-    <> rect (fromIntegral $ x2-x1+1) (fromIntegral $ y2-y1+1) # lwL wallwidth # fc (sRGB 0.95 0.95 0.95) # D.value []
+    <> rect (fromIntegral $ x2-x1+1) (fromIntegral $ y2-y1+1) # lwL wallwidth # fc (sRGB 0.95 0.95 0.95) # value []
     ) # scale (1 / fromIntegral (max (x2-x1+1) (y2-y1+1)))
   where
     drawCell (p@(i,j), C cs) =
-            (   (if b then mconcat (map drawWall $ complement cs) # lwL wallwidth # D.value [] else mempty)
+            (   (if b then mconcat (map drawWall $ complement cs) # lwL wallwidth # value [] else mempty)
             <>  (if Just p == pos then circ # fc blue else mempty)
             <>  (if p == q2 || p == q1 then circ else mempty)
-            <>  rect 1 1 # lwL 0 # (if b then fc yellow else id) # D.value [p]
+            <>  rect 1 1 # lwL 0 # (if b then fc yellow else id) # value [p]
             )   # translate (r2 (fromIntegral i, fromIntegral j))
         where b = S.member p hi
-    circ = circle 0.35 # lwL 0.005 # D.value []
+    circ = circle 0.35 # lwL 0.005 # value []
     wallwidth = 0.02
 
     drawWall E = fromVertices [p2 (-d, d), p2 (d, d)]
@@ -114,13 +113,13 @@ mazeGame = do
         handler _ = pure ()
 
         domove p = do
-            (maze, _) <- readerToWriter $ value maze_
-            b <- readerToWriter $ value forgiving
-            adjust r $ gameLogic b maze p
+            (maze, _) <- readerToWriter $ readRef maze_
+            b <- readerToWriter $ readRef forgiving
+            modRef r $ gameLogic b maze p
 
         move f = do
-            (maze, _) <- readerToWriter $ value maze_
-            (_, st) <- readerToWriter $ value r
+            (maze, _) <- readerToWriter $ readRef maze_
+            (_, st) <- readerToWriter $ readRef r
             let m = case st of
                     Start -> Just $ snd $ bounds maze
                     Explore p -> checkBounds (bounds maze) $ f p
@@ -140,7 +139,7 @@ mazeGame = do
 
     vertically
         [ horizontally
-            [ canvas 400 400 1 handler (Just key) (liftA2 (\(m,_) (s, st) -> (m,s, pos m st)) (value maze_) (value r)) drawMaze
+            [ canvas 400 400 1 handler (Just key) (liftA2 (\(m,_) (s, st) -> (m,s, pos m st)) (readRef maze_) (readRef r)) drawMaze
 
             , vertically
                 [ horizontally
@@ -152,10 +151,10 @@ mazeGame = do
                 ]
             ]
 
-        , label $ fmap (show . snd) $ value r
+        , label $ fmap (show . snd) $ readRef r
         , horizontally
-            [ button (pure "Try again") $ pure $ Just $ adjust maze_ id
-            , button (pure "New maze") $ pure $ Just $ adjust dim id
+            [ button (pure "Try again") $ pure $ Just $ modRef maze_ id
+            , button (pure "New maze") $ pure $ Just $ modRef dim id
             ]
         , horizontally
             [ entryShow dimX
@@ -175,7 +174,7 @@ mazeGame = do
 
 extRef_ ::  Ref b -> a -> (b -> a -> a) -> RefCreator (Ref a)
 extRef_ r def f = do
-    r0 <- readerToCreator $ value r
+    r0 <- readerToCreator $ readRef r
     v <- extendRef r (lens fst set) (r0, def)
     pure $ _2 `lensMap` v
   where

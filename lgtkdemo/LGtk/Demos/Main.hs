@@ -10,8 +10,7 @@ import Numeric
 import Data.Maybe (isJust)
 import Control.Lens hiding ((#))
 import Control.Monad
-import Diagrams.Prelude hiding (atTime, Point, Start, adjust, value, interval, tri)
-import qualified Diagrams.Prelude as D
+import Diagrams.Prelude hiding (atTime, Point, Start, interval, tri)
 
 import LGtk
 
@@ -38,7 +37,7 @@ mainWidget = notebook
             [ (,) "Unbounded" $ do
                 c <- fmap toEqRef $ newRef (0 :: Int)
                 vertically
-                    [ label $ fmap show $ value c
+                    [ label $ fmap show $ readRef c
                     , horizontally
                         [ smartButton (pure "+1") c (+1)
                         , smartButton (pure "-1") c (+(-1))
@@ -48,7 +47,7 @@ mainWidget = notebook
             , (,) "1..3" $ do
                 c <- fmap toEqRef $ newRef (1 :: Int)
                 vertically
-                    [ label $ fmap show $ value c
+                    [ label $ fmap show $ readRef c
                     , horizontally
                         [ smartButton (pure "+1") c $ min 3 . (+1)
                         , smartButton (pure "-1") c $ max 1 . (+(-1))
@@ -60,7 +59,7 @@ mainWidget = notebook
                 let (a, b) = interval ab
                 c <- counter 0 ab
                 vertically
-                    [ label $ fmap show $ value c
+                    [ label $ fmap show $ readRef c
                     , horizontally
                         [ smartButton (pure "+1") c (+1)
                         , smartButton (pure "-1") c (+(-1))
@@ -77,13 +76,13 @@ mainWidget = notebook
             let is = [0 :: Double, 0.5, 1]
                 colorlist = tail $ liftA3 sRGB is is is
                 f n = colorlist !! (n `mod` length colorlist)
-            button__ (pure "Push") (pure True) (fmap f $ value x) $ adjust x (+1)
+            button__ (pure "Push") (pure True) (fmap f $ readRef x) $ modRef x (+1)
 
         , (,) "Tabs" $ notebook
 
             [ (,) "TabSwitch" $ do
                 x <- newRef "a"
-                let w = vertically [ label $ value x, entry x ]
+                let w = vertically [ label $ readRef x, entry x ]
                 notebook
                     [ (,) "T1" w
                     , (,) "T2" w
@@ -99,8 +98,8 @@ mainWidget = notebook
             [ (,) "Version 1" $ do
                 t <- newRef $ iterate (Node Leaf) Leaf !! 10
                 horizontally
-                    [ canvas 200 200 20 (const $ pure ()) Nothing (value t) $
-                        \x -> tPic 0 x # lwL 0.05 # D.value () # translate (r2 (0,10))
+                    [ canvas 200 200 20 (const $ pure ()) Nothing (readRef t) $
+                        \x -> tPic 0 x # lwL 0.05 # value () # translate (r2 (0,10))
                     , tEditor3 t
                     ]
 
@@ -114,14 +113,14 @@ mainWidget = notebook
                 let ctrl = entry $ lens fst (\(_,xs) x -> ("",x:xs)) `lensMap` buttons
                     h b = do
                         q <- extendRef b listLens (False, ("", []))
-                        cell (fmap fst $ value q) $ \bb -> case bb of
+                        cell (fmap fst $ readRef q) $ \bb -> case bb of
                             False -> emptyWidget
                             _ -> do
                                 vertically $ reverse
                                     [ h $ _2 . _2 `lensMap` q
                                     , horizontally
-                                        [ button (pure "Del") $ pure $ Just $ adjust b tail
-                                        , label $ value $ _2 . _1 `lensMap` q
+                                        [ button (pure "Del") $ pure $ Just $ modRef b tail
+                                        , label $ readRef $ _2 . _1 `lensMap` q
                                         ]
                                     ]
                 vertically $ [ctrl, h $ _2 `lensMap` buttons]
@@ -130,14 +129,14 @@ mainWidget = notebook
                 buttons <- newRef ("",[])
                 let h i b = horizontally
                        [ label $ pure b
-                       , button (pure "Del") $ pure $ Just $ adjust (_2 `lensMap` buttons) $ \l -> take i l ++ drop (i+1) l
+                       , button (pure "Del") $ pure $ Just $ modRef (_2 `lensMap` buttons) $ \l -> take i l ++ drop (i+1) l
                        ]
                     set (a,xs) x
                         | a /= x = ("",x:xs)
                         | otherwise = (a,xs)
                 vertically
                     [ entry $ lens fst set `lensMap` buttons
-                    , cell (fmap snd $ value buttons) $ vertically . zipWith h [0..]
+                    , cell (fmap snd $ readRef buttons) $ vertically . zipWith h [0..]
                     ]
 
             ]
@@ -152,11 +151,11 @@ mainWidget = notebook
 
                 r <- newRef (3 :: Double)
                 vertically
-                    [ canvas 200 200 12 (const $ pure ()) Nothing (value r) $
-                        \x -> circle x # lwL 0.05 # fc blue # D.value ()
+                    [ canvas 200 200 12 (const $ pure ()) Nothing (readRef r) $
+                        \x -> circle x # lwL 0.05 # fc blue # value ()
                     , horizontally
                         [ hscale 0.1 5 0.05 r
-                        , label (fmap (("radius: " ++) . ($ "") . showFFloat (Just 2)) $ value r)
+                        , label (fmap (("radius: " ++) . ($ "") . showFFloat (Just 2)) $ readRef r)
                         ]
                     ]
 
@@ -166,27 +165,27 @@ mainWidget = notebook
                 speed <- newRef (1 :: Double)
                 phase <- newRef (0 :: Double)
                 t <- newRef 0
-                _ <- onChangeEq (value phase) $ \x -> do
-                    s <- readerToCreator $ value speed
-                    f <- readerToCreator $ value fps
+                _ <- onChangeEq (readRef phase) $ \x -> do
+                    s <- readerToCreator $ readRef speed
+                    f <- readerToCreator $ readRef fps
                     asyncWrite (round $ 1000000 / f) $ writeRef phase (x + 2 * pi * s / f)
                 vertically
-                    [ canvas 200 200 10 (const $ pure ()) Nothing (liftA2 (,) (value t) (value phase)) $
+                    [ canvas 200 200 10 (const $ pure ()) Nothing (liftA2 (,) (readRef t) (readRef phase)) $
                         \(t,x) -> (case t of
                             0 -> circle (2 + 1.5*sin x)
                             1 -> circle 1 # translate (r2 (3,0)) # rotate ((-x) @@ rad)
                             2 -> rect 6 6 # rotate ((-x) @@ rad)
                             3 -> mconcat [circle (i'/10) # translate (r2 (i'/3, 0) # rotate ((i') @@ rad)) | i<-[1 :: Int ..10], let i' = fromIntegral i] # rotate ((-x) @@ rad)
                             4 -> mconcat [circle (i'/10) # translate (r2 (i'/3, 0) # rotate ((x/i') @@ rad)) | i<-[1 :: Int ..10], let i' = fromIntegral i]
-                            ) # lwL 0.05 # fc blue # D.value ()
+                            ) # lwL 0.05 # fc blue # value ()
                     , combobox ["Pulse","Rotate","Rotate2","Spiral","Spiral2"] t
                     , horizontally
                         [ hscale 0.1 5 0.1 speed
-                        , label (fmap (("freq: " ++) . ($ "") . showFFloat (Just 2)) $ value speed)
+                        , label (fmap (("freq: " ++) . ($ "") . showFFloat (Just 2)) $ readRef speed)
                         ]
                     , horizontally
                         [ hscale 1 100 1 fps
-                        , label (fmap (("fps: " ++) . ($ "") . showFFloat (Just 2)) $ value fps)
+                        , label (fmap (("fps: " ++) . ($ "") . showFFloat (Just 2)) $ readRef fps)
                         ]
                     ]
 
@@ -197,32 +196,32 @@ mainWidget = notebook
             [ (,) "ColorChange" $ do
                 phase <- newRef (0 :: Double)
                 col <- newRef True
-                _ <- onChangeEq (value phase) $ \x -> do
+                _ <- onChangeEq (readRef phase) $ \x -> do
                     let s = 0.5 :: Double
                     let f = 50 :: Double
                     asyncWrite (round $ 1000000 / f) $ writeRef phase (x + 2 * pi * s / f)
-                let handler (Click (MousePos _ l), _) = when (not $ null l) $ adjust col not
+                let handler (Click (MousePos _ l), _) = when (not $ null l) $ modRef col not
                     handler _ = pure ()
                 vertically
-                    [ canvas 200 200 10 handler Nothing (liftA2 (,) (value col) (value phase)) $
-                        \(c,x) -> circle 1 # translate (r2 (3,0)) # rotate ((-x) @@ rad) # lwL 0.05 # fc (if c then blue else red) # D.value [()]
+                    [ canvas 200 200 10 handler Nothing (liftA2 (,) (readRef col) (readRef phase)) $
+                        \(c,x) -> circle 1 # translate (r2 (3,0)) # rotate ((-x) @@ rad) # lwL 0.05 # fc (if c then blue else red) # value [()]
                     , label $ pure "Click on the circle to change color."
                     ]
 
             , (,) "Enlarge" $ do
                 phase <- newRef (0 :: Double)
                 col <- newRef 1
-                _ <- onChangeEq (value phase) $ \x -> do
+                _ <- onChangeEq (readRef phase) $ \x -> do
                     let s = 0.5 :: Double
                     let f = 50 :: Double
                     asyncWrite (round $ 1000000 / f) $ do
                         writeRef phase (x + 2 * pi * s / f)
-                        adjust col $ max 1 . (+(- 5/f))
-                let handler (Click (MousePos _ l), _) = when (not $ null l) $ adjust col (+1)
+                        modRef col $ max 1 . (+(- 5/f))
+                let handler (Click (MousePos _ l), _) = when (not $ null l) $ modRef col (+1)
                     handler _ = pure ()
                 vertically
-                    [ canvas 200 200 10 handler Nothing (liftA2 (,) (value col) (value phase)) $
-                        \(c,x) -> circle c # translate (r2 (3,0)) # rotate ((-x) @@ rad) # lwL 0.05 # fc blue # D.value [()]
+                    [ canvas 200 200 10 handler Nothing (liftA2 (,) (readRef col) (readRef phase)) $
+                        \(c,x) -> circle c # translate (r2 (3,0)) # rotate ((-x) @@ rad) # lwL 0.05 # fc blue # value [()]
                     , label $ pure "Click on the circle to temporarily enlarge it."
                     ]
 
@@ -230,7 +229,7 @@ mainWidget = notebook
                 i <- newRef (0 :: Int, 0 :: Rational)
                 let i1 = _1 `lensMap` i
                     i2 = _2 `lensMap` i
-                _ <- onChangeEq (value i) $ \(i,d) -> do
+                _ <- onChangeEq (readRef i) $ \(i,d) -> do
                     let dd = fromIntegral i - d
                     if dd == 0
                       then pure ()
@@ -239,13 +238,13 @@ mainWidget = notebook
                         let f = 25 :: Rational
                         asyncWrite (round $ 1000000 / f) $ do
                             writeRef i2 $ d + signum dd * min (abs dd) (s / f)
-                let keyh (SimpleKey Key'Left)  = adjust i1 pred >> pure True
-                    keyh (SimpleKey Key'Right) = adjust i1 succ >> pure True
+                let keyh (SimpleKey Key'Left)  = modRef i1 pred >> pure True
+                    keyh (SimpleKey Key'Right) = modRef i1 succ >> pure True
                     keyh _ = pure False
                 vertically
-                    [ canvas 200 200 10 (const $ pure ()) (Just keyh) (value i2) $
-                        \d -> text "12345" # translate (r2 (realToFrac d, 0)) # scale 2 # D.value ()
-                    , label $ fmap show $ value i1
+                    [ canvas 200 200 10 (const $ pure ()) (Just keyh) (readRef i2) $
+                        \d -> text "12345" # translate (r2 (realToFrac d, 0)) # scale 2 # value ()
+                    , label $ fmap show $ readRef i1
                     ]
 
             ]
@@ -265,7 +264,7 @@ mainWidget = notebook
     {-
         , (,) "Accumulator" $ do
             x <- newRef (0 :: Integer)
-            y <- onChangeAcc (value x) 0 (const 0) $ \x _ y -> Left $ pure $ x+y
+            y <- onChangeAcc (readRef x) 0 (const 0) $ \x _ y -> Left $ pure $ x+y
             horizontally
                 [ entryShow x
                 , label $ fmap show y
@@ -274,27 +273,27 @@ mainWidget = notebook
         [ (,) "Async" $ do
             ready <- newRef True
             delay <- newRef (1.0 :: Double)
-            _ <- onChangeEq (value ready) $ \b -> case b of
+            _ <- onChangeEq (readRef ready) $ \b -> case b of
                 True -> pure ()
                 False -> do
-                    d <- readerToCreator $ value delay
+                    d <- readerToCreator $ readRef delay
                     asyncWrite (ceiling $ 1000000 * d) $ writeRef ready True
             vertically
                 [ horizontally [ entryShow delay, label $ pure "sec" ]
-                , primButton (flip fmap (value delay) $ \d -> "Start " ++ show d ++ " sec computation")
-                          (value ready)
+                , primButton (flip fmap (readRef delay) $ \d -> "Start " ++ show d ++ " sec computation")
+                          (readRef ready)
                           Nothing
                           (writeRef ready False)
-                , label $ fmap (\b -> if b then "Ready." else "Computing...") $ value ready
+                , label $ fmap (\b -> if b then "Ready." else "Computing...") $ readRef ready
                 ]
 
         , (,) "Timer" $ do
             rt <- newRef =<< time
-            _ <- onChangeEq (value rt) $ \ti -> do
+            _ <- onChangeEq (readRef rt) $ \ti -> do
                 putStrLn_ $ show ti
                 atTime (addUTCTime 1 ti) $ writeRef rt (addUTCTime 1 ti)
             vertically
-                [ label $ fmap show $ value rt
+                [ label $ fmap show $ readRef rt
                 ]
 
         , (,) "System" $ notebook
@@ -305,7 +304,7 @@ mainWidget = notebook
 
             , (,) "Env" $ do
                 v <- newRef "HOME"
-                lv <- onChangeEq (value v) $ fmap (maybe "Not in env." show) . lookupEnv
+                lv <- onChangeEq (readRef v) $ fmap (maybe "Not in env." show) . lookupEnv
                 vertically
                     [ entry v
                     , label lv
@@ -314,18 +313,18 @@ mainWidget = notebook
             , (,) "Std I/O" $ let
                 put = do
                     x <- newRef Nothing
-                    _ <- onChangeEq (value x) $ maybe (pure ()) putStrLn_
+                    _ <- onChangeEq (readRef x) $ maybe (pure ()) putStrLn_
                     horizontally
                         [ label $ pure "putStrLn"
                         , entry $ iso (maybe "" id) Just `lensMap` x
                         ]
                 get = do
                     ready <- newRef $ Just ""
-                    _ <- onChangeEq (fmap isJust $ value ready) $ \b ->
+                    _ <- onChangeEq (fmap isJust $ readRef ready) $ \b ->
                         when (not b) $ getLine_ $ writeRef ready . Just
                     horizontally
-                        [ primButton (pure "getLine") (fmap isJust $ value ready) Nothing $ writeRef ready Nothing
-                        , label $ fmap (maybe "<<<waiting for input>>>" id) $ value ready
+                        [ primButton (pure "getLine") (fmap isJust $ readRef ready) Nothing $ writeRef ready Nothing
+                        , label $ fmap (maybe "<<<waiting for input>>>" id) $ readRef ready
                         ]
                in vertically [ put, put, put, get, get, get ]
             ]
@@ -390,8 +389,8 @@ inCanvasExample = do
             [ horizontally
                 [ vertically
                     [ horizontally
-                        [ label $ fmap (\i -> show i ++ "hello") $ value i
-                        , primButton (pure "+1") (pure True) Nothing $ adjust i (+1)
+                        [ label $ fmap (\i -> show i ++ "hello") $ readRef i
+                        , primButton (pure "+1") (pure True) Nothing $ modRef i (+1)
                         ]
                     , horizontally
                         [ entry s
