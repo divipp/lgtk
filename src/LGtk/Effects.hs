@@ -24,7 +24,7 @@ import Data.LensRef
 
 liftEffectM = lift . lift
 
-newtype Rt (m :: * -> *) a = Rt { runRt :: ReaderT (RefWriterT (Rt m) () -> m (), SimpleRef m Time.UTCTime) m a }
+newtype Rt (m :: * -> *) a = Rt { runRt :: ReaderT (RefWriter (Rt m) () -> m (), SimpleRef m Time.UTCTime) m a }
     deriving (Monad, Applicative, Functor, MonadFix)
 
 instance SimpleRefClass m => SimpleRefClass (Rt m) where
@@ -36,17 +36,17 @@ instance SimpleRefClass m => SimpleRefClass (Rt m) where
 instance MonadTrans Rt where
     lift = Rt . lift
 
-type RefCreatorPost m = RefCreatorT (Rt m)
+type RefCreatorPost m = RefCreator (Rt m)
 
 runRefCreatorPost
     :: (SimpleRefClass m, MonadBaseControl IO m, MonadFix m)
     => (m () -> m ())
-    -> ((RefWriterT (Rt m) () -> m ()) -> RefCreatorPost m a)
+    -> ((RefWriter (Rt m) () -> m ()) -> RefCreatorPost m a)
     -> m (a, m ()) 
 runRefCreatorPost w f = mdo
     t <- liftIO_ Time.getCurrentTime
     r <- newSimpleRef t
-    (a, runWr) <- flip runReaderT (runWr, r) . runRt $ runRefCreatorT $ \runWriter -> do
+    (a, runWr) <- flip runReaderT (runWr, r) . runRt $ runRefCreator $ \runWriter -> do
         let runWr = w . flip runReaderT (runWr, r) . runRt . runWriter
         a <- f runWr
         return (a, runWr)
@@ -89,14 +89,14 @@ so it is safe, because the effect of @(f a)@ is not interleaved with
 the current computation.
 Although @(asyncWrite 0)@ is safe, code using it has a bad small.
 -}
-asyncWrite :: (SimpleRefClass m, MonadBaseControl IO m) => Int -> RefWriterT (Rt m) () -> RefCreatorPost m ()
+asyncWrite :: (SimpleRefClass m, MonadBaseControl IO m) => Int -> RefWriter (Rt m) () -> RefCreatorPost m ()
 asyncWrite t r = do
     (u, f) <- liftEffectM forkIOs'
     post <- askPostpone
     onRegionStatusChange $ lift . u
     liftEffectM $ f [ liftIO_ $ threadDelay t, post r ]
 
-atTime :: (SimpleRefClass m, MonadBaseControl IO m) => Time.UTCTime -> RefWriterT (Rt m) () -> RefCreatorPost m ()
+atTime :: (SimpleRefClass m, MonadBaseControl IO m) => Time.UTCTime -> RefWriter (Rt m) () -> RefCreatorPost m ()
 atTime t m = do
     t' <- liftIO' Time.getCurrentTime
     asyncWrite (round $ 1000000 * Time.diffUTCTime t t') m
@@ -171,7 +171,7 @@ fileRef f = do
 @(getLine_ f)@ returns immediately. When the line @s@ is read,
 @f s@ is called.
 -}
-getLine_   :: (SimpleRefClass m, MonadBaseControl IO m) => (String -> RefWriterT (Rt m) ()) -> RefCreatorPost m ()
+getLine_   :: (SimpleRefClass m, MonadBaseControl IO m) => (String -> RefWriter (Rt m) ()) -> RefCreatorPost m ()
 getLine_ w = do
     (u, f) <- liftEffectM forkIOs'
     post <- askPostpone

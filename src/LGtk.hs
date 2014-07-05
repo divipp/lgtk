@@ -254,16 +254,16 @@ type Widget = Widget.Widget RB
 type Ref = Ref.Ref RB
 
 -- | An action which modifies the program state.
-type RefWriter = Ref.RefWriterT RB
+type RefWriter = Ref.RefWriter RB
 
 -- | Program state modifier monad.
 type Modifier = RefWriter ()
 
 -- | RefReader of the program state. @RefReader@ is a @Monad@.
-type RefReader = Ref.RefReaderT RB
+type RefReader = Ref.RefReader RB
 
 -- | Substate creation monad. Effects can also be emitted in it.
-type RefCreator = Ref.RefCreatorT RB
+type RefCreator = Ref.RefCreator RB
 
 
 

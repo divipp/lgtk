@@ -77,7 +77,7 @@ gtkContext m = do
 
 -- | Run an @IO@ parametrized interface description with Gtk backend
 runWidget_
-    :: (RefWriterT IO () -> IO ())
+    :: (RefWriter IO () -> IO ())
     -> (IO () -> IO ())
     -> (forall a . IO a -> IO a)
     -> Widget (RefCreator)
@@ -96,7 +96,7 @@ runWidget_ post_ post' post = toWidget
         onRegionStatusChange (liftIO_ . post . u $)
         pure u
 
-    ger :: Eq a => (RegionStatusChange -> IO ()) -> RefReaderT IO a -> (a -> IO ()) -> RefCreator ()
+    ger :: Eq a => (RegionStatusChange -> IO ()) -> RefReader IO a -> (a -> IO ()) -> RefCreator ()
     ger hd s f = fmap (const ()) $ onChangeEq s $ \a -> liftIO'' $ do
         hd Block
         f a
@@ -118,8 +118,8 @@ runWidget_ post_ post' post = toWidget
          mkCanvas
             :: forall b da
             .  (Monoid da, Semigroup da, Eq b)
-            => ((MouseEvent da, Dia da) -> RefWriterT IO ())
-            -> RefReaderT IO b
+            => ((MouseEvent da, Dia da) -> RefWriter IO ())
+            -> RefReader IO b
             -> (b -> Dia da)
             -> RefCreator SWidget
          mkCanvas me r diaFun = do

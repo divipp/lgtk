@@ -107,27 +107,27 @@ instance IsName Id where
 ---------------------------------------------------------
 
 -- how to handle keyboard events
-type KeyHandler m = ModifiedKey -> RefWriterT m Bool
+type KeyHandler m = ModifiedKey -> RefWriter m Bool
 
 -- focus enter action; keyboard event handler; focus leave action; id of the keyboard-focused widget
-type KeyFocusHandler m = (RefWriterT m (), KeyHandler m, RefWriterT m (), Id)
+type KeyFocusHandler m = (RefWriter m (), KeyHandler m, RefWriter m (), Id)
 
-type CapturedEventHandler a m = (MouseEvent a, Dia a) -> RefWriterT m Bool
+type CapturedEventHandler a m = (MouseEvent a, Dia a) -> RefWriter m Bool
 
 -- for each mouse event:
 --  - what to do
 --  - the new keyboard focus handler
 --  - the id of the mouse-focused widget
-type EventHandler a m = (MouseEvent a, Dia a) -> Maybe' (RefWriterT m (), Maybe (CapturedEventHandler a m), Maybe (KeyFocusHandler m), Id)
+type EventHandler a m = (MouseEvent a, Dia a) -> Maybe' (RefWriter m (), Maybe (CapturedEventHandler a m), Maybe (KeyFocusHandler m), Id)
 
 -- compiled widget
 data CWidget m
     = forall a x . (Eq x, Monoid a, Semigroup a)
-    => CWidget (RefReaderT m (([KeyFocusHandler m], [[KeyFocusHandler m]]), x)) (a -> EventHandler () m) (x -> [Id] -> Id -> Dia a)
+    => CWidget (RefReader m (([KeyFocusHandler m], [[KeyFocusHandler m]]), x)) (a -> EventHandler () m) (x -> [Id] -> Id -> Dia a)
 
 ------------------
 
-value_ :: (SimpleRefClass m) => RefWriterT m () -> KeyFocusHandler m -> Id -> Dia Any -> Dia (EventHandler () m)
+value_ :: (SimpleRefClass m) => RefWriter m () -> KeyFocusHandler m -> Id -> Dia Any -> Dia (EventHandler () m)
 value_ a c i = value $ valueFun a c i
 
 valueFun a c i = f where
@@ -275,7 +275,7 @@ tr  :: forall m . SimpleRefClass m
     => Double
     -> KeyHandler m
     -> Widget m
-    -> WithId (RefCreatorT m) (CWidget m)
+    -> WithId (RefCreator m) (CWidget m)
 tr sca dkh w = do
     w' <- lift w
     case w' of
@@ -474,7 +474,7 @@ tr sca dkh w = do
             ii <- newId
             ir <- lift $ newRef (0 :: Int)
 
-            let br' :: Int -> RefWriterT m ()
+            let br' :: Int -> RefWriter m ()
                 br' ind = br ind' >> writeRef ir ind' where ind' = ind `mod` n
                 br'' f = readerToWriter (readRef ir) >>= br' . f  >> pure True
                 ff (SimpleKey Key'Left) = br'' (+(-1))
