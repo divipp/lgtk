@@ -21,6 +21,7 @@ module LGtk
     , combobox
     , entry
     , entryShow
+    , entryPrism
     , hscale
 
     -- ** Widget composition
@@ -46,6 +47,7 @@ module LGtk
 
     -- * Utils
     , undoTr
+    , undoPush
     , showLens
     , listLens
 
@@ -90,10 +92,12 @@ module LGtk
 
     -- ** Reference writing
     , writeRef
-    , adjust    -- modRef
+    , adjust        -- TODO: remove
+    , modRef
 
     -- ** Reference reading
-    , value   -- readRef
+    , value        -- TODO: remove
+    , readRef
     , currentValue
 
     -- ** Conversion between monads
@@ -112,12 +116,14 @@ module LGtk
     ) where
 
 --import Data.String
+import Control.Applicative
+import Control.Lens
+import Control.Lens.Extras (is)
+import Data.Foldable
 import Data.Maybe
 import Data.Monoid
 import Data.Time.Clock
 import Data.Semigroup
-import Control.Applicative
-import Control.Lens
 
 import Data.LensRef (readerToCreator)
 import qualified Data.LensRef as Ref
@@ -326,22 +332,22 @@ checkbox r = pure $ Checkbox ((value r), writeRef r)
 combobox :: [String] -> Ref Int -> Widget
 combobox ss r = pure $ Combobox ss ((value r), writeRef r)
 
--- | Text entry.
-entry :: (RefClass r)  => r String -> Widget
-entry r = pure $ Entry (const True) ((value r), writeRef r)
+-- | String entry.
+entry :: RefClass r => r String -> Widget
+entry = entryPrism id
 
--- | Text entry with automatic show-read conversion.
-entryShow :: forall a r . (Show a, Read a, RefClass r) => r a -> Widget
-entryShow r_ = pure $ Entry isOk ((value r), writeRef r)
+-- | Entry with automatic show-read conversion.
+entryShow :: (Show a, Read a, RefClass r) => r a -> Widget
+entryShow = entryPrism _Show
+
+entryPrism :: RefClass r => Prism' String a -> r a -> Widget
+entryPrism prism r = return $ Entry (is prism) (getContent, changed)
   where
-    r = showLens `lensMap` r_
-    isOk s = case (reads s :: [(a, String)]) of
-        ((_,""):_) -> True
-        _ -> False
+    getContent = review prism <$> readRef r
+    changed x = forM_ (x ^? prism) (writeRef r)
 
 showLens :: (Show a, Read a) => Lens' a String
 showLens = lens show $ \def s -> maybe def fst $ listToMaybe $ reads s
-
 
 {- | Notebook (tabs).
 
@@ -432,3 +438,38 @@ undoLens eq = lens get set where
     get = head . fst
     set (x' : xs, ys) x | eq x x' = (x: xs, ys)
     set (xs, _) x = (x : xs, [])
+
+undoPush
+    :: (a -> a -> Bool)
+    -> Ref a
+    -> RefCreator
+           ( RefReader (Maybe (RefWriter ()))
+           , RefReader (Maybe (RefWriter ()))
+           , RefWriter ()
+           ) -- ^ undo action, redo action, push state action
+undoPush eq ref = do
+    initial <- readerToCreator $ readRef ref
+    -- This isn't an extendRef, because state pushing is requested
+    -- explicitly.
+    state <- newRef ([], initial, [])
+    let undo = do
+            val <- readRef state
+            case val of
+                ([], _, _) -> pure Nothing
+                (u:us', x, rs) -> pure $ Just $ do
+                    writeRef state (us', u, x:rs)
+                    writeRef ref u
+        redo = do
+            val <- readRef state
+            case val of
+                (_, _, []) -> pure Nothing
+                (us, x, r:rs') -> pure $ Just $ do
+                    writeRef state (x:us, r, rs')
+                    writeRef ref r
+        push = do
+            x' <- readerToWriter $ readRef ref
+            modRef state $ \unchanged@(us, x, _) ->
+                if x `eq` x'
+                    then unchanged
+                    else (x:us, x', [])
+    pure (undo, redo, push)

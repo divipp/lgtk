@@ -20,6 +20,10 @@ import LGtk.Demos.IntListEditor
 import LGtk.Demos.TEditor
 import LGtk.Demos.Maze
 
+import qualified LGtk.Demos.SevenGuis.Circles as Seven
+import qualified LGtk.Demos.SevenGuis.Counter as Seven
+import qualified LGtk.Demos.SevenGuis.Temperature as Seven
+
 main :: IO ()
 main = runWidget mainWidget
 
@@ -331,6 +335,8 @@ mainWidget = notebook
 
         [ (,) "ListEditor" $ do
             state <- fileRef "intListEditorState.txt"
+            -- NOTE: if there was some kind of 'prismRef', then _Show
+            -- could be used instead of showLens.
             list <- extendRef (justLens "" `lensMap` state) showLens []
             settings <- fileRef "intListEditorSettings.txt"
             range <- extendRef (justLens "" `lensMap` settings) showLens True
@@ -338,6 +344,12 @@ mainWidget = notebook
 
         , (,) "Maze" $ mazeGame
 
+        ]
+
+    , (,) "7guis" $ notebook
+        [ (,) "#1 - Counter"               Seven.counter
+        , (,) "#2 - Temperature Converter" Seven.temperatureConverter
+        , (,) "#6 - Circle Drawer"         Seven.circleDrawer
         ]
 
     ]
