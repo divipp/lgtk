@@ -26,7 +26,7 @@ import Diagrams.Backend.Cairo.Internal
 import Graphics.UI.Gtk hiding (Widget, Release)
 import qualified Graphics.UI.Gtk as Gtk
 
-import Data.LensRef
+import Data.LensRef hiding (RefCreator)
 import LGtk.Effects
 import LGtk.Widgets
 import LGtk.Key
@@ -45,7 +45,7 @@ Run a Gtk widget description.
 The widget is shown in a window and the thread enters into the Gtk event cycle.
 It leaves the event cycle when the window is closed.
 -}
-runWidget :: Widget (RefCreator) -> IO ()
+runWidget :: Widget (Rt IO) -> IO ()
 runWidget desc = gtkContext $ \postGUISync -> do
     postActionsRef <- newMVar $ pure ()
     let addPostAction m = modifyMVar_ postActionsRef $ \n -> pure $ n >> m
@@ -77,10 +77,10 @@ gtkContext m = do
 
 -- | Run an @IO@ parametrized interface description with Gtk backend
 runWidget_
-    :: (RefWriter IO () -> IO ())
+    :: (RefWriter (Rt IO) () -> IO ())
     -> (IO () -> IO ())
     -> (forall a . IO a -> IO a)
-    -> Widget (RefCreator)
+    -> Widget (Rt IO)
     -> RefCreator SWidget
 runWidget_ post_ post' post = toWidget
  where
@@ -88,15 +88,15 @@ runWidget_ post_ post' post = toWidget
     liftIO'' = liftIO' . post
 
     -- type Receive n m k a = (RegionStatusChange -> n ()) -> m (a -> k ())
-    reg :: Receive (RefCreator) a -> ((a -> IO ()) -> IO (RegionStatusChange -> IO ())) -> RefCreator (RegionStatusChange -> IO ())
+    reg :: Receive (Rt IO) a -> ((a -> IO ()) -> IO (RegionStatusChange -> IO ())) -> RefCreator (RegionStatusChange -> IO ())
     reg s f = do
         u <- liftEffectM $ liftBaseWith $ \unr -> f $ \x -> do
             _ <- unr $ post_ $ s x
             pure ()
-        onRegionStatusChange (liftIO_ . post . u $)
+        onRegionStatusChange (lift . post . u $)
         pure u
 
-    ger :: Eq a => (RegionStatusChange -> IO ()) -> RefReader IO a -> (a -> IO ()) -> RefCreator ()
+    ger :: Eq a => (RegionStatusChange -> IO ()) -> RefReader (Rt IO) a -> (a -> IO ()) -> RefCreator ()
     ger hd s f = fmap (const ()) $ onChangeEq s $ \a -> liftIO'' $ do
         hd Block
         f a
@@ -105,7 +105,7 @@ runWidget_ post_ post' post = toWidget
     nhd :: RegionStatusChange -> IO ()
     nhd = const $ pure ()
 
-    toWidget :: Widget (RefCreator) -> RefCreator SWidget
+    toWidget :: Widget (Rt IO) -> RefCreator SWidget
     toWidget m = m >>= \i -> case i of
 
         Label s -> do
@@ -118,8 +118,8 @@ runWidget_ post_ post' post = toWidget
          mkCanvas
             :: forall b da
             .  (Monoid da, Semigroup da, Eq b)
-            => ((MouseEvent da, Dia da) -> RefWriter IO ())
-            -> RefReader IO b
+            => ((MouseEvent da, Dia da) -> RefWriter (Rt IO) ())
+            -> RefReader (Rt IO) b
             -> (b -> Dia da)
             -> RefCreator SWidget
          mkCanvas me r diaFun = do
