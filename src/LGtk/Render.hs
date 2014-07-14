@@ -127,7 +127,7 @@ data CWidget m
 
 ------------------
 
-value_ :: (SimpleRefClass m) => RefWriter m () -> KeyFocusHandler m -> Id -> Dia Any -> Dia (EventHandler () m)
+value_ :: (RefContext m) => RefWriter m () -> KeyFocusHandler m -> Id -> Dia Any -> Dia (EventHandler () m)
 value_ a c i = value $ valueFun a c i
 
 valueFun a c i = f where
@@ -147,7 +147,7 @@ _ !!! n | n < 0 = Nothing
 (_:xs) !!!! n = xs !!!! (n-1 :: Int)
 [] !!!! _ = error "(!!!!) was applied to an empty list."
 
-inCanvas :: forall m . (SimpleRefClass m, MonadFix m) => Int -> Int -> Double -> Widget m -> Widget m
+inCanvas :: forall m . (RefContext m, MonadFix m) => Int -> Int -> Double -> Widget m -> Widget m
 inCanvas width height scale w = mdo
 
     let i = firstId
@@ -272,7 +272,7 @@ text__ ma mi s = ((x' :& y'), -- rect x' y' # fc red) --
 
 defcolor = sRGB 0.95 0.95 0.95
 
-tr  :: forall m . SimpleRefClass m
+tr  :: forall m . RefContext m
     => Double
     -> KeyHandler m
     -> Widget m

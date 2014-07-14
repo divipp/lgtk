@@ -27,7 +27,7 @@ liftEffectM = lift . lift
 newtype Rt (m :: * -> *) a = Rt { runRt :: ReaderT (RefWriter (Rt m) () -> m (), SimpleRef m Time.UTCTime) m a }
     deriving (Monad, Applicative, Functor, MonadFix)
 
-instance SimpleRefClass m => SimpleRefClass (Rt m) where
+instance RefContext m => RefContext (Rt m) where
     type SimpleRef (Rt m) = SimpleRef m
     newSimpleRef = lift . newSimpleRef
     readSimpleRef = lift . readSimpleRef
@@ -39,7 +39,7 @@ instance MonadTrans Rt where
 type RefCreatorPost m = RefCreator (Rt m)
 
 runRefCreatorPost
-    :: (SimpleRefClass m, MonadBaseControl IO m, MonadFix m)
+    :: (RefContext m, MonadBaseControl IO m, MonadFix m)
     => (m () -> m ())
     -> ((RefWriter (Rt m) () -> m ()) -> RefCreatorPost m a)
     -> m (a, m ())
@@ -57,21 +57,21 @@ runRefCreatorPost w f = mdo
 askPostpone = lift $ Rt $ asks fst
 
 
-time     :: (SimpleRefClass m, MonadBaseControl IO m) => RefCreatorPost m Time.UTCTime
+time     :: (RefContext m, MonadBaseControl IO m) => RefCreatorPost m Time.UTCTime
 time = do
     r <- lift $ Rt $ asks snd
     liftEffectM $ readSimpleRef r
 
 -- | The program's command line arguments (not including the program name).
-getArgs     :: (SimpleRefClass m, MonadBaseControl IO m) => RefCreatorPost m [String]
+getArgs     :: (RefContext m, MonadBaseControl IO m) => RefCreatorPost m [String]
 getArgs     = liftIO' Env.getArgs
 
 -- | The name of the program as it was invoked.
-getProgName :: (SimpleRefClass m, MonadBaseControl IO m) => RefCreatorPost m String
+getProgName :: (RefContext m, MonadBaseControl IO m) => RefCreatorPost m String
 getProgName = liftIO' Env.getProgName
 
 -- | @(lookupEnv var)@ returns the value of the environment variable @var@.
-lookupEnv   :: (SimpleRefClass m, MonadBaseControl IO m) => String -> RefCreatorPost m (Maybe String)
+lookupEnv   :: (RefContext m, MonadBaseControl IO m) => String -> RefCreatorPost m (Maybe String)
 --    lookupEnv   = Env.lookupEnv -- does not work with Haskell Platform 2013.2.0.0
 lookupEnv v = liftIO' $ catchIOError (fmap Just $ Env.getEnv v) $ \e ->
     if isDoesNotExistError e then pure Nothing else ioError e
@@ -84,14 +84,14 @@ so it is safe, because the effect of @(f a)@ is not interleaved with
 the current computation.
 Although @(asyncWrite 0)@ is safe, code using it has a bad small.
 -}
-asyncWrite :: (SimpleRefClass m, MonadBaseControl IO m) => Int -> RefWriter (Rt m) () -> RefCreatorPost m ()
+asyncWrite :: (RefContext m, MonadBaseControl IO m) => Int -> RefWriter (Rt m) () -> RefCreatorPost m ()
 asyncWrite t r = do
     (u, f) <- liftEffectM forkIOs'
     post <- askPostpone
     onRegionStatusChange $ lift . u
     liftEffectM $ f [ liftIO_ $ threadDelay t, post r ]
 
-atTime :: (SimpleRefClass m, MonadBaseControl IO m) => Time.UTCTime -> RefWriter (Rt m) () -> RefCreatorPost m ()
+atTime :: (RefContext m, MonadBaseControl IO m) => Time.UTCTime -> RefWriter (Rt m) () -> RefCreatorPost m ()
 atTime t m = do
     t' <- liftIO' Time.getCurrentTime
     asyncWrite (round $ 1000000 * Time.diffUTCTime t t') m
@@ -110,7 +110,7 @@ Implementation note: The references returned by @fileRef@ are not
 memoised so currently it is unsafe to call @fileRef@ on the same filepath more than once.
 This restriction will be lifted in the future.
 -}
-fileRef    :: (SimpleRefClass m, MonadBaseControl IO m) => FilePath -> RefCreatorPost m (Ref (Rt m) (Maybe String))
+fileRef    :: (RefContext m, MonadBaseControl IO m) => FilePath -> RefCreatorPost m (Ref (Rt m) (Maybe String))
 fileRef _ = newRef Nothing
 {-
 fileRef f = do
@@ -166,7 +166,7 @@ fileRef f = do
 @(getLine_ f)@ returns immediately. When the line @s@ is read,
 @f s@ is called.
 -}
-getLine_   :: (SimpleRefClass m, MonadBaseControl IO m) => (String -> RefWriter (Rt m) ()) -> RefCreatorPost m ()
+getLine_   :: (RefContext m, MonadBaseControl IO m) => (String -> RefWriter (Rt m) ()) -> RefCreatorPost m ()
 getLine_ w = do
     (u, f) <- liftEffectM forkIOs'
     post <- askPostpone
@@ -174,11 +174,11 @@ getLine_ w = do
     liftEffectM $ f [ liftIO_ getLine >>= post . w ]   -- TODO
 
 -- | Write a string to the standard output device.
-putStr_    :: (SimpleRefClass m, MonadBaseControl IO m) => String -> RefCreatorPost m ()
+putStr_    :: (RefContext m, MonadBaseControl IO m) => String -> RefCreatorPost m ()
 putStr_ s = liftIO' $ putStr s
 
 -- | @putStrLn_@ === @putStr_ . (++ "\n")@
-putStrLn_ :: (SimpleRefClass m, MonadBaseControl IO m) => String -> RefCreatorPost m ()
+putStrLn_ :: (RefContext m, MonadBaseControl IO m) => String -> RefCreatorPost m ()
 putStrLn_ = putStr_ . (++ "\n")
 
 
