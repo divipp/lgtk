@@ -23,6 +23,7 @@ module LGtk
     , entryShow
     , entryPrism
     , hscale
+    , progress
 
     -- ** Widget composition
     , horizontally
@@ -403,6 +404,11 @@ hscale
     -> Ref Double
     -> Widget
 hscale a b c r = pure $ Scale a b c (value r, writeRef r)
+
+progress
+    :: RefReader Double
+    -> Widget
+progress r = return $ Progress r
 
 listLens :: Lens' (Bool, (a, [a])) [a]
 listLens = lens get set where

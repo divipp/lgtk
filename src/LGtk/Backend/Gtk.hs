@@ -271,6 +271,11 @@ runWidget_ post_ post' post = toWidget
             hd <- reg s $ \re -> on' w valueChanged $ rangeGetValue w >>= re
             ger hd r $ rangeSetValue w
             pure' w
+        Progress r -> do
+            w <- liftIO'' $ progressBarNew
+            _ <- liftIO'' $ w `onSizeRequest` return (Requisition 200 20)
+            ger nhd r $ progressBarSetFraction w
+            pure' w
         Combobox ss (r, s) -> do
             w <- liftIO'' comboBoxNewText
             _ <- liftIO'' $ w `onSizeRequest` pure (Requisition 100 30)

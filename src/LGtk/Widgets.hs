@@ -57,6 +57,7 @@ data WidgetCore m
         (RefReader m b)
         (b -> Dia a)
     | Scale Double Double Double (SendReceive m Double)
+    | Progress (RefReader m Double)
 
 
 type Dia a = QDiagram B R2 a
