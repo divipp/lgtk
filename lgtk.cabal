@@ -124,7 +124,7 @@ executable lgtkdemo
                     base < 5
 
                   , mtl < 2.3
-                  , lens < 4.3
+                  , lens < 4.4
 
                   , containers < 0.6
                   , vector < 0.11
