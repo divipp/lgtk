@@ -131,6 +131,7 @@ executable lgtkdemo
                   , array < 0.6
                   , random < 1.1
                   , random-shuffle < 0.1
+                  , time < 1.5
                   , safe
 
                   , diagrams-lib == 1.2.*
