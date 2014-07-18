@@ -150,6 +150,11 @@ executable lgtkdemo
                     LGtk.Demos.Maze.Maze
                     LGtk.Demos.MazeGen
                     LGtk.Demos.Maze
+                    LGtk.Demos.SevenGuis.Counter
+                    LGtk.Demos.SevenGuis.Temperature
+                    LGtk.Demos.SevenGuis.FlightBooker
+                    LGtk.Demos.SevenGuis.Timer
+                    LGtk.Demos.SevenGuis.Circles
 
   hs-source-dirs:
                     lgtkdemo

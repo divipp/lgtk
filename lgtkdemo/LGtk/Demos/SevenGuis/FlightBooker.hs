@@ -1,6 +1,6 @@
 -- | https://github.com/eugenkiss/7guis/wiki#the-seven-tasks
 
-module FlightBooker where
+module LGtk.Demos.SevenGuis.FlightBooker (flightBooker) where
 
 import Control.Applicative ( (<$>) )
 import Control.Monad
@@ -23,8 +23,8 @@ instance Show Date where
 instance Read Date where
   read str = Date <$>
 
-main :: IO ()
-main = runWidget $ do
+flightBooker :: Widget
+flightBooker = do
     mode <- newRef 0
     start <- newRef ""
     end <- newRef ""
