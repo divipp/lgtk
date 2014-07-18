@@ -3,80 +3,80 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module LGtk.Demos.IntListEditor where
 
-import Control.Monad
+import Control.Applicative
 import Data.List (sortBy)
 import Data.Function (on)
-
 import Control.Lens
+
 import LGtk
 
 intListEditor
-    :: forall m a
-    .  (MonadRegister m, Read a, Show a, Integral a)
+    :: forall a
+    .  (Read a, Show a, Integral a)
     => (a, Bool)            -- ^ default element
     -> Int                  -- ^ maximum number of elements
-    -> Ref m [(a, Bool)]    -- ^ state reference
-    -> Ref m Bool           -- ^ settings reference
-    -> Widget m
+    -> Ref [(a, Bool)]    -- ^ state reference
+    -> Ref Bool           -- ^ settings reference
+    -> Widget
 intListEditor def maxi list_ range = do
     (undo, redo)  <- undoTr ((==) `on` map fst) list_
     notebook
-        [ (,) "Editor" $ vcat
-            [ hcat
+        [ (,) "Editor" $ vertically
+            [ horizontally
                 [ entryShow len
-                , vcat
-                    [ hcat
-                        [ smartButton (return "+1") len (+1)
-                        , smartButton (return "-1") len (+(-1))
-                        , smartButton (liftM (("DeleteAll " ++) . show) $ readRef len) len $ const 0
+                , vertically
+                    [ horizontally
+                        [ smartButton (pure "+1") len (+1)
+                        , smartButton (pure "-1") len (+(-1))
+                        , smartButton (fmap (("DeleteAll " ++) . show) $ readRef len) len $ const 0
                         ]
-                    , hcat
-                        [ button (return "undo") undo
-                        , button (return "redo") redo
+                    , horizontally
+                        [ button (pure "undo") undo
+                        , button (pure "redo") redo
                         ]
                     ]
                 ]
-            , hcat
-                [ smartButton (return "+1")         list $ map $ over _1 (+1)
-                , smartButton (return "-1")         list $ map $ over _1 (+(-1))
-                , smartButton (return "sort")       list $ sortBy (compare `on` fst)
+            , horizontally
+                [ smartButton (pure "+1")         list $ map $ over _1 (+1)
+                , smartButton (pure "-1")         list $ map $ over _1 (+(-1))
+                , smartButton (pure "sort")       list $ sortBy (compare `on` fst)
                 ]
-            , hcat
-                [ smartButton (return "SelectAll")  list $ map $ set _2 True
-                , smartButton (return "SelectPos")  list $ map $ \(a,_) -> (a, a>0)
-                , smartButton (return "SelectEven") list $ map $ \(a,_) -> (a, even a)
-                , smartButton (return "InvertSel")  list $ map $ over _2 not
+            , horizontally
+                [ smartButton (pure "SelectAll")  list $ map $ set _2 True
+                , smartButton (pure "SelectPos")  list $ map $ \(a,_) -> (a, a>0)
+                , smartButton (pure "SelectEven") list $ map $ \(a,_) -> (a, even a)
+                , smartButton (pure "InvertSel")  list $ map $ over _2 not
                 ]
-            , hcat
-                [ smartButton (liftM (("DelSel " ++) . show . length) sel) list $ filter $ not . snd
-                , smartButton (return "CopySel") safeList $ concatMap $ \(x,b) -> (x,b): [(x,False) | b]
-                , smartButton (return "+1 Sel")     list $ map $ mapSel (+1)
-                , smartButton (return "-1 Sel")     list $ map $ mapSel (+(-1))
+            , horizontally
+                [ smartButton (fmap (("DelSel " ++) . show . length) sel) list $ filter $ not . snd
+                , smartButton (pure "CopySel") safeList $ concatMap $ \(x,b) -> (x,b): [(x,False) | b]
+                , smartButton (pure "+1 Sel")     list $ map $ mapSel (+1)
+                , smartButton (pure "-1 Sel")     list $ map $ mapSel (+(-1))
                 ]
-            , label $ liftM (("Sum: " ++) . show . sum . map fst) sel
+            , label $ fmap (("Sum: " ++) . show . sum . map fst) sel
             , listEditor def (map itemEditor [0..]) list_
             ]
-        , (,) "Settings" $ hcat
-            [ label $ return "Create range"
+        , (,) "Settings" $ horizontally
+            [ label $ pure "RefCreator range"
             , checkbox range
             ]
         ]
  where
     list = toEqRef list_
 
-    itemEditor i r = hcat
-        [ label $ return $ show (i+1) ++ "."
+    itemEditor i r = horizontally
+        [ label $ pure $ show (i+1) ++ "."
         , entryShow $ _1 `lensMap` r
         , checkbox $ _2 `lensMap` r
-        , button_ (return "Del")  (return True) $ modRef list $ \xs -> take i xs ++ drop (i+1) xs
-        , button_ (return "Copy") (return True) $ modRef list $ \xs -> take (i+1) xs ++ drop i xs
+        , primButton (pure "Del")  (pure True) Nothing $ modRef list $ \xs -> take i xs ++ drop (i+1) xs
+        , primButton (pure "Copy") (pure True) Nothing $ modRef list $ \xs -> take (i+1) xs ++ drop i xs
         ]
 
     safeList = lens id (const $ take maxi) `lensMap` list
 
-    sel = liftM (filter snd) $ readRef list
+    sel = fmap (filter snd) $ readRef list
 
-    len = readRef range >>= \r -> ll r `lensMap` safeList
+    len = joinRef $ readRef range >>= \r -> pure $ ll r `lensMap` safeList   -- todo
     ll :: Bool -> Lens' [(a, Bool)] Int
     ll r = lens length extendList where
         extendList xs n = take n $ (reverse . drop 1 . reverse) xs ++
@@ -86,15 +86,12 @@ intListEditor def maxi list_ range = do
 
     (f *** g) (a, b) = (f a, g b)
 
-listEditor :: MonadRegister m => a -> [Ref m a -> Widget m] -> Ref m [a] -> Widget m
+listEditor ::  a -> [Ref a -> Widget] -> Ref [a] -> Widget
 listEditor def (ed: eds) r = do
-    q <- extRef r listLens (False, (def, []))
-    cell (liftM fst $ readRef q) $ \b -> case b of
-        False -> empty
-        True -> vcat 
+    q <- extendRef r listLens (False, (def, []))
+    cell (fmap fst $ readRef q) $ \b -> case b of
+        False -> emptyWidget
+        True -> vertically
             [ ed $ _2 . _1 `lensMap` q
             , listEditor def eds $ _2 . _2 `lensMap` q
             ]
-
-
-

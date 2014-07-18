@@ -2,6 +2,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE CPP #-}
 -- | Lens-based Gtk interface
 module LGtk.Widgets
     ( module LGtk.Widgets
@@ -12,7 +13,11 @@ import Data.Semigroup
 import Data.Colour
 import Data.Colour.SRGB
 import Diagrams.Prelude (QDiagram, R2, P2)
+#ifdef __RASTERIFIC__
+import Diagrams.Backend.Rasterific (B)
+#else
 import Diagrams.Backend.Cairo (B)
+#endif
 
 ---------------------------------------------------------
 
@@ -22,11 +27,11 @@ import LGtk.Key
 
 ---------------------------------------------------------
 
-type Receive m a = a -> Modifier m ()
+type Receive m a = a -> RefWriter m ()
 
 type SendReceive m a = (RefReader m a, Receive m a)
 
-type Widget m = m (WidgetCore m)
+type Widget m = RefCreator m (WidgetCore m)
 
 -- | Widget descriptions
 data WidgetCore m
@@ -41,14 +46,14 @@ data WidgetCore m
     | Entry (String -> Bool) (SendReceive m String)          -- ^ entry field
     | List ListLayout [Widget m]         -- ^ group interfaces into row or column
     | Notebook' (Receive m Int) [(String, Widget m)]     -- ^ actual tab index, tabs
-    | forall b . Eq b => Cell (RefReader m b) (forall x . (Widget m -> m x) -> b -> m (m x))
+    | forall b . Eq b => Cell (RefReader m b) (forall x . (Widget m -> RefCreator m x) -> b -> RefCreator m (RefCreator m x))
     | forall a b . (Eq b, Monoid a, Semigroup a)
     => Canvas
         Int     -- width
         Int     -- height
         Double  -- scale
-        ((MouseEvent a, Dia a) -> Modifier m ())    -- mouse event handler
-        (KeyboardHandler (Modifier m))              -- keyboard event handler
+        ((MouseEvent a, Dia a) -> RefWriter m ())    -- mouse event handler
+        (KeyboardHandler m)              -- keyboard event handler
         (RefReader m b)
         (b -> Dia a)
     | Scale Double Double Double (SendReceive m Double)
@@ -64,7 +69,7 @@ data ListLayout
 
 type ScrollDirection = ListLayout
 
-type KeyboardHandler m = Maybe (ModifiedKey -> m Bool)
+type KeyboardHandler m = Maybe (ModifiedKey -> RefWriter m Bool)
 
 data MouseEvent a
     = MoveTo (MousePos a)

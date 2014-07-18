@@ -1,6 +1,6 @@
 {-|
     Code for manipulation of equivalence classes on index types.  An
-    'Equivalence' is an equivalence relation.  The empty equivalence relation
+    'Equivalence' is an equivalence relation.  The emptyWidget equivalence relation
     is constructed over a ranges of values using 'emptyEquivalence'.  Less
     discerning equivalence relations can be obtained with 'equate' and
     'equateAll'.  The relation can be tested with 'equiv' and 'equivalent'.
@@ -19,7 +19,7 @@
     > test3 = equiv rel 4 6 -- This is False
 -}
 module Data.Equivalence.Persistent (
-    Equivalence,
+    Equivalence(..),
     emptyEquivalence,
     domain,
     equiv,
@@ -29,8 +29,7 @@ module Data.Equivalence.Persistent (
     )
     where
 
-import Control.Concurrent.MVar
-import Control.Monad
+import Control.Applicative
 import Data.Array.IArray
 import Data.IORef
 import Data.List
@@ -109,8 +108,8 @@ repr :: Ix i => Equivalence i -> i -> i
 repr (Equivalence rs vps) i = unsafePerformIO $ do
     ps <- readIORef vps
     let (ps', r) = reprHelper ps (ps ! i)
-    maybe (return ()) (writeIORef vps) ps'
-    return r
+    maybe (pure ()) (writeIORef vps) ps'
+    pure r
 
 {-|
     Determines if two values are equivalent under the given equivalence
@@ -124,7 +123,7 @@ equiv eq x y = repr eq x == repr eq y
     equivalence relation.
 -}
 equivalent :: Ix i => Equivalence i -> [i] -> Bool
-equivalent eq []     = True
+equivalent _  []     = True
 equivalent eq (x:xs) = all (== repr eq x) (map (repr eq) xs)
 
 {-|
@@ -137,11 +136,11 @@ equate x y (Equivalence rs vps) = unsafePerformIO $ do
     let (ps',  px) = reprHelper ps                 x
         (ps'', py) = reprHelper (fromMaybe ps ps') y
     psFinal <- case ps' of
-        Nothing -> do maybe (return ()) (writeIORef vps) ps''
-                      return (fromMaybe ps ps'')
+        Nothing -> do maybe (pure ()) (writeIORef vps) ps''
+                      pure (fromMaybe ps ps'')
         Just t  -> do writeIORef vps (fromMaybe t ps'')
-                      return (fromMaybe t ps'')
-    return (go px py psFinal)
+                      pure (fromMaybe t ps'')
+    pure (go px py psFinal)
   where
     go px py ps
         | px == py  = Equivalence rs vps
@@ -162,5 +161,3 @@ equate x y (Equivalence rs vps) = unsafePerformIO $ do
 equateAll :: Ix i => [i] -> Equivalence i -> Equivalence i
 equateAll []     eq = eq
 equateAll (x:xs) eq = foldl' (flip (equate x)) eq xs
-
-

@@ -3,15 +3,14 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module LGtk.Demos.Maze where
 
-import Control.Monad
 import Control.Monad.State
 import Data.List
 import Data.Array
 import qualified Data.Set as S
 import System.Random
-import Diagrams.Prelude hiding (vcat, hcat, Point, Start)
-
+import Diagrams.Prelude hiding (Point, Start)
 import Control.Lens hiding ((#))
+
 import LGtk
 
 import LGtk.Demos.Maze.Types
@@ -37,17 +36,18 @@ instance Show GameState where
 drawMaze :: (Maze, S.Set Point, Maybe Point) -> Dia [Point]
 drawMaze (maze, hi, pos) =
     (  mconcat (map drawCell $ assocs maze) # centerXY
-    <> rect (fromIntegral $ x2-x1+1) (fromIntegral $ y2-y1+1) # lw 0.005 # fc (sRGB 0.95 0.95 0.95) # value []
+    <> rect (fromIntegral $ x2-x1+1) (fromIntegral $ y2-y1+1) # lwL wallwidth # fc (sRGB 0.95 0.95 0.95) # value []
     ) # scale (1 / fromIntegral (max (x2-x1+1) (y2-y1+1)))
   where
     drawCell (p@(i,j), C cs) =
-            (   (if b then mconcat (map drawWall $ complement cs) # lw 0.005 # value [] else mempty)
-            <>  (if Just p == pos then circle 0.35 # lw 0.003 # fc blue # value [] else mempty)
-            <>  (if p == q2 then circle 0.35 # lw 0.003 # value [] else mempty)
-            <>  (if p == q1 then circle 0.35 # lw 0.003 # value [] else mempty)
-            <>  rect 1 1 # lw 0 # (if b then fc yellow else id) # value [p]
+            (   (if b then mconcat (map drawWall $ complement cs) # lwL wallwidth # value [] else mempty)
+            <>  (if Just p == pos then circ # fc blue else mempty)
+            <>  (if p == q2 || p == q1 then circ else mempty)
+            <>  rect 1 1 # lwL 0 # (if b then fc yellow else id) # value [p]
             )   # translate (r2 (fromIntegral i, fromIntegral j))
         where b = S.member p hi
+    circ = circle 0.35 # lwL 0.005 # value []
+    wallwidth = 0.02
 
     drawWall E = fromVertices [p2 (-d, d), p2 (d, d)]
     drawWall S = fromVertices [p2 (d, -d), p2 (d, d)]
@@ -95,7 +95,7 @@ gameLogic b maze p (s, st) = case st of
 
 ------------------------ GUI
 
-mazeGame :: forall m . MonadRegister m => Widget m
+mazeGame :: Widget
 mazeGame = do
     forgiving <- newRef False
     let init = (0,(4,4))
@@ -110,74 +110,72 @@ mazeGame = do
     r <- extRef_ maze_ (S.empty, Start) $ \_ _ -> (S.empty, Start)
 
     let handler (MoveTo (MousePos _ [p]), _) = domove p
-        handler _ = return ()
+        handler _ = pure ()
 
         domove p = do
-            (maze, _) <- readRef maze_
-            b <- readRef forgiving
+            (maze, _) <- readerToWriter $ readRef maze_
+            b <- readerToWriter $ readRef forgiving
             modRef r $ gameLogic b maze p
 
         move f = do
-            (maze, _) <- readRef maze_
-            (_, st) <- readRef r
+            (maze, _) <- readerToWriter $ readRef maze_
+            (_, st) <- readerToWriter $ readRef r
             let m = case st of
                     Start -> Just $ snd $ bounds maze
                     Explore p -> checkBounds (bounds maze) $ f p
                     _ -> Nothing
-            maybe (return True) ((>> return True) . domove) m
+            maybe (pure True) ((>> pure True) . domove) m
 
         key (SimpleKey Key'Left)  = move $ \(x,y)->(x-1,y)
         key (SimpleKey Key'Right) = move $ \(x,y)->(x+1,y)
         key (SimpleKey Key'Up)    = move $ \(x,y)->(x,y+1)
         key (SimpleKey Key'Down)  = move $ \(x,y)->(x,y-1)
-        key _ = return False
+        key _ = pure False
 
         pos maze Start = Just $ snd $ bounds maze
         pos maze Success = Just $ fst $ bounds maze
         pos _ (Explore p) = Just p
         pos _ _ = Nothing
 
-    vcat
-        [ hcat
-            [ canvas 400 400 1 handler (Just key) (liftM2 (\(m,_) (s, st) -> (m,s, pos m st)) (readRef maze_) (readRef r)) drawMaze
+    vertically
+        [ horizontally
+            [ canvas 400 400 1 handler (Just key) (liftA2 (\(m,_) (s, st) -> (m,s, pos m st)) (readRef maze_) (readRef r)) drawMaze
 
-            , vcat
-                [ hcat
+            , vertically
+                [ horizontally
                     [ checkbox forgiving
-                    , label $ return "forgiving mode"
+                    , label $ pure "forgiving mode"
                     ]
                 , combobox ["cdsmith's", "Mihai Maruseac's"] mazekind
-                , label $ return "maze generator"
+                , label $ pure "maze generator"
                 ]
             ]
 
-        , label $ liftM (show . snd) $ readRef r
-        , hcat
-            [ button (return "Try again") $ return $ Just $ modRef maze_ id
-            , button (return "New maze") $ return $ Just $ modRef dim id
+        , label $ fmap (show . snd) $ readRef r
+        , horizontally
+            [ button (pure "Try again") $ pure $ Just $ modRef maze_ id
+            , button (pure "New maze") $ pure $ Just $ modRef dim id
             ]
-        , hcat
+        , horizontally
             [ entryShow dimX
-            , smartButton (return "+1") dimX succ
-            , smartButton (return "-1") dimX pred
-            , label $ return "width"
+            , smartButton (pure "+1") dimX succ
+            , smartButton (pure "-1") dimX pred
+            , label $ pure "width"
             ]
-        , hcat
+        , horizontally
             [ entryShow dimY
-            , smartButton (return "+1") dimY succ
-            , smartButton (return "-1") dimY pred
-            , label $ return "height"
+            , smartButton (pure "+1") dimY succ
+            , smartButton (pure "-1") dimY pred
+            , label $ pure "height"
             ]
         ]
 
 ----------------------------- utils
 
-extRef_ :: MonadRegister m => Ref m b -> a -> (b -> a -> a) -> m (Ref m a)
+extRef_ ::  Ref b -> a -> (b -> a -> a) -> RefCreator (Ref a)
 extRef_ r def f = do
-    r0 <- readRef r
-    v <- extRef r (lens fst set) (r0, def)
-    return $ _2 `lensMap` v
+    r0 <- readerToCreator $ readRef r
+    v <- extendRef r (lens fst set) (r0, def)
+    pure $ _2 `lensMap` v
   where
     set (_, y) x = (x, f x y)
-
-

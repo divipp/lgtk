@@ -39,12 +39,12 @@ source-repository head
   type:             git
   location:         https://github.com/divipp/lgtk.git
 
-Flag Gtk
-  Description:      Build the Gtk backend
+Flag Rasterific
+  Description:      Use Rasterific instead of Cairo
   Default:          False
 
-Flag pure
-  Description:      Use the pure but slow implementation of lens references
+Flag Gtk
+  Description:      Build the Gtk backend (conflicts with Rasterific)
   Default:          False
 
 
@@ -56,39 +56,33 @@ library
                     base < 5
 
                   , groups < 0.5
-                  , semigroups < 0.15
+                  , semigroups < 0.16
                   , transformers >= 0.3 && < 0.5
                   , mtl < 2.3
                   , monad-control < 0.4
                   , operational < 0.3
-                  , lens < 4.2
+                  , lens < 4.3
 
                   , vector < 0.11
                   , containers < 0.6
-                  , directory < 1.3
-                  , filepath < 1.4
-                  , system-filepath < 0.5
-                  , fsnotify < 0.2
+--                  , directory < 1.3
+--                  , filepath < 1.4
+--                  , system-filepath < 0.5
+--                  , fsnotify < 0.2
+                  , time < 1.5
 
                   , colour < 2.4
---                  , JuicyPixels == 3.1.*
-                  , diagrams-lib < 1.2
-                  , diagrams-cairo < 1.2
-                  , cairo < 0.13
+                  , diagrams-lib == 1.2.*
 --                  , SVGFonts == 1.4.*
-                  , OpenGLRaw < 1.5
+                  , OpenGLRaw < 1.6
                   , GLFW-b < 1.5
 --                  , threepenny-gui == 0.4.1.*
 
                   , lensref == 0.3.*
 
   exposed-modules:
-                    -- lgtk
                     LGtk
   other-modules:
-                    Data.LensRef.Default
-
-                    -- lgtk
                     LGtk.Effects
                     LGtk.Key
                     LGtk.Widgets
@@ -96,6 +90,14 @@ library
 
                     -- lgtk-glfw
                     LGtk.Backend.GLFW
+
+  ghc-options:
+                    -Wall
+                    -fwarn-incomplete-record-updates
+                    -fno-warn-name-shadowing
+                    -fno-warn-missing-signatures
+                    -fno-warn-type-defaults
+
   if flag(Gtk)
     build-depends:
                     gtk == 0.12.*
@@ -103,17 +105,18 @@ library
                     LGtk.Backend.Gtk
     cpp-options:
                     -D__GTK__
-  if flag(pure)
-    cpp-options:
-                    -D__PURE__
 
-  ghc-options: 
-                    -Wall 
-                    -fno-warn-incomplete-patterns 
-                    -fno-warn-name-shadowing 
-                    -fno-warn-missing-signatures 
-                    -fno-warn-orphans
-                    -fno-warn-type-defaults
+  if flag(Rasterific)
+    build-depends:
+                    diagrams-rasterific == 0.1.*
+                  , JuicyPixels == 3.1.*
+    cpp-options:
+                    -D__RASTERIFIC__
+
+  if !flag(Rasterific)
+    build-depends:
+                    diagrams-cairo == 1.2.*
+                  , cairo < 0.13
 
 
 executable lgtkdemo
@@ -121,15 +124,16 @@ executable lgtkdemo
                     base < 5
 
                   , mtl < 2.3
-                  , lens < 4.2
+                  , lens < 4.4
 
                   , containers < 0.6
                   , vector < 0.11
                   , array < 0.6
                   , random < 1.1
                   , random-shuffle < 0.1
+                  , safe
 
-                  , diagrams-lib < 1.2
+                  , diagrams-lib == 1.2.*
 
                   , lgtk
   main-is:
@@ -151,10 +155,8 @@ executable lgtkdemo
                     lgtkdemo
   ghc-options:
                     -threaded
-                    -Wall 
-                    -fno-warn-incomplete-patterns 
-                    -fno-warn-name-shadowing 
-                    -fno-warn-missing-signatures 
-                    -fno-warn-orphans
+                    -Wall
+                    -fwarn-incomplete-record-updates
+                    -fno-warn-name-shadowing
+                    -fno-warn-missing-signatures
                     -fno-warn-type-defaults
-

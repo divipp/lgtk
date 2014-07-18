@@ -10,7 +10,6 @@ import System.Random.Shuffle
 
 import Control.Monad.State
 import LGtk.Demos.Maze.Types hiding (Cell)
-import qualified LGtk.Demos.Maze.Types as M
 
 ------------ copied from http://cdsmith.wordpress.com/2011/06/06/mazes-in-haskell-my-version/ on 9 May, 2014
 
@@ -21,7 +20,7 @@ import qualified LGtk.Demos.Maze.Types as M
 type Cell = (Int, Int)
 data Wall = H Cell | V Cell deriving (Eq, Show)
 
-process rooms []     = []
+process _     []                = []
 process rooms (H (x,y) : ws)
     | equiv rooms (x,y) (x,y+1) = H (x,y) : process rooms ws
     | otherwise                 = process (equate (x,y) (x,y+1) rooms) ws
@@ -60,4 +59,3 @@ complement = f [N,E,S,W] . sort
     f (x:xs) (y:ys) | x == y = f xs ys
     f (x:xs) ys = x: f xs ys
     f [] _ = []
-

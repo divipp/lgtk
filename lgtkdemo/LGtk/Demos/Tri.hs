@@ -4,6 +4,7 @@ the last edited value change.
 -}
 module LGtk.Demos.Tri where
 
+import Control.Applicative
 import Control.Lens
 import LGtk
 
@@ -23,13 +24,13 @@ setY  s x = take 2 $ Y  x : filter (\x-> case x of Y  _ -> False; _ -> True) s
 setXY s x = take 2 $ XY x : filter (\x-> case x of XY _ -> False; _ -> True) s
 
 -- | The editor
-tri :: MonadRegister m => Widget m
+tri ::  Widget
 tri = do
     s <- newRef [X 0, Y 0]
-    vcat
-        [ hcat [entryShow $ lens getX  setX  `lensMap` s, label $ return "x"]
-        , hcat [entryShow $ lens getY  setY  `lensMap` s, label $ return "y"]
-        , hcat [entryShow $ lens getXY setXY `lensMap` s, label $ return "x + y"]
+    vertically
+        [ horizontally [entryShow $ lens getX  setX  `lensMap` s, label $ pure "x"]
+        , horizontally [entryShow $ lens getY  setY  `lensMap` s, label $ pure "y"]
+        , horizontally [entryShow $ lens getXY setXY `lensMap` s, label $ pure "x + y"]
         ]
 
 

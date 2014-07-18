@@ -1,7 +1,9 @@
 = lgtk-0.9 =
 
+* Rasterific backend added (too slow for real usage currently)
 * Depend on lensref-0.3
-* lensref API changed: renamed onChange combinators & a simplified lensref interface for lgtk
+* Depend on diagrams 1.2
+* Use Applicative instead of Monad for RefReader in most cases
 
 = lgtk-0.8.0.3 =
 

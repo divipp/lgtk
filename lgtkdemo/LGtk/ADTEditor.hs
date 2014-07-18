@@ -10,7 +10,7 @@ module LGtk.ADTEditor
     , adtEditor
     ) where
 
-import Control.Monad
+import Control.Applicative
 import Control.Lens hiding (Cons)
 import LGtk
 
@@ -64,24 +64,24 @@ class ADTLens a where
     adtLens :: ([(String, [Int])], Elems (ADTEls a), Lens_ (Int, Elems (ADTEls a)) a)
 
 -- | A generic ADT editor
-adtEditor :: (MonadRegister m, ADTLens a) => Ref m a -> m (Widget m)
-adtEditor = memoRead . editor  where
+adtEditor :: (ADTLens a) => Ref a -> RefCreator Widget
+adtEditor = memoise . editor  where
     editor r = do
-        q <- extRef r k (0, ls)
+        q <- extendRef r k (0, ls)
         es <- mkEditors ls $ _2 `lensMap` q
-        hcat
+        horizontally
             [ combobox (map fst ss) $ _1 `lensMap` q
-            , cell (liftM fst $ readRef q) $ \i -> vcat [es !! j | j <- snd $ ss !! i]
+            , cell (readRef q <&> fst) $ \i -> vertically [es !! j | j <- snd $ ss !! i]
             ]
       where
         (ss, ls, Lens_ k) = adtLens
 
-    mkEditors :: MonadRegister m => Elems xs -> Ref m (Elems xs) -> m [Widget m]
-    mkEditors ElemsNil _ = return []
+    mkEditors ::  Elems xs -> Ref (Elems xs) -> RefCreator [Widget]
+    mkEditors ElemsNil _ = pure []
     mkEditors (ElemsCons _ xs) r = do
         i <- adtEditor $ lHead `lensMap` r
         is <- mkEditors xs $ lTail `lensMap` r
-        return $ i : is
+        pure $ i : is
       where
         lHead :: Lens' (Elems (Cons x xs)) x
         lHead = lens get set where
@@ -96,5 +96,3 @@ adtEditor = memoRead . editor  where
             get (ElemsCons _ as) = as
             set :: Elems (Cons x xs) -> Elems xs -> Elems (Cons x xs)
             set (ElemsCons a _) as = ElemsCons a as
-
-
