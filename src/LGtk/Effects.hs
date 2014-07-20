@@ -18,6 +18,7 @@ import Control.Monad.Trans.Control
 import qualified System.Environment as Env
 import System.IO.Error (catchIOError, isDoesNotExistError)
 
+import Data.LensRef.Context
 import Data.LensRef
 
 --------------------------------------------------------------------------
