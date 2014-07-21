@@ -27,7 +27,7 @@ import Diagrams.Prelude
 import Data.Colour.SRGB
 import Unsafe.Coerce
 
-import Data.LensRef
+import LensRef
 import LGtk.Key
 import LGtk.Widgets
 

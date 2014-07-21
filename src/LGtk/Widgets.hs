@@ -21,7 +21,7 @@ import Diagrams.Backend.Cairo (B)
 
 ---------------------------------------------------------
 
-import Data.LensRef
+import LensRef
 
 import LGtk.Key
 

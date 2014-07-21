@@ -34,7 +34,7 @@ import Graphics.Rendering.Cairo ( Format (..)
                                 )
 #endif
 
-import Data.LensRef
+import LensRef
 import LGtk.Effects
 import LGtk.Widgets
 import LGtk.Render

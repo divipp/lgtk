@@ -124,8 +124,8 @@ import Data.Monoid
 import Data.Time.Clock
 import Data.Semigroup
 
-import Data.LensRef (readerToCreator)
-import qualified Data.LensRef as Ref
+import LensRef (readerToCreator)
+import qualified LensRef as Ref
 import LGtk.Effects ()
 import qualified LGtk.Effects as Eff
 import LGtk.Widgets hiding (Widget)
@@ -405,6 +405,7 @@ hscale
     -> Widget
 hscale a b c r = pure $ Scale a b c (value r, writeRef r)
 
+-- | Progress bar.
 progress
     :: RefReader Double
     -> Widget

@@ -26,7 +26,7 @@ import Diagrams.Backend.Cairo.Internal
 import Graphics.UI.Gtk hiding (Widget, Release)
 import qualified Graphics.UI.Gtk as Gtk
 
-import Data.LensRef hiding (RefCreator)
+import LensRef hiding (RefCreator)
 import LGtk.Effects
 import LGtk.Widgets
 import LGtk.Key

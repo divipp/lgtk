@@ -6,7 +6,6 @@ import Control.Applicative ( (<$>) )
 import Control.Monad
 import Control.Lens
 import Control.Lens.Extras (is)
---import Data.LensRef
 import LGtk
 import Numeric
 import Numeric.Lens
