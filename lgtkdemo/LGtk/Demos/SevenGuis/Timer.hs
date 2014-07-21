@@ -23,7 +23,7 @@ timer = do
             ]
         , horizontally
             [ vertically
-                [ label $ liftM (\v -> showFFloat (Just 2) v $ "s left") $ readRef e
+                [ label $ liftM (\v -> showFFloat (Just 2) v $ "s") $ readRef e
                 , label $ return "Duration:  "
                 ]
             , hscale 0.0 60.0 10.0 d
