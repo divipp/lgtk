@@ -3,6 +3,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE OverloadedStrings #-}
 module LGtk.Backend.Gtk
     ( Base
     , runWidget
@@ -16,6 +17,7 @@ import Control.Exception
 import Control.Monad.Trans.Control
 import Control.Concurrent
 import Data.Maybe
+import Data.Text (Text, pack)
 import Data.List hiding (union)
 import Prelude hiding ((.), id)
 
@@ -109,8 +111,8 @@ runWidget_ post_ post' post = toWidget
     toWidget m = m >>= \i -> case i of
 
         Label s -> do
-            w <- liftIO'' $ labelNew Nothing
-            ger nhd s $ labelSetLabel w
+            w <- liftIO'' $ labelNew (Nothing :: Maybe String)
+            ger nhd s $ labelSetLabel w . pack
             pure' w
 
         Canvas w h sc_ me keyh r diaFun -> mkCanvas me r diaFun where
@@ -279,7 +281,7 @@ runWidget_ post_ post' post = toWidget
         Combobox ss (r, s) -> do
             w <- liftIO'' comboBoxNewText
             _ <- liftIO'' $ w `onSizeRequest` pure (Requisition 100 30)
-            liftIO'' $ flip mapM_ ss $ comboBoxAppendText w
+            liftIO'' $ forM_ ss $ comboBoxAppendText w . pack
             hd <- reg s $ \re -> on' w changed $ fmap (max 0) (comboBoxGetActive w) >>= re
             ger hd r $ comboBoxSetActive w
             pure' w
@@ -335,6 +337,7 @@ containerAdd'' w x = do
     set w [ boxChildPacking a := PackNatural ]
     pure $ widgetShow a
 
+trKey :: [Modifier] -> Text -> Maybe Char -> ModifiedKey
 trKey mods name ch
     = ModifiedKey (Gtk.Shift `elem` mods) (Gtk.Control `elem` mods) (Gtk.Alt `elem` mods) (Gtk.Super `elem` mods) k
   where

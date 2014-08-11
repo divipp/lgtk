@@ -100,7 +100,8 @@ library
 
   if flag(Gtk)
     build-depends:
-                    gtk == 0.12.*
+                    gtk >= 0.13 && < 0.14
+                  , text
     other-modules:
                     LGtk.Backend.Gtk
     cpp-options:
@@ -116,7 +117,7 @@ library
   if !flag(Rasterific)
     build-depends:
                     diagrams-cairo == 1.2.*
-                  , cairo < 0.13
+                  , cairo >= 0.13 && < 0.14
 
 
 executable lgtkdemo
